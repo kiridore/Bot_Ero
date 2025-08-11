@@ -5,6 +5,8 @@ import logging
 import threading
 import collections
 import json as json_
+import sqlite3
+from datetime import datetime, timedelta
 
 import websocket
 
@@ -15,11 +17,68 @@ SUPER_USER = [1057613133]   # 主人的 QQ 号
 logging.basicConfig(level=logging.DEBUG, format="[void] %(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+only_to_me_flag = False
+# 聊天记录图片保存路径前缀，后续用年份+月份生成具体文件夹
+IMG_PATH_PREFIX = "C:/Users/SC2_j/Documents/Tencent Files/3915014383/nt_qq/nt_data/Pic"
+
+
+def img_save_path():
+    today_str = datetime.now().strftime("%Y-%m")
+    image_path = f"{IMG_PATH_PREFIX}/{today_str}/Ori"
+    return image_path
+
 
 class Plugin:
+    only_to_me_flag : bool = False
+
     def __init__(self, context: dict):
         self.ws = WS_APP
         self.context = context
+        self.database_init()
+
+    def __del__(self):
+        self.close()
+
+    def database_init(self):
+        self.conn = sqlite3.connect("data.db")
+        self.cur = self.conn.cursor()
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS checkin_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            checkin_date TEXT NOT NULL,
+            content TEXT NOT NULL
+        );
+        """)
+        self.conn.commit()
+
+    def close(self):
+        self.conn.commit()
+        self.conn.close()
+
+    def insert_checkin(self, user_id, images):
+        today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for img in images:
+            self.cur.execute(
+                "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
+                (user_id, today_str, img)
+            )
+        self.conn.commit()
+
+    def search_checkin_all(self, user_id):
+        self.cur.execute(
+            """
+            SELECT * FROM checkin_records
+            WHERE user_id = ?
+            ORDER BY checkin_date DESC
+            """,
+            (user_id,)
+        )
+        rows = self.cur.fetchall()
+        logger.debug(f"用户{user_id}打卡记录查询结束：")
+        for row in rows:
+            logger.debug(row)
+        return rows
 
     def match(self) -> bool:
         return self.on_full_match("hello")
@@ -33,17 +92,27 @@ class Plugin:
     def on_full_match(self, keyword="") -> bool:
         return self.on_message() and self.context["message"] == keyword
 
+    def on_begin_with(self, keyword="") -> bool:
+        return self.on_message() and self.context["message"].startswith(keyword)
+
     def on_reg_match(self, pattern="") -> bool:
         return self.on_message() and re.search(pattern, self.context["message"])
 
+    def find_img(self) -> str:
+        if "[CQ:image," in self.context["message"]:
+            logger.debug("找到图片了")
+        return ""
+
     def only_to_me(self) -> bool:
-        flag = False
+        global only_to_me_flag
+        if only_to_me_flag:
+            return True
         for nick in NICKNAME:
             at_string = f"[CQ:at,qq={self.context['self_id']},name={nick}] "
             if self.on_message() and at_string in self.context["message"]:
-                flag = True
+                only_to_me_flag = True
                 self.context["message"] = self.context["message"].replace(at_string, "")
-        return flag
+        return only_to_me_flag
 
     def super_user(self) -> bool:
         return self.context["user_id"] in SUPER_USER
@@ -123,20 +192,74 @@ match() 返回 True 则自动回调 handle()
 """
 
 
-class TestPlugin(Plugin):
-    def match(self):  # 说 hello 则回复
-        return self.on_full_match("hello")
-
-    def handle(self):
-        self.send_msg(at(self.context["user_id"]), text("hello world!"))
-
+# class TestPlugin(Plugin):
+#     def match(self):  # 说 hello 则回复
+#         return self.on_full_match("hello")
+#
+#     def handle(self):
+#         self.send_msg(at(self.context["user_id"]), text("hello world!"))
 
 class SignPlguin(Plugin):
+    def extract_images(self, text: str):
+        # 用非贪婪匹配 .*? 避免跨多个中括号匹配
+        pattern = r'\[CQ:image,file=([^,\]]+)'
+        return re.findall(pattern, text)
+
     def match(self):
-        return self.only_to_me() and self.on_full_match("打卡")
+        return self.only_to_me() and self.on_begin_with("打卡")
 
     def handle(self):
-        self.send_msg(text("打卡成功喵，这是你本周第1次打卡"))
+        img_list = self.extract_images(self.context["message"])
+        if len(img_list) <= 0:
+            self.send_msg(text("没有图片是没办法打卡的喵"))
+        else:
+            for img_name in img_list :
+                # 找到的图片列表
+                logger.debug(f"{img_save_path()}/{img_name}")
+            self.insert_checkin(self.context["user_id"], img_list)
+            self.send_msg(text(f"打卡成功喵, 本次打卡共包含{len(img_list)}张图片，这是你这周第1次打卡喵"))
+
+class MenuPlugin(Plugin):
+    def match(self):
+        return self.only_to_me() and self.on_full_match("菜单")
+
+    def handle(self):
+        self.send_msg(text("小埃同学现在还只有打卡功能喵"))
+
+class SearchCheckinPlugin(Plugin):
+    def match(self):
+        return self.only_to_me() and self.on_full_match("#查询打卡记录")
+
+    def handle(self):
+        rows = self.search_checkin_all(self.context["user_id"])
+        
+        self.send_msg(text(f"你一共在小埃同学这里打了{len(rows)}次卡"))
+
+# 每周打卡板油
+class WeekCheckinListPlugin(Plugin):
+    def match(self):
+        return self.only_to_me() and self.on_full_match("#本周打卡记录")
+
+    def handle(self):
+        def get_week_start_end(date=None):
+            if date is None:
+                date = datetime.today()
+            # 当前是星期几，周一是0，周日是6
+            weekday = date.weekday()
+            # 计算本周周一日期
+            start = date - timedelta(days=weekday)
+            # 本周周日日期
+            end = start + timedelta(days=6)
+            # 返回日期（年月日）
+            return start.date(), end.date()
+        #计算本周起止日期
+        start_date, end_date = get_week_start_end()
+        checkin_user = [] 
+        checkin_list_str = ""
+        if len(checkin_user) <= 0:
+            self.send_msg(text(f"本周({start_date}-{end_date})竟然还没有板油完成打卡"))
+        else:
+            self.send_msg(text(f"本周({start_date}-{end_date})共有{len(checkin_user)}名板油完成了打卡，可喜可贺:\n{checkin_list_str}"))
 
 
 """
@@ -150,7 +273,6 @@ def plugin_pool(context: dict):
         plugin = P(context)
         if plugin.match():
             plugin.handle()
-
 
 class Echo:
     def __init__(self):
@@ -181,6 +303,8 @@ def on_message(_, message):
     else:
         logger.info("收到事件 -> " + message)
         # 消息事件，开启线程
+        global only_to_me_flag
+        only_to_me_flag = False
         t = threading.Thread(target=plugin_pool, args=(context, ))
         t.start()
 
@@ -193,6 +317,12 @@ if __name__ == "__main__":
         on_open=lambda _: logger.debug("连接成功......"),
         on_close=lambda _: logger.debug("重连中......"),
     )
+
     while True:  # 掉线重连
+        # 数据储存
+        logger.info("数据库启动")
+
         WS_APP.run_forever()
+
         time.sleep(5)
+
