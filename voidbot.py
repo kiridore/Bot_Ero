@@ -8,9 +8,9 @@ import json as json_
 
 import websocket
 
-WS_URL = "ws://127.0.0.1:6700/ws"   # WebSocket 地址
-NICKNAME = ["BOT", "ROBOT"]         # 机器人昵称
-SUPER_USER = [12345678, 23456789]   # 主人的 QQ 号
+WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
+NICKNAME = ["小埃同学", "bot"]         # 机器人昵称
+SUPER_USER = [1057613133]   # 主人的 QQ 号
 # 日志设置  level=logging.DEBUG -> 日志级别为 DEBUG
 logging.basicConfig(level=logging.DEBUG, format="[void] %(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -38,10 +38,11 @@ class Plugin:
 
     def only_to_me(self) -> bool:
         flag = False
-        for nick in NICKNAME + [f"[CQ:at,qq={self.context['self_id']}] "]:
-            if self.on_message() and nick in self.context["message"]:
+        for nick in NICKNAME:
+            at_string = f"[CQ:at,qq={self.context['self_id']},name={nick}] "
+            if self.on_message() and at_string in self.context["message"]:
                 flag = True
-                self.context["message"] = self.context["message"].replace(nick, "")
+                self.context["message"] = self.context["message"].replace(at_string, "")
         return flag
 
     def super_user(self) -> bool:
@@ -130,21 +131,12 @@ class TestPlugin(Plugin):
         self.send_msg(at(self.context["user_id"]), text("hello world!"))
 
 
-class TestPlugin2(Plugin):
-    def match(self):  # 艾特机器人说菜单则回复
-        return self.only_to_me() and self.on_full_match("菜单")
+class SignPlguin(Plugin):
+    def match(self):
+        return self.only_to_me() and self.on_full_match("打卡")
 
     def handle(self):
-        self.send_msg(text("没有菜单"))
-
-
-class TestPlugin3(Plugin):
-    def match(self):  # 戳一戳机器人则回复
-        return self.context["post_type"] == "notice" and self.context["sub_type"] == "poke"\
-            and self.context["target_id"] == self.context["self_id"]
-
-    def handle(self):
-        self.send_msg(text("请不要戳我 >_<"))
+        self.send_msg(text("打卡成功喵，这是你本周第1次打卡"))
 
 
 """
