@@ -130,11 +130,6 @@ class Plugin:
     def on_reg_match(self, pattern="") -> bool:
         return self.on_message() and re.search(pattern, self.context["message"])
 
-    def find_img(self) -> str:
-        if "[CQ:image," in self.context["message"]:
-            logger.debug("找到图片了")
-        return ""
-
     def only_to_me(self) -> bool:
         global only_to_me_flag
         if only_to_me_flag:
@@ -185,8 +180,13 @@ class Plugin:
         #https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_group_member_info-%E8%8E%B7%E5%8F%96%E7%BE%A4%E6%88%90%E5%91%98%E4%BF%A1%E6%81%AF
         params = {"group_id": self.context["group_id"], "user_id": user_id}
         ret = self.call_api("get_group_member_info", params)
-        logger.debug(ret)
         return ret["data"]
+
+    def get_image(self, file):
+        # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_image-%E8%8E%B7%E5%8F%96%E5%9B%BE%E7%89%87
+        params = {"file": file}
+        ret = self.call_api("get_image", params)
+        return ret["data"]["file"]
 
 
 def text(string: str) -> dict:
@@ -245,7 +245,7 @@ class CheckinPlugin(Plugin):
         return re.findall(pattern, text)
 
     def match(self):
-        return self.only_to_me() and self.on_begin_with("#打卡")
+        return self.only_to_me() and self.on_begin_with("打卡")
 
     def handle(self):
         img_list = self.extract_images(self.context["message"])
@@ -254,7 +254,7 @@ class CheckinPlugin(Plugin):
         else:
             for img_name in img_list :
                 # 找到的图片列表
-                logger.debug(f"{img_save_path()}/{img_name}")
+                logger.debug(f"{self.get_image(img_name)}")
             start_date, end_date = get_week_start_end()
 
             #先打卡后搜索
