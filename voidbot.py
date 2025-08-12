@@ -208,6 +208,9 @@ def at(qq: int) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E6%9F%90%E4%BA%BA
     return {"type": "at", "data": {"qq": qq}}
 
+def at_all() -> dict:
+    # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E6%9F%90%E4%BA%BA
+    return {"type": "at", "data": {"qq": "all"}}
 
 def xml(data: str) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#xml-%E6%B6%88%E6%81%AF
@@ -238,6 +241,15 @@ match() 返回 True 则自动回调 handle()
 #     def handle(self):
 #         self.send_msg(at(self.context["user_id"]), text("hello world!"))
 
+class MenuPlugin(Plugin):
+    def match(self):
+        return self.only_to_me() and self.on_full_match("菜单")
+
+    def handle(self):
+        self.send_msg(text("小埃同学现在还只有打卡功能喵"))
+
+
+# 打卡插件
 class CheckinPlugin(Plugin):
     def extract_images(self, text: str):
         # 用非贪婪匹配 .*? 避免跨多个中括号匹配
@@ -262,26 +274,44 @@ class CheckinPlugin(Plugin):
             checkin_list = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
             self.send_msg(at(self.context["user_id"]), text(f" 打卡成功喵\n收录了{len(img_list)}张图片\n完成本周第{len(checkin_list)}次打卡喵"))
 
-class MenuPlugin(Plugin):
+class DisplayWeekCheckinImage(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("菜单")
+        return self.only_to_me() and self.on_full_match("本周打卡图")
 
     def handle(self):
-        self.send_msg(text("小埃同学现在还只有打卡功能喵"))
+        start_date, end_date = get_week_start_end()
+        rows = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+        time_map = {}
+        for row in rows:
+            time_map.setdefault(row[2], 0)
+            time_map[row[2]] += 1
+        
+        self.send_msg(at(self.context["user_id"]), text(f"\n本周一共打了{len(time_map)}次卡\n收录了{len(rows)}张图"))
+        for row in rows:
+            image_file = self.get_image(row[3])
+            self.send_private_msg(image(image_file))
 
 class SearchCheckinPlugin(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("#个人打卡记录")
+        return self.only_to_me() and self.on_full_match("个人打卡记录")
 
     def handle(self):
         rows = self.search_checkin_all(self.context["user_id"])
-        
-        self.send_msg(at(self.context["user_id"]), text(f" 一共在小埃同学这里打了{len(rows)}次卡"))
+        time_map = {}
+        for row in rows:
+            time_map.setdefault(row[2], 0)
+            time_map[row[2]] += 1
+        display_str = f" 累计共打卡{len(time_map)}次\n收录了{len(rows)}张打卡图:\n"
+        for time_stamp, count in time_map.items():
+            time_format_str = f"{time_stamp} {count}张图\n"
+            display_str += time_format_str
+
+        self.send_msg(at(self.context["user_id"]), text(display_str))
 
 # 每周打卡板油
 class WeekCheckinListPlugin(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("#本周板油")
+        return self.only_to_me() and self.on_full_match("本周板油")
 
     def handle(self):
         #计算本周起止日期
