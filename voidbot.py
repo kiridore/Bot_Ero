@@ -7,6 +7,7 @@ import collections
 import json as json_
 import sqlite3
 from datetime import datetime, timedelta
+from tracemalloc import start
 
 import websocket
 
@@ -27,6 +28,17 @@ def img_save_path():
     image_path = f"{IMG_PATH_PREFIX}/{today_str}/Ori"
     return image_path
 
+def get_week_start_end(date=None):
+    if date is None:
+        date = datetime.today()
+    # 当前是星期几，周一是0，周日是6
+    weekday = date.weekday()
+    # 计算本周周一日期
+    start = date - timedelta(days=weekday)
+    # 本周周日日期
+    end = start + timedelta(days=6)
+    # 返回日期（年月日）
+    return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 class Plugin:
     only_to_me_flag : bool = False
@@ -87,6 +99,16 @@ class Plugin:
         ORDER BY checkin_date DESC
         LIMIT 3
         """, (start_date, end_date))
+        rows = self.cur.fetchall()
+        return rows
+
+    def search_target_user_checkin_range(self, user_id, start_date, end_date):
+        self.cur.execute("""
+        SELECT * FROM checkin_records
+        WHERE user_id = ?
+        AND checkin_date BETWEEN ? AND ?
+        ORDER BY checkin_date DESC
+        """, (user_id, start_date, end_date))
         rows = self.cur.fetchall()
         return rows
 
@@ -216,14 +238,14 @@ match() 返回 True 则自动回调 handle()
 #     def handle(self):
 #         self.send_msg(at(self.context["user_id"]), text("hello world!"))
 
-class SignPlguin(Plugin):
+class CheckinPlugin(Plugin):
     def extract_images(self, text: str):
         # 用非贪婪匹配 .*? 避免跨多个中括号匹配
         pattern = r'\[CQ:image,file=([^,\]]+)'
         return re.findall(pattern, text)
 
     def match(self):
-        return self.only_to_me() and self.on_begin_with("打卡")
+        return self.only_to_me() and self.on_begin_with("#打卡")
 
     def handle(self):
         img_list = self.extract_images(self.context["message"])
@@ -233,8 +255,12 @@ class SignPlguin(Plugin):
             for img_name in img_list :
                 # 找到的图片列表
                 logger.debug(f"{img_save_path()}/{img_name}")
+            start_date, end_date = get_week_start_end()
+
+            #先打卡后搜索
             self.insert_checkin(self.context["user_id"], img_list)
-            self.send_msg(text(f"打卡成功喵, 本次打卡共包含{len(img_list)}张图片，这是你这周第1次打卡喵"))
+            checkin_list = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+            self.send_msg(at(self.context["user_id"]), text(f" 打卡成功喵\n收录了{len(img_list)}张图片\n完成本周第{len(checkin_list)}次打卡喵"))
 
 class MenuPlugin(Plugin):
     def match(self):
@@ -250,25 +276,14 @@ class SearchCheckinPlugin(Plugin):
     def handle(self):
         rows = self.search_checkin_all(self.context["user_id"])
         
-        self.send_msg(at(self.context["user_id"]), text(f" 你一共在小埃同学这里打了{len(rows)}次卡"))
+        self.send_msg(at(self.context["user_id"]), text(f" 一共在小埃同学这里打了{len(rows)}次卡"))
 
 # 每周打卡板油
 class WeekCheckinListPlugin(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("#本周打卡记录")
+        return self.only_to_me() and self.on_full_match("#本周板油")
 
     def handle(self):
-        def get_week_start_end(date=None):
-            if date is None:
-                date = datetime.today()
-            # 当前是星期几，周一是0，周日是6
-            weekday = date.weekday()
-            # 计算本周周一日期
-            start = date - timedelta(days=weekday)
-            # 本周周日日期
-            end = start + timedelta(days=6)
-            # 返回日期（年月日）
-            return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
         #计算本周起止日期
         start_date, end_date = get_week_start_end()
         checkin_users = self.search_all_user_checkin_range(start_date + " 00:00:00", end_date + " 23:59:59")
