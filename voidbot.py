@@ -80,6 +80,16 @@ class Plugin:
             logger.debug(row)
         return rows
 
+    def search_all_user_checkin_range(self, start_date, end_date):
+        self.cur.execute("""
+        SELECT * FROM checkin_records
+        WHERE checkin_date BETWEEN ? AND ?
+        ORDER BY checkin_date DESC
+        LIMIT 3
+        """, (start_date, end_date))
+        rows = self.cur.fetchall()
+        return rows
+
     def match(self) -> bool:
         return self.on_full_match("hello")
 
@@ -148,6 +158,13 @@ class Plugin:
         params = {"group_id": self.context["group_id"], "message": message}
         ret = self.call_api("send_group_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else ret["data"]["message_id"]
+
+    def get_group_member_info(self, user_id):
+        #https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_group_member_info-%E8%8E%B7%E5%8F%96%E7%BE%A4%E6%88%90%E5%91%98%E4%BF%A1%E6%81%AF
+        params = {"group_id": self.context["group_id"], "user_id": user_id}
+        ret = self.call_api("get_group_member_info", params)
+        logger.debug(ret)
+        return ret["data"]
 
 
 def text(string: str) -> dict:
@@ -228,12 +245,12 @@ class MenuPlugin(Plugin):
 
 class SearchCheckinPlugin(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("#查询打卡记录")
+        return self.only_to_me() and self.on_full_match("#个人打卡记录")
 
     def handle(self):
         rows = self.search_checkin_all(self.context["user_id"])
         
-        self.send_msg(text(f"你一共在小埃同学这里打了{len(rows)}次卡"))
+        self.send_msg(at(self.context["user_id"]), text(f" 你一共在小埃同学这里打了{len(rows)}次卡"))
 
 # 每周打卡板油
 class WeekCheckinListPlugin(Plugin):
@@ -251,15 +268,25 @@ class WeekCheckinListPlugin(Plugin):
             # 本周周日日期
             end = start + timedelta(days=6)
             # 返回日期（年月日）
-            return start.date(), end.date()
+            return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
         #计算本周起止日期
         start_date, end_date = get_week_start_end()
-        checkin_user = [] 
-        checkin_list_str = ""
-        if len(checkin_user) <= 0:
+        checkin_users = self.search_all_user_checkin_range(start_date + " 00:00:00", end_date + " 23:59:59")
+        if len(checkin_users) <= 0:
             self.send_msg(text(f"本周({start_date}-{end_date})竟然还没有板油完成打卡"))
         else:
-            self.send_msg(text(f"本周({start_date}-{end_date})共有{len(checkin_user)}名板油完成了打卡，可喜可贺:\n{checkin_list_str}"))
+            display_str = ""
+            user_map = {}
+            logger.debug(checkin_users)
+            #[(1, 1057613133, '2025-08-12 01:22:56', 'EDE6A7B4C56C0F2180D1C54AF7877B0C.png')]
+            for user_info in checkin_users:
+                user_map[user_info[1]] = user_info[2]
+
+            for user_id, checkin_time in user_map.items():
+                group_member_info = self.get_group_member_info(user_id)
+                display_row = f"{group_member_info["nickname"]}, {checkin_time}\n"
+                display_str += display_row
+            self.send_msg(text(f"{start_date}-{end_date}\n共有{len(user_map)}名板油完成了打卡:\n{display_str}"))
 
 
 """
