@@ -188,6 +188,12 @@ class Plugin:
         ret = self.call_api("get_image", params)
         return ret["data"]["file"]
 
+    def get_qq_avatar(self, user_id):
+        params = {"file": user_id}
+        ret = self.call_api("get_qq_avatar", params)
+        logger.debug(ret["data"]["url"])
+
+
 
 def text(string: str) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E7%BA%AF%E6%96%87%E6%9C%AC
@@ -306,6 +312,7 @@ class SearchCheckinPlugin(Plugin):
 
     def handle(self):
         rows = self.search_checkin_all(self.context["user_id"])
+        self.get_qq_avatar(self.context["user_id"])
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)
