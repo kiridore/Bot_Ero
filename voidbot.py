@@ -77,14 +77,15 @@ class Plugin:
             )
         self.conn.commit()
 
-    def search_checkin_all(self, user_id):
+    def search_checkin_all(self, user_id, limit=9999):
         self.cur.execute(
             """
             SELECT * FROM checkin_records
             WHERE user_id = ?
             ORDER BY checkin_date DESC
+            LIMIT ?
             """,
-            (user_id,)
+            (user_id, limit)
         )
         rows = self.cur.fetchall()
         logger.debug(f"用户{user_id}打卡记录查询结束：")
@@ -92,24 +93,34 @@ class Plugin:
             logger.debug(row)
         return rows
 
-    def search_all_user_checkin_range(self, start_date, end_date):
+    def search_all_user_checkin_range(self, start_date, end_date, limit=9999):
         self.cur.execute("""
         SELECT * FROM checkin_records
         WHERE checkin_date BETWEEN ? AND ?
         ORDER BY checkin_date DESC
-        """, (start_date, end_date))
+        LIMIT ?
+        """, (start_date, end_date, limit))
         rows = self.cur.fetchall()
         return rows
 
-    def search_target_user_checkin_range(self, user_id, start_date, end_date):
+    def search_target_user_checkin_range(self, user_id, start_date, end_date, limit=9999):
         self.cur.execute("""
         SELECT * FROM checkin_records
         WHERE user_id = ?
         AND checkin_date BETWEEN ? AND ?
         ORDER BY checkin_date DESC
-        """, (user_id, start_date, end_date))
+        LIMIT ?
+        """, (user_id, start_date, end_date, limit))
         rows = self.cur.fetchall()
         return rows
+
+    def delete_checkin_by_id(self, target_id):
+        self.cur.execute("""
+            DELETE FROM checkin_records
+            WHERE id = ?;
+        """, (target_id))
+        self.conn.commit()
+
 
     def match(self) -> bool:
         return self.on_full_match("hello")
@@ -124,7 +135,7 @@ class Plugin:
         return self.on_message() and self.context["message"] == keyword
 
     def on_begin_with(self, keyword="") -> bool:
-        return self.on_message() and self.context["message"].startswith(keyword)
+        return self.on_message() and self.context["message"].lstrip().startswith(keyword)
 
     def on_reg_match(self, pattern="") -> bool:
         return self.on_message() and re.search(pattern, self.context["message"])
@@ -247,24 +258,19 @@ class MenuPlugin(Plugin):
     def handle(self):
         self.send_msg(text("""
 小埃同学现在还只有打卡功能喵
-所有指令都需要At我才可以执行
 ---------------------------
-打卡 加上你的图就可以完成打卡了喵
-本周打卡图 统计本周上传的打卡图，通过小窗发送
-个人打卡记录 统计有史以来所有的打卡次数
-本周板油 统计本周有那些板油完成了打卡
+/打卡 加上你的图就可以完成打卡了喵
+/本周打卡图 统计本周上传的打卡图，通过小窗发送
+/个人打卡记录 统计有史以来所有的打卡次数
+/本周板油 统计本周有那些板油完成了打卡
+/撤回打卡 撤回本周最近一次打卡
             """))
 
 
 # 打卡插件
 class CheckinPlugin(Plugin):
-    def extract_images(self, text: str):
-        # 用非贪婪匹配 .*? 避免跨多个中括号匹配
-        pattern = r'\[CQ:image,file=([^,\]]+)'
-        return re.findall(pattern, text)
-
     def match(self):
-        return self.only_to_me() and self.on_begin_with("打卡")
+        return self.on_begin_with("/打卡")
 
     def handle(self):
         img_list = self.extract_images(self.context["message"])
@@ -281,9 +287,15 @@ class CheckinPlugin(Plugin):
             checkin_list = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
             self.send_msg(at(self.context["user_id"]), text(" 打卡成功喵\n收录了{}张图片\n完成本周第{}次打卡喵".format(len(img_list), len(checkin_list))))
 
+    def extract_images(self, text: str):
+        # 用非贪婪匹配 .*? 避免跨多个中括号匹配
+        pattern = r'\[CQ:image,file=([^,\]]+)'
+        return re.findall(pattern, text)
+
+
 class DisplayWeekCheckinImage(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("本周打卡图")
+        return self.on_full_match("/本周打卡图")
 
     def handle(self):
         start_date, end_date = get_week_start_end()
@@ -300,7 +312,7 @@ class DisplayWeekCheckinImage(Plugin):
 
 class SearchCheckinPlugin(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("个人打卡记录")
+        return self.on_full_match("/个人打卡记录")
 
     def handle(self):
         rows = self.search_checkin_all(self.context["user_id"])
@@ -318,7 +330,7 @@ class SearchCheckinPlugin(Plugin):
 # 每周打卡板油
 class WeekCheckinListPlugin(Plugin):
     def match(self):
-        return self.only_to_me() and self.on_full_match("本周板油")
+        return self.on_full_match("/本周板油")
 
     def handle(self):
         #计算本周起止日期
@@ -339,6 +351,23 @@ class WeekCheckinListPlugin(Plugin):
                 display_row = "{}, {}\n".format(group_member_info["nickname"], checkin_time)
                 display_str += display_row
             self.send_msg(text("{}-{}\n共有{}名板油完成了打卡:\n{}".format(start_date, end_date, len(user_map), display_str)))
+
+class RollbackCheckinPlugin(Plugin):
+    def match(self):
+        return self.on_full_match("/撤回打卡")
+
+    def handle(self):
+        start_date, end_date = get_week_start_end()
+        rows = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+        if len(rows) <= 0:
+            self.send_msg(text("本周你还没打过卡呢！"))
+        else:
+            del_image = self.get_image(rows[0][3])
+            del_time = rows[0][2]
+            self.send_msg(text("成功撤回了本周最近一次打卡喵:\n{}".format(del_time)), image(del_image))
+            self.delete_checkin_by_id(rows[0][0])
+
+
 
 
 """
