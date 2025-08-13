@@ -97,7 +97,6 @@ class Plugin:
         SELECT * FROM checkin_records
         WHERE checkin_date BETWEEN ? AND ?
         ORDER BY checkin_date DESC
-        LIMIT 3
         """, (start_date, end_date))
         rows = self.cur.fetchall()
         return rows
@@ -246,7 +245,15 @@ class MenuPlugin(Plugin):
         return self.only_to_me() and self.on_full_match("菜单")
 
     def handle(self):
-        self.send_msg(text("小埃同学现在还只有打卡功能喵"))
+        self.send_msg(text("""
+小埃同学现在还只有打卡功能喵
+所有指令都需要At我才可以执行
+---------------------------
+打卡 加上你的图就可以完成打卡了喵
+本周打卡图 统计本周上传的打卡图，通过小窗发送
+个人打卡记录 统计有史以来所有的打卡次数
+本周板油 统计本周有那些板油完成了打卡
+            """))
 
 
 # 打卡插件
@@ -266,13 +273,13 @@ class CheckinPlugin(Plugin):
         else:
             for img_name in img_list :
                 # 找到的图片列表
-                logger.debug(f"{self.get_image(img_name)}")
+                logger.debug("{}".format(self.get_image(img_name)))
             start_date, end_date = get_week_start_end()
 
             #先打卡后搜索
             self.insert_checkin(self.context["user_id"], img_list)
             checkin_list = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
-            self.send_msg(at(self.context["user_id"]), text(f" 打卡成功喵\n收录了{len(img_list)}张图片\n完成本周第{len(checkin_list)}次打卡喵"))
+            self.send_msg(at(self.context["user_id"]), text(" 打卡成功喵\n收录了{}张图片\n完成本周第{}次打卡喵".format(len(img_list), len(checkin_list))))
 
 class DisplayWeekCheckinImage(Plugin):
     def match(self):
@@ -286,7 +293,7 @@ class DisplayWeekCheckinImage(Plugin):
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
         
-        self.send_msg(at(self.context["user_id"]), text(f"\n本周一共打了{len(time_map)}次卡\n收录了{len(rows)}张图"))
+        self.send_msg(at(self.context["user_id"]), text("\n本周一共打了{}次卡\n收录了{}张图".format(len(time_map), len(rows))))
         for row in rows:
             image_file = self.get_image(row[3])
             self.send_private_msg(image(image_file))
@@ -301,9 +308,9 @@ class SearchCheckinPlugin(Plugin):
         for row in rows:
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
-        display_str = f" 累计共打卡{len(time_map)}次\n收录了{len(rows)}张打卡图:\n"
+        display_str = " 累计共打卡{}次\n收录了{}张打卡图:\n".format(len(time_map), len(rows))
         for time_stamp, count in time_map.items():
-            time_format_str = f"{time_stamp} {count}张图\n"
+            time_format_str = "{} {}张图\n".format(time_stamp, count)
             display_str += time_format_str
 
         self.send_msg(at(self.context["user_id"]), text(display_str))
@@ -318,7 +325,7 @@ class WeekCheckinListPlugin(Plugin):
         start_date, end_date = get_week_start_end()
         checkin_users = self.search_all_user_checkin_range(start_date + " 00:00:00", end_date + " 23:59:59")
         if len(checkin_users) <= 0:
-            self.send_msg(text(f"本周({start_date}-{end_date})竟然还没有板油完成打卡"))
+            self.send_msg(text("本周({}-{})竟然还没有板油完成打卡".format(start_date, end_date)))
         else:
             display_str = ""
             user_map = {}
@@ -329,9 +336,9 @@ class WeekCheckinListPlugin(Plugin):
 
             for user_id, checkin_time in user_map.items():
                 group_member_info = self.get_group_member_info(user_id)
-                display_row = f"{group_member_info["nickname"]}, {checkin_time}\n"
+                display_row = "{}, {}\n".format(group_member_info["nickname"], checkin_time)
                 display_str += display_row
-            self.send_msg(text(f"{start_date}-{end_date}\n共有{len(user_map)}名板油完成了打卡:\n{display_str}"))
+            self.send_msg(text("{}-{}\n共有{}名板油完成了打卡:\n{}".format(start_date, end_date, len(user_map), display_str)))
 
 
 """
