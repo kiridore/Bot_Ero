@@ -19,14 +19,6 @@ logging.basicConfig(level=logging.DEBUG, format="[void] %(asctime)s - %(levelnam
 logger = logging.getLogger(__name__)
 
 only_to_me_flag = False
-# 聊天记录图片保存路径前缀，后续用年份+月份生成具体文件夹
-IMG_PATH_PREFIX = "C:/Users/SC2_j/Documents/Tencent Files/3915014383/nt_qq/nt_data/Pic"
-
-
-def img_save_path():
-    today_str = datetime.now().strftime("%Y-%m")
-    image_path = f"{IMG_PATH_PREFIX}/{today_str}/Ori"
-    return image_path
 
 def get_week_start_end(date=None):
     if date is None:
@@ -41,8 +33,6 @@ def get_week_start_end(date=None):
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 class Plugin:
-    only_to_me_flag : bool = False
-
     def __init__(self, context: dict):
         self.ws = WS_APP
         self.context = context
