@@ -117,8 +117,8 @@ class Plugin:
     def delete_checkin_by_id(self, target_id):
         self.cur.execute("""
             DELETE FROM checkin_records
-            WHERE id = ?;
-        """, (target_id))
+            WHERE id = ?
+        """, (target_id, ))
         self.conn.commit()
 
 
