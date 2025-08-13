@@ -364,6 +364,7 @@ class RollbackCheckinPlugin(Plugin):
         else:
             del_image = self.get_image(rows[0][3])
             del_time = rows[0][2]
+            logger.debug(rows)
             self.send_msg(text("成功撤回了本周最近一次打卡喵:\n{}".format(del_time)), image(del_image))
             self.delete_checkin_by_id(rows[0][0])
 
