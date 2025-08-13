@@ -189,9 +189,9 @@ class Plugin:
         return ret["data"]["file"]
 
     def get_qq_avatar(self, user_id):
-        params = {"file": user_id}
+        params = {"user_id": user_id}
         ret = self.call_api("get_qq_avatar", params)
-        logger.debug(ret["data"]["url"])
+        return ret["data"]["url"]
 
 
 
@@ -312,7 +312,6 @@ class SearchCheckinPlugin(Plugin):
 
     def handle(self):
         rows = self.search_checkin_all(self.context["user_id"])
-        self.get_qq_avatar(self.context["user_id"])
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)
@@ -345,7 +344,7 @@ class WeekCheckinListPlugin(Plugin):
 
             for user_id, checkin_time in user_map.items():
                 group_member_info = self.get_group_member_info(user_id)
-                display_row = "{}, {}\n".format(group_member_info["nickname"], checkin_time)
+                display_row = "{}, {}\n".format(group_member_info["card"], checkin_time)
                 display_str += display_row
             self.send_msg(text("{}-{}\n共有{}名板油完成了打卡:\n{}".format(start_date, end_date, len(user_map), display_str)))
 
