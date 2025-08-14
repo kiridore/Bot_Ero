@@ -1,3 +1,4 @@
+from doctest import script_from_examples
 import re
 import time
 import queue
@@ -6,6 +7,7 @@ import threading
 import collections
 import json as json_
 import sqlite3
+import shutil
 from datetime import datetime, timedelta
 from tracemalloc import start
 
@@ -364,7 +366,35 @@ class RollbackCheckinPlugin(Plugin):
             self.send_msg(text("成功撤回了本周最近一次打卡喵:\n{}".format(del_time)), image(del_image))
             self.delete_checkin_by_id(rows[0][0])
 
+class MonitorPlugin(Plugin):
+    def match(self):
+        return self.super_user() and self.on_full_match("/系统状态")
 
+    def handle(self):
+        usage = shutil.disk_usage("/")
+        
+        total_disk = usage.total / (1024**3)
+        used_disk = usage.used / (1024**3)
+        free_disk = usage.free / (1024**3)
+
+        used_persent = used_disk / total_disk * 100
+        current_time = datetime.now()
+        global script_start_time
+        runing_time = (current_time - script_start_time)
+        # 拆分
+        days = runing_time.days
+        seconds = runing_time.seconds
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        display_str = """小埃同学已经运行了:
+{}天 {}小时 {}分钟 {}秒
+硬盘使用情况
+总计:{}GB
+使用:{}GB({}%)
+剩余:{}GB({}%)"""
+        self.send_msg(display_str.format(days, hours, minutes, secs, total_disk, used_disk, used_persent, free_disk, 100-used_persent))
+    
 
 
 """
@@ -426,7 +456,8 @@ if __name__ == "__main__":
     while True:  # 掉线重连
         # 数据储存
         logger.info("数据库启动")
-
+        global script_start_time
+        script_start_time = datetime.now()
         WS_APP.run_forever()
 
         time.sleep(5)
