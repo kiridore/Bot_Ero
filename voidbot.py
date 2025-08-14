@@ -390,9 +390,9 @@ class MonitorPlugin(Plugin):
         display_str = """小埃同学已经运行了:
 {}天 {}小时 {}分钟 {}秒
 硬盘使用情况
-总计:{.2f}GB
-使用:{.2f}GB({.2f}%)
-剩余:{.2f}GB({.2f}%)"""
+总计:{:.2f}GB
+使用:{:.2f}GB({:.2f}%)
+剩余:{:.2f}GB({:.2f}%)"""
         self.send_msg(text(display_str.format(days, hours, minutes, secs, total_disk, used_disk, used_persent, free_disk, 100-used_persent)))
     
 
