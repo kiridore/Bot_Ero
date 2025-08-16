@@ -12,8 +12,8 @@ import websocket
 
 import core.base as base
 
-WS_URL = "ws://192.168.0.103:3001"   # WebSocket 地址
-# WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
+# WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
+WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
 
 
 def plugin_pool(context: dict):
