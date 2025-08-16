@@ -6,6 +6,7 @@ from datetime import datetime
 from core.logger import logger
 from core.base import Plugin
 from plugins import *
+import core.context as context
 
 import websocket
 
@@ -53,8 +54,7 @@ if __name__ == "__main__":
     while True:  # 掉线重连
         # 数据储存
         logger.info("数据库启动")
-        global script_start_time
-        script_start_time = datetime.now()
+        context.script_start_time = datetime.now()
         base.WS_APP.run_forever()
 
         time.sleep(5)
