@@ -5,7 +5,7 @@ from core.cq import text
 
 class ReloadPlugin(Plugin):
     def match(self):
-        return self.context["message"].strip() == "/reload"
+        return self.on_full_match("/reload")
 
     def handle(self):
         # 只允许超级用户触发（比如自己）

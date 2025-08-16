@@ -1,14 +1,15 @@
 import re
 import sqlite3
-import json
+import json as json_
 import queue
 import collections
+
 from datetime import datetime
 from core.logger import logger
+from core.cq import *
 
 import websocket
 
-from cq import *
 
 
 WS_APP : websocket.WebSocketApp
@@ -152,7 +153,7 @@ class Plugin:
 
     def call_api(self, action: str, params: dict) -> dict:
         echo_num, q = echo.get()
-        data = json.dumps({"action": action, "params": params, "echo": echo_num})
+        data = json_.dumps({"action": action, "params": params, "echo": echo_num})
         logger.info("发送调用 <- " + data)
         self.ws.send(data)
         try:    # 阻塞至响应或者等待30s超时
