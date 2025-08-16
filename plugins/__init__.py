@@ -9,7 +9,7 @@ from .roll_back import RollbackCheckinPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
-__all__.append("ReloadPlugin")
+# __all__.append("ReloadPlugin")    # 重载后会导致内存里有多个Plugin子类，暂时关闭
 __all__.append("CheckinPlugin")
 __all__.append("WeekCheckinDisplayPlugin")
 __all__.append("PersonalRecords")
