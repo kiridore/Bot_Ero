@@ -26,10 +26,10 @@ def get_github_green(max_value, val):
         (35, 154, 59),
         (25, 97, 39)
     ]
-    if val > 3:
+    if val-1 > 3:
         return colors[3]
     else:
-        return colors[val]
+        return colors[val-1]
 
 def gen_year_heatmap(year, data, user_id):
 # 生成示例数据（每天一个值）
