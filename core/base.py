@@ -82,9 +82,6 @@ class Plugin:
             (user_id, limit)
         )
         rows = self.cur.fetchall()
-        logger.debug(f"用户{user_id}打卡记录查询结束：")
-        for row in rows:
-            logger.debug(row)
         return rows
 
     def search_all_user_checkin_range(self, start_date, end_date, limit=9999):

@@ -18,7 +18,6 @@ class PersonalRecords(Plugin):
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
             day_checkin_count[utils.day_of_year(row[2])] += 1
-        logger.debug(day_checkin_count)
         total_str = "总次数: {}\n".format(len(time_map))
         image_count_str = "打卡图: {}张\n".format(len(rows))
         nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
