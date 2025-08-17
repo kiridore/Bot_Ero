@@ -12,9 +12,9 @@ class PersonalRecords(Plugin):
         for row in rows:
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
-        display_str = "\n总打卡次数: {}次\n收录了{}张打卡图:\n".format(len(time_map), len(rows))
-        for time_stamp, count in time_map.items():
-            time_format_str = "{} {}张\n".format(time_stamp, count)
-            display_str += time_format_str
+        total_str = "总次数: {}\n".format(len(time_map))
+        image_count_str = "打卡图: {}张\n".format(len(rows))
+        nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
+        display_str = "的打卡记录\n" + total_str + image_count_str + nearest_checkin_str
 
         self.send_msg(at(self.context["user_id"]), text(display_str))
