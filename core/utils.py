@@ -7,3 +7,10 @@ def get_week_start_end(date=None):
     start = date - timedelta(days=weekday)
     end = start + timedelta(days=6)
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+
+def day_of_year(date_str):
+    """
+    输入格式为 'YYYY-MM-DD HH:MM:SS' 的时间字符串，返回这一年的第几天
+    """
+    dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")  # 转为 datetime 对象
+    return dt.timetuple().tm_yday  # 获取一年中的第几天
