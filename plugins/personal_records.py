@@ -11,7 +11,7 @@ class PersonalRecords(Plugin):
 
     def handle(self):
         # TODO@支持At某人查看他的档案
-        rows = self.search_checkin_all(self.context["user_id"])
+        rows = self.dbmanager.search_checkin_all(self.context["user_id"])
         time_map = {}
         day_checkin_count = [0] * 366 # 全年每一天打卡数记录
         for row in rows:

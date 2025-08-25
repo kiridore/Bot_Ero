@@ -8,7 +8,7 @@ class WeekCheckinDisplayPlugin(Plugin):
 
     def handle(self):
         start_date, end_date = get_week_start_end()
-        rows = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+        rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)

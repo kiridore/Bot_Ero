@@ -20,8 +20,8 @@ class CheckinPlugin(Plugin):
             start_date, end_date = get_week_start_end()
 
             #先打卡后搜索
-            self.insert_checkin(self.context["user_id"], img_list)
-            checkin_list = self.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+            self.dbmanager.insert_checkin(self.context["user_id"], img_list)
+            checkin_list = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
             self.send_msg(at(self.context["user_id"]), text(" 打卡成功喵\n收录了{}张图片\n完成本周第{}次打卡喵".format(len(img_list), len(checkin_list))))
 
     def extract_images(self, text: str):
