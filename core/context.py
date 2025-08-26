@@ -2,3 +2,4 @@
 from datetime import datetime
 
 script_start_time = datetime.now()
+should_shutdown = False
