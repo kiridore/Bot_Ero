@@ -6,6 +6,8 @@ from .personal_records import PersonalRecords
 from .week_list import WeekListPlugin
 from .monitor import MonitorPlugin
 from .roll_back import RollbackCheckinPlugin
+from .call import CallPlugin
+from .restart import RestartPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -16,4 +18,6 @@ __all__.append("PersonalRecords")
 __all__.append("WeekListPlugin")
 __all__.append("MonitorPlugin")
 __all__.append("RollbackCheckinPlugin")
+__all__.append("CallPlugin")
+__all__.append("RestartPlugin")
 

@@ -4,7 +4,7 @@ from core import context
 from core.base import Plugin
 from core.cq import text
 
-class MenuPlugin(Plugin):
+class RestartPlugin(Plugin):
     def match(self):
         return self.super_user() and self.on_full_match("/重启")
 
