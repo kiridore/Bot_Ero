@@ -11,4 +11,4 @@ class RestartPlugin(Plugin):
     def handle(self):
         self.send_msg(text("小埃同学要关机了喵"))
         context.should_shutdown = True
-        os.execv(sys.argv[0], sys.argv)
+        os.execv(sys.executable, ['python'] + sys.argv)
