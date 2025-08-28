@@ -3,7 +3,7 @@ from core.cq import text
 
 class WelcomePlugin(Plugin):
     def match(self):
-        if self.context.get("request_type", "") == "friend_add":
+        if self.context["post_type"] == "notice" and self.context.get("notice_type", "") == "friend_add":
             return True
         return False
 
