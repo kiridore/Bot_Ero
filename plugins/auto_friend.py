@@ -3,7 +3,7 @@ from core.cq import text
 
 class AutoFriendPlugin(Plugin):
     def match(self):
-        if self.context["request_type"] == "friend":
+        if self.context.get("request_type", "") == "friend":
             return True
 
     def handle(self):
