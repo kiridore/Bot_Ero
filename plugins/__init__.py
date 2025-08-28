@@ -9,6 +9,7 @@ from .roll_back import RollbackCheckinPlugin
 from .call import CallPlugin
 from .update import UpdatePlugin
 from .auto_friend import AutoFriendPlugin
+from .welcome import WelcomePlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -22,4 +23,5 @@ __all__.append("RollbackCheckinPlugin")
 __all__.append("CallPlugin")
 __all__.append("UpdatePlugin")
 __all__.append("AutoFriendPlugin")
+__all__.append("WelcomePlugin")
 
