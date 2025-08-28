@@ -1,6 +1,6 @@
 from core.base import Plugin
 from core.cq import text
-from core.utils import get_week_start_end
+from core.utils import get_monday_to_monday, get_week_start_end
 from core.logger import logger
 
 # 每周打卡板油
@@ -10,8 +10,8 @@ class WeekListPlugin(Plugin):
 
     def handle(self):
         #计算本周起止日期
-        start_date, end_date = get_week_start_end()
-        checkin_users = self.dbmanager.search_all_user_checkin_range(start_date + " 00:00:00", end_date + " 23:59:59")
+        start_date, end_date = get_monday_to_monday()
+        checkin_users = self.dbmanager.search_all_user_checkin_range(start_date, end_date)
         if len(checkin_users) <= 0:
             self.send_msg(text("本周({}-{})竟然还没有板油完成打卡".format(start_date, end_date)))
         else:

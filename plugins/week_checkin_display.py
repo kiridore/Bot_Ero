@@ -1,14 +1,14 @@
 from core.base import Plugin
 from core.cq import text,at,image
-from core.utils import get_week_start_end
+from core.utils import get_monday_to_monday
 
 class WeekCheckinDisplayPlugin(Plugin):
     def match(self):
         return self.on_full_match("/本周打卡图")
 
     def handle(self):
-        start_date, end_date = get_week_start_end()
-        rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+        start_date, end_date = get_monday_to_monday()
+        rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)
