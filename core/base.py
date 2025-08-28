@@ -1,3 +1,4 @@
+from os import walk
 import re
 import json as json_
 import queue
@@ -125,3 +126,7 @@ class Plugin:
         params = {"user_id": user_id}
         ret = self.call_api("get_qq_avatar", params)
         return ret["data"]["url"]
+
+    def set_friend_add_request(self, flag, approve = True):
+        params = {"flag": flag, "approve" : approve, "remark": ""}
+        self.call_api("set_friend_add_request", params)
