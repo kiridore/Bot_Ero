@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 def get_monday_to_monday(date = None):
     if date is None:
         date = datetime.today()
+    date = date - timedelta(hours=8)
     weekday = date.weekday()
     start = date - timedelta(days=weekday)
     end = start + timedelta(days=7)
