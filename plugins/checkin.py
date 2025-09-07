@@ -10,7 +10,10 @@ class CheckinPlugin(Plugin):
         return self.on_begin_with("/打卡")
 
     def handle(self):
-        img_list = self.extract_images(self.context["message"])
+        img_list = []
+        for message_unit in self.context["message"]:
+            if message_unit['type'] == 'image':
+                img_list.append(message_unit['data']['file'])
         if len(img_list) <= 0:
             self.send_msg(text("没有图片是没办法打卡的喵"))
         else:
@@ -23,8 +26,3 @@ class CheckinPlugin(Plugin):
             self.dbmanager.insert_checkin(self.context["user_id"], img_list)
             checkin_list = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
             self.send_msg(at(self.context["user_id"]), text(" 打卡成功喵\n收录了{}张图片\n完成本周第{}次打卡喵".format(len(img_list), len(checkin_list))))
-
-    def extract_images(self, text: str):
-        # 用非贪婪匹配 .*? 避免跨多个中括号匹配
-        pattern = r'\[CQ:image,file=([^,\]]+)'
-        return re.findall(pattern, text)

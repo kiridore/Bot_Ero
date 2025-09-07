@@ -52,13 +52,17 @@ class Plugin:
         return self.context["post_type"] == "message"
 
     def on_full_match(self, keyword="") -> bool:
-        return self.on_message() and self.context["message"] == keyword
+        message_list = self.context["message"]
+        if len(message_list) == 1:
+            msg = message_list[0]
+            return msg['type'] == 'text' and msg['data']['text'] == keyword
+        return False
 
     def on_begin_with(self, keyword="") -> bool:
-        return self.on_message() and self.context["message"].lstrip().startswith(keyword)
-
-    def on_reg_match(self, pattern="") -> bool:
-        return self.on_message() and re.search(pattern, self.context["message"])
+        msg = self.context["message"][0]
+        if (msg["type"] == 'text'):
+            return msg['type'] == 'text' and msg['data']['text'] == keyword
+        return False
 
     def only_to_me(self) -> bool:
         global only_to_me_flag
