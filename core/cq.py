@@ -12,7 +12,6 @@ def record(file: str, cache=True) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E8%AF%AD%E9%9F%B3
     return {"type": "record", "data": {"file": file, "cache": cache}}
 
-
 def at(qq: int) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E6%9F%90%E4%BA%BA
     return {"type": "at", "data": {"qq": qq}}
