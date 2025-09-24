@@ -1,6 +1,5 @@
 import websocket
 
-from core.base import Plugin
 import queue
 import json as json_
 import threading

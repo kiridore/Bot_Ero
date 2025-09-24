@@ -5,7 +5,9 @@ from core.cq import *
 class Plugin:
     commands = []
     desc = ""
+    short_desc = ""
     only_admin = False
+    only_group = False
 
     def __init__(self, context: dict, message_units: list):
         self.context = context  # 未解析raw数据
@@ -24,6 +26,8 @@ class Plugin:
             self.target_id = self.sender["group_id"]
         else:
             self.target_id = self.sender["user_id"]
+
+        self.args = self.context["args"]
 
     @abstractmethod
     def handle(self):

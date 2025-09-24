@@ -1,20 +1,18 @@
 # 指令解析管理调度模块
-from core import logger
+from core import context as CONTEXT
 from core.base import Plugin
 from core.cq import text
 from core.message import MessageUnit
 from plugins import *
 
 class PlugManager:
-    command_prefix = "/"
     def __init__(self) -> None:
-        self.command_bind = {} # 运行时生成的动态指令绑定表
         self.message_units = []
 
         # 遍历所有的 Plugin 的子类，执行匹配
         for P in Plugin.__subclasses__():
             for command in P.commands:
-                self.command_bind[command] = P
+                CONTEXT.command_bind[command] = P
 
         self.time = 0
         self.self_id = 0
@@ -67,12 +65,12 @@ class PlugManager:
             self.message_units.remove(first_text_unit)
 
         # 判断第一个字符是否是command_prefix
-        if args[0].startswith(self.command_prefix):
-            command = args[0][len(self.command_prefix):] # 去掉前缀
+        if args[0].startswith(CONTEXT.command_prefix):
+            command = args[0][len(CONTEXT.command_prefix):] # 去掉前缀
             # 把剩下的内容作为参数，用于plugin初始化
             context["args"] = args[1:]
-            if command in self.command_bind:
-                plugin_class = self.command_bind[command]
+            if command in CONTEXT.command_bind:
+                plugin_class = CONTEXT.command_bind[command]
                 plugin = plugin_class(context, self.message_units)
                 plugin.handle()
             else:
