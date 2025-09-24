@@ -12,6 +12,19 @@ class Plugin:
         self.dbmanager = DbManager()
         self.message_units = message_units
 
+        self.time = context["time"]
+        self.self_id = context["self_id"]
+        self.post_type = context["post_type"]
+        self.message_id = context["message_id"]
+        self.message_type = context["message_type"]
+        self.sub_type = context["sub_type"]
+        self.sender = context["sender"]
+
+        if self.message_type == "group":
+            self.target_id = self.sender["group_id"]
+        else:
+            self.target_id = self.sender["user_id"]
+
     @abstractmethod
     def handle(self):
         pass
