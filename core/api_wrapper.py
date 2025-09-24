@@ -1,9 +1,11 @@
 # API Warpper
-import ws_controller as ws
+
+from core import ws_controller as ws
+
 
 def send_msg(message_tpye: str, target_id, *message,) -> int:
     # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_msg-%E5%8F%91%E9%80%81%E6%B6%88%E6%81%AF
-    if message_tpye is "group":
+    if message_tpye == "group":
         return send_group_msg(target_id, *message)
     else:
         return send_private_msg(target_id, *message)

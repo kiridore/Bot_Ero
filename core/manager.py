@@ -1,7 +1,9 @@
 # 指令解析管理调度模块
+from core import logger
 from core.base import Plugin
 from core.cq import text
 from core.message import MessageUnit
+from plugins import *
 
 class PlugManager:
     command_prefix = "/"
@@ -33,7 +35,7 @@ class PlugManager:
         self.sub_type = context["sub_type"]
         self.sender = context["sender"]
 
-        if self.sender.get("group_id") and self.sender["group_id"] != 0:
+        if self.message_type == "group":
             self.target_id = self.sender["group_id"]
         else:
             self.target_id = self.sender["user_id"]
@@ -41,7 +43,7 @@ class PlugManager:
 
     # 解析MessageEvent，根据内容触发对应对应功能
     def parse(self, context: dict):
-        self.message_units.clear()
+        self.refresh(context)
 
         message_raw_list = context["message"]
         # 解析message数据
