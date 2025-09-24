@@ -29,14 +29,6 @@ WS_APP : websocket.WebSocketApp
 WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
 # WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
 
-
-def plugin_pool(context: dict):
-    # 遍历所有的 Plugin 的子类，执行匹配
-    for P in Plugin.__subclasses__():
-        plugin = P(context)
-        if plugin.match():
-            plugin.handle()
-
 def on_message(_, message):
     # https://github.com/botuniverse/onebot-11/blob/master/event/README.md
     context = json_.loads(message)
