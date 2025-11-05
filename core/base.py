@@ -149,6 +149,6 @@ class Plugin:
 
     def send_private_forward_msg(self, message: list):
         params = {"user_id": self.context["user_id"], "messages": forward(message)}
-        ret = self.call_api("send_group_forward_msg", params)
+        ret = self.call_api("send_private_forward_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else 1
         pass
