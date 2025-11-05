@@ -41,6 +41,13 @@ def forward(messages: list):
     return {
         "type" : "node",
         "data" : {
-            "content" : messages
+            "content" : [
+                {
+                    "type": "text",
+                    "data": {
+                        "text": "hahahaha"
+                    }
+                }
+            ]
         }
     }
