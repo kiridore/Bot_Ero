@@ -41,8 +41,6 @@ def forward(messages: list):
     return {
         "type" : "node",
         "data" : {
-            "uin" : core.base.BOT_QQ,
-            "name" : core.base.NICKNAME,
             "content" : messages
         }
     }
