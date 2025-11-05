@@ -17,6 +17,7 @@ class AllCheckinDisplay(Plugin):
         messages = []
         for row in rows:
             image_file = self.get_image(row[3])
-            messages.append(image(image_file))
+            if image_file != "":
+                messages.append(image(image_file))
 
         self.send_forward_msg(messages)
