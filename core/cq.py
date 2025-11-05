@@ -7,7 +7,7 @@ def text(string: str) -> dict:
 
 def image(file: str, cache=True) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E5%9B%BE%E7%89%87
-    return {"type": "image", "data": {"file": file, "cache": cache}}
+    return {"type": "image", "data": {"file": file}}
 
 
 def record(file: str, cache=True) -> dict:
