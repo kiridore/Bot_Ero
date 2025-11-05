@@ -39,7 +39,7 @@ def music(data: str) -> dict:
 
 def forward(messages: list):
     res = []
-    return res.append({
+    res.append({
         "type" : "node",
         "data" : {
             "content" : [
@@ -50,3 +50,4 @@ def forward(messages: list):
             ]
         }
     })
+    return res
