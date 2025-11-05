@@ -38,16 +38,15 @@ def music(data: str) -> dict:
     return {"type": "music", "data": {"type": "qq", "id": data}}
 
 def forward(messages: list):
-    return {
+    res = []
+    return res.append({
         "type" : "node",
         "data" : {
             "content" : [
                 {
                     "type": "text",
-                    "data": {
-                        "text": "hahahaha"
-                    }
+                    "data": messages
                 }
             ]
         }
-    }
+    })
