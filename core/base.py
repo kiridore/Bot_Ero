@@ -15,8 +15,9 @@ import websocket
 WS_APP : websocket.WebSocketApp
 only_to_me_flag = False
 
-NICKNAME = ["小埃同学", "bot"]         # 机器人昵称
+NICKNAME = "小埃同学"         # 机器人昵称
 SUPER_USER = [1057613133]   # 主人的 QQ 号
+BOT_QQ = "3915014383"
 
 class Echo:
     def __init__(self):
@@ -134,3 +135,20 @@ class Plugin:
     def set_friend_add_request(self, flag, approve = True):
         params = {"flag": flag, "approve" : approve, "remark": ""}
         self.call_api("set_friend_add_request", params)
+
+    def send_forward_msg(self, message: list):
+        if "group_id" in self.context and self.context["group_id"]:
+            return self.send_group_forward_msg(message)
+        else:
+            return self.send_private_forward_msg(message)
+
+    def send_group_forward_msg(self, message: list):
+        params = {"group_id": self.context["group_id"], "message": message}
+        ret = self.call_api("send_group_forward_msg", params)
+        return 0 if ret is None or ret["status"] == "failed" else 1
+
+    def send_private_forward_msg(self, message: list):
+        params = {"user_id": self.context["user_id"], "message": message}
+        ret = self.call_api("send_group_forward_msg", params)
+        return 0 if ret is None or ret["status"] == "failed" else 1
+        pass

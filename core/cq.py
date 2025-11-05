@@ -1,3 +1,5 @@
+import core.base
+
 def text(string: str) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E7%BA%AF%E6%96%87%E6%9C%AC
     return {"type": "text", "data": {"text": string}}
@@ -35,3 +37,12 @@ def music(data: str) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E9%9F%B3%E4%B9%90%E5%88%86%E4%BA%AB-
     return {"type": "music", "data": {"type": "qq", "id": data}}
 
+def forward(messages: list):
+    return {
+        "type" : "node",
+        "data" : {
+            "uin" : core.base.BOT_QQ,
+            "name" : core.base.NICKNAME,
+            "content" : messages
+        }
+    }
