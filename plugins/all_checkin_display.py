@@ -7,7 +7,6 @@ class AllCheckinDisplay(Plugin):
         return self.on_full_match("/ALL")
 
     def handle(self):
-        start_date, end_date = get_monday_to_monday()
         rows = self.dbmanager.search_checkin_all(self.context["user_id"])
         time_map = {}
         for row in rows:

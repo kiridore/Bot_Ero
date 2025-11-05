@@ -10,6 +10,7 @@ from .call import CallPlugin
 from .update import UpdatePlugin
 from .auto_friend import AutoFriendPlugin
 from .welcome import WelcomePlugin
+from .all_checkin_display import AllCheckinDisplay
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -24,4 +25,4 @@ __all__.append("CallPlugin")
 __all__.append("UpdatePlugin")
 __all__.append("AutoFriendPlugin")
 __all__.append("WelcomePlugin")
-
+__all__.append("AllCheckinDisplay")
