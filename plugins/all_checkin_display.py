@@ -4,7 +4,7 @@ from core.utils import get_monday_to_monday
 
 class AllCheckinDisplay(Plugin):
     def match(self):
-        return self.on_full_match("/打卡图")
+        return self.on_full_match("/ALL")
 
     def handle(self):
         start_date, end_date = get_monday_to_monday()
