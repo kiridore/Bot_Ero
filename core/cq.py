@@ -42,12 +42,7 @@ def forward(messages: list):
     res.append({
         "type" : "node",
         "data" : {
-            "content" : [
-                {
-                    "type": "text",
-                    "data": messages
-                }
-            ]
+            "content" : messages
         }
     })
     return res
