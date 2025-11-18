@@ -11,6 +11,7 @@ from .update import UpdatePlugin
 from .auto_friend import AutoFriendPlugin
 from .welcome import WelcomePlugin
 from .all_checkin_display import AllCheckinDisplay
+from .backup import BackupPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -26,3 +27,4 @@ __all__.append("UpdatePlugin")
 __all__.append("AutoFriendPlugin")
 __all__.append("WelcomePlugin")
 __all__.append("AllCheckinDisplay")
+__all__.append("BackupPlugin")

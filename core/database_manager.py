@@ -28,7 +28,7 @@ class DbManager:
             )
         self.conn.commit()
 
-    def search_checkin_all(self, user_id, limit=9999):
+    def search_checkin_all(self, user_id, limit=9999999):
         self.cur.execute(
             """
             SELECT * FROM checkin_records
@@ -41,7 +41,20 @@ class DbManager:
         rows = self.cur.fetchall()
         return rows
 
-    def search_all_user_checkin_range(self, start_date, end_date, limit=9999):
+    def get_all_record(self, limit=9999999):
+        self.cur.execute(
+            """
+            SELECT * FROM checkin_records
+            ORDER BY checkin_date DESC
+            LIMIT ?
+            """,
+            (limit, )
+        )
+        rows = self.cur.fetchall()
+        return rows
+
+
+    def search_all_user_checkin_range(self, start_date, end_date, limit=9999999):
         self.cur.execute("""
         SELECT * FROM checkin_records
         WHERE checkin_date BETWEEN ? AND ?
@@ -51,7 +64,7 @@ class DbManager:
         rows = self.cur.fetchall()
         return rows
 
-    def search_target_user_checkin_range(self, user_id, start_date, end_date, limit=9999):
+    def search_target_user_checkin_range(self, user_id, start_date, end_date, limit=9999999):
         self.cur.execute("""
         SELECT * FROM checkin_records
         WHERE user_id = ?
