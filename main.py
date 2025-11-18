@@ -14,6 +14,7 @@ import core.base as base
 
 # WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
 WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
+token = 123456
 
 
 def plugin_pool(context: dict):
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     base.echo = base.Echo()
     base.WS_APP = websocket.WebSocketApp(
         WS_URL,
+        header=[f"Authorization: Bearer {token}"],
         on_message=on_message,
         on_open=lambda _: logger.debug("连接成功......"),
         on_close=lambda _: logger.debug("重连中......"),
