@@ -1,7 +1,7 @@
 from core.base import Plugin
 from core.cq import at, text
 
-class GroupSpecialTitle(Plugin):
+class GroupSpecialTitlePlugin(Plugin):
     def match(self):
         return self.on_begin_with("/群头衔")
 
