@@ -3,11 +3,7 @@ from core.cq import at, text
 
 class GroupSpecialTitlePlugin(Plugin):
     def match(self):
-        msg:str = self.context["message"][0]
-        if msg.startswith("/群头衔"):
-            return True
-        else:
-            return False
+        return self.on_command("/群头衔")
 
     def handle(self):
         msg:str = self.context["message"][0]

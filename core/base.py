@@ -65,6 +65,13 @@ class Plugin:
             return msg['type'] == 'text' and msg['data']['text'] == keyword
         return False
 
+    def on_command(self, command) -> bool:
+        msg = self.context["message"][0]
+        if (msg["type"] == 'text'):
+            sp = msg["data"]["text"].split(" ")
+            return sp[0] == command
+        return False
+
     def only_to_me(self) -> bool:
         global only_to_me_flag
         if only_to_me_flag:
