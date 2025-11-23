@@ -6,7 +6,8 @@ class GroupSpecialTitlePlugin(Plugin):
         return self.on_command("/群头衔")
 
     def handle(self):
-        msg:str = self.context["message"][0]
+        msg_list = self.context["message"]
+        msg = msg_list[0]['data']['text']
         args = msg.split(" ")
         title = ""
 
