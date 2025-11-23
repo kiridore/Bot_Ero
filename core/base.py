@@ -151,4 +151,13 @@ class Plugin:
         params = {"user_id": self.context["user_id"], "messages": forward(message)}
         ret = self.call_api("send_private_forward_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else 1
-        pass
+
+    def get_group_album_list(self, group_id):
+        params = {"group_id": group_id}
+        ret = self.call_api("get_group_album_list", params)
+        return ret["data"]
+
+    def set_group_special_title(self, group_id, user_id, title):
+        params = {"group_id": group_id, "user_id": user_id, "sepcial_title": title}
+        ret = self.call_api("set_group_special_title", params)
+        return 0

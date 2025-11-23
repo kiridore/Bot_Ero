@@ -1,0 +1,24 @@
+from core.base import Plugin
+from core.cq import at, text
+
+class GroupSpecialTitle(Plugin):
+    def match(self):
+        return self.on_begin_with("/群头衔")
+
+    def handle(self):
+        msg:str = self.context["message"][0]
+        args = msg.split(" ")
+        title = ""
+
+        if len(args) > 1:
+            title = args[1]
+
+        if title == "":
+            self.send_msg(text("给"), at(self.context["user_id"]), text("取消头衔了喵~"))
+            self.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
+        elif len(title) > 10:
+            self.send_msg(text("头衔太长了喵，最多只能十个字符长"))
+        else:
+            self.send_msg(text("给"), at(self.context["user_id"]), text("设置了新头衔喵~"))
+            self.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
+        pass
