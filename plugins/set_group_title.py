@@ -6,8 +6,12 @@ class GroupSpecialTitlePlugin(Plugin):
         return self.on_command("/群头衔")
 
     def handle(self):
-        msg_list = self.context["message"]
-        msg = msg_list[0]['data']['text']
+        raw_data = self.context["message"][0]
+
+        if raw_data['type'] != 'text':
+            return
+
+        msg = raw_data['data']['text']
         args = msg.split(" ")
         title = ""
 
@@ -22,4 +26,5 @@ class GroupSpecialTitlePlugin(Plugin):
         else:
             self.send_msg(text("给"), at(self.context["user_id"]), text("设置了新头衔喵~"))
             self.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
-        pass
+
+        return
