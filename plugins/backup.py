@@ -37,11 +37,12 @@ class BackupPlugin(Plugin):
                     success_cnt += 1
                 else:
                     flag = "QQ图片获取失败"
+                    print("尝试备份{}, {}".format(backup_image, flag))
                     error_cnt += 1
             else:
                 flag = "无需备份"
                 exists_cnt += 1
 
-            print("尝试备份{}, {}".format(backup_image, flag))
+            # print("尝试备份{}, {}".format(backup_image, flag))
         self.send_msg(text("备份完成喵，共检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里".format(len(rows), exists_cnt, success_cnt, error_cnt)))
 

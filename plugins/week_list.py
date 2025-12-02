@@ -24,7 +24,11 @@ class WeekListPlugin(Plugin):
 
             for user_id, checkin_time in user_map.items():
                 group_member_info = self.get_group_member_info(user_id)
-                display_row = "- {}, {}\n".format(group_member_info["card"], checkin_time)
+                member_name = group_member_info["card"] 
+                if group_member_info["card"] == "":
+                    member_name = group_member_info["nickname"]
+
+                display_row = "- {}, {}\n".format(member_name, checkin_time)
                 display_str += display_row
             final_str = """本周({}-{})
 - 共有{}名板油完成了打卡:
