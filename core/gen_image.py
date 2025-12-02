@@ -4,6 +4,8 @@ from PIL import Image, ImageDraw, ImageFont
 import datetime
 import math
 
+from core import context
+
 # =====================
 # 配置
 # =====================
@@ -128,6 +130,6 @@ def gen_year_heatmap(year, data, user_id):
                 day_idx += 1
 
 # 保存
-    os.makedirs("./data/personal_records", exist_ok = True)
-    image.save("./data/personal_records/{}_calendar_heatmap_monthly.png".format(user_id))
+    os.makedirs(f"{context.data_home_path}/personal_records", exist_ok = True)
+    image.save(f"{context.data_home_path}/personal_records/{user_id}_calendar_heatmap_monthly.png")
     print("已生成 calendar_heatmap_monthly.png")
