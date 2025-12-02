@@ -128,6 +128,6 @@ def gen_year_heatmap(year, data, user_id):
                 day_idx += 1
 
 # 保存
-    os.makedirs("./images/personal_records", exist_ok = True)
-    image.save("./images/personal_records/{}_calendar_heatmap_monthly.png".format(user_id))
+    os.makedirs("./data/personal_records", exist_ok = True)
+    image.save("./data/personal_records/{}_calendar_heatmap_monthly.png".format(user_id))
     print("已生成 calendar_heatmap_monthly.png")
