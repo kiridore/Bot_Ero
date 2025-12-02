@@ -23,7 +23,9 @@ class BackupPlugin(Plugin):
             if not os.path.exists(backup_image):
                 qq_origin_image = self.get_image(row[3])
                 if qq_origin_image != "":
-                    qq_origin_image = qq_origin_image
+                    # 需要在本机目录找到docker挂载的qq config
+                    qq_origin_image = qq_origin_image.replace("/root/.config/QQ", context.onebot_qq_volume)
+                    print("正在复制{}".format(qq_origin_image, flag))
                     shutil.copy(qq_origin_image, python_user_folder)
                 else:
                     flag = "QQ图片获取失败"
