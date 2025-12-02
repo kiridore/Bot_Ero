@@ -1,4 +1,5 @@
 import os
+import shutil
 from core import context
 from core.base import Plugin
 from core.cq import text
@@ -14,15 +15,16 @@ class BackupPlugin(Plugin):
             # 根据QQ号创建文件夹
             user_id = row[1]
             user_folder = f"{context.data_home_path}/record_images/{user_id}"
+            image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
             os.makedirs(user_folder, exist_ok=True)
             flag = "成功"
             # 检测图片是否已经存在对应的文件夹
-            backup_image = os.path.join(user_folder, f"{row[3]}.jpg")
+            backup_image = os.path.join(user_folder, image_name)
             if not os.path.exists(backup_image):
                 qq_origin_image = self.get_image(row[3])
                 if qq_origin_image != "":
-                    with open(backup_image, "xb") as f: # 创建一个 backup_image 文件
-                        f.write(qq_origin_image) # 保存图片到文件
+                    qq_origin_image = qq_origin_image
+                    # shutil.copy(qq_origin_image, user_folder)
                 else:
                     flag = "QQ图片获取失败"
             else:
