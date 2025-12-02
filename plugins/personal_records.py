@@ -25,5 +25,5 @@ class PersonalRecords(Plugin):
         display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str
 
         gen_image.gen_year_heatmap(2025, day_checkin_count, self.context["user_id"])
-        image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.images_path, self.context["user_id"]))
+        image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.data_home_path, self.context["user_id"]))
         self.send_msg(at(self.context["user_id"]), text(display_str), image("file://" + image_path))
