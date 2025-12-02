@@ -10,7 +10,12 @@ class BackupPlugin(Plugin):
 
     def handle(self):
         rows = self.dbmanager.get_all_record()
-        self.send_msg(text("找到了{}条打卡记录，正在备份到硬盘".format(rows)))
+        self.send_msg(text("找到了{}条打卡记录，正在备份到硬盘".format(len(rows))))
+
+        exists_cnt = 0
+        success_cnt = 0
+        error_cnt = 0
+
         for row in rows:
             # 根据QQ号创建文件夹
             user_id = row[1]
@@ -18,10 +23,6 @@ class BackupPlugin(Plugin):
             image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
             os.makedirs(python_user_folder, exist_ok=True)
             flag = "成功"
-
-            exists_cnt = 0
-            success_cnt = 0
-            error_cnt = 0
 
             # 检测图片是否已经存在对应的文件夹
             backup_image = os.path.join(python_user_folder, image_name)
@@ -42,5 +43,5 @@ class BackupPlugin(Plugin):
                 exists_cnt += 1
 
             print("尝试备份{}, {}".format(backup_image, flag))
-        self.send_msg(text("备份完成喵，检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里".format(len(rows), exists_cnt, success_cnt, error_cnt)))
+        self.send_msg(text("备份完成喵，共检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里".format(len(rows), exists_cnt, success_cnt, error_cnt)))
 
