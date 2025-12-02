@@ -20,7 +20,7 @@ class BackupPlugin(Plugin):
             flag = "成功"
             # 检测图片是否已经存在对应的文件夹
             backup_image = os.path.join(python_user_folder, image_name)
-            if not os.path.exists(backup_image):
+            if not os.path.exists(backup_image.lower()):
                 qq_origin_image = self.get_image(row[3])
                 if qq_origin_image != "":
                     # 需要在本机目录找到docker挂载的qq config
