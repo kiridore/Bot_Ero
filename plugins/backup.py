@@ -14,17 +14,17 @@ class BackupPlugin(Plugin):
         for row in rows:
             # 根据QQ号创建文件夹
             user_id = row[1]
-            user_folder = f"{context.data_home_path}/record_images/{user_id}"
+            python_user_folder = f"{context.python_data_path}/record_images/{user_id}"
             image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
-            os.makedirs(user_folder, exist_ok=True)
+            os.makedirs(python_user_folder, exist_ok=True)
             flag = "成功"
             # 检测图片是否已经存在对应的文件夹
-            backup_image = os.path.join(user_folder, image_name)
+            backup_image = os.path.join(python_user_folder, image_name)
             if not os.path.exists(backup_image):
                 qq_origin_image = self.get_image(row[3])
                 if qq_origin_image != "":
                     qq_origin_image = qq_origin_image
-                    # shutil.copy(qq_origin_image, user_folder)
+                    shutil.copy(qq_origin_image, python_user_folder)
                 else:
                     flag = "QQ图片获取失败"
             else:
