@@ -15,8 +15,7 @@ class BackupPlugin(Plugin):
             user_id = row[1]
             user_folder = f"{context.data_home_path}/record_images/{user_id}"
             os.makedirs(user_folder, exist_ok=True)
-            backup_cnt = 0
-            error_cnt = 0
+            flag = "成功"
             # 检测图片是否已经存在对应的文件夹
             backup_image = os.path.join(user_folder, f"{row[3]}.jpg")
             if not os.path.exists(backup_image):
@@ -24,9 +23,11 @@ class BackupPlugin(Plugin):
                 if qq_origin_image != "":
                     with open(backup_image, "xb") as f: # 创建一个 backup_image 文件
                         f.write(qq_origin_image) # 保存图片到文件
-                        backup_cnt += 1
                 else:
-                    error_cnt += 1
+                    flag = "QQ图片获取失败"
+            else:
+                flag = "无需备份"
 
-            self.send_msg(text("用户{}的打卡记录备份完成，共备份了{}张图片, 有{}张图片不幸遗失了".format(user_id, backup_cnt, error_cnt)))
+            print("尝试备份{}, {}".format(backup_image, flag))
+        self.send_msg(text("备份完成，详情查看日志文件"))
 
