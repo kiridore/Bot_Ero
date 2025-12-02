@@ -18,6 +18,11 @@ class BackupPlugin(Plugin):
             image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
             os.makedirs(python_user_folder, exist_ok=True)
             flag = "成功"
+
+            exists_cnt = 0
+            success_cnt = 0
+            error_cnt = 0
+
             # 检测图片是否已经存在对应的文件夹
             backup_image = os.path.join(python_user_folder, image_name)
             if not os.path.exists(backup_image.lower()):
@@ -25,13 +30,15 @@ class BackupPlugin(Plugin):
                 if qq_origin_image != "":
                     # 需要在本机目录找到docker挂载的qq config
                     qq_origin_image = qq_origin_image.replace("/root/.config/QQ", context.onebot_qq_volume)
-                    print("正在复制{}".format(qq_origin_image, flag))
                     shutil.copy(qq_origin_image, python_user_folder)
+                    success_cnt += 1
                 else:
                     flag = "QQ图片获取失败"
+                    error_cnt += 1
             else:
                 flag = "无需备份"
+                exists_cnt += 1
 
             print("尝试备份{}, {}".format(backup_image, flag))
-        self.send_msg(text("备份完成，详情查看日志文件"))
+        self.send_msg(text("备份完成喵，检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里"))
 
