@@ -1,6 +1,6 @@
 from core.base import Plugin
 from core.cq import text
-from core.utils import get_monday_to_monday, get_week_start_end
+from core.utils import get_monday_to_monday
 from core.logger import logger
 
 # 每周打卡板油

@@ -1,6 +1,6 @@
 from core.base import Plugin
 from core.cq import text,image
-from core.utils import get_week_start_end
+from core.utils import get_monday_to_monday
 from core.logger import logger
 
 class RollbackCheckinPlugin(Plugin):
@@ -8,8 +8,8 @@ class RollbackCheckinPlugin(Plugin):
         return self.on_full_match("/撤回打卡")
 
     def handle(self):
-        start_date, end_date = get_week_start_end()
-        rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date + " 00:00:00", end_date + " 23:59:59")
+        start_date, end_date = get_monday_to_monday()
+        rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)
         if len(rows) <= 0:
             self.send_msg(text("本周你还没打过卡呢！"))
         else:
