@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 # 返回本周一八点到下周一八点
-def get_monday_to_monday(date = None):
+def get_monday_to_monday(date:datetime | None = None):
     if date is None:
         date = datetime.today()
+    # 偏移八小时确保在下一周一是不会出错
     date = date - timedelta(hours=8)
     weekday = date.weekday()
     start = date - timedelta(days=weekday)
