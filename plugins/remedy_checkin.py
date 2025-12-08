@@ -22,8 +22,12 @@ class RemedyCheckinPlugin(Plugin):
         args = msg.split(" ")
 
         if len(args) > 1:
-            dt = datetime.strptime(args[0], "%Y-%m-%d")
-            user_id = args[1] # 特殊补卡指令可以给其他人补卡
+            try:
+                dt = datetime.strptime(args[1], "%Y-%m-%d")
+            except Exception as e:
+                self.send_msg(text("{}格式不正确".format(args[1])))
+
+            user_id = args[2] # 特殊补卡指令可以给其他人补卡
             start, end = get_monday_to_monday(dt)
             rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], start, end)
 
