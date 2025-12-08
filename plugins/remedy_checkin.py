@@ -54,6 +54,7 @@ class RemedyCheckinPlugin(Plugin):
             rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], tmp_start, tmp_end)
             if len(rows) == 0:
                 self.send_msg(text("找到{}-{}这一周没有打卡喵，使用指令\"/补卡 {}\"确认补卡喵".format(tmp_start, tmp_end, tmp_start)))
+                break
 
             date = pre_date
 
