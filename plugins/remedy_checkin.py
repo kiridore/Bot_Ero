@@ -27,7 +27,10 @@ class RemedyCheckinPlugin(Plugin):
             except Exception as e:
                 self.send_msg(text("{}格式不正确".format(args[1])))
 
-            user_id = args[2] # 特殊补卡指令可以给其他人补卡
+            user_id = 0
+            if len(args) > 2:
+                user_id = args[2] # 特殊补卡指令可以给其他人补卡
+
             start, end = get_monday_to_monday(dt)
             rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], start, end)
 
@@ -57,7 +60,7 @@ class RemedyCheckinPlugin(Plugin):
 
             rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], tmp_start, tmp_end)
             if len(rows) == 0:
-                self.send_msg(text("找到{}-{}这一周没有打卡喵，使用指令\"/补卡 {}\"确认补卡喵".format(tmp_start, tmp_end, tmp_start)))
+                self.send_msg(text("找到{}-{}这一周没有打卡喵，使用指令\"/补卡 {}\"确认补卡喵".format(tmp_start.split(" ")[0], tmp_end.split(" ")[0], tmp_start.split(" ")[0])))
                 break
 
             date = pre_date
