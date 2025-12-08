@@ -14,6 +14,7 @@ from .all_checkin_display import AllCheckinDisplay
 from .backup import BackupPlugin
 from .read_history import HistoryPlugin
 from .set_group_title import GroupSpecialTitlePlugin
+from.remedy_checkin import RemedyCheckinPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -32,3 +33,4 @@ __all__.append("AllCheckinDisplay")
 __all__.append("BackupPlugin")
 # __all__.append("HistoryPlugin")
 # __all__.append("GroupSpecialTitlePlugin")
+__all__.append("RemedyCheckinPlugin")
