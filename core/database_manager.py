@@ -13,11 +13,44 @@ class DbManager:
             content TEXT NOT NULL
         );
         """)
+
+        self.cur.execute('''
+            CREATE TABLE IF NOT EXISTS user_assets (
+                user_id TEXT PRIMARY KEY,
+                points INTEGER DEFAULT 0         -- 积分字段
+            );
+        ''')
         self.conn.commit()
 
     def __del__(self):
         self.conn.commit()
         self.conn.close()
+
+    # 获取用户现在的积分
+    def get_user_point(self, user_id)->int:
+        self.cur.execute("""
+            SELECT points FROM user_assets
+            WHERE user_id = ?
+        """, (user_id, ))
+        row = self.cur.fetchone()
+        if row:
+            return row[0]
+        else:
+            # 同时创建一份当前用户信息
+            self.cur.execute("""
+                INSERT INTO user_assets (user_id, points)
+                VALUES (?, 0)
+            """, (user_id, ))
+            return 0
+
+    # 将用户积分设置为value值
+    def set_user_point(self, user_id, value):
+        self.cur.execute("""
+            INSERT INTO user_assets (user_id, points)
+            VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET points=excluded.points
+        """, (user_id, value))
+        self.conn.commit()
 
     def insert_checkin(self, user_id, images):
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

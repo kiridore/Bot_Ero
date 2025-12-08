@@ -1,6 +1,5 @@
 from core.base import Plugin
 from core.cq import text,at,image
-from core.utils import get_monday_to_monday
 
 class AllCheckinDisplay(Plugin):
     def match(self):

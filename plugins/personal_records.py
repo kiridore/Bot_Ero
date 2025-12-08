@@ -22,7 +22,8 @@ class PersonalRecords(Plugin):
         total_str = "总次数: {}\n".format(len(time_map))
         image_count_str = "打卡图: {}张\n".format(len(rows))
         nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
-        display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str
+        point_str = "积分: {}\n".format(self.dbmanager.get_user_point(self.context['user_id']))
+        display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str + point_str
 
         gen_image.gen_year_heatmap(2025, day_checkin_count, self.context["user_id"])
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.llonebot_data_path, self.context["user_id"]))
