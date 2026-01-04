@@ -26,6 +26,7 @@ class PersonalRecords(Plugin):
         total_str = "总次数({}): {}\n".format(year, len(time_map))
         image_count_str = "打卡图({}): {}张\n".format(year, len(rows))
 
+        nearest_checkin_str = ""
         if len(time_map) > 0:
             nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
 
