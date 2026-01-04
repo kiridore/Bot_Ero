@@ -1,14 +1,14 @@
+from datetime import datetime
 import os
 from core import context
 from core.base import Plugin
 from core.cq import image, text,at
-from core.logger import logger
 import core.utils as utils
 import core.gen_image as gen_image
 
 class PersonalRecords(Plugin):
     def match(self):
-        return self.on_full_match("/个人打卡记录") or self.on_full_match("/档案") 
+        return self.on_command("/档案") 
 
     def handle(self):
         # TODO@支持At某人查看他的档案
@@ -24,7 +24,11 @@ class PersonalRecords(Plugin):
         nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
         point_str = "积分: {}\n".format(self.dbmanager.get_user_point(self.context['user_id']))
         display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str + point_str
+        
+        year = datetime.today().year
+        if len(self.args) > 1:
+            year = self.args[1]
 
-        gen_image.gen_year_heatmap(2025, day_checkin_count, self.context["user_id"])
+        gen_image.gen_year_heatmap(year, day_checkin_count, self.context["user_id"])
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.llonebot_data_path, self.context["user_id"]))
         self.send_msg(at(self.context["user_id"]), text(display_str), image("file://" + image_path))

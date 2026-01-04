@@ -69,7 +69,15 @@ class Plugin:
         msg = self.context["message"][0]
         if (msg["type"] == 'text'):
             sp = msg["data"]["text"].split(" ")
-            return sp[0] == command
+            if sp[0] == command:
+                raw_data = self.context["message"][0]
+                if raw_data['type'] != 'text':
+                    return False
+                msg = raw_data['data']['text']
+                self.args = msg.split(" ")
+                return True
+            else:
+                return False
         return False
 
     def only_to_me(self) -> bool:

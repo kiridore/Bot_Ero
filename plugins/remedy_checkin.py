@@ -15,22 +15,16 @@ class RemedyCheckinPlugin(Plugin):
         return False
 
     def handle(self):
-        raw_data = self.context["message"][0]
-        if raw_data['type'] != 'text':
-            return
-        msg = raw_data['data']['text']
-        args = msg.split(" ")
-
-        if len(args) > 1:
+        if len(self.args) > 1:
             try:
-                dt = datetime.strptime(args[1], "%Y-%m-%d") + timedelta(hours=8)
+                dt = datetime.strptime(self.args[1], "%Y-%m-%d") + timedelta(hours=8)
             except Exception as e:
-                self.send_msg(text("{}格式不正确".format(args[1])))
+                self.send_msg(text("{}格式不正确".format(self.args[1])))
                 return
 
             user_id = 0
-            if len(args) > 2:
-                user_id = args[2] # 特殊补卡指令可以给其他人补卡
+            if len(self.args) > 2:
+                user_id = self.args[2] # 特殊补卡指令可以给其他人补卡
 
             start, end = get_monday_to_monday(dt)
             rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], start, end)
@@ -41,7 +35,7 @@ class RemedyCheckinPlugin(Plugin):
                     success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费3积分，谢谢惠顾喵"
                     self.send_msg(text(success_msg.format(start.split(" ")[0], end.split(" ")[0])))
                 else:
-                    self.send_msg(text("补卡当然不是免费的喵！你现在只有{}是不会帮你补卡的喵".format(points)))
+                    self.send_msg(text("补卡当然不是免费的喵！现在积分是：{}\n补卡需要3积分喵".format(points)))
             else:
                 self.send_msg(text("上当了喵！{}-{}你已经打过卡了喵！".format(start.split(" ")[0], end.split(" ")[0])))
 
