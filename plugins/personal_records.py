@@ -22,7 +22,7 @@ class PersonalRecords(Plugin):
         for row in rows:
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
-            day_checkin_count[utils.day_of_year(row[2])] += 1
+            day_checkin_count[utils.day_of_year(row[2]) - 1] += 1
         total_str = "总次数({}): {}\n".format(year, len(time_map))
         image_count_str = "打卡图({}): {}张\n".format(year, len(rows))
 
