@@ -34,6 +34,6 @@ class CheckinPlugin(Plugin):
             checkin_list = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)
             if is_first:
                 add_user_point(self.dbmanager, self.context['user_id'], 1)
-                self.send_msg(at(self.context["user_id"]), text("\n🌟打卡成功喵🌟\n收录了{}张图片\n完成本周首次打卡喵，拿好你的积分~".format(len(img_list))))
+                self.send_msg(at(self.context["user_id"]), text("\n🌟打卡成功喵🌟\n收录了{}张图片\n完成本周首次打卡喵，拿好你的点数~".format(len(img_list))))
             else:
                 self.send_msg(at(self.context["user_id"]), text("\n⭐打卡成功喵⭐\n收录了{}张图片\n这周已经提交了{}张图了喵".format(len(img_list), len(checkin_list))))

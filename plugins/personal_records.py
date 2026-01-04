@@ -30,7 +30,7 @@ class PersonalRecords(Plugin):
         if len(time_map) > 0:
             nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
 
-        point_str = "积分: {}\n".format(self.dbmanager.get_user_point(self.context['user_id']))
+        point_str = "点数: {}\n".format(self.dbmanager.get_user_point(self.context['user_id']))
         display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str + point_str
         
         gen_image.gen_year_heatmap(year, day_checkin_count, self.context["user_id"])
