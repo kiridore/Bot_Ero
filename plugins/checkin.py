@@ -2,7 +2,7 @@ import re
 from core.base import Plugin
 from core.cq import text,at
 from core.logger import logger
-from core.utils import get_monday_to_monday
+from core.utils import add_user_point, get_monday_to_monday
 
 # 打卡插件
 class CheckinPlugin(Plugin):
@@ -25,4 +25,8 @@ class CheckinPlugin(Plugin):
             #先打卡后搜索
             self.dbmanager.insert_checkin(self.context["user_id"], img_list)
             checkin_list = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)
-            self.send_msg(at(self.context["user_id"]), text(" 打卡成功喵\n收录了{}张图片\n完成本周第{}次打卡喵".format(len(img_list), len(checkin_list))))
+            if len(checkin_list) == 1:
+                add_user_point(self.dbmanager, self.context['user_id'], 1)
+                self.send_msg(at(self.context["user_id"]), text("\n🌟打卡成功喵🌟\n收录了{}张图片\n完成本周首次打卡喵，拿好你的积分~".format(len(img_list), len(checkin_list))))
+            else:
+                self.send_msg(at(self.context["user_id"]), text("\n⭐打卡成功喵⭐\n收录了{}张图片\n完成本周第{}次打卡喵".format(len(img_list), len(checkin_list))))
