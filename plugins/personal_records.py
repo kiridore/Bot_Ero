@@ -23,8 +23,8 @@ class PersonalRecords(Plugin):
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
             day_checkin_count[utils.day_of_year(row[2])] += 1
-        total_str = "总次数: {}\n".format(len(time_map))
-        image_count_str = "打卡图: {}张\n".format(len(rows))
+        total_str = "总次数({}): {}\n".format(year, len(time_map))
+        image_count_str = "打卡图({}): {}张\n".format(year, len(rows))
         nearest_checkin_str = "最近打卡: {}\n".format(next(iter(time_map)))
         point_str = "积分: {}\n".format(self.dbmanager.get_user_point(self.context['user_id']))
         display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str + point_str
