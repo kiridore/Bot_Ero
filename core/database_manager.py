@@ -61,6 +61,21 @@ class DbManager:
             )
         self.conn.commit()
 
+    def search_checkin_year(self, user_id, year):
+        start_date = f"{year}-01-01 00:00:00"
+        end_date = f"{year}-12-31 23:59:59"
+        self.cur.execute(
+            """
+            SELECT * FROM checkin_records
+            WHERE user_id = ?
+            AND checkin_date BETWEEN ? AND ?
+            ORDER BY checkin_date DESC
+            """,
+            (user_id, start_date, end_date)
+        )
+        rows = self.cur.fetchall()
+        return rows
+
     def search_checkin_all(self, user_id, limit=9999999):
         self.cur.execute(
             """

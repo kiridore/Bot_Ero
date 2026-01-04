@@ -12,7 +12,11 @@ class PersonalRecords(Plugin):
 
     def handle(self):
         # TODO@支持At某人查看他的档案
-        rows = self.dbmanager.search_checkin_all(self.context["user_id"])
+        year = datetime.today().year
+        if len(self.args) > 1:
+            year = self.args[1]
+
+        rows = self.dbmanager.search_checkin_year(self.context["user_id"], year)
         time_map = {}
         day_checkin_count = [0] * 366 # 全年每一天打卡数记录
         for row in rows:
@@ -25,10 +29,6 @@ class PersonalRecords(Plugin):
         point_str = "积分: {}\n".format(self.dbmanager.get_user_point(self.context['user_id']))
         display_str = "打卡记录\n" + total_str + image_count_str + nearest_checkin_str + point_str
         
-        year = datetime.today().year
-        if len(self.args) > 1:
-            year = self.args[1]
-
         gen_image.gen_year_heatmap(year, day_checkin_count, self.context["user_id"])
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.llonebot_data_path, self.context["user_id"]))
         self.send_msg(at(self.context["user_id"]), text(display_str), image("file://" + image_path))
