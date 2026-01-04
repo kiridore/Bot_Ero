@@ -12,9 +12,9 @@ class PersonalRecords(Plugin):
 
     def handle(self):
         # TODO@支持At某人查看他的档案
-        year = datetime.today().year
+        year = int(datetime.today().year)
         if len(self.args) > 1:
-            year = self.args[1]
+            year = int(self.args[1])
 
         rows = self.dbmanager.search_checkin_year(self.context["user_id"], year)
         time_map = {}
