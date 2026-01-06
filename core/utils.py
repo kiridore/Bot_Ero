@@ -17,6 +17,7 @@ def day_of_year(date_str):
     输入格式为 'YYYY-MM-DD HH:MM:SS' 的时间字符串，返回这一年的第几天
     """
     dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")  # 转为 datetime 对象
+    dt = dt - timedelta(hours=8) # 向前偏移八小时，让热度图信息与实际打卡结算日一致
     return dt.timetuple().tm_yday  # 获取一年中的第几天
 
 def add_user_point(db:DbManager, user_id:str, offer:int):
