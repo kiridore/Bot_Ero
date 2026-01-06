@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import sqlite3
 
 class DbManager:
@@ -60,6 +60,17 @@ class DbManager:
                 (user_id, today_str, img)
             )
         self.conn.commit()
+
+    def remedy_checkin(self, user_id, day_start):
+        # 从day_start开始，生成当周七天的日期填充补卡数据
+        for i in range(7):
+            checkin_date = (datetime.strptime(day_start, "%Y-%m-%d") + timedelta(days=i)).strftime("%Y-%m-%d 12:00:00")
+            print(checkin_date)
+        #     self.cur.execute(
+        #         "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
+        #         (user_id, checkin_date, "remedy_checkin")
+        #     )
+        # self.conn.commit()
 
     def search_checkin_year(self, user_id, year):
         start_date = f"{year}-01-01 00:00:00"

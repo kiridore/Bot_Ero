@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from core import utils
 from core.base import Plugin
 from core.cq import text
 from core.utils import get_monday_to_monday
@@ -22,20 +23,24 @@ class RemedyCheckinPlugin(Plugin):
                 self.send_msg(text("{}格式不正确".format(self.args[1])))
                 return
 
-            user_id = 0
+            user_id = self.context['user_id']
             if len(self.args) > 2:
                 user_id = self.args[2] # 特殊补卡指令可以给其他人补卡
 
             start, end = get_monday_to_monday(dt)
-            rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], start, end)
+            rows = self.dbmanager.search_target_user_checkin_range(user_id, start, end)
+
+            case = 0
 
             if len(rows) == 0:
-                points = self.dbmanager.get_user_point(self.context['user_id'])
-                if points >= 3:
-                    success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费3积分，谢谢惠顾喵"
-                    self.send_msg(text(success_msg.format(start.split(" ")[0], end.split(" ")[0])))
+                points = self.dbmanager.get_user_point(user_id)
+                if points >= case:
+                    success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费{}点数，谢谢惠顾喵"
+                    self.send_msg(text(success_msg.format(start.split(" ")[0], end.split(" ")[0], case)))
+                    utils.add_user_point(self.dbmanager, user_id, case * -1)
+                    self.dbmanager.remedy_checkin(user_id, start.split(" ")[0])
                 else:
-                    self.send_msg(text("补卡当然不是免费的喵！现在积分是：{}\n补卡需要3积分喵".format(points)))
+                    self.send_msg(text("补卡当然不是免费的喵！你现在现在点数是：{}\n补卡需要{}点喵".format(points, case)))
             else:
                 self.send_msg(text("上当了喵！{}-{}你已经打过卡了喵！".format(start.split(" ")[0], end.split(" ")[0])))
 
