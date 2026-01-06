@@ -54,7 +54,7 @@ class RemedyCheckinPlugin(Plugin):
             pre_date = date - timedelta(days=7)
             tmp_start, tmp_end = get_monday_to_monday(pre_date) # 这个函数里已经自带了8小时偏移，正常传入日期即可
 
-            if pre_date.year != date.year:
+            if datetime.strptime(tmp_end, "%Y-%m-%d %H:%M:%S").year != date.year:
                 self.send_msg(text("{}每一周都打了卡呢！完全不需要补卡喵".format(date.year)))
                 break
 
