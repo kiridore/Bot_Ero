@@ -20,6 +20,8 @@ bg_color = (245, 245, 245)  # 背景颜色
 # 颜色函数 (GitHub 风格)
 # =====================
 def get_github_green(max_value, val):
+    if val == -1:
+        return (255, 223, 186)#淡橙色，表示补卡
     if val == 0:
         return (235, 237, 240)  # 浅灰
     colors = [

@@ -66,11 +66,11 @@ class DbManager:
         for i in range(7):
             checkin_date = (datetime.strptime(day_start, "%Y-%m-%d") + timedelta(days=i)).strftime("%Y-%m-%d 12:00:00")
             print(checkin_date)
-        #     self.cur.execute(
-        #         "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
-        #         (user_id, checkin_date, "remedy_checkin")
-        #     )
-        # self.conn.commit()
+            self.cur.execute(
+                "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
+                (user_id, checkin_date, "remedy_checkin")
+            )
+        self.conn.commit()
 
     def search_checkin_year(self, user_id, year):
         start_date = f"{year}-01-01 00:00:00"

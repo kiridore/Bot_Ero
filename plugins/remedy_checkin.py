@@ -30,7 +30,7 @@ class RemedyCheckinPlugin(Plugin):
             start, end = get_monday_to_monday(dt)
             rows = self.dbmanager.search_target_user_checkin_range(user_id, start, end)
 
-            case = 0
+            case = 4
 
             if len(rows) == 0:
                 points = self.dbmanager.get_user_point(user_id)
