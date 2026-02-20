@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+import os
 
+from core import context
 from core.database_manager import DbManager
 # 返回本周一八点到下周一八点
 def get_monday_to_monday(date:datetime | None = None):
@@ -23,3 +25,13 @@ def day_of_year(date_str):
 def add_user_point(db:DbManager, user_id:str, offer:int):
         point = db.get_user_point(user_id)
         db.set_user_point(user_id, point + offer)
+
+def get_image_from_backup(user_id, image):
+    python_user_folder = f"{context.python_data_path}/record_images/{user_id}/"
+    image_name = image.replace('{', '').replace('}', '').replace('-', '')
+    backup_image = os.path.join(python_user_folder, image_name)
+
+    if os.path.exists(backup_image.lower()) or os.path.exists(backup_image):
+        return backup_image
+    else:
+        return ""
