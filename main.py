@@ -37,8 +37,6 @@ def on_message(_, message):
     else:
         logger.info("收到事件 -> " + message)
         # 消息事件，开启线程
-        global only_to_me_flag
-        only_to_me_flag = False
         t = threading.Thread(target=plugin_pool, args=(context, ))
         t.start()
 

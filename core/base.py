@@ -1,5 +1,3 @@
-from os import walk
-import re
 import json as json_
 import queue
 import collections
@@ -79,17 +77,6 @@ class Plugin:
             else:
                 return False
         return False
-
-    def only_to_me(self) -> bool:
-        global only_to_me_flag
-        if only_to_me_flag:
-            return True
-        for nick in NICKNAME:
-            at_string = f"[CQ:at,qq={self.context['self_id']},name={nick}] "
-            if self.on_message() and at_string in self.context["message"]:
-                only_to_me_flag = True
-                self.context["message"] = self.context["message"].replace(at_string, "")
-        return only_to_me_flag
 
     def super_user(self) -> bool:
         return self.context["user_id"] in SUPER_USER
