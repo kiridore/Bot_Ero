@@ -14,7 +14,7 @@ class WeekCheckinDisplayPlugin(Plugin):
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
         
-        self.send_msg(at(self.context["user_id"]), text("\n本周一共打了{}次卡\n收录了{}张图".format(len(time_map), len(rows))))
+        self.api.send_msg(at(self.context["user_id"]), text("\n本周一共打了{}次卡\n收录了{}张图".format(len(time_map), len(rows))))
         for row in rows:
-            image_file = self.get_image(row[3])
-            self.send_private_msg(image(image_file))
+            image_file = self.api.get_image(row[3])
+            self.api.send_private_msg(image(image_file))

@@ -19,12 +19,12 @@ class GroupSpecialTitlePlugin(Plugin):
             title = args[1]
 
         if title == "":
-            self.send_msg(text("给"), at(self.context["user_id"]), text("取消头衔了喵~"))
-            self.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
+            self.api.send_msg(text("给"), at(self.context["user_id"]), text("取消头衔了喵~"))
+            self.api.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
         elif len(title) > 10:
-            self.send_msg(text("头衔太长了喵，最多只能十个字符长"))
+            self.api.send_msg(text("头衔太长了喵，最多只能十个字符长"))
         else:
-            self.send_msg(text("给"), at(self.context["user_id"]), text("设置了新头衔喵~"))
-            self.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
+            self.api.send_msg(text("给"), at(self.context["user_id"]), text("设置了新头衔喵~"))
+            self.api.set_group_special_title(self.context["group_id"], self.context["user_id"], title)
 
         return

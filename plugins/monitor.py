@@ -32,6 +32,6 @@ class MonitorPlugin(Plugin):
 总计:{:.2f}GB
 使用:{:.2f}GB({:.2f}%)
 剩余:{:.2f}GB({:.2f}%)"""
-        self.send_msg(text(display_str.format(days, hours, minutes, secs, total_disk, used_disk, used_persent, free_disk, 100-used_persent)))
+        self.api.send_msg(text(display_str.format(days, hours, minutes, secs, total_disk, used_disk, used_persent, free_disk, 100-used_persent)))
     
 

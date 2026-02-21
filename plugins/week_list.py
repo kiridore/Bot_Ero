@@ -13,7 +13,7 @@ class WeekListPlugin(Plugin):
         start_date, end_date = get_monday_to_monday()
         checkin_users = self.dbmanager.search_all_user_checkin_range(start_date, end_date)
         if len(checkin_users) <= 0:
-            self.send_msg(text("本周({}-{})竟然还没有板油完成打卡".format(start_date, end_date)))
+            self.api.send_msg(text("本周({}-{})竟然还没有板油完成打卡".format(start_date, end_date)))
         else:
             display_str = ""
             user_map = {}
@@ -23,7 +23,7 @@ class WeekListPlugin(Plugin):
                 user_map[user_info[1]] = user_info[2]
 
             for user_id, checkin_time in user_map.items():
-                group_member_info = self.get_group_member_info(user_id)
+                group_member_info = self.api.get_group_member_info(user_id)
                 member_name = group_member_info["card"] 
                 if group_member_info["card"] == "":
                     member_name = group_member_info["nickname"]

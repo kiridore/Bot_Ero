@@ -10,7 +10,7 @@ class ReloadPlugin(Plugin):
     def handle(self):
         # 只允许超级用户触发（比如自己）
         if not self.super_user():
-            self.send_msg(text("你没有权限执行此操作"))
+            self.api.send_msg(text("你没有权限执行此操作"))
             return
 
         reloaded = []
@@ -19,4 +19,4 @@ class ReloadPlugin(Plugin):
                 importlib.reload(sys.modules[name])
                 reloaded.append(name)
 
-        self.send_msg(text(f"热更新完成，共重载 {len(reloaded)} 个插件"))
+        self.api.send_msg(text(f"热更新完成，共重载 {len(reloaded)} 个插件"))

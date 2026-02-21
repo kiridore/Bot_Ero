@@ -38,4 +38,4 @@ class PersonalRecords(Plugin):
         
         gen_image.gen_year_heatmap(year, day_checkin_count, self.context["user_id"])
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.llonebot_data_path, self.context["user_id"]))
-        self.send_msg(at(self.context["user_id"]), text(display_str), image("file://" + image_path))
+        self.api.send_msg(at(self.context["user_id"]), text(display_str), image("file://" + image_path))

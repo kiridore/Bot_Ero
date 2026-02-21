@@ -6,7 +6,7 @@ class MenuPlugin(Plugin):
         return self.on_full_match("/菜单")
 
     def handle(self):
-        self.send_msg(text("""小埃同学现在还只有打卡功能喵
+        self.api.send_msg(text("""小埃同学现在还只有打卡功能喵
 ---------------------------
 /打卡 加上你的图就可以完成打卡了喵
 /本周打卡图 统计本周上传的打卡图，通过小窗发送

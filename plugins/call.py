@@ -6,4 +6,4 @@ class CallPlugin(Plugin):
         return self.on_full_match("小埃同学")
 
     def handle(self):
-        self.send_msg(text("我在~"))
+        self.api.send_msg(text("我在~"))

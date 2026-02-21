@@ -8,4 +8,4 @@ class AutoFriendPlugin(Plugin):
 
     def handle(self):
         flag = self.context["flag"]
-        self.set_friend_add_request(flag)
+        self.api.set_friend_add_request(flag)

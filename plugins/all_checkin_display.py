@@ -12,11 +12,11 @@ class AllCheckinDisplay(Plugin):
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
         
-        self.send_msg(at(self.context["user_id"]), text("\n至今一共打了{}次卡\n收录了{}张图\n具体的图在这里……*翻找*".format(len(time_map), len(rows))))
+        self.api.send_msg(at(self.context["user_id"]), text("\n至今一共打了{}次卡\n收录了{}张图\n具体的图在这里……*翻找*".format(len(time_map), len(rows))))
         messages = []
         for row in rows:
-            image_file = self.get_image(row[3])
+            image_file = self.api.get_image(row[3])
             if image_file != "":
                 messages.append(image(image_file))
 
-        self.send_forward_msg(messages)
+        self.api.send_forward_msg(messages)
