@@ -33,4 +33,4 @@ class WeekListPlugin(Plugin):
             final_str = """本周({}-{})
 - 共有{}名板油完成了打卡:
 {}"""
-            self.send_msg(text(final_str.format(start_date, end_date, len(user_map), display_str)))
+            self.api.send_msg(text(final_str.format(start_date, end_date, len(user_map), display_str)))

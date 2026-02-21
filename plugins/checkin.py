@@ -1,4 +1,3 @@
-import re
 from core.base import Plugin
 from core.cq import text,at
 from core.logger import logger
@@ -36,4 +35,4 @@ class CheckinPlugin(Plugin):
                 add_user_point(self.dbmanager, self.context['user_id'], 1)
                 self.api.send_msg(at(self.context["user_id"]), text("\n🌟打卡成功喵🌟\n收录了{}张图片\n完成本周首次打卡喵，拿好你的点数~".format(len(img_list))))
             else:
-                self.send_msg(at(self.context["user_id"]), text("\n⭐打卡成功喵⭐\n收录了{}张图片\n这周已经提交了{}张图了喵".format(len(img_list), len(checkin_list))))
+                self.api.send_msg(at(self.context["user_id"]), text("\n⭐打卡成功喵⭐\n收录了{}张图片\n这周已经提交了{}张图了喵".format(len(img_list), len(checkin_list))))
