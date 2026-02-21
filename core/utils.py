@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import os
 
 from core import context
+from core.api import ApiWrapper
 from core.database_manager import DbManager
 # 返回本周一八点到下周一八点
 def get_monday_to_monday(date:datetime | None = None):
@@ -35,3 +36,10 @@ def get_image_from_backup(user_id, image):
         return backup_image
     else:
         return ""
+
+def get_image(context, image):
+    image_path = get_image_from_backup(context['user_id'], image) 
+    if image_path == "":
+        image_path = ApiWrapper(context).get_image(image)
+    return image_path
+
