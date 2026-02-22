@@ -3,7 +3,7 @@ from core.cq import text,at,image
 from core.utils import get_monday_to_monday
 
 class WeekCheckinDisplayPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_full_match("/本周打卡图")
 
     def handle(self):

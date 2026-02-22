@@ -1,8 +1,9 @@
+from typing import override
 from core.base import Plugin
 from core.cq import text
 
 class MenuPlugin(Plugin):
-    def match(self):
+    def match(self, event_type):
         return self.on_full_match("/菜单")
 
     def handle(self):

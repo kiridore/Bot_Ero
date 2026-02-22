@@ -6,7 +6,7 @@ from core.cq import text
 import git
 
 class UpdatePlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.super_user() and self.on_full_match("/更新")
 
     def handle(self):

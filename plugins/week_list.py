@@ -5,7 +5,7 @@ from core.logger import logger
 
 # 每周打卡板油
 class WeekListPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_full_match("/本周板油")
 
     def handle(self):

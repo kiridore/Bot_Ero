@@ -2,7 +2,7 @@ from core.base import Plugin
 from core.cq import text,at,image
 
 class AllCheckinDisplay(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_full_match("/ALL")
 
     def handle(self):

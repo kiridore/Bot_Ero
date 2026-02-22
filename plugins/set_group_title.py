@@ -2,7 +2,7 @@ from core.base import Plugin
 from core.cq import at, text
 
 class GroupSpecialTitlePlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_command("/群头衔")
 
     def handle(self):

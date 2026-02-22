@@ -7,7 +7,7 @@ from core.utils import get_monday_to_monday
 class RemedyCheckinPlugin(Plugin):
     super_mode = False
     
-    def match(self):
+    def match(self, message_type):
         if self.on_command("/补卡"):
             return True
         elif self.on_command("/超级补卡") and self.admin_user():

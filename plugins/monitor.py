@@ -1,3 +1,4 @@
+from typing import override
 from core.base import Plugin
 from core.cq import text
 import core.context as context
@@ -6,7 +7,7 @@ import shutil
 from datetime import datetime
 
 class MonitorPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.super_user() and self.on_full_match("/系统状态")
 
     def handle(self):

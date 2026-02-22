@@ -7,7 +7,7 @@ import core.utils as utils
 import core.gen_image as gen_image
 
 class PersonalRecords(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_command("/档案") 
 
     def handle(self):

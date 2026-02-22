@@ -5,7 +5,7 @@ from core.utils import get_monday_to_monday
 from core.logger import logger
 
 class RollbackCheckinPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_full_match("/撤回打卡")
 
     def handle(self):

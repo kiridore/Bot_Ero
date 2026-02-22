@@ -5,7 +5,7 @@ from core.base import Plugin
 from core.cq import text
 
 class BackupPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_full_match("/数据备份")
 
     def handle(self):

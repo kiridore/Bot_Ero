@@ -17,11 +17,11 @@ WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
 token = 123456
 
 
-def plugin_pool(context: dict):
+def plugin_pool(context: dict, event_type: str):
     # 遍历所有的 Plugin 的子类，执行匹配
     for P in Plugin.__subclasses__():
         plugin = P(context)
-        if plugin.match():
+        if plugin.match(event_type):
             plugin.handle()
 
 
@@ -34,10 +34,12 @@ def on_message(_, message):
         base.echo.match(context)
     elif "meta_event_type" in context:
         logger.debug("心跳事件 -> " + message)
+        t = threading.Thread(target=plugin_pool, args=(context, "meta"))
+        t.start()
     else:
         logger.info("收到事件 -> " + message)
         # 消息事件，开启线程
-        t = threading.Thread(target=plugin_pool, args=(context, ))
+        t = threading.Thread(target=plugin_pool, args=(context, "message"))
         t.start()
 
 
@@ -48,7 +50,7 @@ if __name__ == "__main__":
         header=[f"Authorization: Bearer {token}"],
         on_message=on_message,
         on_open=lambda _: logger.debug("连接成功......"),
-        on_close=lambda _: logger.debug("重连中......"),
+        on_close=lambda _: logger.debug("重连中......"),  # pyright: ignore[reportArgumentType]
     )
 
     while True:  # 掉线重连

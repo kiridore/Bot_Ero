@@ -5,7 +5,7 @@ from core.utils import add_user_point, get_monday_to_monday
 
 # 打卡插件
 class CheckinPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         return self.on_begin_with("/打卡")
 
     def handle(self):

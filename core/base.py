@@ -41,7 +41,7 @@ class Plugin:
         self.api = ApiWrapper(context)
         self.dbmanager = DbManager()
 
-    def match(self) -> bool:
+    def match(self, event_type = "message") -> bool:
         return False
 
     def handle(self):

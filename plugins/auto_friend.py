@@ -1,7 +1,7 @@
 from core.base import Plugin
 
 class AutoFriendPlugin(Plugin):
-    def match(self):
+    def match(self, message_type):
         if self.context.get("request_type", "") == "friend":
             return True
         return False
