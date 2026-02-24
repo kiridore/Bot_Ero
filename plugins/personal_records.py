@@ -28,22 +28,22 @@ class PersonalRecords(Plugin):
                 day_checkin_count[utils.day_of_year(row[2]) - 1] = -1
         
         display_str = "打卡记录\n"
-        display_str = display_str.join("总次数({}): {}\n".format(year, len(time_map)))
-        display_str = display_str.join("打卡图({}): {}张\n".format(year, len(rows)))
+        display_str = display_str + ("总次数({}): {}\n".format(year, len(time_map)))
+        display_str = display_str + ("打卡图({}): {}张\n".format(year, len(rows)))
 
-        display_str = display_str.join("------")
+        display_str = display_str + ("------")
 
-        # streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
-        #
-        # display_str = display_str.join("当前连续（周）: {}\n".format(streak_res["longest_weekly"]))
-        # display_str = display_str.join("最长连击（周）: {}\n".format(streak_res["current_weekly"]))
-        #
-        # display_str = display_str.join("------")
-        #
-        # display_str = display_str.join("当前连续（日）: {}\n".format(streak_res["longest_daily"]))
-        # display_str = display_str.join("最长连续（日）: {}\n".format(streak_res["current_daily"]))
+        streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
 
-        display_str = display_str.join("点数: {}\n".format(self.dbmanager.get_user_point(self.context['user_id'])))
+        display_str = display_str + ("当前连续（周）: {}\n".format(streak_res["longest_weekly"]))
+        display_str = display_str + ("最长连击（周）: {}\n".format(streak_res["current_weekly"]))
+
+        display_str = display_str + ("------")
+
+        display_str = display_str + ("当前连续（日）: {}\n".format(streak_res["longest_daily"]))
+        display_str = display_str + ("最长连续（日）: {}\n".format(streak_res["current_daily"]))
+
+        display_str = display_str + ("点数: {}\n".format(self.dbmanager.get_user_point(self.context['user_id'])))
         
         gen_image.gen_year_heatmap(year, day_checkin_count, self.context["user_id"])
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.llonebot_data_path, self.context["user_id"]))
