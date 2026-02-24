@@ -12,13 +12,10 @@ from .auto_friend import AutoFriendPlugin
 from .welcome import WelcomePlugin
 from .all_checkin_display import AllCheckinDisplay
 from .backup import BackupPlugin
-from .read_history import HistoryPlugin
-from .set_group_title import GroupSpecialTitlePlugin
 from.remedy_checkin import RemedyCheckinPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
-# __all__.append("ReloadPlugin")    # 重载后会导致内存里有多个Plugin子类，暂时关闭
 __all__.append("CheckinPlugin")
 __all__.append("WeekCheckinDisplayPlugin")
 __all__.append("PersonalRecords")
@@ -31,6 +28,4 @@ __all__.append("AutoFriendPlugin")
 __all__.append("WelcomePlugin")
 __all__.append("AllCheckinDisplay")
 __all__.append("BackupPlugin")
-# __all__.append("HistoryPlugin")
-# __all__.append("GroupSpecialTitlePlugin")
 __all__.append("RemedyCheckinPlugin")
