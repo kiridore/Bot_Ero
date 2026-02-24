@@ -35,8 +35,8 @@ def on_message(_, message):
         api.echo.match(context)
     elif "meta_event_type" in context:
         logger.debug("心跳事件 -> " + message)
-        t = threading.Thread(target=plugin_pool, args=(context, "meta"))
-        t.start()
+        # t = threading.Thread(target=plugin_pool, args=(context, "meta"))
+        # t.start()
     else:
         logger.info("收到事件 -> " + message)
         # 消息事件，开启线程
