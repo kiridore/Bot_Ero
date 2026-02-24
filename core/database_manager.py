@@ -167,7 +167,7 @@ class DbManager:
         # =========================
         dates = sorted({
             # 添加偏移量，确保与打卡机制（八点结算）一致
-            datetime.strptime(row[0], DATE_FORMAT).date() - timedelta(hours = 8)
+            (datetime.strptime(row[0], DATE_FORMAT) - timedelta(hours = 8)).date()
             for row in rows
         })
 
