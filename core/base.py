@@ -1,37 +1,13 @@
-import queue
-import collections
-
 from core.cq import *
 from core.api import ApiWrapper
-
-import websocket
-
 from core.database_manager import DbManager
 
-
-
-WS_APP : websocket.WebSocketApp
 only_to_me_flag = False
 
 NICKNAME = "小埃同学"         # 机器人昵称
 SUPER_USER = [1057613133]   # 主人的 QQ 号
 BOT_QQ = "3915014383"
 
-class Echo:
-    def __init__(self):
-        self.echo_num = 0
-        self.echo_list = collections.deque(maxlen=20)
-
-    def get(self):
-        self.echo_num += 1
-        q = queue.Queue(maxsize=1)
-        self.echo_list.append((self.echo_num, q))
-        return self.echo_num, q
-
-    def match(self, context: dict):
-        for obj in self.echo_list:
-            if context["echo"] == obj[0]:
-                obj[1].put(context)
 
 class Plugin:
     def __init__(self, context: dict):
