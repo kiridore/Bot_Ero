@@ -29,10 +29,19 @@ class CheckinPlugin(Plugin):
                 is_first = True
 
             #先打卡后搜索
+            streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
             self.dbmanager.insert_checkin(self.context["user_id"], img_list)
             checkin_list = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)
+
+            display_str = "\n🌟打卡成功喵🌟\n收录了{}张图片\n".format(len(img_list))
+
             if is_first:
                 add_user_point(self.dbmanager, self.context['user_id'], 1)
-                self.api.send_msg(at(self.context["user_id"]), text("\n🌟打卡成功喵🌟\n收录了{}张图片\n完成本周首次打卡喵，拿好你的点数~".format(len(img_list))))
+                display_str += "完成本周首次打卡喵，拿好你的点数~"
             else:
-                self.api.send_msg(at(self.context["user_id"]), text("\n⭐打卡成功喵⭐\n收录了{}张图片\n这周已经提交了{}张图了喵".format(len(img_list), len(checkin_list))))
+                display_str += "这周已经提交了{}张图了喵".format(len(checkin_list))
+
+            if streak_res["current_weekly"] > 1:
+                display_str += "\n已经连续打卡了{}周了，真厉害喵！".format(streak_res["current_weekly"])
+
+            self.api.send_msg(at(self.context["user_id"]), text(display_str))
