@@ -33,15 +33,15 @@ class PersonalRecords(Plugin):
 
         display_str = display_str.join("------")
 
-        streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
-
-        display_str = display_str.join("当前连续（周）: {}\n".format(streak_res["longest_weekly"]))
-        display_str = display_str.join("最长连击（周）: {}\n".format(streak_res["current_weekly"]))
-
-        display_str = display_str.join("------")
-
-        display_str = display_str.join("当前连续（日）: {}\n".format(streak_res["longest_daily"]))
-        display_str = display_str.join("最长连续（日）: {}\n".format(streak_res["current_daily"]))
+        # streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
+        #
+        # display_str = display_str.join("当前连续（周）: {}\n".format(streak_res["longest_weekly"]))
+        # display_str = display_str.join("最长连击（周）: {}\n".format(streak_res["current_weekly"]))
+        #
+        # display_str = display_str.join("------")
+        #
+        # display_str = display_str.join("当前连续（日）: {}\n".format(streak_res["longest_daily"]))
+        # display_str = display_str.join("最长连续（日）: {}\n".format(streak_res["current_daily"]))
 
         display_str = display_str.join("点数: {}\n".format(self.dbmanager.get_user_point(self.context['user_id'])))
         
