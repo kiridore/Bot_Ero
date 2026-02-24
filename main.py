@@ -3,6 +3,7 @@ import threading
 import json as json_
 
 from datetime import datetime
+from core import api
 from core.logger import logger
 from core.base import Plugin
 from plugins import *
@@ -31,7 +32,7 @@ def on_message(_, message):
     if "echo" in context:
         logger.debug("调用返回 -> " + message)
         # 响应报文通过队列传递给调用 API 的函数
-        base.echo.match(context)
+        api.echo.match(context)
     elif "meta_event_type" in context:
         logger.debug("心跳事件 -> " + message)
         t = threading.Thread(target=plugin_pool, args=(context, "meta"))
@@ -44,8 +45,8 @@ def on_message(_, message):
 
 
 if __name__ == "__main__":
-    base.echo = base.Echo()
-    base.WS_APP = websocket.WebSocketApp(
+    api.echo = api.Echo()
+    api.WS_APP = websocket.WebSocketApp(
         WS_URL,
         header=[f"Authorization: Bearer {token}"],
         on_message=on_message,
@@ -57,7 +58,7 @@ if __name__ == "__main__":
         # 数据储存
         logger.info("数据库启动")
         context.script_start_time = datetime.now()
-        base.WS_APP.run_forever()
+        api.WS_APP.run_forever()
 
         if context.should_shutdown:
             break
