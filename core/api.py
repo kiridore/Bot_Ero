@@ -7,8 +7,6 @@ from core.logger import logger
 from core.database_manager import DbManager
 from core.cq import *
 
-WS_APP : websocket.WebSocketApp
-
 class Echo:
     def __init__(self):
         self.echo_num = 0
@@ -26,6 +24,7 @@ class Echo:
                 obj[1].put(context)
 
 echo : Echo
+WS_APP : websocket.WebSocketApp
 
 class ApiWrapper:
     def __init__(self, context: dict):
