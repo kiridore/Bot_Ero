@@ -140,3 +140,103 @@ class DbManager:
             WHERE id = ?
         """, (target_id, ))
         self.conn.commit()
+
+    def get_user_streaks(self, user_id):
+        DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+        cur = self.conn.cursor()
+
+        cur.execute("""
+            SELECT checkin_date
+            FROM checkin_records
+            WHERE user_id = ?
+            ORDER BY checkin_date ASC
+        """, (user_id,))
+
+        rows = cur.fetchall()
+
+        if not rows:
+            return {
+                "longest_daily": 0,
+                "current_daily": 0,
+                "longest_weekly": 0,
+                "current_weekly": 0
+            }
+
+        # =========================
+        # 处理日期（去重）
+        # =========================
+        dates = sorted({
+            datetime.strptime(row[0], DATE_FORMAT).date()
+            for row in rows
+        })
+
+        # =========================
+        # 日 streak 统计
+        # =========================
+        longest_daily = 1
+        current_daily = 1
+
+        for i in range(1, len(dates)):
+            if dates[i] == dates[i - 1] + timedelta(days=1):
+                current_daily += 1
+                longest_daily = max(longest_daily, current_daily)
+            else:
+                current_daily = 1
+
+        # 当前连续日 streak（从最后一天往前推）
+        today = dates[-1]
+        current_daily_real = 1
+        for i in range(len(dates) - 2, -1, -1):
+            if dates[i] == today - timedelta(days=1):
+                current_daily_real += 1
+                today = dates[i]
+            else:
+                break
+
+        # =========================
+        # 周 streak 统计
+        # =========================
+        weeks = sorted({
+            (d.isocalendar().year, d.isocalendar().week)
+            for d in dates
+        })
+
+        longest_weekly = 1
+        current_weekly = 1
+
+        for i in range(1, len(weeks)):
+            prev_year, prev_week = weeks[i - 1]
+            curr_year, curr_week = weeks[i]
+
+            prev_date = datetime.fromisocalendar(prev_year, prev_week, 1).date()
+            next_week_date = prev_date + timedelta(weeks=1)
+            next_year, next_week = next_week_date.isocalendar()[:2]
+
+            if (curr_year, curr_week) == (next_year, next_week):
+                current_weekly += 1
+                longest_weekly = max(longest_weekly, current_weekly)
+            else:
+                current_weekly = 1
+
+        # 当前连续周 streak
+        last_year, last_week = weeks[-1]
+        current_weekly_real = 1
+
+        prev_date = datetime.fromisocalendar(last_year, last_week, 1).date()
+
+        for i in range(len(weeks) - 2, -1, -1):
+            test_date = prev_date - timedelta(weeks=1)
+            expected_year, expected_week = test_date.isocalendar()[:2]
+
+            if weeks[i] == (expected_year, expected_week):
+                current_weekly_real += 1
+                prev_date = test_date
+            else:
+                break
+
+        return {
+            "longest_daily": longest_daily,
+            "current_daily": current_daily_real,
+            "longest_weekly": longest_weekly,
+            "current_weekly": current_weekly_real
+        }
