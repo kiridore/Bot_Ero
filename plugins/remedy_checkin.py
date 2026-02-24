@@ -50,12 +50,13 @@ class RemedyCheckinPlugin(Plugin):
 
     def find_remedy(self):
         date = datetime.today()
+        current_year = date.year
 
         while True:
             pre_date = date - timedelta(days=7)
             tmp_start, tmp_end = get_monday_to_monday(pre_date) # 这个函数里已经自带了8小时偏移，正常传入日期即可
 
-            if datetime.strptime(tmp_end, "%Y-%m-%d %H:%M:%S").year != date.year:
+            if datetime.strptime(tmp_end, "%Y-%m-%d %H:%M:%S").year != current_year:
                 self.api.send_msg(text("{}每一周都打了卡呢！完全不需要补卡喵".format(date.year)))
                 break
 
