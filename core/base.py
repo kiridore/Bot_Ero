@@ -33,8 +33,6 @@ class Echo:
             if context["echo"] == obj[0]:
                 obj[1].put(context)
 
-echo : Echo
-
 class Plugin:
     def __init__(self, context: dict):
         self.context = context

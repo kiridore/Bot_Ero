@@ -1,7 +1,7 @@
-from core.base import Echo
 import json as json_
 import queue
 import websocket
+import collections
 
 from core.logger import logger
 from core.database_manager import DbManager
@@ -9,7 +9,24 @@ from core.cq import *
 
 WS_APP : websocket.WebSocketApp
 
+class Echo:
+    def __init__(self):
+        self.echo_num = 0
+        self.echo_list = collections.deque(maxlen=20)
+
+    def get(self):
+        self.echo_num += 1
+        q = queue.Queue(maxsize=1)
+        self.echo_list.append((self.echo_num, q))
+        return self.echo_num, q
+
+    def match(self, context: dict):
+        for obj in self.echo_list:
+            if context["echo"] == obj[0]:
+                obj[1].put(context)
+
 echo : Echo
+
 class ApiWrapper:
     def __init__(self, context: dict):
         self.ws = WS_APP
