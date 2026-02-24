@@ -1,5 +1,3 @@
-import core.base
-
 def text(string: str) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E7%BA%AF%E6%96%87%E6%9C%AC
     return {"type": "text", "data": {"text": string}}
