@@ -57,7 +57,7 @@ class RemedyCheckinPlugin(Plugin):
             tmp_start, tmp_end = get_monday_to_monday(pre_date) # 这个函数里已经自带了8小时偏移，正常传入日期即可
 
             if datetime.strptime(tmp_end, "%Y-%m-%d %H:%M:%S").year != current_year:
-                self.api.send_msg(text("{}每一周都打了卡呢！完全不需要补卡喵".format(date.year)))
+                self.api.send_msg(text("{}每一周都打了卡呢！完全不需要补卡喵".format(current_year)))
                 break
 
             rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], tmp_start, tmp_end)
