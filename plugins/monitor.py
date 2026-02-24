@@ -1,4 +1,3 @@
-from typing import override
 from core.base import Plugin
 from core.cq import text
 import core.context as context
