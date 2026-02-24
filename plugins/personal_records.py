@@ -31,14 +31,14 @@ class PersonalRecords(Plugin):
         display_str = display_str + ("总次数({}): {}\n".format(year, len(time_map)))
         display_str = display_str + ("打卡图({}): {}张\n".format(year, len(rows)))
 
-        display_str = display_str + ("------")
+        display_str = display_str + ("------\n")
 
         streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
 
         display_str = display_str + ("当前连续（周）: {}\n".format(streak_res["longest_weekly"]))
         display_str = display_str + ("最长连击（周）: {}\n".format(streak_res["current_weekly"]))
 
-        display_str = display_str + ("------")
+        display_str = display_str + ("\n")
 
         display_str = display_str + ("当前连续（日）: {}\n".format(streak_res["longest_daily"]))
         display_str = display_str + ("最长连续（日）: {}\n".format(streak_res["current_daily"]))
