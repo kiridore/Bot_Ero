@@ -1,9 +1,10 @@
 from datetime import datetime
 import os
 import shutil
-from core import context
+from core import context, utils
 from core.base import Plugin
 from core.cq import text
+import requests
 
 class BackupPlugin(Plugin):
     def match(self, message_type):
@@ -38,12 +39,17 @@ class BackupPlugin(Plugin):
 
             # 确保大小写有一种图片保存下来了
             if not os.path.exists(backup_image.lower()) and not os.path.exists(backup_image):
-                qq_origin_image = self.api.get_image(row[3])
-                if qq_origin_image != "":
-                    # 需要在本机目录找到docker挂载的qq config
-                    qq_origin_image = qq_origin_image.replace("/root/.config/QQ", context.onebot_qq_volume)
-                    shutil.copy(qq_origin_image, python_user_folder)
-                    success_cnt += 1
+                qq_origin_image_name = self.api.get_image(row[3])
+                if qq_origin_image_name != "":
+                    url = self.api.get_image_url(row[3])
+                    ok, msg = utils.download_image(url, backup_image)
+
+                    # qq_origin_image_name = qq_origin_image_name.replace("/root/.config/QQ", context.onebot_qq_volume)
+                    # shutil.copy(qq_origin_image_name, python_user_folder)
+                    if not ok:
+                        print("备份失败{}".format(msg))
+                    else:
+                        success_cnt += 1
                 else:
                     flag = "QQ图片获取失败"
                     print("尝试备份{}, {}".format(backup_image, flag))

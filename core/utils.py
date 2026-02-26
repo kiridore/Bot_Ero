@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import requests
 import os
 
 from core import context
@@ -43,3 +44,29 @@ def get_image(context, image):
         image_path = ApiWrapper(context).get_image(image)
     return image_path
 
+def download_image(url, local_path, expected_size=None):
+    try:
+        response = requests.get(url, timeout=15)
+        if response.status_code != 200:
+            return False, "HTTP状态码异常"
+
+        if not response.content:
+            return False, "内容为空"
+
+        if expected_size:
+            if len(response.content) != expected_size:
+                return False, "文件大小不匹配"
+
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+        with open(local_path, "wb") as f:
+            f.write(response.content)
+
+        if expected_size:
+            if os.path.getsize(local_path) != expected_size:
+                return False, "写入后大小异常"
+
+        return True, "下载成功"
+
+    except Exception as e:
+        return False, str(e)

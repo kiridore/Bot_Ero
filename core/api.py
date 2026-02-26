@@ -77,6 +77,16 @@ class ApiWrapper:
         else :
             return ""
 
+    def get_image_url(self, file):
+        # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_image-%E8%8E%B7%E5%8F%96%E5%9B%BE%E7%89%87
+        params = {"file": file}
+        ret = self.call_api("get_image", params)
+        if ret["status"] == "ok":
+            return ret["data"]["url"]
+        else :
+            return ""
+
+
     def get_qq_avatar(self, user_id):
         params = {"user_id": user_id}
         ret = self.call_api("get_qq_avatar", params)
