@@ -25,6 +25,7 @@ class BackupPlugin(Plugin):
         exists_cnt = 0
         success_cnt = 0
         error_cnt = 0
+        remedy_cnt = 0
 
         for row in rows:
             # 根据QQ号创建文件夹
@@ -32,7 +33,9 @@ class BackupPlugin(Plugin):
             python_user_folder = f"{context.python_data_path}/record_images/{user_id}"
             image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
 
-            if image_name == "remedy_checkin": continue
+            if image_name == "remedy_checkin": 
+                remedy_cnt += 1
+                continue
 
             os.makedirs(python_user_folder, exist_ok=True)
             flag = "成功"
@@ -46,6 +49,7 @@ class BackupPlugin(Plugin):
                 if qq_origin_image_name != "":
                     url = self.api.get_image_url(row[3])
                     ok, msg = utils.download_image(url, backup_image)
+                    print("download {}".format(backup_image))
 
                     # qq_origin_image_name = qq_origin_image_name.replace("/root/.config/QQ", context.onebot_qq_volume)
                     # shutil.copy(qq_origin_image_name, python_user_folder)
@@ -62,4 +66,4 @@ class BackupPlugin(Plugin):
                 exists_cnt += 1
 
             # print("尝试备份{}, {}".format(backup_image, flag))
-        self.api.send_msg(text("备份完成喵，共检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里".format(len(rows), exists_cnt, success_cnt, error_cnt)))
+        self.api.send_msg(text("备份完成喵，共检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里\n包含{}次补卡记录".format(len(rows), exists_cnt, success_cnt, error_cnt, remedy_cnt)))
