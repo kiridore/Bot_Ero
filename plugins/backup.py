@@ -31,6 +31,9 @@ class BackupPlugin(Plugin):
             user_id = row[1]
             python_user_folder = f"{context.python_data_path}/record_images/{user_id}"
             image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
+
+            if image_name == "remedy_checkin": continue
+
             os.makedirs(python_user_folder, exist_ok=True)
             flag = "成功"
 
