@@ -32,7 +32,10 @@ class Plugin:
         message_list = self.context["message"]
         if len(message_list) == 1:
             msg = message_list[0]
-            return msg['type'] == 'text' and msg['data']['text'] == keyword
+            if msg['type'] != 'text': return False
+
+            msg_text:str = msg['data']['text'] 
+            return msg_text.strip() == keyword
         return False
 
     def on_begin_with(self, keyword="") -> bool:
