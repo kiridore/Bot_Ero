@@ -46,7 +46,12 @@ def get_image(context, image):
 
 def download_image(url, local_path, expected_size=None):
     try:
-        response = requests.get(url, timeout=15)
+        proxies = {
+            "http": "http://127.0.0.1:7890",
+            "https": "http://127.0.0.1:7890"
+        }
+
+        response = requests.get(url, proxies=proxies, timeout=30)
         if response.status_code != 200:
             return False, "HTTP状态码异常"
 
