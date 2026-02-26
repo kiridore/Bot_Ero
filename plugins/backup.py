@@ -1,10 +1,8 @@
 from datetime import datetime
 import os
-import shutil
 from core import context, utils
 from core.base import Plugin
 from core.cq import text
-import requests
 
 class BackupPlugin(Plugin):
     def match(self, message_type):
