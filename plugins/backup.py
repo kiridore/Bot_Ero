@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import shutil
 from core import context
@@ -6,7 +7,14 @@ from core.cq import text
 
 class BackupPlugin(Plugin):
     def match(self, message_type):
-        print(message_type)
+        # 定时任务
+        if message_type == "meta":
+            # 获取当前时间
+            current_time = datetime.now()
+            # 仅在早上八点运行
+            if current_time.hour == 8 and current_time.minute == 0:
+                return True
+
         return self.on_full_match("/数据备份")
 
     def handle(self):
