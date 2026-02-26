@@ -22,9 +22,13 @@ class Plugin:
         pass
 
     def on_message(self) -> bool:
+        if self.context.get("post_type" , "") == "":
+            return False
         return self.context["post_type"] == "message"
 
     def on_full_match(self, keyword="") -> bool:
+        if self.context.get("message", "") == "":
+            return False
         message_list = self.context["message"]
         if len(message_list) == 1:
             msg = message_list[0]
@@ -32,12 +36,18 @@ class Plugin:
         return False
 
     def on_begin_with(self, keyword="") -> bool:
+        if self.context.get( "message" , "") == "":
+            return False
+
         msg = self.context["message"][0]
         if (msg["type"] == 'text'):
             return msg['type'] == 'text' and msg['data']['text'] == keyword
         return False
 
     def on_command(self, command) -> bool:
+        if self.context.get( "message" , "") == "":
+            return False
+
         msg = self.context["message"][0]
         if (msg["type"] == 'text'):
             sp = msg["data"]["text"].split(" ")
@@ -53,7 +63,12 @@ class Plugin:
         return False
 
     def super_user(self) -> bool:
+        if self.context.get("user_id" , "") == "":
+            return False
         return self.context["user_id"] in SUPER_USER
 
     def admin_user(self) -> bool:
+        if self.context.get("sender" , "") == "":
+            return False
+
         return self.super_user() or self.context["sender"]["role"] in ("admin", "owner")
