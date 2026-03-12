@@ -44,7 +44,7 @@ class Plugin:
 
         msg = self.context["message"][0]
         if (msg["type"] == 'text'):
-            return msg['type'] == 'text' and msg['data']['text'] == keyword
+            return msg['type'] == 'text' and msg['data']['text'].strip() == keyword
         return False
 
     def on_command(self, command) -> bool:
