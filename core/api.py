@@ -118,7 +118,7 @@ class ApiWrapper:
         return ret["data"]
 
     def set_group_special_title(self, group_id, user_id, title):
-        params = {"group_id": group_id, "user_id": user_id, "sepcial_title": title}
+        params = {"group_id": group_id, "user_id": user_id, "special_title": title}
         ret = self.call_api("set_group_special_title", params)
         return 0
     pass
