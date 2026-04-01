@@ -12,7 +12,8 @@ from .auto_friend import AutoFriendPlugin
 from .welcome import WelcomePlugin
 from .all_checkin_display import AllCheckinDisplay
 from .backup import BackupPlugin
-from.remedy_checkin import RemedyCheckinPlugin
+from .remedy_checkin import RemedyCheckinPlugin
+from .set_group_title import GroupSpecialTitlePlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -29,3 +30,4 @@ __all__.append("WelcomePlugin")
 __all__.append("AllCheckinDisplay")
 __all__.append("BackupPlugin")
 __all__.append("RemedyCheckinPlugin")
+__all__.append("GroupSpecialTitlePlugin")
