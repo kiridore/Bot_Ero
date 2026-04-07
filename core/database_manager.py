@@ -20,10 +20,48 @@ class DbManager:
                 points INTEGER DEFAULT 0         -- 积分字段
             );
         ''')
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_titles (
+                user_id TEXT NOT NULL,
+                title_id INTEGER NOT NULL,
+                unlocked_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, title_id)
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_title_state (
+                user_id TEXT PRIMARY KEY,
+                equipped_title INTEGER
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_equipped_titles (
+                user_id TEXT NOT NULL,
+                slot INTEGER NOT NULL,
+                title_id INTEGER NOT NULL,
+                PRIMARY KEY (user_id, slot),
+                UNIQUE (user_id, title_id)
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS group_daily_message_stats (
+                stat_date TEXT NOT NULL,
+                group_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                message_count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (stat_date, group_id, user_id)
+            );
+        """)
         self.cur.execute("PRAGMA table_info(checkin_records)")
         _cols = [row[1] for row in self.cur.fetchall()]
         if "message_id" not in _cols:
             self.cur.execute("ALTER TABLE checkin_records ADD COLUMN message_id INTEGER")
+        self.cur.execute("""
+            INSERT OR IGNORE INTO user_equipped_titles (user_id, slot, title_id)
+            SELECT user_id, 1, equipped_title
+            FROM user_title_state
+            WHERE equipped_title IS NOT NULL
+        """)
         self.conn.commit()
 
     def __del__(self):
@@ -65,6 +103,137 @@ class DbManager:
         """, (limit,))
         return self.cur.fetchall()
 
+    def get_user_titles(self, user_id):
+        self.cur.execute("""
+            SELECT title_id
+            FROM user_titles
+            WHERE user_id = ?
+            ORDER BY title_id ASC
+        """, (str(user_id),))
+        return [row[0] for row in self.cur.fetchall()]
+
+    def unlock_title(self, user_id, title_id):
+        self.cur.execute("""
+            INSERT OR IGNORE INTO user_titles (user_id, title_id, unlocked_at)
+            VALUES (?, ?, ?)
+        """, (str(user_id), int(title_id), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        inserted = self.cur.rowcount > 0
+        self.conn.commit()
+        return inserted
+
+    def has_title(self, user_id, title_id):
+        self.cur.execute("""
+            SELECT 1
+            FROM user_titles
+            WHERE user_id = ? AND title_id = ?
+            LIMIT 1
+        """, (str(user_id), int(title_id)))
+        return self.cur.fetchone() is not None
+
+    def get_equipped_title(self, user_id):
+        titles = self.get_equipped_titles(user_id)
+        if len(titles) == 0:
+            return None
+        return titles[0]
+
+    def get_equipped_titles(self, user_id):
+        self.cur.execute("""
+            SELECT title_id
+            FROM user_equipped_titles
+            WHERE user_id = ?
+            ORDER BY slot ASC
+        """, (str(user_id),))
+        return [row[0] for row in self.cur.fetchall()]
+
+    def equip_title(self, user_id, title_id, max_count=3):
+        user_id = str(user_id)
+        title_id = int(title_id)
+        equipped = self.get_equipped_titles(user_id)
+        if title_id in equipped:
+            return False, "already"
+        if len(equipped) >= max_count:
+            return False, "full"
+
+        used_slots = set()
+        self.cur.execute("""
+            SELECT slot
+            FROM user_equipped_titles
+            WHERE user_id = ?
+        """, (user_id,))
+        for row in self.cur.fetchall():
+            used_slots.add(int(row[0]))
+
+        slot = 1
+        while slot in used_slots:
+            slot += 1
+
+        self.cur.execute("""
+            INSERT INTO user_equipped_titles (user_id, slot, title_id)
+            VALUES (?, ?, ?)
+        """, (user_id, slot, title_id))
+        self.conn.commit()
+        return True, "ok"
+
+    def clear_equipped_titles(self, user_id):
+        self.cur.execute("""
+            DELETE FROM user_equipped_titles
+            WHERE user_id = ?
+        """, (str(user_id),))
+        self.conn.commit()
+
+    def set_equipped_title(self, user_id, title_id):
+        # 兼容旧接口：设置为单称号装备
+        user_id = str(user_id)
+        self.clear_equipped_titles(user_id)
+        if title_id is not None:
+            self.equip_title(user_id, int(title_id), max_count=3)
+
+    def increment_group_daily_message_count(self, stat_date, group_id, user_id, inc=1):
+        self.cur.execute("""
+            INSERT INTO group_daily_message_stats (stat_date, group_id, user_id, message_count)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(stat_date, group_id, user_id)
+            DO UPDATE SET message_count = message_count + excluded.message_count
+        """, (stat_date, int(group_id), int(user_id), int(inc)))
+        self.conn.commit()
+
+    def get_group_daily_message_stats(self, stat_date, group_id, limit=50):
+        self.cur.execute("""
+            SELECT user_id, message_count
+            FROM group_daily_message_stats
+            WHERE stat_date = ? AND group_id = ?
+            ORDER BY message_count DESC, user_id ASC
+            LIMIT ?
+        """, (stat_date, int(group_id), int(limit)))
+        return self.cur.fetchall()
+
+    def grant_points_to_all_users(self, amount):
+        amount = int(amount)
+        self.cur.execute("""
+            SELECT DISTINCT user_id FROM user_assets
+            UNION
+            SELECT DISTINCT CAST(user_id AS TEXT) FROM checkin_records
+            UNION
+            SELECT DISTINCT CAST(user_id AS TEXT) FROM user_titles
+            UNION
+            SELECT DISTINCT user_id FROM user_title_state
+            UNION
+            SELECT DISTINCT user_id FROM user_equipped_titles
+            UNION
+            SELECT DISTINCT CAST(user_id AS TEXT) FROM group_daily_message_stats
+        """)
+        user_ids = [row[0] for row in self.cur.fetchall() if row[0] is not None]
+
+        for uid in user_ids:
+            self.cur.execute("""
+                INSERT INTO user_assets (user_id, points)
+                VALUES (?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET points = points + excluded.points
+            """, (str(uid), amount))
+
+        self.conn.commit()
+        return len(user_ids)
+
     def insert_checkin(self, user_id, images, message_id=None):
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for img in images:
@@ -83,6 +252,14 @@ class DbManager:
                 "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
                 (user_id, checkin_date, "remedy_checkin")
             )
+        self.conn.commit()
+
+    def remedy_checkin_one_day(self, user_id, day_str):
+        checkin_date = datetime.strptime(day_str, "%Y-%m-%d").strftime("%Y-%m-%d 12:00:00")
+        self.cur.execute(
+            "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
+            (user_id, checkin_date, "remedy_checkin")
+        )
         self.conn.commit()
 
     def search_checkin_year(self, user_id, year):

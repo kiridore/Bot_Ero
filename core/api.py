@@ -43,8 +43,38 @@ class ApiWrapper:
             logger.error("API调用[{echo_num}] 超时......")
             return {}
 
+    def _build_title_prefix(self, user_id):
+        try:
+            equipped_titles = self.dbmanager.get_equipped_titles(user_id)[:3]
+            if len(equipped_titles) == 0:
+                return ""
+            names = []
+            from plugins.title import get_title_def
+            for tid in equipped_titles:
+                data = get_title_def(tid)
+                if data and data.get("name"):
+                    names.append(data["name"])
+            if len(names) == 0:
+                return ""
+            return "·".join(names)
+        except Exception:
+            return ""
+
+    def _inject_titles_before_at(self, message):
+        merged = []
+        for seg in message:
+            if isinstance(seg, dict) and seg.get("type") == "at":
+                qq = seg.get("data", {}).get("qq")
+                if qq != "all":
+                    prefix = self._build_title_prefix(qq)
+                    if prefix:
+                        merged.append(text(prefix + " "))
+            merged.append(seg)
+        return tuple(merged)
+
     def send_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_msg-%E5%8F%91%E9%80%81%E6%B6%88%E6%81%AF
+        message = self._inject_titles_before_at(message)
         if ("group_id" in self.context and self.context["group_id"]):
             return self.send_group_msg(*message)
         elif ("user_id" in self.context and self.context["user_id"]):

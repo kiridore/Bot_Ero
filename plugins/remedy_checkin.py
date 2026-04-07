@@ -8,7 +8,9 @@ class RemedyCheckinPlugin(Plugin):
     super_mode = False
     
     def match(self, message_type):
-        if self.on_command("/补卡"):
+        if self.on_command("/单日补卡"):
+            return True
+        elif self.on_command("/补卡"):
             return True
         elif self.on_command("/超级补卡") and self.admin_user():
             self.super_mode = True
@@ -16,6 +18,10 @@ class RemedyCheckinPlugin(Plugin):
         return False
 
     def handle(self):
+        if self.args[0] == "/单日补卡":
+            self.handle_single_day_remedy()
+            return
+
         if len(self.args) > 1:
             try:
                 dt = datetime.strptime(self.args[1], "%Y-%m-%d") + timedelta(hours=8)
@@ -47,6 +53,53 @@ class RemedyCheckinPlugin(Plugin):
 
         else:
             self.find_remedy()
+
+    def handle_single_day_remedy(self):
+        if len(self.args) <= 1:
+            suggest_day = self.find_single_day_remedy()
+            if suggest_day is None:
+                self.api.send_msg(text("今年每天都打过卡了喵，不需要单日补卡"))
+            else:
+                self.api.send_msg(text("找到最近漏打卡日期：{}\n可使用指令：/单日补卡 {}".format(suggest_day, suggest_day)))
+            return
+
+        try:
+            day = datetime.strptime(self.args[1], "%Y-%m-%d")
+        except Exception:
+            self.api.send_msg(text("{}格式不正确".format(self.args[1])))
+            return
+
+        day_start = day.strftime("%Y-%m-%d 08:00:00")
+        day_end = (day + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
+        user_id = self.context["user_id"]
+
+        rows = self.dbmanager.search_target_user_checkin_range(user_id, day_start, day_end)
+        if len(rows) > 0:
+            self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[1])))
+            return
+
+        cost = 2
+        points = self.dbmanager.get_user_point(user_id)
+        if points < cost:
+            self.api.send_msg(text("补卡当然不是免费的喵!\n你现在点数是：{}\n单日补卡需要{}点喵".format(points, cost)))
+            return
+
+        self.dbmanager.remedy_checkin_one_day(user_id, self.args[1])
+        utils.add_user_point(self.dbmanager, user_id, cost * -1)
+        self.api.send_msg(text("{} 已补卡成功喵，一共消费{}点数".format(self.args[1], cost)))
+
+    def find_single_day_remedy(self):
+        # 从昨天开始往前找，返回最近一次未打卡日期（按 8 点结算）
+        date = datetime.today() - timedelta(days=1)
+        current_year = date.year
+        while date.year == current_year:
+            day_start = date.strftime("%Y-%m-%d 08:00:00")
+            day_end = (date + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
+            rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], day_start, day_end)
+            if len(rows) == 0:
+                return date.strftime("%Y-%m-%d")
+            date = date - timedelta(days=1)
+        return None
 
     def find_remedy(self):
         date = datetime.today()

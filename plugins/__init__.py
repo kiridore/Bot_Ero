@@ -17,6 +17,11 @@ from .set_group_title import GroupSpecialTitlePlugin
 from .leaderboard import LeaderboardPlugin
 from .at_all_reply import AtAllReplyPlugin
 from .checkin_recall import CheckinRecallPlugin
+from .lottery import LotteryPlugin
+from .title import TitlePlugin
+from .daily_message_stats import DailyMessageStatsPlugin
+from .grant_points_all import GrantPointsAllPlugin
+from .startup_changelog import StartupChangelogPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -37,3 +42,8 @@ __all__.append("GroupSpecialTitlePlugin")
 __all__.append("LeaderboardPlugin")
 __all__.append("AtAllReplyPlugin")
 __all__.append("CheckinRecallPlugin")
+__all__.append("LotteryPlugin")
+__all__.append("TitlePlugin")
+__all__.append("DailyMessageStatsPlugin")
+__all__.append("GrantPointsAllPlugin")
+__all__.append("StartupChangelogPlugin")
