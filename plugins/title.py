@@ -316,8 +316,8 @@ class TitlePlugin(Plugin):
             return
         lines = ["解锁新称号："]
         for tid in unlocked_ids:
-            data = TITLE_DEFS.get(tid, {"name": "未知称号", "rarity": "unknown"})
-            lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']})")
+            data = TITLE_DEFS.get(tid, {"name": "未知称号", "rarity": "unknown", "description": "无"})
+            lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']}) - {data['description']}")
         self.api.send_msg(at(user_id), text("\n".join(lines)))
 
     def _equip(self, user_id, title_id):

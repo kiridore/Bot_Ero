@@ -37,8 +37,8 @@ class CheckinPlugin(Plugin):
             if unlocked:
                 lines = ["解锁新称号："]
                 for tid in unlocked:
-                    data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown"}
-                    lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']})")
+                    data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown", "description": "无"}
+                    lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']}) - {data['description']}")
                 self.api.send_msg(at(self.context["user_id"]), text("\n".join(lines)))
 
             # 后搜索
