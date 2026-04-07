@@ -1,14 +1,13 @@
 import subprocess
 
+import core.context as runtime_context
 from core.base import Plugin
 from core.cq import text
 
 
 class StartupChangelogPlugin(Plugin):
-    _sent_once = False
-
     def match(self, message_type):
-        return message_type == "meta" and not self._sent_once
+        return message_type == "meta" and not runtime_context.startup_changelog_sent
 
     def _get_recent_changelog(self, limit=5):
         try:
@@ -25,7 +24,7 @@ class StartupChangelogPlugin(Plugin):
             return ["更新日志读取失败（git log 不可用）"]
 
     def handle(self):
-        if self._sent_once:
+        if runtime_context.startup_changelog_sent:
             return
 
         default_group_id = self.context.get("default_group_id")
@@ -38,4 +37,4 @@ class StartupChangelogPlugin(Plugin):
         # meta 事件不带 group_id，这里显式指定默认群
         self.context["group_id"] = default_group_id
         self.api.send_msg(text(msg))
-        self._sent_once = True
+        runtime_context.startup_changelog_sent = True
