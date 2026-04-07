@@ -6,6 +6,14 @@ from core.utils import get_monday_to_monday
 
 class RemedyCheckinPlugin(Plugin):
     super_mode = False
+    YEARLY_LIMIT = 4
+
+    def _check_remedy_limit(self, user_id, year):
+        used = self.dbmanager.get_user_remedy_used(year, user_id)
+        if used >= self.YEARLY_LIMIT:
+            self.api.send_msg(text("{}年补卡次数已达上限（{}/{}）".format(year, used, self.YEARLY_LIMIT)))
+            return False
+        return True
     
     def match(self, message_type):
         if self.on_command("/单日补卡"):
@@ -39,6 +47,8 @@ class RemedyCheckinPlugin(Plugin):
             cost = 4
 
             if len(rows) == 0:
+                if not self.super_mode and not self._check_remedy_limit(user_id, dt.year):
+                    return
                 points = self.dbmanager.get_user_point(user_id)
                 if points >= cost or self.super_mode:
                     success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费{}点数，谢谢惠顾喵"
@@ -46,6 +56,7 @@ class RemedyCheckinPlugin(Plugin):
                     self.dbmanager.remedy_checkin(user_id, start.split(" ")[0])
                     if not self.super_mode:
                         utils.add_user_point(self.dbmanager, user_id, cost * -1)
+                        self.dbmanager.add_user_remedy_used(dt.year, user_id, 1)
                 else:
                     self.api.send_msg(text("补卡当然不是免费的喵!\n你现在现在点数是：{}\n补卡需要{}点喵".format(points, cost)))
             else:
@@ -78,6 +89,9 @@ class RemedyCheckinPlugin(Plugin):
             self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[1])))
             return
 
+        if not self._check_remedy_limit(user_id, day.year):
+            return
+
         cost = 2
         points = self.dbmanager.get_user_point(user_id)
         if points < cost:
@@ -86,6 +100,7 @@ class RemedyCheckinPlugin(Plugin):
 
         self.dbmanager.remedy_checkin_one_day(user_id, self.args[1])
         utils.add_user_point(self.dbmanager, user_id, cost * -1)
+        self.dbmanager.add_user_remedy_used(day.year, user_id, 1)
         self.api.send_msg(text("{} 已补卡成功喵，一共消费{}点数".format(self.args[1], cost)))
 
     def find_single_day_remedy(self):

@@ -52,6 +52,46 @@ class DbManager:
                 PRIMARY KEY (stat_date, group_id, user_id)
             );
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_lottery_daily_stats (
+                stat_date TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                draw_count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (stat_date, user_id)
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_remedy_usage (
+                year INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                used_count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (year, user_id)
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_lottery_stats (
+                user_id INTEGER PRIMARY KEY,
+                total_spent INTEGER NOT NULL DEFAULT 0
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_weekly_streak_reward_claims (
+                user_id INTEGER NOT NULL,
+                week_start TEXT NOT NULL,
+                claimed_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, week_start)
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_attendance_reward_claims (
+                user_id INTEGER NOT NULL,
+                reward_type TEXT NOT NULL,
+                period_key TEXT NOT NULL,
+                points INTEGER NOT NULL,
+                claimed_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, reward_type, period_key)
+            );
+        """)
         self.cur.execute("PRAGMA table_info(checkin_records)")
         _cols = [row[1] for row in self.cur.fetchall()]
         if "message_id" not in _cols:
@@ -207,6 +247,54 @@ class DbManager:
         """, (stat_date, int(group_id), int(limit)))
         return self.cur.fetchall()
 
+    def get_lottery_draw_count(self, user_id, stat_date):
+        self.cur.execute("""
+            SELECT draw_count
+            FROM user_lottery_daily_stats
+            WHERE stat_date = ? AND user_id = ?
+        """, (stat_date, int(user_id)))
+        row = self.cur.fetchone()
+        return 0 if row is None else int(row[0])
+
+    def add_lottery_draw_count(self, user_id, stat_date, inc=1):
+        self.cur.execute("""
+            INSERT INTO user_lottery_daily_stats (stat_date, user_id, draw_count)
+            VALUES (?, ?, ?)
+            ON CONFLICT(stat_date, user_id) DO UPDATE SET draw_count = draw_count + excluded.draw_count
+        """, (stat_date, int(user_id), int(inc)))
+        self.conn.commit()
+
+    def has_checkin_on_date(self, user_id, date_str):
+        start = f"{date_str} 00:00:00"
+        end_dt = datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)
+        end = end_dt.strftime("%Y-%m-%d 00:00:00")
+        self.cur.execute("""
+            SELECT 1
+            FROM checkin_records
+            WHERE user_id = ?
+            AND checkin_date >= ?
+            AND checkin_date < ?
+            LIMIT 1
+        """, (int(user_id), start, end))
+        return self.cur.fetchone() is not None
+
+    def get_user_remedy_used(self, year, user_id):
+        self.cur.execute("""
+            SELECT used_count
+            FROM user_remedy_usage
+            WHERE year = ? AND user_id = ?
+        """, (int(year), int(user_id)))
+        row = self.cur.fetchone()
+        return 0 if row is None else int(row[0])
+
+    def add_user_remedy_used(self, year, user_id, inc=1):
+        self.cur.execute("""
+            INSERT INTO user_remedy_usage (year, user_id, used_count)
+            VALUES (?, ?, ?)
+            ON CONFLICT(year, user_id) DO UPDATE SET used_count = used_count + excluded.used_count
+        """, (int(year), int(user_id), int(inc)))
+        self.conn.commit()
+
     def grant_points_to_all_users(self, amount):
         amount = int(amount)
         self.cur.execute("""
@@ -233,6 +321,116 @@ class DbManager:
 
         self.conn.commit()
         return len(user_ids)
+
+    def add_lottery_spent(self, user_id, amount):
+        self.cur.execute("""
+            INSERT INTO user_lottery_stats (user_id, total_spent)
+            VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET total_spent = total_spent + excluded.total_spent
+        """, (int(user_id), int(amount)))
+        self.conn.commit()
+
+    def get_lottery_spent(self, user_id):
+        self.cur.execute("""
+            SELECT total_spent
+            FROM user_lottery_stats
+            WHERE user_id = ?
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        return 0 if row is None else int(row[0])
+
+    def claim_weekly_streak_reward(self, user_id, week_start):
+        self.cur.execute("""
+            INSERT OR IGNORE INTO user_weekly_streak_reward_claims (user_id, week_start, claimed_at)
+            VALUES (?, ?, ?)
+        """, (int(user_id), str(week_start), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        ok = self.cur.rowcount > 0
+        self.conn.commit()
+        return ok
+
+    def get_distinct_checkin_day_count(self, user_id, start_datetime_str, end_datetime_str):
+        self.cur.execute("""
+            SELECT COUNT(DISTINCT substr(checkin_date, 1, 10))
+            FROM checkin_records
+            WHERE user_id = ?
+            AND checkin_date >= ?
+            AND checkin_date < ?
+        """, (int(user_id), start_datetime_str, end_datetime_str))
+        row = self.cur.fetchone()
+        return 0 if row is None or row[0] is None else int(row[0])
+
+    def claim_attendance_reward(self, user_id, reward_type, period_key, points):
+        self.cur.execute("""
+            INSERT OR IGNORE INTO user_attendance_reward_claims (user_id, reward_type, period_key, points, claimed_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            int(user_id),
+            str(reward_type),
+            str(period_key),
+            int(points),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ))
+        ok = self.cur.rowcount > 0
+        self.conn.commit()
+        return ok
+
+    def revoke_attendance_reward_if_claimed(self, user_id, reward_type, period_key):
+        self.cur.execute("""
+            SELECT points
+            FROM user_attendance_reward_claims
+            WHERE user_id = ? AND reward_type = ? AND period_key = ?
+            LIMIT 1
+        """, (int(user_id), str(reward_type), str(period_key)))
+        row = self.cur.fetchone()
+        if not row:
+            return 0
+        points = int(row[0])
+        self.cur.execute("""
+            DELETE FROM user_attendance_reward_claims
+            WHERE user_id = ? AND reward_type = ? AND period_key = ?
+        """, (int(user_id), str(reward_type), str(period_key)))
+        self.conn.commit()
+        return points
+
+    def revoke_attendance_rewards_by_type_and_prefix(self, user_id, reward_type, period_prefix):
+        self.cur.execute("""
+            SELECT COALESCE(SUM(points), 0)
+            FROM user_attendance_reward_claims
+            WHERE user_id = ? AND reward_type = ? AND period_key LIKE ?
+        """, (int(user_id), str(reward_type), f"{period_prefix}%"))
+        row = self.cur.fetchone()
+        total = 0 if row is None or row[0] is None else int(row[0])
+        if total <= 0:
+            return 0
+        self.cur.execute("""
+            DELETE FROM user_attendance_reward_claims
+            WHERE user_id = ? AND reward_type = ? AND period_key LIKE ?
+        """, (int(user_id), str(reward_type), f"{period_prefix}%"))
+        self.conn.commit()
+        return total
+
+    def revoke_attendance_rewards_by_type_and_range(self, user_id, reward_type, start_key, end_key):
+        self.cur.execute("""
+            SELECT COALESCE(SUM(points), 0)
+            FROM user_attendance_reward_claims
+            WHERE user_id = ?
+            AND reward_type = ?
+            AND period_key >= ?
+            AND period_key < ?
+        """, (int(user_id), str(reward_type), str(start_key), str(end_key)))
+        row = self.cur.fetchone()
+        total = 0 if row is None or row[0] is None else int(row[0])
+        if total <= 0:
+            return 0
+        self.cur.execute("""
+            DELETE FROM user_attendance_reward_claims
+            WHERE user_id = ?
+            AND reward_type = ?
+            AND period_key >= ?
+            AND period_key < ?
+        """, (int(user_id), str(reward_type), str(start_key), str(end_key)))
+        self.conn.commit()
+        return total
 
     def insert_checkin(self, user_id, images, message_id=None):
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

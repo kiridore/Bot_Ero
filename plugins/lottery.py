@@ -1,4 +1,5 @@
 import random
+from datetime import datetime
 
 from core import utils
 from core.base import Plugin
@@ -11,7 +12,17 @@ class LotteryPlugin(Plugin):
     DUP_REBATE = {"common": 1, "rare": 2, "legendary": 3}
 
     def match(self, message_type):
-        return self.on_full_match("/抽奖")
+        if self.on_full_match("/抽奖"):
+            return True
+        return self.on_command("/抽卡消费")
+
+    def _extract_target_user_id(self, default_user_id):
+        for seg in self.context.get("message", []):
+            if seg.get("type") == "at":
+                qq = seg.get("data", {}).get("qq")
+                if qq and qq != "all":
+                    return int(qq)
+        return int(default_user_id)
 
     def draw_title_by_rarity(self, user_id, rarity):
         candidates = []
@@ -59,6 +70,28 @@ class LotteryPlugin(Plugin):
 
     def handle(self):
         user_id = self.context["user_id"]
+        args = getattr(self, "args", None)
+        if args and args[0] == "/抽卡消费":
+            target_user_id = self._extract_target_user_id(user_id)
+            spent = self.dbmanager.get_lottery_spent(target_user_id)
+            self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))
+            return
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        draw_count = self.dbmanager.get_lottery_draw_count(user_id, today)
+        has_checkin_today = self.dbmanager.has_checkin_on_date(user_id, today)
+        max_draw = 5 if has_checkin_today else 2
+        if draw_count >= max_draw:
+            self.api.send_msg(
+                at(user_id),
+                text("今天抽卡次数已用完（{}/{}）。{}。".format(
+                    draw_count,
+                    max_draw,
+                    "你今天已打卡，可抽5次" if has_checkin_today else "今日未打卡，默认可抽2次",
+                )),
+            )
+            return
+
         points = self.dbmanager.get_user_point(user_id)
         if points < self.COST:
             self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
@@ -66,6 +99,8 @@ class LotteryPlugin(Plugin):
 
         # 先扣抽奖门票
         utils.add_user_point(self.dbmanager, user_id, -self.COST)
+        self.dbmanager.add_lottery_spent(user_id, self.COST)
+        self.dbmanager.add_lottery_draw_count(user_id, today, 1)
         result = self.draw_reward(user_id)
 
         if result["type"] == "points":
@@ -91,7 +126,7 @@ class LotteryPlugin(Plugin):
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
             self.api.send_msg(
                 at(user_id),
-                text("*摇骰子* 居然抽到了……解锁称号 [{}] {} ({})！\n本次消耗：1积分\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], now_points)),
+                text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n本次消耗：1积分\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], now_points)),
             )
             return
 
@@ -101,7 +136,7 @@ class LotteryPlugin(Plugin):
             rebate = result.get("rebate", 0)
             self.api.send_msg(
                 at(user_id),
-                text("*摇骰子* 居然抽到了……已拥有称号 [{}] {} ({})！\n已返还{}积分。\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], rebate, now_points))
+                text("*摇骰子* 居然抽到了……已拥有称号 [{}] 「{}」 ({})！\n已返还{}积分。\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], rebate, now_points))
             )
             return
 
