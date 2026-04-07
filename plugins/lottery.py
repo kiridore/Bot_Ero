@@ -68,6 +68,15 @@ class LotteryPlugin(Plugin):
                 return self.draw_title_by_rarity(user_id, reward["rarity"])
         return {"type": "points", "value": 0}
 
+    def _send_unlocked_titles_notice(self, user_id, unlocked_ids):
+        if not unlocked_ids:
+            return
+        lines = ["解锁新称号："]
+        for tid in unlocked_ids:
+            data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown"}
+            lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']})")
+        self.api.send_msg(at(user_id), text("\n".join(lines)))
+
     def handle(self):
         user_id = self.context["user_id"]
         args = getattr(self, "args", None)
@@ -123,7 +132,8 @@ class LotteryPlugin(Plugin):
             self.dbmanager.upsert_user_lottery_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
             )
-            evaluate_and_unlock_titles(self.dbmanager, user_id)
+            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+            self._send_unlocked_titles_notice(user_id, unlocked)
             net = reward - self.COST
             now_points = self.dbmanager.get_user_point(user_id)
             if reward == 0:
@@ -144,7 +154,8 @@ class LotteryPlugin(Plugin):
             self.dbmanager.upsert_user_lottery_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
             )
-            evaluate_and_unlock_titles(self.dbmanager, user_id)
+            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+            self._send_unlocked_titles_notice(user_id, unlocked)
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
             self.api.send_msg(
@@ -159,7 +170,8 @@ class LotteryPlugin(Plugin):
             self.dbmanager.upsert_user_lottery_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
             )
-            evaluate_and_unlock_titles(self.dbmanager, user_id)
+            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+            self._send_unlocked_titles_notice(user_id, unlocked)
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
             rebate = result.get("rebate", 0)
@@ -174,7 +186,8 @@ class LotteryPlugin(Plugin):
             self.dbmanager.upsert_user_lottery_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
             )
-            evaluate_and_unlock_titles(self.dbmanager, user_id)
+            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+            self._send_unlocked_titles_notice(user_id, unlocked)
             self.api.send_msg(
                 at(user_id),
                 text("*摇骰子* 居然抽到了……{}称号位！\n当前没有可抽取的该稀有度称号。\n当前积分：{}".format(result["rarity"], now_points)),

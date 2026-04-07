@@ -3,7 +3,7 @@ from core.cq import text,at
 from core.logger import logger
 from core.utils import add_user_point, get_monday_to_monday
 from datetime import datetime, timedelta
-from plugins.title import evaluate_and_unlock_titles
+from plugins.title import evaluate_and_unlock_titles, get_title_def
 
 # 打卡插件
 class CheckinPlugin(Plugin):
@@ -33,7 +33,13 @@ class CheckinPlugin(Plugin):
             # 先打卡（带上 message_id，便于撤回消息时撤销记录）
             msg_id = self.context.get("message_id")
             self.dbmanager.insert_checkin(self.context["user_id"], img_list, msg_id)
-            evaluate_and_unlock_titles(self.dbmanager, self.context["user_id"], datetime.now())
+            unlocked = evaluate_and_unlock_titles(self.dbmanager, self.context["user_id"], datetime.now())
+            if unlocked:
+                lines = ["解锁新称号："]
+                for tid in unlocked:
+                    data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown"}
+                    lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']})")
+                self.api.send_msg(at(self.context["user_id"]), text("\n".join(lines)))
 
             # 后搜索
             checkin_list = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)

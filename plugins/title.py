@@ -154,10 +154,12 @@ def get_lottery_title_ids():
 
 def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None = None):
     user_id = int(user_id)
+    newly_unlocked = []
 
     def unlock(tid):
-        if tid in TITLE_DEFS:
+        if tid in TITLE_DEFS and not dbmanager.has_title(user_id, tid):
             dbmanager.unlock_title(user_id, tid)
+            newly_unlocked.append(tid)
 
     if checkin_dt is not None:
         h, m = checkin_dt.hour, checkin_dt.minute
@@ -250,6 +252,8 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
     if len(equipped) == 3 and all((TITLE_DEFS.get(t, {}).get("rarity") == "legendary") for t in equipped):
         unlock(226)
 
+    return newly_unlocked
+
 
 class TitlePlugin(Plugin):
     def match(self, message_type):
@@ -307,6 +311,15 @@ class TitlePlugin(Plugin):
         msg = f"[{data['id']}] 「{data['name']}」\n稀有度：{data['rarity']}\n说明：{data['description']}"
         self.api.send_msg(at(user_id), text(msg))
 
+    def _send_unlocked_titles_notice(self, user_id, unlocked_ids):
+        if not unlocked_ids:
+            return
+        lines = ["解锁新称号："]
+        for tid in unlocked_ids:
+            data = TITLE_DEFS.get(tid, {"name": "未知称号", "rarity": "unknown"})
+            lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']})")
+        self.api.send_msg(at(user_id), text("\n".join(lines)))
+
     def _equip(self, user_id, title_id):
         data = TITLE_DEFS.get(title_id)
         if not data:
@@ -322,12 +335,14 @@ class TitlePlugin(Plugin):
         if not ok and reason == "full":
             self.api.send_msg(at(user_id), text("最多只能装备3个称号，请先 /称号 卸下"))
             return
-        evaluate_and_unlock_titles(self.dbmanager, user_id)
+        unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+        self._send_unlocked_titles_notice(user_id, unlocked)
         self.api.send_msg(at(user_id), text(f"已装备称号：「{data['name']}」"))
 
     def _unequip(self, user_id):
         self.dbmanager.clear_equipped_titles(user_id)
-        evaluate_and_unlock_titles(self.dbmanager, user_id)
+        unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+        self._send_unlocked_titles_notice(user_id, unlocked)
         self.api.send_msg(at(user_id), text("已卸下所有装备称号"))
 
     def _equip_random(self, user_id):
@@ -344,7 +359,8 @@ class TitlePlugin(Plugin):
         if not ok and reason == "full":
             self.api.send_msg(at(user_id), text("最多只能装备3个称号，请先 /称号 卸下"))
             return
-        evaluate_and_unlock_titles(self.dbmanager, user_id)
+        unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+        self._send_unlocked_titles_notice(user_id, unlocked)
         self.api.send_msg(at(user_id), text(f"随机装备成功：[{title_id}] 「{data['name']}」"))
 
     def handle(self):
