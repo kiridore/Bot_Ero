@@ -1,6 +1,7 @@
 from core.cq import *
 from core.api import ApiWrapper
 from core.database_manager import DbManager
+from datetime import datetime
 
 only_to_me_flag = False
 
@@ -75,3 +76,29 @@ class Plugin:
             return False
 
         return self.super_user() or self.context["sender"]["role"] in ("admin", "owner")
+
+
+class TimedHeartbeatPlugin(Plugin):
+    # 触发时间，格式 HH:MM（24小时制）
+    RUN_AT = "00:00"
+    _last_run_minute = {}
+
+    def should_run_on_heartbeat(self, event_type: str) -> bool:
+        if event_type != "meta":
+            return False
+
+        now = datetime.now()
+        current_minute = now.strftime("%H:%M")
+        if current_minute != self.RUN_AT:
+            return False
+
+        run_key = now.strftime("%Y-%m-%d %H:%M")
+        plugin_name = type(self).__name__
+        if self._last_run_minute.get(plugin_name) == run_key:
+            return False
+
+        self._last_run_minute[plugin_name] = run_key
+        return True
+
+    def match(self, event_type="message") -> bool:
+        return self.should_run_on_heartbeat(event_type)

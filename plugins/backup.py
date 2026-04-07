@@ -1,20 +1,13 @@
-from datetime import datetime
 import os
 from core import context, utils
-from core.base import Plugin
+from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
-class BackupPlugin(Plugin):
-    def match(self, message_type):
-        # 定时任务
-        if message_type == "meta":
-            # 获取当前时间
-            current_time = datetime.now()
-            # 仅在早上八点运行
-            if current_time.hour == 8 and current_time.minute == 0:
-                return True
+class BackupPlugin(TimedHeartbeatPlugin):
+    RUN_AT = "08:00"
 
-        return self.on_full_match("/数据备份")
+    def match(self, message_type):
+        return self.should_run_on_heartbeat(message_type) or self.on_full_match("/数据备份")
 
     def handle(self):
         rows = self.dbmanager.get_all_record()

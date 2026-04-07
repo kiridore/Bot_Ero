@@ -45,10 +45,13 @@ class ApiWrapper:
 
     def send_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_msg-%E5%8F%91%E9%80%81%E6%B6%88%E6%81%AF
-        if "group_id" in self.context and self.context["group_id"]:
+        if ("group_id" in self.context and self.context["group_id"]):
             return self.send_group_msg(*message)
-        else:
+        elif ("user_id" in self.context and self.context["user_id"]):
             return self.send_private_msg(*message)
+        else:
+            # 默认发送到群聊
+            return self.send_group_msg(*message)
 
     def send_private_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_private_msg-%E5%8F%91%E9%80%81%E7%A7%81%E8%81%8A%E6%B6%88%E6%81%AF
@@ -103,7 +106,10 @@ class ApiWrapper:
             return self.send_private_forward_msg(message)
 
     def send_group_forward_msg(self, message: list):
-        params = {"group_id": self.context["group_id"], "messages": forward(message)}
+        group_id = self.context.get("group_id")
+        if not group_id:
+            group_id = self.context.get("default_group_id")
+        params = {"group_id": group_id, "messages": forward(message)}
         ret = self.call_api("send_group_forward_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else 1
 
@@ -121,4 +127,11 @@ class ApiWrapper:
         params = {"group_id": group_id, "user_id": user_id, "special_title": title}
         ret = self.call_api("set_group_special_title", params)
         return 0
+
+    def get_msg(self, message_id):
+        params = {"message_id": message_id}
+        ret = self.call_api("get_msg", params)
+        if ret and ret.get("status") == "ok":
+            return ret.get("data", {})
+        return {}
     pass

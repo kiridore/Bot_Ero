@@ -16,6 +16,13 @@ import core.base as base
 # WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
 WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
 token = 123456
+DEFAULT_GROUP_ID = 296470819 # 在这里填写你想固定使用的群号
+
+
+def enrich_context(raw_context: dict) -> dict:
+    # 使用固定默认群号，便于私聊等场景下复用群能力
+    raw_context["default_group_id"] = DEFAULT_GROUP_ID
+    return raw_context
 
 
 def plugin_pool(context: dict, event_type: str):
@@ -28,7 +35,7 @@ def plugin_pool(context: dict, event_type: str):
 
 def on_message(_, message):
     # https://github.com/botuniverse/onebot-11/blob/master/event/README.md
-    context = json_.loads(message)
+    context = enrich_context(json_.loads(message))
     if "echo" in context:
         logger.debug("调用返回 -> " + message)
         # 响应报文通过队列传递给调用 API 的函数
@@ -39,8 +46,10 @@ def on_message(_, message):
         t.start()
     else:
         logger.info("收到事件 -> " + message)
-        # 消息事件，开启线程
-        t = threading.Thread(target=plugin_pool, args=(context, "message"))
+        pool_event = "message"
+        if context.get("post_type") == "notice":
+            pool_event = "notice"
+        t = threading.Thread(target=plugin_pool, args=(context, pool_event))
         t.start()
 
 

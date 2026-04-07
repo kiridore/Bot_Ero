@@ -20,6 +20,10 @@ class DbManager:
                 points INTEGER DEFAULT 0         -- 积分字段
             );
         ''')
+        self.cur.execute("PRAGMA table_info(checkin_records)")
+        _cols = [row[1] for row in self.cur.fetchall()]
+        if "message_id" not in _cols:
+            self.cur.execute("ALTER TABLE checkin_records ADD COLUMN message_id INTEGER")
         self.conn.commit()
 
     def __del__(self):
@@ -52,12 +56,21 @@ class DbManager:
         """, (user_id, value))
         self.conn.commit()
 
-    def insert_checkin(self, user_id, images):
+    def get_point_leaderboard(self, limit=10):
+        self.cur.execute("""
+            SELECT user_id, points
+            FROM user_assets
+            ORDER BY points DESC, CAST(user_id AS INTEGER) ASC
+            LIMIT ?
+        """, (limit,))
+        return self.cur.fetchall()
+
+    def insert_checkin(self, user_id, images, message_id=None):
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for img in images:
             self.cur.execute(
-                "INSERT INTO checkin_records (user_id, checkin_date, content) VALUES (?, ?, ?)",
-                (user_id, today_str, img)
+                "INSERT INTO checkin_records (user_id, checkin_date, content, message_id) VALUES (?, ?, ?, ?)",
+                (user_id, today_str, img, message_id)
             )
         self.conn.commit()
 
@@ -140,6 +153,29 @@ class DbManager:
             WHERE id = ?
         """, (target_id, ))
         self.conn.commit()
+
+    def get_checkins_by_message_id(self, user_id, message_id):
+        self.cur.execute(
+            """
+            SELECT * FROM checkin_records
+            WHERE user_id = ? AND message_id = ?
+            ORDER BY id ASC
+            """,
+            (user_id, message_id),
+        )
+        return self.cur.fetchall()
+
+    def delete_checkin_by_message_id(self, user_id, message_id):
+        self.cur.execute(
+            """
+            DELETE FROM checkin_records
+            WHERE user_id = ? AND message_id = ?
+            """,
+            (user_id, message_id),
+        )
+        n = self.cur.rowcount
+        self.conn.commit()
+        return n
 
     def get_user_streaks(self, user_id):
         DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
