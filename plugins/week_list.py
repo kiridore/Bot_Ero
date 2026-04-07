@@ -2,9 +2,23 @@ from core.base import Plugin
 from core.cq import text
 from core.utils import get_monday_to_monday
 from core.logger import logger
+from plugins.title import get_title_def
 
 # 每周打卡板油
 class WeekListPlugin(Plugin):
+    def _format_title_prefix(self, user_id):
+        titles = self.dbmanager.get_equipped_titles(user_id)[:3]
+        if len(titles) == 0:
+            return ""
+        names = []
+        for tid in titles:
+            data = get_title_def(tid)
+            if data and data.get("name"):
+                names.append(data["name"])
+        if len(names) == 0:
+            return ""
+        return "「{}」".format("·".join(names))
+
     def match(self, message_type):
         return self.on_full_match("/本周板油")
 
@@ -27,6 +41,9 @@ class WeekListPlugin(Plugin):
                 member_name = group_member_info["card"] 
                 if group_member_info["card"] == "":
                     member_name = group_member_info["nickname"]
+                title_prefix = self._format_title_prefix(user_id)
+                if title_prefix:
+                    member_name = f"{title_prefix}{member_name}"
 
                 display_row = "- {}, {}\n".format(member_name, checkin_time)
                 display_str += display_row

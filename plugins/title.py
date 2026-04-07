@@ -93,7 +93,7 @@ class TitlePlugin(Plugin):
             return f"[{title_id}] 未知称号"
         suffix = "（已装备）" if title_id in equipped_titles else ""
         unlock_type = data.get("unlock_type", "unknown")
-        return f"[{data['id']}] {data['name']} ({data['rarity']}, {unlock_type}){suffix}"
+        return f"[{data['id']}] 「{data['name']}」 ({data['rarity']}, {unlock_type}){suffix}"
 
     def _get_target_user_id_from_at(self):
         for seg in self.context.get("message", []):
@@ -123,7 +123,7 @@ class TitlePlugin(Plugin):
         lines = ["当前装备称号："]
         for tid in equipped:
             data = TITLE_DEFS.get(tid, {"name": "未知称号", "rarity": "unknown"})
-            lines.append(f"[{tid}] {data['name']} ({data['rarity']})")
+            lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']})")
         self.api.send_msg(at(user_id), text("\n".join(lines)))
 
     def _show_detail(self, user_id, title_id):
@@ -134,7 +134,7 @@ class TitlePlugin(Plugin):
         if not self.dbmanager.has_title(user_id, title_id):
             self.api.send_msg(at(user_id), text("你还没有解锁这个称号喵"))
             return
-        msg = f"[{data['id']}] {data['name']}\n稀有度：{data['rarity']}\n说明：{data['description']}"
+        msg = f"[{data['id']}] 「{data['name']}」\n稀有度：{data['rarity']}\n说明：{data['description']}"
         self.api.send_msg(at(user_id), text(msg))
 
     def _equip(self, user_id, title_id):
@@ -147,12 +147,12 @@ class TitlePlugin(Plugin):
             return
         ok, reason = self.dbmanager.equip_title(user_id, title_id, max_count=3)
         if not ok and reason == "already":
-            self.api.send_msg(at(user_id), text(f"称号已装备：{data['name']}"))
+            self.api.send_msg(at(user_id), text(f"称号已装备：「{data['name']}」"))
             return
         if not ok and reason == "full":
             self.api.send_msg(at(user_id), text("最多只能装备3个称号，请先 /称号 卸下"))
             return
-        self.api.send_msg(at(user_id), text(f"已装备称号：{data['name']}"))
+        self.api.send_msg(at(user_id), text(f"已装备称号：「{data['name']}」"))
 
     def _unequip(self, user_id):
         self.dbmanager.clear_equipped_titles(user_id)
@@ -167,12 +167,12 @@ class TitlePlugin(Plugin):
         data = TITLE_DEFS.get(title_id, {"name": "未知称号"})
         ok, reason = self.dbmanager.equip_title(user_id, title_id, max_count=3)
         if not ok and reason == "already":
-            self.api.send_msg(at(user_id), text(f"随机到了已装备称号：[{title_id}] {data['name']}"))
+            self.api.send_msg(at(user_id), text(f"随机到了已装备称号：[{title_id}] 「{data['name']}」"))
             return
         if not ok and reason == "full":
             self.api.send_msg(at(user_id), text("最多只能装备3个称号，请先 /称号 卸下"))
             return
-        self.api.send_msg(at(user_id), text(f"随机装备成功：[{title_id}] {data['name']}"))
+        self.api.send_msg(at(user_id), text(f"随机装备成功：[{title_id}] 「{data['name']}」"))
 
     def handle(self):
         user_id = self.context["user_id"]

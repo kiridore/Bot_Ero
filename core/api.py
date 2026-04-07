@@ -56,7 +56,7 @@ class ApiWrapper:
                     names.append(data["name"])
             if len(names) == 0:
                 return ""
-            return "·".join(names)
+            return "「{}」".format("·".join(names))
         except Exception:
             return ""
 
