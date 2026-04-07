@@ -14,6 +14,9 @@ from .all_checkin_display import AllCheckinDisplay
 from .backup import BackupPlugin
 from .remedy_checkin import RemedyCheckinPlugin
 from .set_group_title import GroupSpecialTitlePlugin
+from .leaderboard import LeaderboardPlugin
+from .at_all_reply import AtAllReplyPlugin
+from .checkin_recall import CheckinRecallPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -31,3 +34,6 @@ __all__.append("AllCheckinDisplay")
 __all__.append("BackupPlugin")
 __all__.append("RemedyCheckinPlugin")
 __all__.append("GroupSpecialTitlePlugin")
+__all__.append("LeaderboardPlugin")
+__all__.append("AtAllReplyPlugin")
+__all__.append("CheckinRecallPlugin")
