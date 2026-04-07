@@ -25,9 +25,17 @@ def enrich_context(raw_context: dict) -> dict:
     return raw_context
 
 
+def _all_plugin_classes(base_cls):
+    classes = []
+    for sub in base_cls.__subclasses__():
+        classes.append(sub)
+        classes.extend(_all_plugin_classes(sub))
+    return classes
+
+
 def plugin_pool(context: dict, event_type: str):
-    # 遍历所有的 Plugin 的子类，执行匹配
-    for P in Plugin.__subclasses__():
+    # 递归遍历所有 Plugin 子类（包含二级继承）
+    for P in _all_plugin_classes(Plugin):
         plugin = P(context)
         if plugin.match(event_type):
             plugin.handle()
