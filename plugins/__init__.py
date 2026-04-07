@@ -23,6 +23,7 @@ from .daily_message_stats import DailyMessageStatsPlugin
 from .grant_points_all import GrantPointsAllPlugin
 from .startup_changelog import StartupChangelogPlugin
 from .dice import DicePlugin
+from .divination import DivinationPlugin
 
 __all__ = []
 __all__.append("MenuPlugin")
@@ -49,3 +50,4 @@ __all__.append("DailyMessageStatsPlugin")
 __all__.append("GrantPointsAllPlugin")
 __all__.append("StartupChangelogPlugin")
 __all__.append("DicePlugin")
+__all__.append("DivinationPlugin")
