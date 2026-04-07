@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timedelta
 
 from core.base import Plugin
 from core.cq import at, text
@@ -69,6 +70,44 @@ TITLE_DEFS = {
     57: {"id": 57, "name": "男精", "rarity": "legendary", "description": "谁不喜欢男精呢", "unlock_type": "lottery"},
     58: {"id": 58, "name": "龙娘", "rarity": "legendary", "description": "谁不喜欢龙娘呢", "unlock_type": "lottery"},
     59: {"id": 59, "name": "龙男", "rarity": "legendary", "description": "谁不喜欢龙男呢", "unlock_type": "lottery"},
+
+    # condition: 打卡时段/日期/进度
+    201: {"id": 201, "name": "早起的鸟儿", "rarity": "common", "description": "在早上8点到12点完成打卡", "unlock_type": "condition"},
+    202: {"id": 202, "name": "下午茶", "rarity": "common", "description": "在下午2点到下午4点完成打卡", "unlock_type": "condition"},
+    203: {"id": 203, "name": "我下班了", "rarity": "common", "description": "在下午5:30到6:30完成打卡", "unlock_type": "condition"},
+    204: {"id": 204, "name": "熬夜冠军", "rarity": "rare", "description": "在凌晨1点到5点完成打卡", "unlock_type": "condition"},
+    205: {"id": 205, "name": "压哨冲线", "rarity": "rare", "description": "在周日23:30到周一8:00完成打卡", "unlock_type": "condition"},
+    206: {"id": 206, "name": "不休息的板油", "rarity": "legendary", "description": "累计打卡365天", "unlock_type": "condition"},
+    207: {"id": 207, "name": "打卡收藏家", "rarity": "rare", "description": "累计打卡200天", "unlock_type": "condition"},
+    208: {"id": 208, "name": "时间管理大师", "rarity": "rare", "description": "累计打卡100天", "unlock_type": "condition"},
+    209: {"id": 209, "name": "规律作息", "rarity": "common", "description": "累计打卡30天", "unlock_type": "condition"},
+    210: {"id": 210, "name": "日界线", "rarity": "rare", "description": "在23:59到00:01打卡", "unlock_type": "condition"},
+    211: {"id": 211, "name": "刚刚好", "rarity": "rare", "description": "在00:00打卡", "unlock_type": "condition"},
+    212: {"id": 212, "name": "劳动模范", "rarity": "common", "description": "在5月1日打卡", "unlock_type": "condition"},
+    213: {"id": 213, "name": "愚者", "rarity": "common", "description": "在4月1日打卡", "unlock_type": "condition"},
+    214: {"id": 214, "name": "小孩", "rarity": "common", "description": "在6月1日打卡", "unlock_type": "condition"},
+    215: {"id": 215, "name": "程序员", "rarity": "common", "description": "在10月24日打卡", "unlock_type": "condition"},
+    216: {"id": 216, "name": "Neko", "rarity": "rare", "description": "在2月22日打卡", "unlock_type": "condition"},
+    217: {"id": 217, "name": "画画更重要", "rarity": "common", "description": "在2月14日打卡", "unlock_type": "condition"},
+    218: {"id": 218, "name": "我在~", "rarity": "rare", "description": "在8月11日打卡", "unlock_type": "condition"},
+    219: {"id": 219, "name": "圆周率", "rarity": "common", "description": "在3月14日打卡", "unlock_type": "condition"},
+    220: {"id": 220, "name": "回响", "rarity": "rare", "description": "在A-A格式日期打卡", "unlock_type": "condition"},
+    221: {"id": 221, "name": "新年", "rarity": "common", "description": "在1月1日打卡", "unlock_type": "condition"},
+    222: {"id": 222, "name": "搜集", "rarity": "common", "description": "累计解锁10个称号", "unlock_type": "condition"},
+    223: {"id": 223, "name": "研究员", "rarity": "rare", "description": "累计解锁20个称号", "unlock_type": "condition"},
+    224: {"id": 224, "name": "造物院", "rarity": "legendary", "description": "累计解锁30个称号", "unlock_type": "condition"},
+    225: {"id": 225, "name": "金色", "rarity": "legendary", "description": "获得一个传说品质称号", "unlock_type": "condition"},
+    226: {"id": 226, "name": "小金人", "rarity": "legendary", "description": "三个称号栏都装备传说品质称号", "unlock_type": "condition"},
+    227: {"id": 227, "name": "重复观测", "rarity": "common", "description": "抽到1次重复称号", "unlock_type": "condition"},
+    228: {"id": 228, "name": "古典概型", "rarity": "rare", "description": "抽到10次重复称号", "unlock_type": "condition"},
+    229: {"id": 229, "name": "正态分布", "rarity": "legendary", "description": "抽到100次重复称号", "unlock_type": "condition"},
+    230: {"id": 230, "name": "试试", "rarity": "common", "description": "累计抽奖1次", "unlock_type": "condition"},
+    231: {"id": 231, "name": "玩", "rarity": "common", "description": "累计抽奖10次", "unlock_type": "condition"},
+    232: {"id": 232, "name": "富有", "rarity": "rare", "description": "累计抽奖25次", "unlock_type": "condition"},
+    233: {"id": 233, "name": "上瘾", "rarity": "rare", "description": "累计抽奖50次", "unlock_type": "condition"},
+    234: {"id": 234, "name": "戒戒你好", "rarity": "legendary", "description": "累计抽奖100次", "unlock_type": "condition"},
+    235: {"id": 235, "name": "大赚", "rarity": "rare", "description": "抽到10点积分", "unlock_type": "condition"},
+    236: {"id": 236, "name": "BUG", "rarity": "legendary", "description": "连续3次什么都没抽到", "unlock_type": "condition"},
 }
 
 
@@ -79,6 +118,105 @@ def get_title_def(title_id):
 
 def get_lottery_title_ids():
     return [tid for tid, data in TITLE_DEFS.items() if data.get("unlock_type") == "lottery"]
+
+
+def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None = None):
+    user_id = int(user_id)
+
+    def unlock(tid):
+        if tid in TITLE_DEFS:
+            dbmanager.unlock_title(user_id, tid)
+
+    if checkin_dt is not None:
+        h, m = checkin_dt.hour, checkin_dt.minute
+        # 时段
+        if (h > 8 or (h == 8 and m >= 0)) and h < 12:
+            unlock(201)
+        if (h > 14 or (h == 14 and m >= 0)) and h < 16:
+            unlock(202)
+        if (h > 17 or (h == 17 and m >= 30)) and (h < 18 or (h == 18 and m <= 30)):
+            unlock(203)
+        if (h > 1 or (h == 1 and m >= 0)) and h < 5:
+            unlock(204)
+        weekday = checkin_dt.weekday()  # mon=0
+        if (weekday == 6 and (h > 23 or (h == 23 and m >= 30))) or (weekday == 0 and h < 8):
+            unlock(205)
+
+        # 日期
+        mmdd = (checkin_dt.month, checkin_dt.day)
+        mapping = {
+            (5, 1): 212,
+            (4, 1): 213,
+            (6, 1): 214,
+            (10, 24): 215,
+            (2, 22): 216,
+            (2, 14): 217,
+            (8, 11): 218,
+            (3, 14): 219,
+            (1, 1): 221,
+        }
+        if mmdd in mapping:
+            unlock(mapping[mmdd])
+        if checkin_dt.month == checkin_dt.day:
+            unlock(220)
+        if (h == 23 and m == 59) or (h == 0 and m in (0, 1)):
+            unlock(210)
+        if h == 0 and m == 0:
+            unlock(211)
+
+    # 累计打卡天数
+    total_days = dbmanager.get_total_distinct_checkin_days(user_id)
+    if total_days >= 30:
+        unlock(209)
+    if total_days >= 100:
+        unlock(208)
+    if total_days >= 200:
+        unlock(207)
+    if total_days >= 365:
+        unlock(206)
+
+    # 抽奖画像（兼容旧数据：draw_count 至少为 total_spent）
+    profile = dbmanager.get_user_lottery_profile(user_id)
+    spent = dbmanager.get_lottery_spent(user_id)
+    draw_count = max(profile["draw_count"], spent)
+    if draw_count >= 1:
+        unlock(230)
+    if draw_count >= 10:
+        unlock(231)
+    if draw_count >= 25:
+        unlock(232)
+    if draw_count >= 50:
+        unlock(233)
+    if draw_count >= 100:
+        unlock(234)
+    if profile["duplicate_count"] >= 1:
+        unlock(227)
+    if profile["duplicate_count"] >= 10:
+        unlock(228)
+    if profile["duplicate_count"] >= 100:
+        unlock(229)
+    if profile["has_hit_ten"] >= 1:
+        unlock(235)
+    if profile["max_zero_streak"] >= 3:
+        unlock(236)
+
+    # 依赖称号状态的进度称号
+    titles = dbmanager.get_user_titles(user_id)
+    cnt = len(titles)
+    if cnt >= 10:
+        unlock(222)
+    if cnt >= 20:
+        unlock(223)
+    if cnt >= 30:
+        unlock(224)
+
+    titles = dbmanager.get_user_titles(user_id)
+    if any((TITLE_DEFS.get(t, {}).get("rarity") == "legendary") for t in titles):
+        unlock(225)
+
+    equipped = dbmanager.get_equipped_titles(user_id)
+    if len(equipped) == 3 and all((TITLE_DEFS.get(t, {}).get("rarity") == "legendary") for t in equipped):
+        unlock(226)
 
 
 class TitlePlugin(Plugin):
@@ -152,10 +290,12 @@ class TitlePlugin(Plugin):
         if not ok and reason == "full":
             self.api.send_msg(at(user_id), text("最多只能装备3个称号，请先 /称号 卸下"))
             return
+        evaluate_and_unlock_titles(self.dbmanager, user_id)
         self.api.send_msg(at(user_id), text(f"已装备称号：「{data['name']}」"))
 
     def _unequip(self, user_id):
         self.dbmanager.clear_equipped_titles(user_id)
+        evaluate_and_unlock_titles(self.dbmanager, user_id)
         self.api.send_msg(at(user_id), text("已卸下所有装备称号"))
 
     def _equip_random(self, user_id):
@@ -172,6 +312,7 @@ class TitlePlugin(Plugin):
         if not ok and reason == "full":
             self.api.send_msg(at(user_id), text("最多只能装备3个称号，请先 /称号 卸下"))
             return
+        evaluate_and_unlock_titles(self.dbmanager, user_id)
         self.api.send_msg(at(user_id), text(f"随机装备成功：[{title_id}] 「{data['name']}」"))
 
     def handle(self):

@@ -92,6 +92,16 @@ class DbManager:
                 PRIMARY KEY (user_id, reward_type, period_key)
             );
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_lottery_profile (
+                user_id INTEGER PRIMARY KEY,
+                draw_count INTEGER NOT NULL DEFAULT 0,
+                duplicate_count INTEGER NOT NULL DEFAULT 0,
+                zero_streak INTEGER NOT NULL DEFAULT 0,
+                max_zero_streak INTEGER NOT NULL DEFAULT 0,
+                has_hit_ten INTEGER NOT NULL DEFAULT 0
+            );
+        """)
         self.cur.execute("PRAGMA table_info(checkin_records)")
         _cols = [row[1] for row in self.cur.fetchall()]
         if "message_id" not in _cols:
@@ -431,6 +441,58 @@ class DbManager:
         """, (int(user_id), str(reward_type), str(start_key), str(end_key)))
         self.conn.commit()
         return total
+
+    def get_total_distinct_checkin_days(self, user_id):
+        self.cur.execute("""
+            SELECT COUNT(DISTINCT substr(checkin_date, 1, 10))
+            FROM checkin_records
+            WHERE user_id = ?
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        return 0 if row is None or row[0] is None else int(row[0])
+
+    def get_user_lottery_profile(self, user_id):
+        self.cur.execute("""
+            SELECT draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+            FROM user_lottery_profile
+            WHERE user_id = ?
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        if not row:
+            return {
+                "draw_count": 0,
+                "duplicate_count": 0,
+                "zero_streak": 0,
+                "max_zero_streak": 0,
+                "has_hit_ten": 0,
+            }
+        return {
+            "draw_count": int(row[0]),
+            "duplicate_count": int(row[1]),
+            "zero_streak": int(row[2]),
+            "max_zero_streak": int(row[3]),
+            "has_hit_ten": int(row[4]),
+        }
+
+    def upsert_user_lottery_profile(self, user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten):
+        self.cur.execute("""
+            INSERT INTO user_lottery_profile (user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                draw_count = excluded.draw_count,
+                duplicate_count = excluded.duplicate_count,
+                zero_streak = excluded.zero_streak,
+                max_zero_streak = excluded.max_zero_streak,
+                has_hit_ten = excluded.has_hit_ten
+        """, (
+            int(user_id),
+            int(draw_count),
+            int(duplicate_count),
+            int(zero_streak),
+            int(max_zero_streak),
+            int(has_hit_ten),
+        ))
+        self.conn.commit()
 
     def insert_checkin(self, user_id, images, message_id=None):
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

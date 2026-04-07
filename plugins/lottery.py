@@ -4,7 +4,7 @@ from datetime import datetime
 from core import utils
 from core.base import Plugin
 from core.cq import at, text
-from plugins.title import get_lottery_title_ids, get_title_def
+from plugins.title import get_lottery_title_ids, get_title_def, evaluate_and_unlock_titles
 
 
 class LotteryPlugin(Plugin):
@@ -102,10 +102,28 @@ class LotteryPlugin(Plugin):
         self.dbmanager.add_lottery_spent(user_id, self.COST)
         self.dbmanager.add_lottery_draw_count(user_id, today, 1)
         result = self.draw_reward(user_id)
+        profile = self.dbmanager.get_user_lottery_profile(user_id)
+        draw_count = profile["draw_count"] + 1
+        duplicate_count = profile["duplicate_count"]
+        zero_streak = profile["zero_streak"]
+        max_zero_streak = profile["max_zero_streak"]
+        has_hit_ten = profile["has_hit_ten"]
 
         if result["type"] == "points":
             reward = result["value"]
             utils.add_user_point(self.dbmanager, user_id, reward)
+            if reward == 0:
+                zero_streak += 1
+                if zero_streak > max_zero_streak:
+                    max_zero_streak = zero_streak
+            else:
+                zero_streak = 0
+            if reward == 10:
+                has_hit_ten = 1
+            self.dbmanager.upsert_user_lottery_profile(
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+            )
+            evaluate_and_unlock_titles(self.dbmanager, user_id)
             net = reward - self.COST
             now_points = self.dbmanager.get_user_point(user_id)
             if reward == 0:
@@ -122,6 +140,11 @@ class LotteryPlugin(Plugin):
 
         now_points = self.dbmanager.get_user_point(user_id)
         if result["type"] == "title_new":
+            zero_streak = 0
+            self.dbmanager.upsert_user_lottery_profile(
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+            )
+            evaluate_and_unlock_titles(self.dbmanager, user_id)
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
             self.api.send_msg(
@@ -131,6 +154,12 @@ class LotteryPlugin(Plugin):
             return
 
         if result["type"] == "title_duplicate":
+            duplicate_count += 1
+            zero_streak = 0
+            self.dbmanager.upsert_user_lottery_profile(
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+            )
+            evaluate_and_unlock_titles(self.dbmanager, user_id)
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
             rebate = result.get("rebate", 0)
@@ -141,6 +170,11 @@ class LotteryPlugin(Plugin):
             return
 
         if result["type"] == "title_none":
+            zero_streak = 0
+            self.dbmanager.upsert_user_lottery_profile(
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+            )
+            evaluate_and_unlock_titles(self.dbmanager, user_id)
             self.api.send_msg(
                 at(user_id),
                 text("*摇骰子* 居然抽到了……{}称号位！\n当前没有可抽取的该稀有度称号。\n当前积分：{}".format(result["rarity"], now_points)),
