@@ -24,7 +24,7 @@ from .grant_points_all import GrantPointsAllPlugin
 from .startup_changelog import StartupChangelogPlugin
 from .dice import DicePlugin
 from .divination import DivinationPlugin
-from .llm_chat import LLMChatPlugin
+# from .llm_chat import LLMChatPlugin
 from .random_reference import RandomReferencePlugin
 
 __all__ = []
