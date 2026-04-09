@@ -15,7 +15,7 @@ from plugins.bot_menu_text import BOT_MENU_TEXT
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-chat"
-CHAT_HISTORY_LIMIT = 500
+CHAT_HISTORY_LIMIT = 300
 DEFAULT_SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
 
 
@@ -44,7 +44,7 @@ MENU_AND_COMMANDS_APPEND = (
     + BOT_MENU_TEXT
 )
 
-FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + MENU_AND_COMMANDS_APPEND
+FULL_SYSTEM_PROMPT = SYSTEM_PROMPT
 
 # 已有插件指令（避免被 LLM 误接管）
 KNOWN_COMMANDS = {
