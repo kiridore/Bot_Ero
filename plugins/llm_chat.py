@@ -111,9 +111,7 @@ class LLMChatPlugin(Plugin):
 
         if msg.startswith("小埃同学"):
             self._mode = "chat"
-            self._prompt_text = msg[len("小埃同学"):].strip()
-            if self._prompt_text == "":
-                self._prompt_text = "你好"
+            self._prompt_text = msg
             return True
 
         if msg.startswith("/"):
@@ -141,6 +139,12 @@ class LLMChatPlugin(Plugin):
             ],
             "temperature": 0.7,
         }
+        print(
+            "[LLM DEBUG] prompt:\n"
+            f"[system]\n{SYSTEM_PROMPT}\n\n"
+            f"[user]\n{user_text}\n"
+            "------------------------------"
+        )
         try:
             resp = self._get_http_session().post(
                 LLM_API_URL,
