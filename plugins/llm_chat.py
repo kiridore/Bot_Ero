@@ -7,7 +7,7 @@ from core.cq import text
 
 
 # TODO: 在这里填写你的 LLM 配置
-LLM_API_KEY = ""
+LLM_API_KEY = "sk-2d413557432348c08c5414fc20149e17"
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-chat"
 SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
