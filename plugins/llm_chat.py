@@ -42,8 +42,6 @@ SYSTEM_PROMPT = _load_system_prompt()
 MENU_AND_COMMANDS_APPEND = (
     "\n\n---\n## 本机器人支持的指令（与群内发送 /菜单 时显示的内容一致）\n"
     + BOT_MENU_TEXT
-    + "\n\n当用户输入以 / 开头、但明显不在上述支持范围内的指令，或用法明显错误时，"
-    "请用简短、友好的方式说明暂无该指令或正确用法，并提示发送 /菜单 查看完整列表。"
 )
 
 FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + MENU_AND_COMMANDS_APPEND
