@@ -89,7 +89,7 @@ class LLMChatPlugin(Plugin):
     def _append_chat_record(self, msg):
         if not msg:
             return
-        line = "{{{}}}({}):{}".format(self._get_sender_name(), self._get_event_time_str(), msg)
+        line = "[{}]({}): {}".format(self._get_sender_name(), self._get_event_time_str(), msg)
         runtime_context.recent_chat_records.append(line)
         if len(runtime_context.recent_chat_records) > 200:
             runtime_context.recent_chat_records = runtime_context.recent_chat_records[-200:]
@@ -107,11 +107,13 @@ class LLMChatPlugin(Plugin):
 
         if msg == "/总结聊天":
             self._mode = "summarize"
+            self._use_recent_context = False
             return True
 
         if msg.startswith("小埃同学"):
             self._mode = "chat"
             self._prompt_text = msg
+            self._use_recent_context = True
             return True
 
         if msg.startswith("/"):
@@ -119,13 +121,25 @@ class LLMChatPlugin(Plugin):
             if cmd not in KNOWN_COMMANDS:
                 self._mode = "chat"
                 self._prompt_text = msg
+                self._use_recent_context = False
                 return True
 
         return False
 
-    def _call_llm(self, user_text):
+    def _call_llm(self, user_text, include_recent_chat=False):
         if not LLM_API_KEY.strip():
             return "未检测到 API Key，请先设置环境变量 DEEPSEEK_API_KEY（或 LLM_API_KEY）。"
+
+        user_prompt = user_text
+        if include_recent_chat:
+            chat_history = self._build_chat_history_text()
+            if chat_history:
+                user_prompt = (
+                    "以下是最近群聊记录（按时间排序）：\n"
+                    f"{chat_history}\n\n"
+                    "请结合上下文回复下面这句：\n"
+                    f"{user_text}"
+                )
 
         headers = {
             "Authorization": f"Bearer {LLM_API_KEY}",
@@ -135,14 +149,14 @@ class LLMChatPlugin(Plugin):
             "model": LLM_MODEL,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_text},
+                {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.7,
         }
         print(
             "[LLM DEBUG] prompt:\n"
             f"[system]\n{SYSTEM_PROMPT}\n\n"
-            f"[user]\n{user_text}\n"
+            f"[user]\n{user_prompt}\n"
             "------------------------------"
         )
         try:
@@ -177,5 +191,8 @@ class LLMChatPlugin(Plugin):
             self.api.send_msg(text(answer))
             return
 
-        answer = self._call_llm(self._prompt_text)
+        answer = self._call_llm(
+            self._prompt_text,
+            include_recent_chat=getattr(self, "_use_recent_context", False),
+        )
         self.api.send_msg(text(answer))
