@@ -83,6 +83,8 @@ class LLMChatPlugin(Plugin):
         for seg in message:
             if seg.get("type") == "text":
                 parts.append(seg.get("data", {}).get("text", ""))
+            elif seg.get("type") == "at":
+                parts.append("[{}:{}]".format(seg.get("type", "unknow"), seg.get("data", {}).get("qq", "unkonw_qq")))
             else:
                 parts.append("[{}]".format(seg.get("type", "unknow")))
 
