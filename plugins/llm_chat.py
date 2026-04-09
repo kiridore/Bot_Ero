@@ -112,7 +112,8 @@ class LLMChatPlugin(Plugin):
         if not msg:
             return
         sender_name = user_name or self._get_sender_name()
-        line = "[{}({})]({}): {}".format(sender_name, self._get_sender_id(), self._get_event_time_str(), msg)
+        sender_id = 3915014383 if user_name else self._get_sender_id()
+        line = "[{}({})]({}): {}".format(sender_name, sender_id, self._get_event_time_str(), msg)
         runtime_context.recent_chat_records.append(line)
         if len(runtime_context.recent_chat_records) > CHAT_HISTORY_LIMIT:
             runtime_context.recent_chat_records = runtime_context.recent_chat_records[-CHAT_HISTORY_LIMIT:]
