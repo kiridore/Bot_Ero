@@ -14,7 +14,28 @@ from core.cq import text
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-chat"
-SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
+DEFAULT_SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
+
+
+def _load_system_prompt():
+    prompt_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "core",
+        "llm",
+        "prompts",
+        "chat_prompt.md",
+    )
+    try:
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            prompt = f.read().strip()
+            if prompt:
+                return prompt
+    except OSError:
+        pass
+    return DEFAULT_SYSTEM_PROMPT
+
+
+SYSTEM_PROMPT = _load_system_prompt()
 
 # 已有插件指令（避免被 LLM 误接管）
 KNOWN_COMMANDS = {
