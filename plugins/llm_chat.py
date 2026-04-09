@@ -192,12 +192,12 @@ class LLMChatPlugin(Plugin):
             ],
             "temperature": 1.1,
         }
-        print(
-            "[LLM DEBUG] prompt:\n"
-            f"[system]\n{FULL_SYSTEM_PROMPT}\n\n"
-            f"[user]\n{user_prompt}\n"
-            "------------------------------"
-        )
+        # print(
+        #     "[LLM DEBUG] prompt:\n"
+        #     f"[system]\n{FULL_SYSTEM_PROMPT}\n\n"
+        #     f"[user]\n{user_prompt}\n"
+        #     "------------------------------"
+        # )
         try:
             resp = self._get_http_session().post(
                 LLM_API_URL,
