@@ -1,11 +1,17 @@
 from openai import OpenAI
 from collections import deque
+import os
 
 # =========================
 #  LLM 无状态调用器
 # =========================
 class LLM:
-    def __init__(self, api_key = 'sk-e60f25d1757640ee8d3cd242a4ad4071', base_url="https://api.deepseek.com", model="deepseek-chat"):
+    def __init__(self, api_key=None, base_url=None, model=None):
+        api_key = api_key or os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY")
+        base_url = base_url or "https://api.deepseek.com"
+        model = model or "deepseek-chat"
+        if not api_key:
+            raise ValueError("Missing API key: set DEEPSEEK_API_KEY or LLM_API_KEY")
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 

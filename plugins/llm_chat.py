@@ -1,13 +1,17 @@
+import os
 import requests
 from datetime import datetime
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import core.context as runtime_context
 from core.base import Plugin
 from core.cq import text
 
 
-# TODO: 在这里填写你的 LLM 配置
-LLM_API_KEY = "sk-2d413557432348c08c5414fc20149e17"
+# 环境变量支持：
+# - DEEPSEEK_API_KEY / LLM_API_KEY
+LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-chat"
 SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
@@ -22,6 +26,27 @@ KNOWN_COMMANDS = {
 
 
 class LLMChatPlugin(Plugin):
+    _http_session = None
+
+    @classmethod
+    def _get_http_session(cls):
+        if cls._http_session is None:
+            session = requests.Session()
+            retry = Retry(
+                total=3,
+                connect=3,
+                read=2,
+                backoff_factor=1.0,
+                status_forcelist=(429, 500, 502, 503, 504),
+                allowed_methods=frozenset(["POST"]),
+                raise_on_status=False,
+            )
+            adapter = HTTPAdapter(max_retries=retry)
+            session.mount("https://", adapter)
+            session.mount("http://", adapter)
+            cls._http_session = session
+        return cls._http_session
+
     def _extract_text(self):
         message = self.context.get("message", [])
         parts = []
@@ -81,7 +106,7 @@ class LLMChatPlugin(Plugin):
 
     def _call_llm(self, user_text):
         if not LLM_API_KEY.strip():
-            return "LLM_API_KEY 还没有配置喵，请先在插件里填写。"
+            return "未检测到 API Key，请先设置环境变量 DEEPSEEK_API_KEY（或 LLM_API_KEY）。"
 
         headers = {
             "Authorization": f"Bearer {LLM_API_KEY}",
@@ -96,11 +121,22 @@ class LLMChatPlugin(Plugin):
             "temperature": 0.7,
         }
         try:
-            resp = requests.post(LLM_API_URL, headers=headers, json=payload, timeout=30)
+            resp = self._get_http_session().post(
+                LLM_API_URL,
+                headers=headers,
+                json=payload,
+                timeout=(10, 60),
+            )
             if resp.status_code != 200:
-                return f"LLM 调用失败，HTTP {resp.status_code}"
+                return f"LLM 调用失败，HTTP {resp.status_code}：{resp.text[:200]}"
             data = resp.json()
             return data["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.ConnectTimeout:
+            return "LLM 连接超时（无法连到 DeepSeek）。请检查网络/代理后重试。"
+        except requests.exceptions.ReadTimeout:
+            return "LLM 响应超时（服务处理过慢）。请稍后重试。"
+        except requests.exceptions.RequestException as e:
+            return f"LLM 网络异常：{e}"
         except Exception as e:
             return f"LLM 调用异常：{e}"
 
