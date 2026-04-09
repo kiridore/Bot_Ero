@@ -6,7 +6,7 @@ from .personal_records import PersonalRecords
 from .week_list import WeekListPlugin
 from .monitor import MonitorPlugin
 from .roll_back import RollbackCheckinPlugin
-from .call import CallPlugin
+# from .call import CallPlugin
 from .update import UpdatePlugin
 from .auto_friend import AutoFriendPlugin
 from .welcome import WelcomePlugin
@@ -35,7 +35,7 @@ __all__.append("PersonalRecords")
 __all__.append("WeekListPlugin")
 __all__.append("MonitorPlugin")
 __all__.append("RollbackCheckinPlugin")
-__all__.append("CallPlugin")
+# __all__.append("CallPlugin")
 __all__.append("UpdatePlugin")
 __all__.append("AutoFriendPlugin")
 __all__.append("WelcomePlugin")
