@@ -14,6 +14,7 @@ from core.cq import text
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-chat"
+CHAT_HISTORY_LIMIT = 1000
 DEFAULT_SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
 
 
@@ -86,16 +87,17 @@ class LLMChatPlugin(Plugin):
             return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def _append_chat_record(self, msg):
+    def _append_chat_record(self, msg, user_name=None):
         if not msg:
             return
-        line = "[{}]({}): {}".format(self._get_sender_name(), self._get_event_time_str(), msg)
+        sender_name = user_name or self._get_sender_name()
+        line = "[{}]({}): {}".format(sender_name, self._get_event_time_str(), msg)
         runtime_context.recent_chat_records.append(line)
-        if len(runtime_context.recent_chat_records) > 200:
-            runtime_context.recent_chat_records = runtime_context.recent_chat_records[-200:]
+        if len(runtime_context.recent_chat_records) > CHAT_HISTORY_LIMIT:
+            runtime_context.recent_chat_records = runtime_context.recent_chat_records[-CHAT_HISTORY_LIMIT:]
 
     def _build_chat_history_text(self):
-        return "\n".join(runtime_context.recent_chat_records[-200:])
+        return "\n".join(runtime_context.recent_chat_records[-CHAT_HISTORY_LIMIT:])
 
     def match(self, message_type):
         if message_type != "message":
@@ -107,7 +109,7 @@ class LLMChatPlugin(Plugin):
 
         if msg == "/总结聊天":
             self._mode = "summarize"
-            self._use_recent_context = False
+            self._use_recent_context = True
             return True
 
         if msg.startswith("小埃同学"):
@@ -121,7 +123,7 @@ class LLMChatPlugin(Plugin):
             if cmd not in KNOWN_COMMANDS:
                 self._mode = "chat"
                 self._prompt_text = msg
-                self._use_recent_context = False
+                self._use_recent_context = True
                 return True
 
         return False
@@ -189,6 +191,7 @@ class LLMChatPlugin(Plugin):
             )
             answer = self._call_llm(prompt)
             self.api.send_msg(text(answer))
+            self._append_chat_record(answer, user_name="小埃同学")
             return
 
         answer = self._call_llm(
@@ -196,3 +199,4 @@ class LLMChatPlugin(Plugin):
             include_recent_chat=getattr(self, "_use_recent_context", False),
         )
         self.api.send_msg(text(answer))
+        self._append_chat_record(answer, user_name="小埃同学")
