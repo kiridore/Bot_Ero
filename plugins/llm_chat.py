@@ -83,6 +83,9 @@ class LLMChatPlugin(Plugin):
         for seg in message:
             if seg.get("type") == "text":
                 parts.append(seg.get("data", {}).get("text", ""))
+            else:
+                parts.append("[{}]".format(seg.get("type", "unknow")))
+
         return "".join(parts).strip()
 
     def _has_at_bot(self):
