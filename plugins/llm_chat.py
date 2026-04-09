@@ -180,7 +180,7 @@ class LLMChatPlugin(Plugin):
                 {"role": "system", "content": FULL_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 1.3,
+            "temperature": 1.1,
         }
         print(
             "[LLM DEBUG] prompt:\n"
