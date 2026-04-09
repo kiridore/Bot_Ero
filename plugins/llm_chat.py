@@ -5,8 +5,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 import core.context as runtime_context
-from core.base import Plugin
+from core.base import BOT_QQ, Plugin
 from core.cq import text
+from plugins.bot_menu_text import BOT_MENU_TEXT
 
 
 # 环境变量支持：
@@ -14,7 +15,7 @@ from core.cq import text
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-chat"
-CHAT_HISTORY_LIMIT = 1000
+CHAT_HISTORY_LIMIT = 500
 DEFAULT_SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
 
 
@@ -38,10 +39,19 @@ def _load_system_prompt():
 
 SYSTEM_PROMPT = _load_system_prompt()
 
+MENU_AND_COMMANDS_APPEND = (
+    "\n\n---\n## 本机器人支持的指令（与群内发送 /菜单 时显示的内容一致）\n"
+    + BOT_MENU_TEXT
+    + "\n\n当用户输入以 / 开头、但明显不在上述支持范围内的指令，或用法明显错误时，"
+    "请用简短、友好的方式说明暂无该指令或正确用法，并提示发送 /菜单 查看完整列表。"
+)
+
+FULL_SYSTEM_PROMPT = SYSTEM_PROMPT + MENU_AND_COMMANDS_APPEND
+
 # 已有插件指令（避免被 LLM 误接管）
 KNOWN_COMMANDS = {
     "/菜单", "/打卡", "/档案", "/本周打卡图", "/ALL", "/补卡", "/单日补卡", "/撤回打卡",
-    "/抽奖", "/抽卡消费", "/排名", "/rank", "/称号", "/称号一览", "/今日发言统计",
+    "/抽奖", "/抽卡消费", "/随机参考", "/排名", "/rank", "/称号", "/称号一览", "/今日发言统计",
     "/本周板油", "/群头衔", "/全体成员", "/超级补卡", "/数据备份", "/系统状态",
     "/更新", "/发金币", "/reload", "/占卜", "/贷款", "/总结聊天",
 }
@@ -77,6 +87,15 @@ class LLMChatPlugin(Plugin):
                 parts.append(seg.get("data", {}).get("text", ""))
         return "".join(parts).strip()
 
+    def _has_at_bot(self):
+        bot = str(BOT_QQ)
+        for seg in self.context.get("message", []):
+            if seg.get("type") == "at":
+                qq = seg.get("data", {}).get("qq")
+                if str(qq) == bot:
+                    return True
+        return False
+
     def _get_sender_name(self):
         sender = self.context.get("sender", {})
         return sender.get("card") or sender.get("nickname") or str(self.context.get("user_id", "未知用户"))
@@ -103,16 +122,20 @@ class LLMChatPlugin(Plugin):
         if message_type != "message":
             return False
         msg = self._extract_text()
-        if not msg:
+        at_bot = self._has_at_bot()
+        if not msg and not at_bot:
             return False
-        self._append_chat_record(msg)
+        if msg:
+            self._append_chat_record(msg)
+        else:
+            self._append_chat_record("[@小埃同学]")
 
         if msg == "/总结聊天":
             self._mode = "summarize"
             self._use_recent_context = True
             return True
 
-        if msg.startswith("小埃同学"):
+        if msg.startswith("小埃"):
             self._mode = "chat"
             self._prompt_text = msg
             self._use_recent_context = True
@@ -125,6 +148,12 @@ class LLMChatPlugin(Plugin):
                 self._prompt_text = msg
                 self._use_recent_context = True
                 return True
+
+        if at_bot:
+            self._mode = "chat"
+            self._prompt_text = msg if msg else ""
+            self._use_recent_context = True
+            return True
 
         return False
 
@@ -150,14 +179,14 @@ class LLMChatPlugin(Plugin):
         payload = {
             "model": LLM_MODEL,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": FULL_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.7,
         }
         print(
             "[LLM DEBUG] prompt:\n"
-            f"[system]\n{SYSTEM_PROMPT}\n\n"
+            f"[system]\n{FULL_SYSTEM_PROMPT}\n\n"
             f"[user]\n{user_prompt}\n"
             "------------------------------"
         )
