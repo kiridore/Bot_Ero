@@ -760,8 +760,9 @@ class LLMChatPlugin(Plugin):
             answer = self._call_llm(prompt)
             final_answer = self._build_reply_with_trigger("/总结聊天", answer)
             msg_id = self.context.get("message_id")
-            if isinstance(msg_id, int) and msg_id > 0:
-                self.api.send_msg(reply(msg_id), text(final_answer))
+            msg_id_str = str(msg_id).strip() if msg_id is not None else ""
+            if msg_id_str and msg_id_str != "0":
+                self.api.send_msg(reply(msg_id_str), text(final_answer))
             else:
                 self.api.send_msg(text(final_answer))
             self._append_chat_record(final_answer, user_name="小埃同学")
@@ -773,8 +774,9 @@ class LLMChatPlugin(Plugin):
         )
         final_answer = self._build_reply_with_trigger(getattr(self, "_prompt_text", ""), answer)
         msg_id = self.context.get("message_id")
-        if isinstance(msg_id, int) and msg_id > 0:
-            self.api.send_msg(reply(msg_id), text(final_answer))
+        msg_id_str = str(msg_id).strip() if msg_id is not None else ""
+        if msg_id_str and msg_id_str != "0":
+            self.api.send_msg(reply(msg_id_str), text(final_answer))
         else:
             self.api.send_msg(text(final_answer))
         self._append_chat_record(final_answer, user_name="小埃同学")
