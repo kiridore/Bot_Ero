@@ -750,11 +750,6 @@ class LLMChatPlugin(Plugin):
             cls._save_group_memory(group_id, mem)
 
     def handle(self):
-        if runtime_context.is_thinking:
-            self.api.send_msg(text("小埃还在想别的事情，等一下哦……"))
-            return
-
-        runtime_context.is_thinking = True
         if getattr(self, "_mode", "") == "summarize":
             chat_blob = self._build_chat_history_text()
             prompt = (
@@ -770,7 +765,6 @@ class LLMChatPlugin(Plugin):
             else:
                 self.api.send_msg(text(final_answer))
             self._append_chat_record(final_answer, user_name="小埃同学")
-            runtime_context.is_thinking = False
             return
 
         answer = self._call_llm(
@@ -784,4 +778,3 @@ class LLMChatPlugin(Plugin):
         else:
             self.api.send_msg(text(final_answer))
         self._append_chat_record(final_answer, user_name="小埃同学")
-        runtime_context.is_thinking = False

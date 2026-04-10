@@ -8,4 +8,3 @@ python_data_path = "./server_data"                  # 在python脚本中访问�
 onebot_qq_volume = "/var/lib/docker/volumes/onebot_qq_volume/_data"
 startup_changelog_sent = False
 recent_chat_records = []
-is_thinking = False
