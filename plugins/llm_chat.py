@@ -530,7 +530,7 @@ class LLMChatPlugin(Plugin):
             "{\n"
             '  "group_history": "...",\n'
             '  "user_specific": [\n'
-            '    {"user_id": 123, "user_name": "xxx", "emotion_connection": "...", "personal_info": "..."}\n'
+            '    {"user_id": 123, "user_name": "xxx", "emotion_connection": "...", "member_relation": "...", "personal_info": "..."}\n'
             "  ]\n"
             "}\n\n"
             "以下是新增原始对话（按时间顺序）：\n"
@@ -554,6 +554,7 @@ class LLMChatPlugin(Plugin):
             '  "user_id": 123,\n'
             '  "user_name": "xxx",\n'
             '  "emotion_connection": "...",\n'
+            '  "member_relation": "...",\n'
             '  "personal_info": "..."\n'
             "}\n\n"
             "以下是该成员的发言片段（按时间顺序）：\n"
@@ -642,10 +643,13 @@ class LLMChatPlugin(Plugin):
                     uid_key = str(int(uid))
                     uname = str(u.get("user_name") or "")
                     emotion = str(u.get("emotion_connection") or "").strip()
+                    relation = str(u.get("member_relation") or "").strip()
                     pinfo = str(u.get("personal_info") or "").strip()
                     profile_txt = ""
                     if emotion:
                         profile_txt += f"[情感连接] {emotion}\n"
+                    if relation:
+                        profile_txt += f"[成员关系] {relation}\n"
                     if pinfo:
                         profile_txt += f"[个人信息] {pinfo}\n"
                     if profile_txt.strip():
@@ -701,11 +705,13 @@ class LLMChatPlugin(Plugin):
             out = cls._call_llm_api(system_prompt, user_prompt, temperature=0.4)
             out_json = json.loads(cls._strip_json_fence(out))
             emotion = str(out_json.get("emotion_connection") or "").strip()
+            relation = str(out_json.get("member_relation") or "").strip()
             pinfo = str(out_json.get("personal_info") or "").strip()
             uname = str(out_json.get("user_name") or user_name).strip() or user_name
         except Exception as e:
             logger.warning(f"[llm_memory] user profile parse failed: {e}")
             emotion = ""
+            relation = ""
             pinfo = ""
             uname = user_name
 
@@ -719,6 +725,8 @@ class LLMChatPlugin(Plugin):
             profile_txt = ""
             if emotion:
                 profile_txt += f"[情感连接] {emotion}\n"
+            if relation:
+                profile_txt += f"[成员关系] {relation}\n"
             if pinfo:
                 profile_txt += f"[个人信息] {pinfo}\n"
             if profile_txt.strip():
