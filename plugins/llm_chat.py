@@ -11,7 +11,7 @@ from urllib3.util.retry import Retry
 import core.context as runtime_context
 from core.logger import logger
 from core.base import BOT_QQ, Plugin
-from core.cq import text
+from core.cq import text, reply
 from plugins.bot_menu_text import BOT_MENU_TEXT
 
 
@@ -347,6 +347,12 @@ class LLMChatPlugin(Plugin):
     def _build_chat_history_text(self):
         return "\n".join(runtime_context.recent_chat_records[-CHAT_HISTORY_LIMIT:])
 
+    @staticmethod
+    def _build_reply_with_trigger(trigger_text: str, answer_text: str):
+        trigger = (trigger_text or "").strip() or "（空消息/@触发）"
+        answer = (answer_text or "").strip()
+        return f"唤起信息：{trigger}\n\n{answer}"
+
     def match(self, message_type):
         if message_type != "message":
             return False
@@ -364,7 +370,7 @@ class LLMChatPlugin(Plugin):
             self._use_recent_context = True
             return True
 
-        if msg.startswith("小埃"):
+        if ("小埃同学" in msg) or ("小埃" in msg):
             self._mode = "chat"
             self._prompt_text = msg
             self._use_recent_context = True
@@ -757,8 +763,13 @@ class LLMChatPlugin(Plugin):
                 + chat_blob
             )
             answer = self._call_llm(prompt)
-            self.api.send_msg(text(answer))
-            self._append_chat_record(answer, user_name="小埃同学")
+            final_answer = self._build_reply_with_trigger("/总结聊天", answer)
+            msg_id = self.context.get("message_id")
+            if isinstance(msg_id, int) and msg_id > 0:
+                self.api.send_msg(reply(msg_id), text(final_answer))
+            else:
+                self.api.send_msg(text(final_answer))
+            self._append_chat_record(final_answer, user_name="小埃同学")
             runtime_context.is_thinking = False
             return
 
@@ -766,6 +777,11 @@ class LLMChatPlugin(Plugin):
             self._prompt_text,
             include_recent_chat=getattr(self, "_use_recent_context", False),
         )
-        self.api.send_msg(text(answer))
-        self._append_chat_record(answer, user_name="小埃同学")
+        final_answer = self._build_reply_with_trigger(getattr(self, "_prompt_text", ""), answer)
+        msg_id = self.context.get("message_id")
+        if isinstance(msg_id, int) and msg_id > 0:
+            self.api.send_msg(reply(msg_id), text(final_answer))
+        else:
+            self.api.send_msg(text(final_answer))
+        self._append_chat_record(final_answer, user_name="小埃同学")
         runtime_context.is_thinking = False

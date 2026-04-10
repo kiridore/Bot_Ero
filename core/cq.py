@@ -35,6 +35,9 @@ def music(data: str) -> dict:
     # https://github.com/botuniverse/onebot-11/blob/master/message/segment.md#%E9%9F%B3%E4%B9%90%E5%88%86%E4%BA%AB-
     return {"type": "music", "data": {"type": "qq", "id": data}}
 
+def reply(id: int) -> dict:
+    return {"type": "reply", "data": {"type": "reply", "id": id}}
+
 def forward(messages: list):
     res = []
     res.append({
