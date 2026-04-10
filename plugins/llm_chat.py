@@ -347,12 +347,6 @@ class LLMChatPlugin(Plugin):
     def _build_chat_history_text(self):
         return "\n".join(runtime_context.recent_chat_records[-CHAT_HISTORY_LIMIT:])
 
-    @staticmethod
-    def _build_reply_with_trigger(trigger_text: str, answer_text: str):
-        trigger = (trigger_text or "").strip() or "（空消息/@触发）"
-        answer = (answer_text or "").strip()
-        return f"唤起信息：{trigger}\n\n{answer}"
-
     def match(self, message_type):
         if message_type != "message":
             return False
@@ -758,25 +752,23 @@ class LLMChatPlugin(Plugin):
                 + chat_blob
             )
             answer = self._call_llm(prompt)
-            final_answer = self._build_reply_with_trigger("/总结聊天", answer)
             msg_id = self.context.get("message_id")
             msg_id_str = str(msg_id).strip() if msg_id is not None else ""
             if msg_id_str and msg_id_str != "0":
-                self.api.send_msg(reply(msg_id_str), text(final_answer))
+                self.api.send_msg(reply(msg_id_str), text(answer))
             else:
-                self.api.send_msg(text(final_answer))
-            self._append_chat_record(final_answer, user_name="小埃同学")
+                self.api.send_msg(text(answer))
+            self._append_chat_record(answer, user_name="小埃同学")
             return
 
         answer = self._call_llm(
             self._prompt_text,
             include_recent_chat=getattr(self, "_use_recent_context", False),
         )
-        final_answer = self._build_reply_with_trigger(getattr(self, "_prompt_text", ""), answer)
         msg_id = self.context.get("message_id")
         msg_id_str = str(msg_id).strip() if msg_id is not None else ""
         if msg_id_str and msg_id_str != "0":
-            self.api.send_msg(reply(msg_id_str), text(final_answer))
+            self.api.send_msg(reply(msg_id_str), text(answer))
         else:
-            self.api.send_msg(text(final_answer))
-        self._append_chat_record(final_answer, user_name="小埃同学")
+            self.api.send_msg(text(answer))
+        self._append_chat_record(answer, user_name="小埃同学")
