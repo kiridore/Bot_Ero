@@ -20,12 +20,15 @@ from plugins.bot_menu_text import BOT_MENU_TEXT
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
 LLM_MODEL = "deepseek-reasoner"
-CHAT_HISTORY_LIMIT = 300
+CHAT_HISTORY_LIMIT = 1000
+CHAT_CONTEXT_LIMIT = 100
+CHAT_SUMMARIZE_CONTEXT_LIMIT = 1000
 DEFAULT_SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
 MEMORY_DIR_NAME = "llm_memory"
 MEMORY_SUMMARY_TRIGGER_EVERY = 300
 MEMORY_USER_TRIGGER_EVERY = 50
 GROUP_SUMMARY_MAX_CHARS = 1800
+GROUP_SUMMARY_KEEP_DAYS = 7
 
 
 def _load_system_prompt():
@@ -107,6 +110,10 @@ class LLMChatPlugin(Plugin):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, dict):
+                    if "last_messages" not in data and isinstance(data.get("last_300"), list):
+                        data["last_messages"] = data.get("last_300")
+                    if "summary_input_buffer" not in data and isinstance(data.get("summary_buffer"), list):
+                        data["summary_input_buffer"] = data.get("summary_buffer")
                     return data
         except FileNotFoundError:
             pass
@@ -114,12 +121,13 @@ class LLMChatPlugin(Plugin):
             logger.warning(f"[llm_memory] failed to load {path}: {e}")
         return {
             "group_id": int(group_id),
-            "last_300": [],
-            "summary_buffer": [],
+            "last_messages": [],
+            "summary_input_buffer": [],
             "since_last_summary": 0,
             "summary_pending": False,
             "group_summary": "",
             "group_summary_updated_at": "",
+            "group_summary_history": [],  # [{date, summary, updated_at}]
             "user_counters": {},  # user_id -> count since last profile update
             "user_pending": {},   # user_id -> bool
             "user_profiles": {},  # user_id -> {name, profile, updated_at}
@@ -150,6 +158,47 @@ class LLMChatPlugin(Plugin):
         except Exception:
             return 0
 
+    @staticmethod
+    def _safe_date(d: str):
+        try:
+            return datetime.strptime(str(d), "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    @classmethod
+    def _recent_7d_summary_text(cls, mem: dict):
+        history = mem.get("group_summary_history") or []
+        if not isinstance(history, list):
+            history = []
+
+        today = datetime.now().date()
+        kept = []
+        for item in history:
+            if not isinstance(item, dict):
+                continue
+            d_str = str(item.get("date") or "")
+            d = cls._safe_date(d_str)
+            if d is None:
+                continue
+            if (today - d).days < GROUP_SUMMARY_KEEP_DAYS:
+                kept.append(
+                    {
+                        "date": d_str,
+                        "summary": str(item.get("summary") or "").strip(),
+                        "updated_at": str(item.get("updated_at") or ""),
+                    }
+                )
+
+        kept.sort(key=lambda x: x.get("date", ""))
+        mem["group_summary_history"] = kept
+
+        chunks = []
+        for item in kept:
+            summary = str(item.get("summary") or "").strip()
+            if summary:
+                chunks.append(f"[{item.get('date')}] {summary}")
+        return "\n".join(chunks)
+
     @classmethod
     def _ensure_memory_worker(cls):
         if cls._memory_worker_started:
@@ -166,9 +215,9 @@ class LLMChatPlugin(Plugin):
                 if not isinstance(job, dict):
                     continue
                 job_type = job.get("type")
-                if job_type == "summarize_300":
-                    cls._process_summarize_job(job)
-                elif job_type == "user_profile_50":
+                if job_type == "summary_job":
+                    cls._process_summary_job(job)
+                elif job_type == "user_profile_job":
                     cls._process_user_profile_job(job)
             except Exception as e:
                 logger.warning(f"[llm_memory] worker job failed: {e}")
@@ -219,21 +268,21 @@ class LLMChatPlugin(Plugin):
 
         with self._memory_lock:
             mem = self._load_group_memory(group_id)
-            last_300 = mem.get("last_300") or []
-            if not isinstance(last_300, list):
-                last_300 = []
-            last_300.append(record)
-            if len(last_300) > CHAT_HISTORY_LIMIT:
-                last_300 = last_300[-CHAT_HISTORY_LIMIT:]
-            mem["last_300"] = last_300
+            last_messages = mem.get("last_messages") or []
+            if not isinstance(last_messages, list):
+                last_messages = []
+            last_messages.append(record)
+            if len(last_messages) > CHAT_HISTORY_LIMIT:
+                last_messages = last_messages[-CHAT_HISTORY_LIMIT:]
+            mem["last_messages"] = last_messages
 
-            summary_buffer = mem.get("summary_buffer") or []
-            if not isinstance(summary_buffer, list):
-                summary_buffer = []
-            summary_buffer.append(record)
-            if len(summary_buffer) > MEMORY_SUMMARY_TRIGGER_EVERY:
-                summary_buffer = summary_buffer[-MEMORY_SUMMARY_TRIGGER_EVERY:]
-            mem["summary_buffer"] = summary_buffer
+            summary_input_buffer = mem.get("summary_input_buffer") or []
+            if not isinstance(summary_input_buffer, list):
+                summary_input_buffer = []
+            summary_input_buffer.append(record)
+            if len(summary_input_buffer) > MEMORY_SUMMARY_TRIGGER_EVERY:
+                summary_input_buffer = summary_input_buffer[-MEMORY_SUMMARY_TRIGGER_EVERY:]
+            mem["summary_input_buffer"] = summary_input_buffer
 
             mem["since_last_summary"] = int(mem.get("since_last_summary") or 0) + 1
 
@@ -250,17 +299,17 @@ class LLMChatPlugin(Plugin):
             if (
                 int(mem.get("since_last_summary") or 0) >= MEMORY_SUMMARY_TRIGGER_EVERY
                 and not bool(mem.get("summary_pending"))
-                and len(last_300) >= CHAT_HISTORY_LIMIT
+                and len(last_messages) >= CHAT_HISTORY_LIMIT
             ):
                 mem["summary_pending"] = True
                 mem["since_last_summary"] = 0
-                snapshot = list((mem.get("summary_buffer") or [])[-MEMORY_SUMMARY_TRIGGER_EVERY:])
-                mem["summary_buffer"] = []
+                snapshot = list((mem.get("summary_input_buffer") or [])[-MEMORY_SUMMARY_TRIGGER_EVERY:])
+                mem["summary_input_buffer"] = []
                 self._memory_job_q.put(
                     {
-                        "type": "summarize_300",
+                        "type": "summary_job",
                         "group_id": int(group_id),
-                        "prev_summary": str(mem.get("group_summary") or ""),
+                        "prev_summary": self._recent_7d_summary_text(mem),
                         "messages": snapshot,
                     }
                 )
@@ -276,9 +325,9 @@ class LLMChatPlugin(Plugin):
                     user_pending[uid_key] = True
                     mem["user_pending"] = user_pending
 
-                    # 从最近 300 条里筛选该成员最近发言
+                    # 从最近聊天窗口里筛选该成员最近发言
                     selected = []
-                    for r in reversed(last_300):
+                    for r in reversed(last_messages):
                         if str(r.get("user_id")) == uid_key:
                             selected.append(r)
                             if len(selected) >= MEMORY_USER_TRIGGER_EVERY:
@@ -287,7 +336,7 @@ class LLMChatPlugin(Plugin):
                     if selected:
                         self._memory_job_q.put(
                             {
-                                "type": "user_profile_50",
+                                "type": "user_profile_job",
                                 "group_id": int(group_id),
                                 "user_id": int(sender_id),
                                 "user_name": str(sender_name),
@@ -344,8 +393,11 @@ class LLMChatPlugin(Plugin):
         except Exception as e:
             logger.warning(f"[llm_memory] persist_message failed: {e}")
 
-    def _build_chat_history_text(self):
-        return "\n".join(runtime_context.recent_chat_records[-CHAT_HISTORY_LIMIT:])
+    def _build_chat_history_text(self, limit: int = CHAT_CONTEXT_LIMIT):
+        safe_limit = int(limit) if isinstance(limit, int) else CHAT_CONTEXT_LIMIT
+        if safe_limit <= 0:
+            safe_limit = CHAT_CONTEXT_LIMIT
+        return "\n".join(runtime_context.recent_chat_records[-safe_limit:])
 
     def match(self, message_type):
         if message_type != "message":
@@ -480,7 +532,9 @@ class LLMChatPlugin(Plugin):
             return FULL_SYSTEM_PROMPT
         with self._memory_lock:
             mem = self._load_group_memory(group_id)
-        group_summary = (mem.get("group_summary") or "").strip()
+        group_summary = self._recent_7d_summary_text(mem).strip()
+        if not group_summary:
+            group_summary = (mem.get("group_summary") or "").strip()
 
         profile_txt = ""
         if user_id:
@@ -505,7 +559,7 @@ class LLMChatPlugin(Plugin):
         return FULL_SYSTEM_PROMPT + memory_block
 
     @staticmethod
-    def _memory_extract_prompt_300_incremental(prev_summary: str, raw_dialogue: str):
+    def _memory_extract_prompt_incremental(prev_summary: str, raw_dialogue: str):
         prev_summary = (prev_summary or "").strip()
         prev_block = prev_summary if prev_summary else "（暂无历史摘要）"
         return (
@@ -582,7 +636,7 @@ class LLMChatPlugin(Plugin):
         return "…\n" + s[-(max_chars - 2):]
 
     @classmethod
-    def _process_summarize_job(cls, job: dict):
+    def _process_summary_job(cls, job: dict):
         group_id = int(job.get("group_id") or 0)
         prev_summary = str(job.get("prev_summary") or "")
         messages = job.get("messages") or []
@@ -605,7 +659,7 @@ class LLMChatPlugin(Plugin):
         raw_dialogue = "\n".join(raw_lines[-CHAT_HISTORY_LIMIT:])
 
         system_prompt = "你是一个严谨的后端记忆抽取器。输出必须是可解析 JSON。"
-        user_prompt = cls._memory_extract_prompt_300_incremental(prev_summary, raw_dialogue)
+        user_prompt = cls._memory_extract_prompt_incremental(prev_summary, raw_dialogue)
         try:
             out = cls._call_llm_api(system_prompt, user_prompt, temperature=0.6)
             out_json = json.loads(cls._strip_json_fence(out))
@@ -619,8 +673,32 @@ class LLMChatPlugin(Plugin):
         with cls._memory_lock:
             mem = cls._load_group_memory(group_id)
             if group_history:
-                mem["group_summary"] = cls._limit_text(group_history, GROUP_SUMMARY_MAX_CHARS)
-                mem["group_summary_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                limited = cls._limit_text(group_history, GROUP_SUMMARY_MAX_CHARS)
+                now_dt = datetime.now()
+                now_date = now_dt.strftime("%Y-%m-%d")
+                now_ts = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+                history = mem.get("group_summary_history") or []
+                if not isinstance(history, list):
+                    history = []
+
+                replaced = False
+                for item in history:
+                    if not isinstance(item, dict):
+                        continue
+                    if str(item.get("date") or "") == now_date:
+                        item["summary"] = limited
+                        item["updated_at"] = now_ts
+                        replaced = True
+                        break
+                if not replaced:
+                    history.append({"date": now_date, "summary": limited, "updated_at": now_ts})
+                mem["group_summary_history"] = history
+
+                # 保留兼容字段，同时用最近 7 天拼接结果
+                combined = cls._recent_7d_summary_text(mem)
+                mem["group_summary"] = cls._limit_text(combined, GROUP_SUMMARY_MAX_CHARS)
+                mem["group_summary_updated_at"] = now_ts
 
             # 摘要生成时：顺便更新活跃成员画像 & 重置计数
             if isinstance(user_specific, list):
@@ -753,7 +831,7 @@ class LLMChatPlugin(Plugin):
 
     def handle(self):
         if getattr(self, "_mode", "") == "summarize":
-            chat_blob = self._build_chat_history_text()
+            chat_blob = self._build_chat_history_text(CHAT_SUMMARIZE_CONTEXT_LIMIT)
             prompt = (
                 "请总结以下聊天记录的主要话题、结论、待办和情绪走势，"
                 "输出为简洁中文要点。\n\n"
