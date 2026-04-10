@@ -14,7 +14,7 @@ from plugins.bot_menu_text import BOT_MENU_TEXT
 # - DEEPSEEK_API_KEY / LLM_API_KEY
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY", "")
 LLM_API_URL = "https://api.deepseek.com/chat/completions"
-LLM_MODEL = "deepseek-chat"
+LLM_MODEL = "deepseek-reasoner"
 CHAT_HISTORY_LIMIT = 300
 DEFAULT_SYSTEM_PROMPT = "你是小埃同学，一个简洁、友好的群聊助手。"
 
@@ -190,7 +190,7 @@ class LLMChatPlugin(Plugin):
                 {"role": "system", "content": FULL_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 1.1,
+            "temperature": 1.2,
         }
         # print(
         #     "[LLM DEBUG] prompt:\n"
@@ -219,6 +219,11 @@ class LLMChatPlugin(Plugin):
             return f"LLM 调用异常：{e}"
 
     def handle(self):
+        if runtime_context.is_thinking:
+            self.api.send_msg(text("小埃还在想别的事情，等一下哦……"))
+            return
+
+        runtime_context.is_thinking = True
         if getattr(self, "_mode", "") == "summarize":
             chat_blob = self._build_chat_history_text()
             prompt = (
@@ -229,6 +234,7 @@ class LLMChatPlugin(Plugin):
             answer = self._call_llm(prompt)
             self.api.send_msg(text(answer))
             self._append_chat_record(answer, user_name="小埃同学")
+            runtime_context.is_thinking = False
             return
 
         answer = self._call_llm(
@@ -237,3 +243,4 @@ class LLMChatPlugin(Plugin):
         )
         self.api.send_msg(text(answer))
         self._append_chat_record(answer, user_name="小埃同学")
+        runtime_context.is_thinking = False
