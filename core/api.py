@@ -164,4 +164,8 @@ class ApiWrapper:
         if ret and ret.get("status") == "ok":
             return ret.get("data", {})
         return {}
-    pass
+
+    def delete_msg(self, message_id: int) -> bool:
+        # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#delete_msg-%E6%92%A4%E5%9B%9E%E6%B6%88%E6%81%AF
+        ret = self.call_api("delete_msg", {"message_id": int(message_id)})
+        return bool(ret and ret.get("status") == "ok")
