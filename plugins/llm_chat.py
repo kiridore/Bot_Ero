@@ -235,7 +235,7 @@ class LLMChatPlugin(Plugin):
                 parts.append(seg.get("data", {}).get("text", ""))
             elif seg.get("type") == "at":
                 parts.append("[{}:{}]".format(seg.get("type", "unknow"), seg.get("data", {}).get("qq", "unkonw_qq")))
-            elif seg.get("type") == "repley":
+            elif seg.get("type") == "reply":
                 parts.append("[{}:{}]".format(seg.get("type", "unknow"), seg.get("data", {}).get("id", "unknow_msg_id")))
             else:
                 parts.append("[{}]".format(seg.get("type", "unknow")))
