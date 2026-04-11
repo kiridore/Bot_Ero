@@ -17,6 +17,7 @@ from .set_group_title import GroupSpecialTitlePlugin
 from .leaderboard import LeaderboardPlugin
 from .at_all_reply import AtAllReplyPlugin
 from .recall_message import RecallMessagePlugin
+from .group_essence import GroupEssencePlugin
 from .checkin_recall import CheckinRecallPlugin
 from .lottery import LotteryPlugin
 from .title import TitlePlugin
@@ -47,6 +48,7 @@ __all__.append("GroupSpecialTitlePlugin")
 __all__.append("LeaderboardPlugin")
 __all__.append("AtAllReplyPlugin")
 __all__.append("RecallMessagePlugin")
+__all__.append("GroupEssencePlugin")
 __all__.append("CheckinRecallPlugin")
 __all__.append("LotteryPlugin")
 __all__.append("TitlePlugin")

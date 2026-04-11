@@ -169,3 +169,12 @@ class ApiWrapper:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#delete_msg-%E6%92%A4%E5%9B%9E%E6%B6%88%E6%81%AF
         ret = self.call_api("delete_msg", {"message_id": int(message_id)})
         return bool(ret and ret.get("status") == "ok")
+
+    def set_essence_msg(self, message_id: int) -> bool:
+        # 扩展 API：设置群精华消息（如 NapCat / Lagrange.OneBot 等实现）
+        ret = self.call_api("set_essence_msg", {"message_id": int(message_id)})
+        return bool(ret and ret.get("status") == "ok")
+
+    def delete_essence_msg(self, message_id: int) -> bool:
+        ret = self.call_api("delete_essence_msg", {"message_id": int(message_id)})
+        return bool(ret and ret.get("status") == "ok")
