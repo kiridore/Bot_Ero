@@ -5,7 +5,7 @@ from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
 class BackupPlugin(TimedHeartbeatPlugin):
-    RUN_AT = "01:50"
+    RUN_AT = "02:01"
 
     def match(self, message_type):
         return self.should_run_on_heartbeat(message_type) or self.on_full_match("/数据备份")
