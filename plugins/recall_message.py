@@ -1,9 +1,9 @@
-from core.base import Plugin, BOT_QQ
+from core.base import Plugin
 from core.cq import text
 
 
 class RecallMessagePlugin(Plugin):
-    """回复机器人发出的某条消息后发送 /撤回，由机器人撤回该条消息。"""
+    """回复自己发出的某条消息后发送 /撤回，由机器人代为撤回（不校验消息年龄，由协议与权限决定成败）。"""
 
     def match(self, message_type):
         if message_type != "message":
@@ -59,11 +59,15 @@ class RecallMessagePlugin(Plugin):
             self.api.send_msg(text("获取被回复消息失败，可能太久远或已被删除喵~"))
             return
 
-        # sender_id = self._sender_user_id(reply_data)
-        # if sender_id is None or str(sender_id) != str(BOT_QQ):
-        #     self.api.send_msg(text("只能撤回机器人自己发出的消息喵~"))
-        #     return
+        sender_id = self._sender_user_id(reply_data)
+        operator_id = self.context.get("user_id")
+        if sender_id is None or operator_id is None:
+            self.api.send_msg(text("无法确认消息发送者，撤回已取消喵~"))
+            return
+        if str(sender_id) != str(operator_id):
+            self.api.send_msg(text("只能撤回你自己发送的消息喵~"))
+            return
 
         if self.api.delete_msg(reply_id):
             return
-        self.api.send_msg(text("撤回失败，可能没有权限或已超过可撤回时间喵~"))
+        self.api.send_msg(text("撤回失败，可能没有权限或由协议限制喵~"))
