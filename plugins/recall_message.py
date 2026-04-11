@@ -59,10 +59,10 @@ class RecallMessagePlugin(Plugin):
             self.api.send_msg(text("获取被回复消息失败，可能太久远或已被删除喵~"))
             return
 
-        sender_id = self._sender_user_id(reply_data)
-        if sender_id is None or str(sender_id) != str(BOT_QQ):
-            self.api.send_msg(text("只能撤回机器人自己发出的消息喵~"))
-            return
+        # sender_id = self._sender_user_id(reply_data)
+        # if sender_id is None or str(sender_id) != str(BOT_QQ):
+        #     self.api.send_msg(text("只能撤回机器人自己发出的消息喵~"))
+        #     return
 
         if self.api.delete_msg(reply_id):
             return
