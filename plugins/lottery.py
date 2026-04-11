@@ -12,7 +12,7 @@ class LotteryPlugin(Plugin):
     DUP_REBATE = {"common": 1, "rare": 2, "legendary": 3}
 
     def match(self, message_type):
-        if self.on_full_match("/抽奖"):
+        if self.on_full_match("/抽奖") or self.on_full_match("/抽卡"):
             return True
         return self.on_command("/抽卡消费")
 
@@ -101,15 +101,17 @@ class LotteryPlugin(Plugin):
             )
             return
 
+        free_daily = draw_count == 0
         points = self.dbmanager.get_user_point(user_id)
-        if points < self.COST:
+        if not free_daily and points < self.COST:
             self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
             return
 
-        # 先扣抽奖门票
-        utils.add_user_point(self.dbmanager, user_id, -self.COST)
-        self.dbmanager.add_lottery_spent(user_id, self.COST)
+        if not free_daily:
+            utils.add_user_point(self.dbmanager, user_id, -self.COST)
+            self.dbmanager.add_lottery_spent(user_id, self.COST)
         self.dbmanager.add_lottery_draw_count(user_id, today, 1)
+        cost_paid = 0 if free_daily else self.COST
         result = self.draw_reward(user_id)
         profile = self.dbmanager.get_user_lottery_profile(user_id)
         draw_count = profile["draw_count"] + 1
@@ -134,7 +136,7 @@ class LotteryPlugin(Plugin):
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)
-            net = reward - self.COST
+            net = reward - cost_paid
             now_points = self.dbmanager.get_user_point(user_id)
             if reward == 0:
                 self.api.send_msg(
@@ -158,9 +160,10 @@ class LotteryPlugin(Plugin):
             self._send_unlocked_titles_notice(user_id, unlocked)
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
+            cost_line = "今日首抽免费（未扣积分）" if free_daily else "本次消耗：1积分"
             self.api.send_msg(
                 at(user_id),
-                text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n本次消耗：1积分\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], now_points)),
+                text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n{}\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], cost_line, now_points)),
             )
             return
 
@@ -194,7 +197,8 @@ class LotteryPlugin(Plugin):
             )
             return
 
+        cost_line = "今日首抽免费（未扣积分）" if free_daily else "本次消耗：1积分"
         self.api.send_msg(
             at(user_id),
-            text("*摇骰子* 居然抽到了……{}！\n本次消耗：1积分\n当前积分：{}".format(result["value"], now_points)),
+            text("*摇骰子* 居然抽到了……{}！\n{}\n当前积分：{}".format(result["value"], cost_line, now_points)),
         )
