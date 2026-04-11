@@ -91,7 +91,10 @@ class ApiWrapper:
 
     def send_group_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_group_msg-%E5%8F%91%E9%80%81%E7%BE%A4%E6%B6%88%E6%81%AF
-        params = {"group_id": self.context["group_id"], "message": message}
+        group_id = self.context.get("group_id")
+        if not group_id:
+            group_id = self.context.get("DEFAULT_GROUP_ID")
+        params = {"group_id": group_id, "message": message}
         ret = self.call_api("send_group_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else ret["data"]["message_id"]
 
