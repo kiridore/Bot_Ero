@@ -1,5 +1,6 @@
 import os
-from core import context, utils
+import core.context as runtime_context
+from core import utils
 from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
@@ -21,7 +22,7 @@ class BackupPlugin(TimedHeartbeatPlugin):
         for row in rows:
             # 根据QQ号创建文件夹
             user_id = row[1]
-            python_user_folder = f"{context.python_data_path}/record_images/{user_id}"
+            python_user_folder = f"{runtime_context.python_data_path}/record_images/{user_id}"
             image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
 
             if image_name == "remedy_checkin": 
