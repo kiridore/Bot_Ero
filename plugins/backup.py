@@ -5,13 +5,14 @@ from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
 class BackupPlugin(TimedHeartbeatPlugin):
-    RUN_AT = "02:01"
+    RUN_AT = "08:00"
 
     def match(self, message_type):
         return self.should_run_on_heartbeat(message_type) or self.on_full_match("/数据备份")
 
     def handle(self):
         rows = self.dbmanager.get_all_record()
+        self.api.send_msg(text("早上好，昨天的打卡关门啦，开始进行备份~"))
         self.api.send_msg(text("找到了{}条打卡记录，正在备份到硬盘".format(len(rows))))
 
         exists_cnt = 0
