@@ -5,13 +5,10 @@ import json as json_
 from datetime import datetime
 from core import api
 from core.logger import logger
-from core.base import Plugin
 from plugins import *
 import core.context as context
 
 import websocket
-
-import core.base as base
 
 # WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
 WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
@@ -25,18 +22,9 @@ def enrich_context(raw_context: dict) -> dict:
     return raw_context
 
 
-def _all_plugin_classes(base_cls):
-    classes = []
-    for sub in base_cls.__subclasses__():
-        classes.append(sub)
-        classes.extend(_all_plugin_classes(sub))
-    return classes
-
-
 def plugin_pool(context: dict, event_type: str):
-    # 递归遍历所有 Plugin 子类（包含二级继承）
-    for P in _all_plugin_classes(Plugin):
-        plugin = P(context)
+    for plugin_cls in context.plugin_registry:
+        plugin = plugin_cls(context)
         if plugin.match(event_type):
             plugin.handle()
 

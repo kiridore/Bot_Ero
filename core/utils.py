@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
+from typing import TypeVar
 import requests
 import os
 
 from core import context
 from core.api import ApiWrapper
+from core.base import Plugin
 from core.database_manager import DbManager
+
+PluginType = TypeVar("PluginType", bound=type[Plugin])
 # 返回本周一八点到下周一八点
 def get_monday_to_monday(date:datetime | None = None):
     if date is None:
@@ -75,3 +79,10 @@ def download_image(url, local_path, expected_size=None):
 
     except Exception as e:
         return False, str(e)
+
+def register_plugin(cls: PluginType) -> PluginType:
+    if not issubclass(cls, Plugin):
+        raise TypeError(f"{cls.__name__} must inherit from Plugin")
+    if cls not in context.plugin_registry:
+        context.plugin_registry.append(cls)
+    return cls
