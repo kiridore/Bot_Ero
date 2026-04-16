@@ -40,7 +40,6 @@ def plugin_pool(context: dict, event_type: str):
         if plugin.match(event_type):
             plugin.handle()
 
-
 def on_message(_, message):
     # https://github.com/botuniverse/onebot-11/blob/master/event/README.md
     context = enrich_context(json_.loads(message))
@@ -72,8 +71,6 @@ if __name__ == "__main__":
     )
 
     while True:  # 掉线重连
-        # 数据储存
-        logger.info("数据库启动")
         context.script_start_time = datetime.now()
         api.WS_APP.run_forever()
 
