@@ -11,6 +11,9 @@ BOT_QQ = "3915014383"
 
 
 class Plugin:
+    name = ""
+    description = ""
+
     def __init__(self, context: dict):
         self.context = context
         self.api = ApiWrapper(context)
