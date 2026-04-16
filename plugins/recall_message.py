@@ -5,6 +5,9 @@ from core.cq import text
 class RecallMessagePlugin(Plugin):
     """回复自己发出的某条消息后发送 /撤回，由机器人代为撤回（不校验消息年龄，由协议与权限决定成败）。"""
 
+    name = 'recall_message'
+    description = '撤回用户自己回复指定的消息。'
+
     def match(self, message_type):
         if message_type != "message":
             return False

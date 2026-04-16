@@ -4,6 +4,9 @@ from plugins.title import get_title_def
 
 
 class LeaderboardPlugin(Plugin):
+    name = 'show_leaderboard'
+    description = '展示积分排行榜。'
+
     def _format_title_prefix(self, user_id):
         titles = self.dbmanager.get_equipped_titles(user_id)[:3]
         if len(titles) == 0:

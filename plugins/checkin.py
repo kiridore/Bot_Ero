@@ -7,6 +7,9 @@ from plugins.title import evaluate_and_unlock_titles, get_title_def
 
 # 打卡插件
 class CheckinPlugin(Plugin):
+    name = 'checkin'
+    description = '记录用户本周打卡图片并结算奖励。'
+
     def match(self, message_type):
         return self.on_begin_with("/打卡")
 

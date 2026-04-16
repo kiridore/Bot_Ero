@@ -3,6 +3,9 @@ from core.cq import at_all, text
 
 
 class AtAllReplyPlugin(Plugin):
+    name = 'at_all_reply'
+    description = '回复指定消息并艾特全体成员转发内容。'
+
     COMMAND = "/全体成员"
 
     def match(self, message_type):

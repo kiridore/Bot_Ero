@@ -6,6 +6,9 @@ from core.cq import text
 
 
 class StartupChangelogPlugin(Plugin):
+    name = 'startup_changelog'
+    description = '启动后发送最近更新日志。'
+
     def match(self, message_type):
         return message_type == "meta" and not runtime_context.startup_changelog_sent
 

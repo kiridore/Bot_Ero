@@ -3,6 +3,9 @@ from core.cq import text,at,image
 from core.utils import get_monday_to_monday
 
 class WeekCheckinDisplayPlugin(Plugin):
+    name = 'show_week_checkin_images'
+    description = '展示用户本周打卡图片。'
+
     def match(self, message_type):
         return self.on_full_match("/本周打卡图")
 

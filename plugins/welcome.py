@@ -2,6 +2,9 @@ from core.base import Plugin
 from core.cq import text
 
 class WelcomePlugin(Plugin):
+    name = 'welcome_new_friend'
+    description = '在好友添加后发送欢迎消息。'
+
     def match(self, message_type):
         if self.context.get("post_type", "") == "notice" and self.context.get("notice_type", "") == "friend_add":
             return True

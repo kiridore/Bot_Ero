@@ -6,6 +6,9 @@ from plugins.title import get_title_def
 
 # 每周打卡板油
 class WeekListPlugin(Plugin):
+    name = 'show_weekly_checkin_members'
+    description = '展示本周完成打卡的成员列表。'
+
     def _format_title_prefix(self, user_id):
         titles = self.dbmanager.get_equipped_titles(user_id)[:3]
         if len(titles) == 0:

@@ -5,6 +5,9 @@ from core.cq import text
 class GroupEssencePlugin(Plugin):
     """回复某条群消息后发送 /加精 或 /删除精华，设置或移除群精华。"""
 
+    name = 'manage_group_essence'
+    description = '设置或取消指定消息的群精华。'
+
     def _command_kind(self):
         for seg in self.context.get("message", []):
             if seg.get("type") != "text":

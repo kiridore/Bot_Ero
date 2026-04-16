@@ -9,6 +9,9 @@ from core.utils import get_monday_to_monday
 class CheckinRecallPlugin(Plugin):
     """群成员撤回自己的 /打卡 消息时，删除对应打卡记录（当周再无打卡时扣 1 点，与 /撤回打卡 一致）。"""
 
+    name = 'auto_rollback_recalled_checkin'
+    description = '在打卡消息被撤回时自动删除对应记录。'
+
     def match(self, event_type):
         if event_type != "notice":
             return False

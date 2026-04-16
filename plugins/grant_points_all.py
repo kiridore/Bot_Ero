@@ -3,6 +3,9 @@ from core.cq import text
 
 
 class GrantPointsAllPlugin(Plugin):
+    name = 'grant_points_all'
+    description = '给全部用户统一发放积分。'
+
     def match(self, message_type):
         return self.admin_user() and self.on_command("/发金币")
 

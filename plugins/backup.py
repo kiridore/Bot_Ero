@@ -5,6 +5,9 @@ from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
 class BackupPlugin(TimedHeartbeatPlugin):
+    name = 'backup_data'
+    description = '定时或手动备份打卡图片数据。'
+
     RUN_AT = "08:00"
 
     def match(self, message_type):

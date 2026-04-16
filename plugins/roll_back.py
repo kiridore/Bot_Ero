@@ -6,6 +6,9 @@ from core.logger import logger
 from datetime import datetime, timedelta
 
 class RollbackCheckinPlugin(Plugin):
+    name = 'rollback_checkin'
+    description = '撤回用户本周最近一次打卡并回滚奖励。'
+
     def _rollback_attendance_rewards(self, user_id, dt):
         # 自然周奖励回滚
         week_start = dt.date() - timedelta(days=dt.weekday())

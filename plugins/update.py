@@ -6,6 +6,9 @@ from core.cq import text
 import git
 
 class UpdatePlugin(Plugin):
+    name = 'update_bot'
+    description = '拉取远程更新并重启机器人。'
+
     def match(self, message_type):
         return self.super_user() and self.on_full_match("/更新")
 

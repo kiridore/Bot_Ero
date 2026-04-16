@@ -2,6 +2,9 @@ from core.base import Plugin
 from core.cq import at, text
 
 class GroupSpecialTitlePlugin(Plugin):
+    name = 'set_group_special_title'
+    description = '设置或清空用户群头衔。'
+
     def match(self, message_type):
         return self.on_command("/群头衔")
 

@@ -5,6 +5,9 @@ from core.cq import text
 
 
 class DivinationPlugin(Plugin):
+    name = 'divination'
+    description = '进行一次塔罗占卜。'
+
     def match(self, message_type):
         return self.on_full_match("/占卜")
 

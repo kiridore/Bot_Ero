@@ -7,6 +7,9 @@ import core.utils as utils
 import core.gen_image as gen_image
 
 class PersonalRecords(Plugin):
+    name = 'show_personal_records'
+    description = '生成并展示用户年度打卡档案。'
+
     def match(self, message_type):
         return self.on_command("/档案") 
 

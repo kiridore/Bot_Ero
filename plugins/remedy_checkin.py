@@ -5,6 +5,9 @@ from core.cq import text
 from core.utils import get_monday_to_monday
 
 class RemedyCheckinPlugin(Plugin):
+    name = 'remedy_checkin'
+    description = '为用户补卡并扣除对应积分。'
+
     super_mode = False
     YEARLY_LIMIT = 4
 

@@ -8,6 +8,9 @@ from plugins.title import get_lottery_title_ids, get_title_def, evaluate_and_unl
 
 
 class LotteryPlugin(Plugin):
+    name = 'lottery'
+    description = '执行抽卡抽奖并发放奖励或称号。'
+
     COST = 1
     DUP_REBATE = {"common": 1, "rare": 2, "legendary": 3}
     FREE_DRAW_HINT = "本次抽卡免费（今日首抽）"

@@ -6,6 +6,9 @@ import shutil
 from datetime import datetime
 
 class MonitorPlugin(Plugin):
+    name = 'show_system_status'
+    description = '查询机器人运行时长和磁盘状态。'
+
     def match(self, message_type):
         return self.super_user() and self.on_full_match("/系统状态")
 

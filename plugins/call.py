@@ -2,6 +2,9 @@ from core.base import Plugin
 from core.cq import text
 
 class CallPlugin(Plugin):
+    name = 'call_bot'
+    description = '在被点名时回复机器人在线状态。'
+
     def match(self, message_type):
         return self.on_full_match("小埃同学")
 

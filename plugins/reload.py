@@ -4,6 +4,9 @@ from core.base import Plugin
 from core.cq import text
 
 class ReloadPlugin(Plugin):
+    name = 'reload_plugins'
+    description = '热重载已加载的插件模块。'
+
     def match(self, message_type):
         return self.on_full_match("/reload")
 

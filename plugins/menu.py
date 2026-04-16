@@ -5,6 +5,9 @@ from .bot_menu_text import BOT_MENU_TEXT
 
 
 class MenuPlugin(Plugin):
+    name = 'show_menu'
+    description = '发送机器人功能菜单。'
+
     def match(self, event_type):
         return self.on_full_match("/菜单")
 

@@ -5,6 +5,9 @@ from core.cq import at, image, text
 
 
 class RandomReferencePlugin(Plugin):
+    name = 'random_reference'
+    description = '发送一张随机参考图片。'
+
     PICSUM_URL = "https://picsum.photos/512"
 
     def match(self, message_type):

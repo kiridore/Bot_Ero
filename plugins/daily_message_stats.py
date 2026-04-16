@@ -5,6 +5,9 @@ from core.cq import text
 
 
 class DailyMessageStatsPlugin(Plugin):
+    name = 'daily_message_stats'
+    description = '记录群每日发言并响应统计查询。'
+
     def match(self, message_type):
         if message_type != "message":
             return False

@@ -6,6 +6,9 @@ from core.cq import text
 
 
 class DicePlugin(Plugin):
+    name = 'roll_dice'
+    description = '按 .rXdY 格式掷骰子并返回结果。'
+
     PATTERN = re.compile(r"^\.r(\d+)d(\d+)$", re.IGNORECASE)
 
     def match(self, message_type):

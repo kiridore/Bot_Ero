@@ -256,6 +256,9 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
 
 
 class TitlePlugin(Plugin):
+    name = 'manage_titles'
+    description = '查询、查看、装备和卸下称号。'
+
     def match(self, message_type):
         if self.on_full_match("/称号一览"):
             return True
