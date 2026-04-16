@@ -58,10 +58,10 @@ if __name__ == "__main__":
     )
 
     while True:  # 掉线重连
-        context.script_start_time = datetime.now()
+        runtime_context.script_start_time = datetime.now()
         api.WS_APP.run_forever()
 
-        if context.should_shutdown:
+        if runtime_context.should_shutdown:
             break
 
         time.sleep(5)
