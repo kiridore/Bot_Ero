@@ -55,15 +55,10 @@ if __name__ == "__main__":
         header=[f"Authorization: Bearer {token}"],
         on_message=on_message,
         on_open=lambda _: logger.debug("连接成功......"),
-        on_close=lambda _: logger.debug("重连中......"),  # pyright: ignore[reportArgumentType]
     )
 
     while True:  # 掉线重连
         runtime_context.script_start_time = datetime.now()
         api.WS_APP.run_forever()
-
-        if runtime_context.should_shutdown:
-            break
-
         time.sleep(5)
 
