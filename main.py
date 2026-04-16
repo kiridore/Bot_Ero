@@ -6,6 +6,7 @@ from datetime import datetime
 from core import api
 from core.logger import logger
 import core.context as runtime_context
+import plugins
 
 import websocket
 
