@@ -5,7 +5,6 @@ import json as json_
 from datetime import datetime
 from core import api
 from core.logger import logger
-from plugins import *
 import core.context as runtime_context
 
 import websocket
