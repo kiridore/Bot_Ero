@@ -6,7 +6,7 @@ from datetime import datetime
 from core import api
 from core.logger import logger
 from plugins import *
-import core.context as context
+import core.context as runtime_context
 
 import websocket
 
@@ -23,7 +23,7 @@ def enrich_context(raw_context: dict) -> dict:
 
 
 def plugin_pool(context: dict, event_type: str):
-    for plugin_cls in context.plugin_registry:
+    for plugin_cls in runtime_context.plugin_registry:
         plugin = plugin_cls(context)
         if plugin.match(event_type):
             plugin.handle()
