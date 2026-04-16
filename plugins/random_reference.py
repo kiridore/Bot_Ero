@@ -4,6 +4,8 @@ from core.base import Plugin
 from core.cq import at, image, text
 
 
+from core.utils import register_plugin
+@register_plugin
 class RandomReferencePlugin(Plugin):
     name = 'random_reference'
     description = '发送一张随机参考图片。'

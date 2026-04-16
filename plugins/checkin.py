@@ -5,7 +5,9 @@ from core.utils import add_user_point, get_monday_to_monday
 from datetime import datetime, timedelta
 from plugins.title import evaluate_and_unlock_titles, get_title_def
 
+from core.utils import register_plugin
 # 打卡插件
+@register_plugin
 class CheckinPlugin(Plugin):
     name = 'checkin'
     description = '记录用户本周打卡图片并结算奖励。'

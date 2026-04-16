@@ -5,6 +5,8 @@ import core.context as context
 import shutil
 from datetime import datetime
 
+from core.utils import register_plugin
+@register_plugin
 class MonitorPlugin(Plugin):
     name = 'show_system_status'
     description = '查询机器人运行时长和磁盘状态。'

@@ -1,5 +1,7 @@
 from core.base import Plugin
 
+from core.utils import register_plugin
+@register_plugin
 class AutoFriendPlugin(Plugin):
     name = 'auto_accept_friend'
     description = '自动通过好友申请。'

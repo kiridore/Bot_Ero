@@ -6,6 +6,8 @@ from core.cq import at, text
 from core.utils import get_monday_to_monday
 
 
+from core.utils import register_plugin
+@register_plugin
 class CheckinRecallPlugin(Plugin):
     """群成员撤回自己的 /打卡 消息时，删除对应打卡记录（当周再无打卡时扣 1 点，与 /撤回打卡 一致）。"""
 

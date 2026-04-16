@@ -4,6 +4,8 @@ from core.base import Plugin
 from core.cq import text
 from core.utils import get_monday_to_monday
 
+from core.utils import register_plugin
+@register_plugin
 class RemedyCheckinPlugin(Plugin):
     name = 'remedy_checkin'
     description = '为用户补卡并扣除对应积分。'

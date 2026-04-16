@@ -4,6 +4,8 @@ from core.base import Plugin
 from core.cq import text
 
 
+from core.utils import register_plugin
+@register_plugin
 class DailyMessageStatsPlugin(Plugin):
     name = 'daily_message_stats'
     description = '记录群每日发言并响应统计查询。'

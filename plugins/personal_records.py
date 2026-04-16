@@ -6,6 +6,8 @@ from core.cq import image, text,at
 import core.utils as utils
 import core.gen_image as gen_image
 
+from core.utils import register_plugin
+@register_plugin
 class PersonalRecords(Plugin):
     name = 'show_personal_records'
     description = '生成并展示用户年度打卡档案。'

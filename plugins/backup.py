@@ -4,6 +4,8 @@ from core import utils
 from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
+from core.utils import register_plugin
+@register_plugin
 class BackupPlugin(TimedHeartbeatPlugin):
     name = 'backup_data'
     description = '定时或手动备份打卡图片数据。'

@@ -2,6 +2,8 @@ from core.base import Plugin
 from core.cq import text
 
 
+from core.utils import register_plugin
+@register_plugin
 class GrantPointsAllPlugin(Plugin):
     name = 'grant_points_all'
     description = '给全部用户统一发放积分。'

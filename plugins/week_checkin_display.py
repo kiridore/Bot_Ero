@@ -2,6 +2,8 @@ from core.base import Plugin
 from core.cq import text,at,image
 from core.utils import get_monday_to_monday
 
+from core.utils import register_plugin
+@register_plugin
 class WeekCheckinDisplayPlugin(Plugin):
     name = 'show_week_checkin_images'
     description = '展示用户本周打卡图片。'

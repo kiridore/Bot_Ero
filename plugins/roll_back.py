@@ -5,6 +5,8 @@ from core.utils import get_monday_to_monday
 from core.logger import logger
 from datetime import datetime, timedelta
 
+from core.utils import register_plugin
+@register_plugin
 class RollbackCheckinPlugin(Plugin):
     name = 'rollback_checkin'
     description = '撤回用户本周最近一次打卡并回滚奖励。'

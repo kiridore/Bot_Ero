@@ -5,6 +5,7 @@ from core.base import Plugin
 from core.cq import at, text
 
 
+from core.utils import register_plugin
 TITLE_DEFS = {
     # common
     1: {"id": 1, "name": "幸运星", "rarity": "common", "description": "运气不错，但这是普通称号", "unlock_type": "lottery"},
@@ -255,6 +256,7 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
     return newly_unlocked
 
 
+@register_plugin
 class TitlePlugin(Plugin):
     name = 'manage_titles'
     description = '查询、查看、装备和卸下称号。'

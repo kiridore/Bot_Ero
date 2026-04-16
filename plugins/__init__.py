@@ -1,61 +1,33 @@
-from .menu import MenuPlugin
-from .reload import ReloadPlugin
-from .checkin import CheckinPlugin
-from .week_checkin_display import WeekCheckinDisplayPlugin
-from .personal_records import PersonalRecords
-from .week_list import WeekListPlugin
-from .monitor import MonitorPlugin
-from .roll_back import RollbackCheckinPlugin
-from .call import CallPlugin
-from .update import UpdatePlugin
-from .auto_friend import AutoFriendPlugin
-from .welcome import WelcomePlugin
-from .all_checkin_display import AllCheckinDisplay
-from .backup import BackupPlugin
-from .remedy_checkin import RemedyCheckinPlugin
-from .set_group_title import GroupSpecialTitlePlugin
-from .leaderboard import LeaderboardPlugin
-from .at_all_reply import AtAllReplyPlugin
-from .recall_message import RecallMessagePlugin
-from .group_essence import GroupEssencePlugin
-from .checkin_recall import CheckinRecallPlugin
-from .lottery import LotteryPlugin
-from .title import TitlePlugin
-from .daily_message_stats import DailyMessageStatsPlugin
-from .grant_points_all import GrantPointsAllPlugin
-from .startup_changelog import StartupChangelogPlugin
-from .dice import DicePlugin
-from .divination import DivinationPlugin
-# from .llm_chat import LLMChatPlugin
-from .random_reference import RandomReferencePlugin
+"""
+plugins 包初始化：
 
-__all__ = []
-__all__.append("MenuPlugin")
-__all__.append("CheckinPlugin")
-__all__.append("WeekCheckinDisplayPlugin")
-__all__.append("PersonalRecords")
-__all__.append("WeekListPlugin")
-__all__.append("MonitorPlugin")
-__all__.append("RollbackCheckinPlugin")
-__all__.append("CallPlugin")
-__all__.append("UpdatePlugin")
-__all__.append("AutoFriendPlugin")
-__all__.append("WelcomePlugin")
-__all__.append("AllCheckinDisplay")
-__all__.append("BackupPlugin")
-__all__.append("RemedyCheckinPlugin")
-__all__.append("GroupSpecialTitlePlugin")
-__all__.append("LeaderboardPlugin")
-__all__.append("AtAllReplyPlugin")
-__all__.append("RecallMessagePlugin")
-__all__.append("GroupEssencePlugin")
-__all__.append("CheckinRecallPlugin")
-__all__.append("LotteryPlugin")
-__all__.append("TitlePlugin")
-__all__.append("DailyMessageStatsPlugin")
-__all__.append("GrantPointsAllPlugin")
-__all__.append("StartupChangelogPlugin")
-__all__.append("DicePlugin")
-__all__.append("DivinationPlugin")
-# __all__.append("LLMChatPlugin")
-__all__.append("RandomReferencePlugin")
+- 自动导入同目录下所有子模块（确保插件类上的 @register_plugin 执行）
+- 根据全局 plugin_registry 动态生成 __all__，减少手工维护
+"""
+
+from __future__ import annotations
+
+import importlib
+import pkgutil
+from typing import TYPE_CHECKING
+
+from core import context as _runtime_context
+
+if TYPE_CHECKING:
+    from core.base import Plugin as _Plugin
+
+
+def _load_all_plugin_modules() -> None:
+    """导入当前包下的所有模块，以触发插件注册装饰器。"""
+    package_name = __name__
+    for finder, name, is_pkg in pkgutil.walk_packages(__path__, prefix=package_name + "."):  # type: ignore[name-defined]
+        if is_pkg:
+            continue
+        importlib.import_module(name)
+
+
+_load_all_plugin_modules()
+
+# 按注册表里的插件类名导出，主要为了类型提示友好；实际分发逻辑走 plugin_registry
+__all__ = [cls.__name__ for cls in _runtime_context.plugin_registry]  # type: ignore[misc]
+

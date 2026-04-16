@@ -5,6 +5,8 @@ from core.base import Plugin
 from core.cq import text
 import git
 
+from core.utils import register_plugin
+@register_plugin
 class UpdatePlugin(Plugin):
     name = 'update_bot'
     description = '拉取远程更新并重启机器人。'

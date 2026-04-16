@@ -5,6 +5,8 @@ from core.base import Plugin
 from core.cq import text
 
 
+from core.utils import register_plugin
+@register_plugin
 class StartupChangelogPlugin(Plugin):
     name = 'startup_changelog'
     description = '启动后发送最近更新日志。'

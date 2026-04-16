@@ -1,6 +1,8 @@
 from core.base import Plugin
 from core.cq import text
 
+from core.utils import register_plugin
+@register_plugin
 class WelcomePlugin(Plugin):
     name = 'welcome_new_friend'
     description = '在好友添加后发送欢迎消息。'

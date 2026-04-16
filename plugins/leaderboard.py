@@ -3,6 +3,8 @@ from core.cq import text
 from plugins.title import get_title_def
 
 
+from core.utils import register_plugin
+@register_plugin
 class LeaderboardPlugin(Plugin):
     name = 'show_leaderboard'
     description = '展示积分排行榜。'

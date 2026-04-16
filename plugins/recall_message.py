@@ -2,6 +2,8 @@ from core.base import Plugin
 from core.cq import text
 
 
+from core.utils import register_plugin
+@register_plugin
 class RecallMessagePlugin(Plugin):
     """回复自己发出的某条消息后发送 /撤回，由机器人代为撤回（不校验消息年龄，由协议与权限决定成败）。"""
 

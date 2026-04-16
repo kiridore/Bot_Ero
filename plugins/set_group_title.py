@@ -1,6 +1,8 @@
 from core.base import Plugin
 from core.cq import at, text
 
+from core.utils import register_plugin
+@register_plugin
 class GroupSpecialTitlePlugin(Plugin):
     name = 'set_group_special_title'
     description = '设置或清空用户群头衔。'

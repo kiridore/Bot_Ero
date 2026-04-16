@@ -1,6 +1,8 @@
 from core.base import Plugin
 from core.cq import text,at,image
 
+from core.utils import register_plugin
+@register_plugin
 class AllCheckinDisplay(Plugin):
     name = 'show_all_checkin_images'
     description = '展示用户历史全部打卡图片。'

@@ -4,6 +4,8 @@ from core.base import Plugin
 from core.cq import text
 
 
+from core.utils import register_plugin
+@register_plugin
 class DivinationPlugin(Plugin):
     name = 'divination'
     description = '进行一次塔罗占卜。'

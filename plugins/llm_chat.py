@@ -3,6 +3,8 @@ from core.cq import reply, text
 from core.llm.llm import chat_assistant_reply
 
 
+from core.utils import register_plugin
+# @register_plugin
 class LLMChatPlugin(Plugin):
     name = 'llm_chat'
     description = '在被提及时调用 LLM 生成回复。'

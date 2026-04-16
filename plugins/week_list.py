@@ -4,7 +4,9 @@ from core.utils import get_monday_to_monday
 from core.logger import logger
 from plugins.title import get_title_def
 
+from core.utils import register_plugin
 # 每周打卡板油
+@register_plugin
 class WeekListPlugin(Plugin):
     name = 'show_weekly_checkin_members'
     description = '展示本周完成打卡的成员列表。'

@@ -3,6 +3,8 @@ import sys
 from core.base import Plugin
 from core.cq import text
 
+from core.utils import register_plugin
+@register_plugin
 class ReloadPlugin(Plugin):
     name = 'reload_plugins'
     description = '热重载已加载的插件模块。'
