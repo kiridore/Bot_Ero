@@ -7,10 +7,10 @@ class AutoFriendPlugin(Plugin):
     description = '自动通过好友申请。'
 
     def match(self, message_type):
-        if self.context.get("request_type", "") == "friend":
+        if self.bot_event.request_type == "friend":
             return True
         return False
 
     def handle(self):
-        flag = self.context["flag"]
+        flag = self.bot_event.raw["flag"]
         self.api.set_friend_add_request(flag)

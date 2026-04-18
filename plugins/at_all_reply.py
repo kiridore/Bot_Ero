@@ -13,12 +13,12 @@ class AtAllReplyPlugin(Plugin):
     def match(self, message_type):
         if message_type != "message":
             return False
-        if not self.context.get("group_id"):
+        if not self.bot_event.group_id or not self.bot_event.message:
             return False
 
         has_reply = False
         has_command = False
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") == "reply":
                 has_reply = True
             if seg.get("type") == "text":
@@ -27,7 +27,7 @@ class AtAllReplyPlugin(Plugin):
         return has_reply and has_command
 
     def _extract_reply_id(self):
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") == "reply":
                 msg_id = seg.get("data", {}).get("id")
                 if msg_id is not None:

@@ -11,13 +11,16 @@ class AllCheckinDisplay(Plugin):
         return self.on_full_match("/ALL")
 
     def handle(self):
-        rows = self.dbmanager.search_checkin_all(self.context["user_id"])
+        if self.bot_event.user_id == None:
+            return
+
+        rows = self.dbmanager.search_checkin_all(self.bot_event.user_id)
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)
             time_map[row[2]] += 1
         
-        self.api.send_msg(at(self.context["user_id"]), text("\n至今一共打了{}次卡\n收录了{}张图\n具体的图在这里……*翻找*".format(len(time_map), len(rows))))
+        self.api.send_msg(at(self.bot_event.user_id), text("\n至今一共打了{}次卡\n收录了{}张图\n具体的图在这里……*翻找*".format(len(time_map), len(rows))))
         messages = []
         for row in rows:
             image_file = self.api.get_image(row[3])
