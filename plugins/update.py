@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from core import api, context
 from core.base import Plugin
 from core.cq import text
@@ -28,7 +29,8 @@ class UpdatePlugin(Plugin):
         if old_commit != new_commit:
             commit_range = f"{old_commit}..{new_commit}"
             commits = list(repo.iter_commits(commit_range))
-            self.api.send_msg(text(f"更新了 {len(commits)} 个 补丁，准备重启了喵~"))
+            self.api.send_msg(text(f"更新了 {len(commits)} 个 补丁，5s后重启了喵~"))
+            time.sleep(5)
             # 更新成功并重启
             os.execv(sys.executable, ['python3'] + sys.argv)
         else:
