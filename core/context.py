@@ -12,3 +12,4 @@ onebot_qq_volume = "/var/lib/docker/volumes/onebot_qq_volume/_data"
 startup_changelog_sent = False
 recent_chat_records = []
 plugin_registry: list[type["Plugin"]] = []
+DEFAULT_GROUP_ID = 296470819 # 在这里填写你想固定使用的群号
