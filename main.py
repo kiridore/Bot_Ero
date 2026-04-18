@@ -6,19 +6,17 @@ from datetime import datetime
 from core import api
 from core.logger import logger
 import core.context as runtime_context
-import plugins
+import plugins # 一定要导入，否则不能正常读取插件
 
 import websocket
 
 # WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
 WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
 token = 123456
-DEFAULT_GROUP_ID = 296470819 # 在这里填写你想固定使用的群号
 
 
+# 往获取到的context中插入额外的信息
 def enrich_context(raw_context: dict) -> dict:
-    # 使用固定默认群号，便于私聊等场景下复用群能力
-    raw_context["default_group_id"] = DEFAULT_GROUP_ID
     return raw_context
 
 
@@ -29,8 +27,8 @@ def plugin_pool(context: dict, event_type: str):
             plugin.handle()
 
 def on_message(_, message):
-    # https://github.com/botuniverse/onebot-11/blob/master/event/README.md
     context = enrich_context(json_.loads(message))
+    # https://github.com/botuniverse/onebot-11/blob/master/event/README.md
     if "echo" in context:
         logger.debug("调用返回 -> " + message)
         # 响应报文通过队列传递给调用 API 的函数
