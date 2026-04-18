@@ -14,4 +14,4 @@ class MenuPlugin(Plugin):
         return self.on_full_match("/菜单")
 
     def handle(self):
-        self.api.send_msg(text(BOT_MENU_TEXT))
+        self.api.send_forward_msg([text(BOT_MENU_TEXT)])

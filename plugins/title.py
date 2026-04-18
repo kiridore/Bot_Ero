@@ -141,6 +141,7 @@ TITLE_DEFS = {
     234: {"id": 234, "name": "戒戒你好", "rarity": "legendary", "description": "累计抽奖100次", "unlock_type": "condition"},
     235: {"id": 235, "name": "大赚", "rarity": "rare", "description": "抽到10点积分", "unlock_type": "condition"},
     236: {"id": 236, "name": "BUG", "rarity": "legendary", "description": "连续3次什么都没抽到", "unlock_type": "condition"},
+    237: {"id": 237, "name": "致命错误", "rarity": "legendary", "description": "连续10次什么都没抽到", "unlock_type": "condition"},
 }
 
 
@@ -234,6 +235,8 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(235)
     if profile["max_zero_streak"] >= 3:
         unlock(236)
+    if profile["max_zero_streak"] >= 10:
+        unlock(237)
 
     # 依赖称号状态的进度称号
     titles = dbmanager.get_user_titles(user_id)
@@ -292,7 +295,7 @@ class TitlePlugin(Plugin):
         lines = ["已解锁称号：", ""]
         for tid in title_ids:
             lines.append(self._title_line(tid, equipped))
-        self.api.send_msg(at(show_to_user_id), text("\n".join(lines)))
+        self.api.send_forward_msg([at(show_to_user_id), text("\n".join(lines))])
 
     def _show_current(self, user_id):
         equipped = self.dbmanager.get_equipped_titles(user_id)
