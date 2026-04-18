@@ -45,7 +45,7 @@ class Plugin:
         return False
 
     def on_begin_with(self, keyword="") -> bool:
-        if self.bot_event.message == {}:
+        if self.bot_event.message == []:
             return False
 
         msg = self.bot_event.message[0]
@@ -54,7 +54,7 @@ class Plugin:
         return False
 
     def on_command(self, command) -> bool:
-        if self.bot_event.message == {}:
+        if self.bot_event.message == []:
             return False
 
         msg = self.bot_event.message[0]
