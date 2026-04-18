@@ -4,7 +4,7 @@ class Event:
 
     @property
     #发送者 QQ号
-    def user_id(self)->int:
+    def user_id(self) -> int:
         return self.raw.get("user_id", 0)
 
     @property
@@ -42,6 +42,10 @@ class Event:
     @property
     def request_type(self):
         return self.raw.get("request_type")
+
+    @property
+    def notice_type(self):
+        return self.raw.get("notice_type")
 
 class Message:
     def __init__(self, raw: dict):

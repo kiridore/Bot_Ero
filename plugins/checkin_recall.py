@@ -17,7 +17,7 @@ class CheckinRecallPlugin(Plugin):
     def match(self, event_type):
         if event_type != "notice":
             return False
-        return self.context.get("notice_type") == "group_recall"
+        return self.bot_event.notice_type == "group_recall"
 
     def _rollback_attendance_rewards(self, user_id, dt):
         week_start = dt.date() - timedelta(days=dt.weekday())
@@ -60,8 +60,8 @@ class CheckinRecallPlugin(Plugin):
                 utils.add_user_point(self.dbmanager, user_id, -points)
 
     def handle(self):
-        user_id = self.context.get("user_id")
-        raw_mid = self.context.get("message_id")
+        user_id = self.bot_event.user_id
+        raw_mid = self.bot_event.message_id
         if user_id is None or raw_mid is None:
             return
         try:
