@@ -32,14 +32,8 @@ class StartupChangelogPlugin(Plugin):
         if runtime_context.startup_changelog_sent:
             return
 
-        default_group_id = self.context.get("default_group_id")
-        if not default_group_id:
-            return
-
         lines = self._get_recent_changelog(limit=5)
         msg = "早上好！小埃同学开机啦，最近更新如下：\n" + "\n".join([f"- {line}" for line in lines]) + "\n 本次共启用了 {} 个插件".format(runtime_context.plugin_registry.__len__())
 
-        # meta 事件不带 group_id，这里显式指定默认群
-        self.context["group_id"] = default_group_id
         self.api.send_msg(text(msg))
         runtime_context.startup_changelog_sent = True
