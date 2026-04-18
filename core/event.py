@@ -4,8 +4,8 @@ class Event:
 
     @property
     #发送者 QQ号
-    def user_id(self):
-        return self.raw.get("user_id")
+    def user_id(self)->int:
+        return self.raw.get("user_id", 0)
 
     @property
     def group_id(self):
@@ -13,7 +13,7 @@ class Event:
 
     @property
     def message(self):
-        return self.raw.get("message")
+        return self.raw.get("message", {})
 
     @property
     def is_group(self):
@@ -38,6 +38,10 @@ class Event:
     @property
     def sender(self):
         return self.raw.get("sender")
+
+    @property
+    def request_type(self):
+        return self.raw.get("request_type")
 
 class Message:
     def __init__(self, raw: dict):
