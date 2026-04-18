@@ -16,6 +16,9 @@ class CheckinPlugin(Plugin):
         return self.on_begin_with("/打卡")
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
+
         img_list = []
         for message_unit in self.bot_event.message:
             if message_unit['type'] == 'image':

@@ -11,6 +11,9 @@ class GroupSpecialTitlePlugin(Plugin):
         return self.on_command("/群头衔")
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
+
         raw_data = self.bot_event.message[0]
 
         if raw_data['type'] != 'text':

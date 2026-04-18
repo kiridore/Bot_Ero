@@ -16,6 +16,8 @@ class PersonalRecords(Plugin):
         return self.on_command("/档案") 
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
         # TODO@支持At某人查看他的档案
         year = int(datetime.today().year)
         if len(self.args) > 1:

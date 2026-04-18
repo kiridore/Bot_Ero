@@ -84,6 +84,8 @@ class LotteryPlugin(Plugin):
         self.api.send_msg(at(user_id), text("\n".join(lines)))
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
         user_id = self.bot_event.user_id
         args = getattr(self, "args", None)
         if args and args[0] == "/抽卡消费":

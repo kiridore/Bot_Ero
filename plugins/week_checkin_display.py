@@ -12,6 +12,9 @@ class WeekCheckinDisplayPlugin(Plugin):
         return self.on_full_match("/本周打卡图")
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
+
         start_date, end_date = get_monday_to_monday()
         rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
         time_map = {}

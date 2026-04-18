@@ -4,11 +4,11 @@ class Event:
 
     @property
     #发送者 QQ号
-    def user_id(self) -> int:
-        return self.raw.get("user_id", 0)
+    def user_id(self) -> int|None:
+        return self.raw.get("user_id")
 
     @property
-    def group_id(self):
+    def group_id(self) -> int|None:
         return self.raw.get("group_id")
 
     @property

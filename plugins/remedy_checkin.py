@@ -31,6 +31,9 @@ class RemedyCheckinPlugin(Plugin):
         return False
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
+
         if self.args[0] == "/单日补卡":
             self.handle_single_day_remedy()
             return
@@ -71,6 +74,9 @@ class RemedyCheckinPlugin(Plugin):
             self.find_remedy()
 
     def handle_single_day_remedy(self):
+        if self.bot_event.user_id == None:
+            return
+
         if len(self.args) <= 1:
             suggest_day = self.find_single_day_remedy()
             if suggest_day is None:

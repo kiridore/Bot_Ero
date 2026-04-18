@@ -56,6 +56,9 @@ class RollbackCheckinPlugin(Plugin):
         return self.on_full_match("/撤回打卡")
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
+
         start_date, end_date = get_monday_to_monday()
         rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
         if len(rows) <= 0:

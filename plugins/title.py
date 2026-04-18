@@ -372,6 +372,9 @@ class TitlePlugin(Plugin):
         self.api.send_msg(at(user_id), text(f"随机装备成功：[{title_id}] 「{data['name']}」"))
 
     def handle(self):
+        if self.bot_event.user_id == None:
+            return
+
         user_id = self.bot_event.user_id
 
         if self.on_full_match("/称号一览"):
