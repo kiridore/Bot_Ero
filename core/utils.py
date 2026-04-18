@@ -28,7 +28,7 @@ def day_of_year(date_str):
     dt = dt - timedelta(hours=8) # 向前偏移八小时，让热度图信息与实际打卡结算日一致
     return dt.timetuple().tm_yday  # 获取一年中的第几天
 
-def add_user_point(db:DbManager, user_id:str, offer:int):
+def add_user_point(db:DbManager, user_id:int, offer:int):
         point = db.get_user_point(user_id)
         db.set_user_point(user_id, point + offer)
 
