@@ -29,9 +29,9 @@ echo : Echo
 WS_APP : websocket.WebSocketApp
 
 class ApiWrapper:
-    def __init__(self, context: dict):
+    def __init__(self, raw_context: dict):
         self.ws = WS_APP
-        self.context = context
+        self.context = Event(raw_context)
         self.dbmanager = DbManager()
 
     def call_api(self, action: str, params: dict) -> dict:
@@ -77,9 +77,9 @@ class ApiWrapper:
     def send_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_msg-%E5%8F%91%E9%80%81%E6%B6%88%E6%81%AF
         message = self._inject_titles_before_at(message)
-        if ("group_id" in self.context and self.context["group_id"]):
+        if self.context.group_id != None:
             return self.send_group_msg(*message)
-        elif ("user_id" in self.context and self.context["user_id"]):
+        elif self.context.user_id != None:
             return self.send_private_msg(*message)
         else:
             # 默认发送到群聊
@@ -87,13 +87,13 @@ class ApiWrapper:
 
     def send_private_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_private_msg-%E5%8F%91%E9%80%81%E7%A7%81%E8%81%8A%E6%B6%88%E6%81%AF
-        params = {"user_id": self.context["user_id"], "message": message}
+        params = {"user_id": self.context.user_id, "message": message}
         ret = self.call_api("send_private_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else ret["data"]["message_id"]
 
     def send_group_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_group_msg-%E5%8F%91%E9%80%81%E7%BE%A4%E6%B6%88%E6%81%AF
-        group_id = self.context.get("group_id")
+        group_id = self.context.group_id
         if not group_id:
             group_id = runtime_context.DEFAULT_GROUP_ID
         params = {"group_id": group_id, "message": message}
@@ -102,7 +102,7 @@ class ApiWrapper:
 
     def get_group_member_info(self, user_id):
         #https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_group_member_info-%E8%8E%B7%E5%8F%96%E7%BE%A4%E6%88%90%E5%91%98%E4%BF%A1%E6%81%AF
-        params = {"group_id": self.context["group_id"], "user_id": user_id}
+        params = {"group_id": self.context.group_id, "user_id": user_id}
         ret = self.call_api("get_group_member_info", params)
         return ret["data"]
 
@@ -135,13 +135,13 @@ class ApiWrapper:
         self.call_api("set_friend_add_request", params)
 
     def send_forward_msg(self, message: list):
-        if "group_id" in self.context and self.context["group_id"]:
+        if self.context.group_id != None:
             return self.send_group_forward_msg(message)
         else:
             return self.send_private_forward_msg(message)
 
     def send_group_forward_msg(self, message: list):
-        group_id = self.context.get("group_id")
+        group_id = self.context.group_id
         if not group_id:
             group_id = runtime_context.DEFAULT_GROUP_ID
         params = {"group_id": group_id, "messages": forward(message)}
@@ -149,7 +149,7 @@ class ApiWrapper:
         return 0 if ret is None or ret["status"] == "failed" else 1
 
     def send_private_forward_msg(self, message: list):
-        params = {"user_id": self.context["user_id"], "messages": forward(message)}
+        params = {"user_id": self.context.user_id, "messages": forward(message)}
         ret = self.call_api("send_private_forward_msg", params)
         return 0 if ret is None or ret["status"] == "failed" else 1
 
