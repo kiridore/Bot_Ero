@@ -3,8 +3,6 @@ from core.api import ApiWrapper
 from core.database_manager import DbManager
 from datetime import datetime
 
-from core.event import Event
-
 only_to_me_flag = False
 
 NICKNAME = "小埃同学"         # 机器人昵称
@@ -16,9 +14,9 @@ class Plugin:
     name = ""
     description = ""
 
-    def __init__(self, raw_context: dict):
-        self.bot_event = Event(raw_context)
-        self.api = ApiWrapper(raw_context)
+    def __init__(self, context: dict):
+        self.context = context
+        self.api = ApiWrapper(context)
         self.dbmanager = DbManager()
 
     def match(self, event_type = "message") -> bool:
@@ -28,14 +26,14 @@ class Plugin:
         pass
 
     def on_message(self) -> bool:
-        if self.bot_event.post_type == None:
+        if self.context.get("post_type" , "") == "":
             return False
-        return self.bot_event.post_type == "message"
+        return self.context["post_type"] == "message"
 
     def on_full_match(self, keyword="") -> bool:
-        if self.bot_event.message == None:
+        if self.context.get("message", "") == "":
             return False
-        message_list = self.bot_event.message
+        message_list = self.context["message"]
         if len(message_list) == 1:
             msg = message_list[0]
             if msg['type'] != 'text': return False
@@ -45,23 +43,23 @@ class Plugin:
         return False
 
     def on_begin_with(self, keyword="") -> bool:
-        if self.bot_event.message == None:
+        if self.context.get( "message" , "") == "":
             return False
 
-        msg = self.bot_event.message[0]
+        msg = self.context["message"][0]
         if (msg["type"] == 'text'):
             return msg['type'] == 'text' and msg['data']['text'].strip() == keyword
         return False
 
     def on_command(self, command) -> bool:
-        if self.bot_event.message == None:
+        if self.context.get( "message" , "") == "":
             return False
 
-        msg = self.bot_event.message[0]
+        msg = self.context["message"][0]
         if (msg["type"] == 'text'):
             sp = msg["data"]["text"].split(" ")
             if sp[0] == command:
-                raw_data = self.bot_event.message[0]
+                raw_data = self.context["message"][0]
                 if raw_data['type'] != 'text':
                     return False
                 msg = raw_data['data']['text']
@@ -72,15 +70,15 @@ class Plugin:
         return False
 
     def super_user(self) -> bool:
-        if self.bot_event.user_id == None:
+        if self.context.get("user_id" , "") == "":
             return False
-        return self.bot_event.user_id in SUPER_USER
+        return self.context["user_id"] in SUPER_USER
 
     def admin_user(self) -> bool:
-        if self.bot_event.sender == None:
+        if self.context.get("sender" , "") == "":
             return False
 
-        return self.super_user() or self.bot_event.sender["role"] in ("admin", "owner")
+        return self.super_user() or self.context["sender"]["role"] in ("admin", "owner")
 
 
 class TimedHeartbeatPlugin(Plugin):
