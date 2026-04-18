@@ -16,7 +16,7 @@ class DicePlugin(Plugin):
     def match(self, message_type):
         if message_type != "message":
             return False
-        message = self.context.get("message", [])
+        message = self.bot_event.message
         if len(message) != 1:
             return False
         seg = message[0]

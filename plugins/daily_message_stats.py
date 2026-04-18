@@ -13,11 +13,11 @@ class DailyMessageStatsPlugin(Plugin):
     def match(self, message_type):
         if message_type != "message":
             return False
-        return self.context.get("post_type") == "message" and self.context.get("message_type") == "group"
+        return self.bot_event.post_type == "message" and self.bot_event.is_group
 
     def handle(self):
-        group_id = self.context.get("group_id")
-        user_id = self.context.get("user_id")
+        group_id = self.bot_event.group_id
+        user_id = self.bot_event.user_id
         if not group_id or not user_id:
             return
 

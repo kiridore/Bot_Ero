@@ -11,7 +11,7 @@ class GroupEssencePlugin(Plugin):
     description = '设置或取消指定消息的群精华。'
 
     def _command_kind(self):
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") != "text":
                 continue
             parts = seg.get("data", {}).get("text", "").strip().split(None, 1)
@@ -26,18 +26,18 @@ class GroupEssencePlugin(Plugin):
     def match(self, message_type):
         if message_type != "message":
             return False
-        if self.context.get("message_type") != "group":
+        if self.bot_event.is_private:
             return False
 
         has_reply = False
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") == "reply":
                 has_reply = True
                 break
         return has_reply and self._command_kind() is not None
 
     def _extract_reply_id(self):
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") != "reply":
                 continue
             data = seg.get("data") or {}

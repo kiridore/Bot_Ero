@@ -13,7 +13,7 @@ class Event:
 
     @property
     def message(self):
-        return self.raw.get("message", {})
+        return self.raw.get("message", [])
 
     @property
     def is_group(self):

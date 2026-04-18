@@ -23,7 +23,7 @@ class LotteryPlugin(Plugin):
         return self.on_command("/抽卡消费")
 
     def _extract_target_user_id(self, default_user_id):
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") == "at":
                 qq = seg.get("data", {}).get("qq")
                 if qq and qq != "all":
@@ -84,7 +84,7 @@ class LotteryPlugin(Plugin):
         self.api.send_msg(at(user_id), text("\n".join(lines)))
 
     def handle(self):
-        user_id = self.context["user_id"]
+        user_id = self.bot_event.user_id
         args = getattr(self, "args", None)
         if args and args[0] == "/抽卡消费":
             target_user_id = self._extract_target_user_id(user_id)

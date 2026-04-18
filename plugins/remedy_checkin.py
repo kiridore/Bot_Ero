@@ -42,7 +42,7 @@ class RemedyCheckinPlugin(Plugin):
                 self.api.send_msg(text("{}格式不正确".format(self.args[1])))
                 return
 
-            user_id = self.context['user_id']
+            user_id = self.bot_event.user_id
             if len(self.args) > 2:
                 user_id = self.args[2] # 特殊补卡指令可以给其他人补卡
 
@@ -87,7 +87,7 @@ class RemedyCheckinPlugin(Plugin):
 
         day_start = day.strftime("%Y-%m-%d 08:00:00")
         day_end = (day + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
-        user_id = self.context["user_id"]
+        user_id = self.bot_event.user_id
 
         rows = self.dbmanager.search_target_user_checkin_range(user_id, day_start, day_end)
         if len(rows) > 0:
@@ -115,7 +115,7 @@ class RemedyCheckinPlugin(Plugin):
         while date.year == current_year:
             day_start = date.strftime("%Y-%m-%d 08:00:00")
             day_end = (date + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
-            rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], day_start, day_end)
+            rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, day_start, day_end)
             if len(rows) == 0:
                 return date.strftime("%Y-%m-%d")
             date = date - timedelta(days=1)
@@ -133,7 +133,7 @@ class RemedyCheckinPlugin(Plugin):
                 self.api.send_msg(text("{}每一周都打了卡呢！完全不需要补卡喵".format(current_year)))
                 break
 
-            rows = self.dbmanager.search_target_user_checkin_range(self.context['user_id'], tmp_start, tmp_end)
+            rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, tmp_start, tmp_end)
             if len(rows) == 0:
                 self.api.send_msg(text("找到{}-{}这一周没有打卡喵，使用指令\"/补卡 {}\"确认补卡喵".format(tmp_start.split(" ")[0], tmp_end.split(" ")[0], tmp_start.split(" ")[0])))
                 break

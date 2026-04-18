@@ -33,7 +33,7 @@ class RandomReferencePlugin(Plugin):
         return self.PICSUM_URL
 
     def handle(self):
-        user_id = self.context.get("user_id")
+        user_id = self.bot_event.user_id
         url = self._resolve_image_url()
 
         if user_id:

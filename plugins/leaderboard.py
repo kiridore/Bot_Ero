@@ -26,7 +26,7 @@ class LeaderboardPlugin(Plugin):
         return self.on_full_match("/排名") or self.on_full_match("/rank")
 
     def handle(self):
-        group_id = self.context.get("group_id")
+        group_id = self.bot_event.group_id
         if not group_id:
             self.api.send_msg(text("请在群里使用 /排名 或 /rank"))
             return

@@ -15,7 +15,6 @@ class RollbackCheckinPlugin(Plugin):
         # 自然周奖励回滚
         week_start = dt.date() - timedelta(days=dt.weekday())
         week_end = week_start + timedelta(days=7)
-        week_key = week_start.strftime("%Y-%m-%d")
         week_days = self.dbmanager.get_distinct_checkin_day_count(
             user_id,
             week_start.strftime("%Y-%m-%d 00:00:00"),
@@ -58,7 +57,7 @@ class RollbackCheckinPlugin(Plugin):
 
     def handle(self):
         start_date, end_date = get_monday_to_monday()
-        rows = self.dbmanager.search_target_user_checkin_range(self.context["user_id"], start_date, end_date)
+        rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
         if len(rows) <= 0:
             self.api.send_msg(text("本周你还没打过卡呢！"))
         else:
@@ -69,14 +68,14 @@ class RollbackCheckinPlugin(Plugin):
 
             if len(rows) == 1:
                 self.api.send_msg(text("你刚刚撤回了本周第一次打卡，需要扣掉本周的点数喵！"))
-                utils.add_user_point(self.dbmanager, self.context['user_id'], -1)
+                utils.add_user_point(self.dbmanager, self.bot_event.user_id, -1)
                 week_start = start_date.split(" ")[0]
                 month_weekly_points = self.dbmanager.revoke_attendance_reward_if_claimed(
-                    self.context["user_id"], "full_month_weekly_check", week_start
+                    self.bot_event.user_id, "full_month_weekly_check", week_start
                 )
                 if month_weekly_points > 0:
-                    utils.add_user_point(self.dbmanager, self.context["user_id"], -month_weekly_points)
+                    utils.add_user_point(self.dbmanager, self.bot_event.user_id, -month_weekly_points)
 
             self.dbmanager.delete_checkin_by_id(rows[0][0])
             dt = datetime.strptime(del_time, "%Y-%m-%d %H:%M:%S")
-            self._rollback_attendance_rewards(self.context["user_id"], dt)
+            self._rollback_attendance_rewards(self.bot_event.user_id, dt)

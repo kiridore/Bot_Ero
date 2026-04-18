@@ -278,7 +278,7 @@ class TitlePlugin(Plugin):
         return f"[{data['id']}] 「{data['name']}」 ({data['rarity']}, {unlock_type}){suffix}"
 
     def _get_target_user_id_from_at(self):
-        for seg in self.context.get("message", []):
+        for seg in self.bot_event.message:
             if seg.get("type") == "at":
                 qq = seg.get("data", {}).get("qq")
                 if qq and qq != "all":
@@ -372,7 +372,7 @@ class TitlePlugin(Plugin):
         self.api.send_msg(at(user_id), text(f"随机装备成功：[{title_id}] 「{data['name']}」"))
 
     def handle(self):
-        user_id = self.context["user_id"]
+        user_id = self.bot_event.user_id
 
         if self.on_full_match("/称号一览"):
             self._show_title_list(user_id, user_id)

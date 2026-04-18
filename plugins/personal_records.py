@@ -21,7 +21,7 @@ class PersonalRecords(Plugin):
         if len(self.args) > 1:
             year = int(self.args[1])
 
-        rows = self.dbmanager.search_checkin_year(self.context["user_id"], year)
+        rows = self.dbmanager.search_checkin_year(self.bot_event.user_id, year)
         time_map = {}
         day_checkin_count = [0] * 366 # 全年每一天打卡数记录
         for row in rows:
@@ -38,7 +38,7 @@ class PersonalRecords(Plugin):
 
         display_str = display_str + ("------\n")
 
-        streak_res = self.dbmanager.get_user_streaks(self.context["user_id"])
+        streak_res = self.dbmanager.get_user_streaks(self.bot_event.user_id)
 
         display_str = display_str + ("当前连击（周）: {}\n".format(streak_res["current_weekly"]))
         display_str = display_str + ("最长连击（周）: {}\n".format(streak_res["longest_weekly"]))
@@ -46,8 +46,11 @@ class PersonalRecords(Plugin):
         display_str = display_str + ("当前连击（日）: {}\n".format(streak_res["current_daily"]))
         display_str = display_str + ("最长连击（日）: {}\n".format(streak_res["longest_daily"]))
 
-        display_str = display_str + ("点数: {}\n".format(self.dbmanager.get_user_point(self.context['user_id'])))
+        display_str = display_str + ("点数: {}\n".format(self.dbmanager.get_user_point(self.bot_event.user_id)))
         
-        gen_image.gen_year_heatmap(year, day_checkin_count, self.context["user_id"])
-        image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(context.llonebot_data_path, self.context["user_id"]))
-        self.api.send_msg(at(self.context["user_id"]), text(display_str), image("file://" + image_path))
+        gen_image.gen_year_heatmap(year, day_checkin_count, self.bot_event.user_id)
+        image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(
+            context.llonebot_data_path,
+            self.bot_event.user_id)
+        )
+        self.api.send_msg(at(self.bot_event.user_id), text(display_str), image("file://" + image_path))

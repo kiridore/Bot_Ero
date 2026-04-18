@@ -8,7 +8,7 @@ class WelcomePlugin(Plugin):
     description = '在好友添加后发送欢迎消息。'
 
     def match(self, message_type):
-        if self.context.get("post_type", "") == "notice" and self.context.get("notice_type", "") == "friend_add":
+        if self.bot_event.post_type == "notice" and self.bot_event.raw.get("notice_type", "") == "friend_add":
             return True
         return False
 
