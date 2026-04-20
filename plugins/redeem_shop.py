@@ -18,7 +18,7 @@ SHOP_ITEMS: dict[str, dict[str, Any]] = {
     "points_pack": {
         "description": "小额积分包（支付10积分，到账20积分）",
         "cost": 10,
-        "initial_stock": None,
+        "initial_stock": 0,
         "apply": None,
     },
 }
