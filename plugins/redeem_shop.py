@@ -42,8 +42,6 @@ def _grant_points_pack(plugin: "RedeemShopPlugin", bonus: int) -> None:
 
 
 def _wire_applies() -> None:
-    SHOP_ITEMS["title_43"]["apply"] = lambda p: _grant_title(p, 43)
-    SHOP_ITEMS["title_51"]["apply"] = lambda p: _grant_title(p, 51)
     SHOP_ITEMS["points_pack"]["apply"] = lambda p: _grant_points_pack(p, 20)
 
 
