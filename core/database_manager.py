@@ -127,7 +127,15 @@ class DbManager:
                 content TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 fired INTEGER NOT NULL DEFAULT 0,
-                is_private INTEGER NOT NULL DEFAULT 0
+                is_private INTEGER NOT NULL DEFAULT 0,
+                is_recurring INTEGER NOT NULL DEFAULT 0,
+                repeat_y INTEGER NOT NULL DEFAULT 0,
+                repeat_m INTEGER NOT NULL DEFAULT 0,
+                repeat_d INTEGER NOT NULL DEFAULT 0,
+                recur_kind INTEGER NOT NULL DEFAULT 0,
+                recur_a INTEGER NOT NULL DEFAULT 0,
+                recur_b INTEGER NOT NULL DEFAULT 0,
+                recur_c INTEGER NOT NULL DEFAULT 0
             );
         """)
         self.cur.execute(
@@ -139,6 +147,39 @@ class DbManager:
             self.cur.execute(
                 "ALTER TABLE group_alarms ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0"
             )
+        self.cur.execute("PRAGMA table_info(group_alarms)")
+        _alarm_cols2 = [row[1] for row in self.cur.fetchall()]
+        for col, ddl in (
+            ("is_recurring", "ALTER TABLE group_alarms ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0"),
+            ("repeat_y", "ALTER TABLE group_alarms ADD COLUMN repeat_y INTEGER NOT NULL DEFAULT 0"),
+            ("repeat_m", "ALTER TABLE group_alarms ADD COLUMN repeat_m INTEGER NOT NULL DEFAULT 0"),
+            ("repeat_d", "ALTER TABLE group_alarms ADD COLUMN repeat_d INTEGER NOT NULL DEFAULT 0"),
+            ("recur_kind", "ALTER TABLE group_alarms ADD COLUMN recur_kind INTEGER NOT NULL DEFAULT 0"),
+            ("recur_a", "ALTER TABLE group_alarms ADD COLUMN recur_a INTEGER NOT NULL DEFAULT 0"),
+            ("recur_b", "ALTER TABLE group_alarms ADD COLUMN recur_b INTEGER NOT NULL DEFAULT 0"),
+            ("recur_c", "ALTER TABLE group_alarms ADD COLUMN recur_c INTEGER NOT NULL DEFAULT 0"),
+        ):
+            if _alarm_cols2 and col not in _alarm_cols2:
+                self.cur.execute(ddl)
+                self.cur.execute("PRAGMA table_info(group_alarms)")
+                _alarm_cols2 = [row[1] for row in self.cur.fetchall()]
+        # 旧版「每N日」循环：repeat_* 纯日间隔 → recur_kind=1；含年/月的旧循环不再支持，改为一次性
+        self.cur.execute(
+            """
+            UPDATE group_alarms
+            SET recur_kind = 1, recur_a = repeat_d, recur_b = 0, recur_c = 0
+            WHERE is_recurring = 1 AND recur_kind = 0
+              AND repeat_y = 0 AND repeat_m = 0 AND repeat_d > 0
+            """
+        )
+        self.cur.execute(
+            """
+            UPDATE group_alarms
+            SET is_recurring = 0, recur_kind = 0, recur_a = 0, recur_b = 0, recur_c = 0
+            WHERE is_recurring = 1 AND recur_kind = 0
+              AND NOT (repeat_y = 0 AND repeat_m = 0 AND repeat_d > 0)
+            """
+        )
         self.conn.commit()
 
     def __del__(self):
@@ -152,17 +193,29 @@ class DbManager:
         content: str,
         group_id: int | None = None,
         is_private: bool = False,
+        recur: tuple[int, int, int, int] | None = None,
     ) -> int:
         fs = fire_at.strftime("%Y-%m-%d %H:%M:%S")
         cs = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         gid = 0 if is_private or group_id is None else int(group_id)
         priv = 1 if is_private else 0
+        if recur:
+            k, a, b, c = int(recur[0]), int(recur[1]), int(recur[2]), int(recur[3])
+            rec = 1
+        else:
+            k = a = b = c = 0
+            rec = 0
+        ry = rm = rd = 0
         self.cur.execute(
             """
-            INSERT INTO group_alarms (group_id, creator_user_id, fire_at, content, created_at, fired, is_private)
-            VALUES (?, ?, ?, ?, ?, 0, ?)
+            INSERT INTO group_alarms (
+                group_id, creator_user_id, fire_at, content, created_at, fired, is_private,
+                is_recurring, repeat_y, repeat_m, repeat_d,
+                recur_kind, recur_a, recur_b, recur_c
+            )
+            VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (gid, int(creator_user_id), fs, content, cs, priv),
+            (gid, int(creator_user_id), fs, content, cs, priv, rec, ry, rm, rd, k, a, b, c),
         )
         self.conn.commit()
         return int(self.cur.lastrowid)
@@ -171,7 +224,9 @@ class DbManager:
         if group_id is None:
             self.cur.execute(
                 """
-                SELECT id, fire_at, content FROM group_alarms
+                SELECT id, fire_at, content, is_recurring,
+                       recur_kind, recur_a, recur_b, recur_c
+                FROM group_alarms
                 WHERE creator_user_id = ? AND is_private = 1 AND fired = 0
                 ORDER BY fire_at ASC
                 """,
@@ -180,7 +235,9 @@ class DbManager:
         else:
             self.cur.execute(
                 """
-                SELECT id, fire_at, content FROM group_alarms
+                SELECT id, fire_at, content, is_recurring,
+                       recur_kind, recur_a, recur_b, recur_c
+                FROM group_alarms
                 WHERE creator_user_id = ? AND group_id = ? AND is_private = 0 AND fired = 0
                 ORDER BY fire_at ASC
                 """,
@@ -214,7 +271,9 @@ class DbManager:
         ns = now.strftime("%Y-%m-%d %H:%M:%S")
         self.cur.execute(
             """
-            SELECT id, group_id, creator_user_id, content, fire_at, is_private FROM group_alarms
+            SELECT id, group_id, creator_user_id, content, fire_at, is_private,
+                   is_recurring, recur_kind, recur_a, recur_b, recur_c
+            FROM group_alarms
             WHERE fired = 0 AND fire_at <= ?
             ORDER BY fire_at ASC
             LIMIT ?
@@ -225,7 +284,23 @@ class DbManager:
 
     def try_mark_alarm_fired(self, alarm_id: int) -> bool:
         self.cur.execute(
-            "UPDATE group_alarms SET fired = 1 WHERE id = ? AND fired = 0", (int(alarm_id),)
+            "UPDATE group_alarms SET fired = 1 WHERE id = ? AND fired = 0 AND is_recurring = 0",
+            (int(alarm_id),),
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    def try_advance_recurring_fire_at(
+        self, alarm_id: int, prev_fire_at: str, next_fire_at: datetime
+    ) -> bool:
+        nxt = next_fire_at.strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute(
+            """
+            UPDATE group_alarms
+            SET fire_at = ?
+            WHERE id = ? AND is_recurring = 1 AND fired = 0 AND fire_at = ?
+            """,
+            (nxt, int(alarm_id), prev_fire_at),
         )
         self.conn.commit()
         return self.cur.rowcount > 0
