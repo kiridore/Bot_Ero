@@ -53,15 +53,15 @@ class LotteryPlugin(Plugin):
     def draw_reward(self, user_id):
         roll = random.random() * 100
         table = [
-            (30.0, {"type": "points", "value": 0}),
-            (30.0, {"type": "points", "value": 1}),
+            (40.0, {"type": "points", "value": 0}),
+            (28.0, {"type": "points", "value": 1}),
             (10.0, {"type": "points", "value": 2}),
             (6.0, {"type": "points", "value": 3}),
             (3.0, {"type": "points", "value": 5}),
             (0.8, {"type": "points", "value": 8}),
             (0.2, {"type": "points", "value": 10}),
-            (15.0, {"type": "title_roll", "rarity": "common"}),
-            (4.0, {"type": "title_roll", "rarity": "rare"}),
+            (9.0, {"type": "title_roll", "rarity": "common"}),
+            (2.0, {"type": "title_roll", "rarity": "rare"}),
             (1.0, {"type": "title_roll", "rarity": "legendary"}),
         ]
 
@@ -97,7 +97,8 @@ class LotteryPlugin(Plugin):
         today = datetime.now().strftime("%Y-%m-%d")
         draw_count = self.dbmanager.get_lottery_draw_count(user_id, today)
         has_checkin_today = self.dbmanager.has_checkin_on_date(user_id, today)
-        max_draw = 5 if has_checkin_today else 2
+        extra_shop_draws = self.dbmanager.get_shop_extra_draw_bonus(user_id, today)
+        max_draw = (5 if has_checkin_today else 2) + extra_shop_draws
         if draw_count >= max_draw:
             self.api.send_msg(
                 at(user_id),
@@ -111,15 +112,30 @@ class LotteryPlugin(Plugin):
 
         free_daily = draw_count == 0
         points = self.dbmanager.get_user_point(user_id)
-        if not free_daily and points < self.COST:
-            self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
-            return
-
+        payment_exempt = False
         if not free_daily:
-            utils.add_user_point(self.dbmanager, user_id, -self.COST)
-            self.dbmanager.add_lottery_spent(user_id, self.COST)
+            rem = self.dbmanager.get_shop_lottery_waiver_remaining(user_id)
+            if rem > 0:
+                if random.random() < 0.3:
+                    payment_exempt = True
+                if not payment_exempt and points < self.COST:
+                    self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
+                    return
+                self.dbmanager.pop_shop_lottery_waiver_slot(user_id)
+            else:
+                if points < self.COST:
+                    self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
+                    return
+            if not payment_exempt:
+                utils.add_user_point(self.dbmanager, user_id, -self.COST)
+                self.dbmanager.add_lottery_spent(user_id, self.COST)
         self.dbmanager.add_lottery_draw_count(user_id, today, 1)
-        cost_paid = 0 if free_daily else self.COST
+        cost_paid = 0 if free_daily else (0 if payment_exempt else self.COST)
+        draw_cost_hint = (
+            self.FREE_DRAW_HINT
+            if free_daily
+            else ("抽奖增强：本次不消耗积分" if payment_exempt else "本次消耗：1积分")
+        )
         result = self.draw_reward(user_id)
         profile = self.dbmanager.get_user_lottery_profile(user_id)
         draw_count = profile["draw_count"] + 1
@@ -146,7 +162,12 @@ class LotteryPlugin(Plugin):
             self._send_unlocked_titles_notice(user_id, unlocked)
             net = reward - cost_paid
             now_points = self.dbmanager.get_user_point(user_id)
-            free_mid = "{}\n".format(self.FREE_DRAW_HINT) if free_daily else ""
+            if free_daily:
+                free_mid = "{}\n".format(self.FREE_DRAW_HINT)
+            elif payment_exempt:
+                free_mid = "抽奖增强：本次不消耗积分\n"
+            else:
+                free_mid = ""
             if reward == 0:
                 self.api.send_msg(
                     at(user_id),
@@ -177,10 +198,9 @@ class LotteryPlugin(Plugin):
             self._send_unlocked_titles_notice(user_id, unlocked)
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
-            cost_line = self.FREE_DRAW_HINT if free_daily else "本次消耗：1积分"
             self.api.send_msg(
                 at(user_id),
-                text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n{}\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], cost_line, now_points)),
+                text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n{}\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], draw_cost_hint, now_points)),
             )
             return
 
@@ -195,7 +215,12 @@ class LotteryPlugin(Plugin):
             title_id = result["value"]
             title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
             rebate = result.get("rebate", 0)
-            free_mid = "{}\n".format(self.FREE_DRAW_HINT) if free_daily else ""
+            if free_daily:
+                free_mid = "{}\n".format(self.FREE_DRAW_HINT)
+            elif payment_exempt:
+                free_mid = "抽奖增强：本次不消耗积分\n"
+            else:
+                free_mid = ""
             self.api.send_msg(
                 at(user_id),
                 text(
@@ -213,7 +238,12 @@ class LotteryPlugin(Plugin):
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)
-            free_mid = "{}\n".format(self.FREE_DRAW_HINT) if free_daily else ""
+            if free_daily:
+                free_mid = "{}\n".format(self.FREE_DRAW_HINT)
+            elif payment_exempt:
+                free_mid = "抽奖增强：本次不消耗积分\n"
+            else:
+                free_mid = ""
             self.api.send_msg(
                 at(user_id),
                 text(
@@ -224,8 +254,7 @@ class LotteryPlugin(Plugin):
             )
             return
 
-        cost_line = self.FREE_DRAW_HINT if free_daily else "本次消耗：1积分"
         self.api.send_msg(
             at(user_id),
-            text("*摇骰子* 居然抽到了……{}！\n{}\n当前积分：{}".format(result["value"], cost_line, now_points)),
+            text("*摇骰子* 居然抽到了……{}！\n{}\n当前积分：{}".format(result["value"], draw_cost_hint, now_points)),
         )

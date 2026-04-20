@@ -1,3 +1,4 @@
+import random
 from core.base import Plugin
 from core.cq import text,at
 from core.logger import logger
@@ -41,6 +42,10 @@ class CheckinPlugin(Plugin):
             # 先打卡（带上 message_id，便于撤回消息时撤销记录）
             msg_id = self.bot_event.message_id
             self.dbmanager.insert_checkin(self.bot_event.user_id, img_list, msg_id)
+            checkin_luck_bonus = 0
+            if self.dbmanager.pop_shop_checkin_luck_attempt(self.bot_event.user_id):
+                if random.random() < 0.1:
+                    checkin_luck_bonus = 1
             unlocked = evaluate_and_unlock_titles(self.dbmanager, self.bot_event.user_id, datetime.now())
             if unlocked:
                 lines = ["解锁新称号："]
@@ -102,6 +107,10 @@ class CheckinPlugin(Plugin):
             if is_first:
                 bonus_total += 1
                 bonus_lines.append("当周首次打卡奖励 +1")
+
+            if checkin_luck_bonus:
+                bonus_total += checkin_luck_bonus
+                bonus_lines.append("打卡增强：概率奖励 +1")
 
             if bonus_total > 0:
                 add_user_point(self.dbmanager, self.bot_event.user_id, bonus_total)

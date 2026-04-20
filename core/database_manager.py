@@ -108,6 +108,14 @@ class DbManager:
                 stock INTEGER NOT NULL
             );
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS shop_user_buffs (
+                user_id INTEGER PRIMARY KEY,
+                extra_draw_pack_until TEXT,
+                checkin_luck_remaining INTEGER NOT NULL DEFAULT 0,
+                lottery_waiver_remaining INTEGER NOT NULL DEFAULT 0
+            );
+        """)
         self.cur.execute("PRAGMA table_info(checkin_records)")
         _cols = [row[1] for row in self.cur.fetchall()]
         if "message_id" not in _cols:
@@ -380,6 +388,103 @@ class DbManager:
         except Exception:
             self.conn.rollback()
             raise
+
+    def ensure_shop_buff_row(self, user_id: int, commit: bool = True):
+        self.cur.execute("""
+            INSERT OR IGNORE INTO shop_user_buffs (
+                user_id, checkin_luck_remaining, lottery_waiver_remaining
+            )
+            VALUES (?, 0, 0)
+        """, (int(user_id),))
+        if commit:
+            self.conn.commit()
+
+    def set_extra_draw_pack_until(self, user_id: int, until_date_str: str, commit: bool = True):
+        """接下来 7 个自然日（含当日）有效，until 为结束日期 YYYY-MM-DD（含当天）。"""
+        self.ensure_shop_buff_row(user_id, commit=False)
+        self.cur.execute("""
+            UPDATE shop_user_buffs SET extra_draw_pack_until = ?
+            WHERE user_id = ?
+        """, (str(until_date_str), int(user_id)))
+        if commit:
+            self.conn.commit()
+
+    def get_shop_extra_draw_bonus(self, user_id: int, today_str: str) -> int:
+        """若在有效期内返回每日额外次数 2，否则 0。"""
+        self.cur.execute("""
+            SELECT extra_draw_pack_until FROM shop_user_buffs WHERE user_id = ?
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        if not row or row[0] is None:
+            return 0
+        until = str(row[0]).strip()
+        if len(until) >= 10:
+            until = until[:10]
+        if today_str <= until:
+            return 2
+        return 0
+
+    def add_shop_checkin_luck(self, user_id: int, delta: int, commit: bool = True):
+        self.ensure_shop_buff_row(user_id, commit=False)
+        d = int(delta)
+        self.cur.execute("""
+            UPDATE shop_user_buffs SET checkin_luck_remaining = checkin_luck_remaining + ?
+            WHERE user_id = ?
+        """, (d, int(user_id)))
+        if commit:
+            self.conn.commit()
+
+    def get_shop_checkin_luck_remaining(self, user_id: int) -> int:
+        self.cur.execute("""
+            SELECT checkin_luck_remaining FROM shop_user_buffs WHERE user_id = ?
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        return 0 if not row or row[0] is None else int(row[0])
+
+    def pop_shop_checkin_luck_attempt(self, user_id: int, commit: bool = True) -> bool:
+        """消耗一次打卡增强计数（若有）。成功消耗返回 True。"""
+        self.cur.execute("""
+            UPDATE shop_user_buffs SET checkin_luck_remaining = checkin_luck_remaining - 1
+            WHERE user_id = ? AND checkin_luck_remaining > 0
+        """, (int(user_id),))
+        ok = self.cur.rowcount > 0
+        if commit:
+            self.conn.commit()
+        return ok
+
+    def add_shop_lottery_waiver(self, user_id: int, delta: int, commit: bool = True):
+        self.ensure_shop_buff_row(user_id, commit=False)
+        self.cur.execute("""
+            UPDATE shop_user_buffs SET lottery_waiver_remaining = lottery_waiver_remaining + ?
+            WHERE user_id = ?
+        """, (int(delta), int(user_id)))
+        if commit:
+            self.conn.commit()
+
+    def get_shop_lottery_waiver_remaining(self, user_id: int) -> int:
+        self.cur.execute("""
+            SELECT lottery_waiver_remaining FROM shop_user_buffs WHERE user_id = ?
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        return 0 if not row or row[0] is None else int(row[0])
+
+    def pop_shop_lottery_waiver_slot(self, user_id: int, commit: bool = True) -> bool:
+        """消耗一次抽奖增强剩余次数。"""
+        self.cur.execute("""
+            UPDATE shop_user_buffs SET lottery_waiver_remaining = lottery_waiver_remaining - 1
+            WHERE user_id = ? AND lottery_waiver_remaining > 0
+        """, (int(user_id),))
+        ok = self.cur.rowcount > 0
+        if commit:
+            self.conn.commit()
+        return ok
+
+    def clear_lottery_draw_count_for_date(self, user_id: int, stat_date: str, commit: bool = True):
+        self.cur.execute("""
+            DELETE FROM user_lottery_daily_stats WHERE user_id = ? AND stat_date = ?
+        """, (int(user_id), str(stat_date)))
+        if commit:
+            self.conn.commit()
 
     def redeem_shop_item(self, product_id: str, user_id, cost: int, grant_fn) -> tuple:
         """原子兑换：扣积分与库存（stock=-1 为不限量）、执行 grant_fn；任一步失败则整笔回滚。"""
