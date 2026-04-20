@@ -126,50 +126,87 @@ class DbManager:
                 fire_at TEXT NOT NULL,
                 content TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                fired INTEGER NOT NULL DEFAULT 0
+                fired INTEGER NOT NULL DEFAULT 0,
+                is_private INTEGER NOT NULL DEFAULT 0
             );
         """)
         self.cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_group_alarms_due ON group_alarms (fired, fire_at)"
         )
+        self.cur.execute("PRAGMA table_info(group_alarms)")
+        _alarm_cols = [row[1] for row in self.cur.fetchall()]
+        if _alarm_cols and "is_private" not in _alarm_cols:
+            self.cur.execute(
+                "ALTER TABLE group_alarms ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0"
+            )
         self.conn.commit()
 
     def __del__(self):
         self.conn.commit()
         self.conn.close()
 
-    def add_group_alarm(self, group_id: int, creator_user_id: int, fire_at: datetime, content: str) -> int:
+    def add_group_alarm(
+        self,
+        creator_user_id: int,
+        fire_at: datetime,
+        content: str,
+        group_id: int | None = None,
+        is_private: bool = False,
+    ) -> int:
         fs = fire_at.strftime("%Y-%m-%d %H:%M:%S")
         cs = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        gid = 0 if is_private or group_id is None else int(group_id)
+        priv = 1 if is_private else 0
         self.cur.execute(
             """
-            INSERT INTO group_alarms (group_id, creator_user_id, fire_at, content, created_at, fired)
-            VALUES (?, ?, ?, ?, ?, 0)
+            INSERT INTO group_alarms (group_id, creator_user_id, fire_at, content, created_at, fired, is_private)
+            VALUES (?, ?, ?, ?, ?, 0, ?)
             """,
-            (int(group_id), int(creator_user_id), fs, content, cs),
+            (gid, int(creator_user_id), fs, content, cs, priv),
         )
         self.conn.commit()
         return int(self.cur.lastrowid)
 
-    def list_pending_alarms_for_user(self, group_id: int, creator_user_id: int):
-        self.cur.execute(
-            """
-            SELECT id, fire_at, content FROM group_alarms
-            WHERE group_id = ? AND creator_user_id = ? AND fired = 0
-            ORDER BY fire_at ASC
-            """,
-            (int(group_id), int(creator_user_id)),
-        )
+    def list_pending_alarms_for_user(self, creator_user_id: int, group_id: int | None = None):
+        if group_id is None:
+            self.cur.execute(
+                """
+                SELECT id, fire_at, content FROM group_alarms
+                WHERE creator_user_id = ? AND is_private = 1 AND fired = 0
+                ORDER BY fire_at ASC
+                """,
+                (int(creator_user_id),),
+            )
+        else:
+            self.cur.execute(
+                """
+                SELECT id, fire_at, content FROM group_alarms
+                WHERE creator_user_id = ? AND group_id = ? AND is_private = 0 AND fired = 0
+                ORDER BY fire_at ASC
+                """,
+                (int(creator_user_id), int(group_id)),
+            )
         return self.cur.fetchall()
 
-    def cancel_group_alarm(self, alarm_id: int, group_id: int, creator_user_id: int) -> bool:
-        self.cur.execute(
-            """
-            DELETE FROM group_alarms
-            WHERE id = ? AND group_id = ? AND creator_user_id = ? AND fired = 0
-            """,
-            (int(alarm_id), int(group_id), int(creator_user_id)),
-        )
+    def cancel_group_alarm(
+        self, alarm_id: int, creator_user_id: int, group_id: int | None = None
+    ) -> bool:
+        if group_id is None:
+            self.cur.execute(
+                """
+                DELETE FROM group_alarms
+                WHERE id = ? AND creator_user_id = ? AND is_private = 1 AND fired = 0
+                """,
+                (int(alarm_id), int(creator_user_id)),
+            )
+        else:
+            self.cur.execute(
+                """
+                DELETE FROM group_alarms
+                WHERE id = ? AND group_id = ? AND creator_user_id = ? AND is_private = 0 AND fired = 0
+                """,
+                (int(alarm_id), int(group_id), int(creator_user_id)),
+            )
         self.conn.commit()
         return self.cur.rowcount > 0
 
@@ -177,7 +214,7 @@ class DbManager:
         ns = now.strftime("%Y-%m-%d %H:%M:%S")
         self.cur.execute(
             """
-            SELECT id, group_id, creator_user_id, content FROM group_alarms
+            SELECT id, group_id, creator_user_id, content, fire_at, is_private FROM group_alarms
             WHERE fired = 0 AND fire_at <= ?
             ORDER BY fire_at ASC
             LIMIT ?
