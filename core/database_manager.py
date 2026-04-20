@@ -194,11 +194,51 @@ class DbManager:
               AND NOT (repeat_y = 0 AND repeat_m = 0 AND repeat_d > 0)
             """
         )
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS group_chat_topics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL,
+                centroid BLOB NOT NULL,
+                message_count INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                anchor_preview TEXT NOT NULL DEFAULT ''
+            );
+        """)
+        self.cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_group_chat_topics_group ON group_chat_topics(group_id)"
+        )
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS group_chat_topic_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic_id INTEGER NOT NULL,
+                group_id INTEGER NOT NULL,
+                message_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                content_preview TEXT NOT NULL,
+                similarity REAL,
+                created_at TEXT NOT NULL
+            );
+        """)
+        self.cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_gctm_group_msg ON group_chat_topic_messages(group_id, message_id)"
+        )
+        self.cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_gctm_group_message_id
+            ON group_chat_topic_messages(group_id, message_id)
+            WHERE message_id >= 0
+        """)
         self.conn.commit()
 
     def __del__(self):
         self.conn.commit()
         self.conn.close()
+
+    def group_topic_store(self):
+        """群聊话题划分持久化（与当前连接绑定）。"""
+        from core.group_topic_store_sqlite import GroupTopicStoreSqlite
+
+        return GroupTopicStoreSqlite(self.conn, self.cur)
 
     def add_group_alarm(
         self,
