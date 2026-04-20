@@ -26,6 +26,8 @@ _RECUR_MONTHLY_RE = re.compile(r"^每月(\d{1,2})[日号]")
 _RECUR_YEARLY_RE = re.compile(r"^每年(\d{1,2})月(\d{1,2})[日号]")
 _RECUR_WEEKLY_LONG_RE = re.compile(r"^每星期([一二三四五六日天])")
 _RECUR_WEEKLY_RE = re.compile(r"^每周(周天|周日|[一二三四五六日天])")
+# 「每天」「每日」中间无数字，等价于每 1 天（须在「每N日/天」之前尝试，避免与「每3日」冲突）
+_RECUR_EVERY_DAY_RE = re.compile(r"^每(?:日|天)")
 _RECUR_N_DAYS_RE = re.compile(r"^每(\d+)(?:日|天)")
 
 
@@ -66,6 +68,8 @@ def _weekday_token_to_n(token: str) -> Optional[int]:
 
 def _format_recur_desc(kind: int, a: int, b: int, _c: int) -> str:
     if kind == RECUR_INTERVAL_DAYS:
+        if int(a) == 1:
+            return "每天"
         return "每{}日".format(int(a))
     if kind == RECUR_WEEKLY:
         cn = ("一", "二", "三", "四", "五", "六", "日")
@@ -105,6 +109,9 @@ def _try_match_recurring(s0: str) -> Optional[Union[str, Tuple[int, int, int, in
         if wd is None:
             return "「每周 / 每星期」后请跟周一至周日（如：每周三、每星期日）。"
         return (RECUR_WEEKLY, wd, 0, 0, m)
+    m = _RECUR_EVERY_DAY_RE.match(s0)
+    if m:
+        return (RECUR_INTERVAL_DAYS, 1, 0, 0, m)
     m = _RECUR_N_DAYS_RE.match(s0)
     if m:
         n = int(m.group(1))
@@ -314,7 +321,7 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
         has_abs = abs_m is not None
     if not has_recur and not has_rel and not has_abs and not has_time:
         return (
-            "请至少指定「每N日/天」「每周…」「每年…月…日」「每月…日」之一，"
+            "请至少指定「每天/每日」「每N日/天」「每周…」「每年…月…日」「每月…日」之一，"
             "或「…年后」相对日期、「…年…月…日」具体日期，或「HH:MM」时间。"
         )
     content = _strip_patterns_for_content(body)
@@ -437,7 +444,8 @@ class GroupAlarmPlugin(Plugin):
                 "· 「X年X月X日」无「后」— 具体日历日，可只写年/月/日或任意组合（缺省补当前年、月或 1 日）。\n"
                 "· 「X年X月X日后」— 相对当前时刻的偏移；未写的年/月/日视为 0。\n"
                 "· 循环（须写在开头，且不能与紧接的「…日后」或定时用具体日历日混用）：\n"
-                "  「每N日」或「每N天」— 每隔 N 天；「每周一」…「每周日」或「每星期一」…「每星期日」；\n"
+                "  「每天」「每日」— 等价于每 1 天；「每N日」或「每N天」— 每隔 N 天；"
+                "「每周一」…「每周日」或「每星期一」…「每星期日」；\n"
                 "  「每年M月D日」；「每月D日」。\n"
                 "· 可同时写 HH:MM；无时间时，具体日/循环为当天当前时刻，相对「…日后」为偏移后当前时刻。\n"
                 "· /闹钟 HH:MM 内容 — 无日期时，为当天该时刻；若该时刻已过则无法设置。\n"
