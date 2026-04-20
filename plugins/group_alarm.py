@@ -254,7 +254,7 @@ class GroupAlarmPlugin(Plugin):
         )
         self.api.send_msg(
             text(
-                "小埃记住了，已设置闹钟 #{}，将于 {} 提醒你喵：{}，我们到时候见~".format(
+                "小埃记住了，已设置闹钟 #{}，将于 {} 提醒你：「{}」".format(
                     aid, fire.strftime("%Y-%m-%d %H:%M"), clean_content
                 )
             )
@@ -275,7 +275,7 @@ class GroupAlarmPlugin(Plugin):
             if not db.try_mark_alarm_fired(aid):
                 continue
             when_label = (fat or "")[:16]
-            line = "你在「{}」吩咐小埃的事情，小埃来兑现了：\x20{}".format(when_label, content)
+            line = "预约「{}」的小埃提醒服务来了喵：\x20{}".format(when_label, content)
             if is_priv:
                 self.api.call_api(
                     "send_private_msg",
