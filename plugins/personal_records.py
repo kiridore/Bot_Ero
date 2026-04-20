@@ -2,9 +2,9 @@ from datetime import datetime
 import os
 from core import context
 from core.base import Plugin
-from core.cq import image, text,at
+from core.cq import image, at
 import core.utils as utils
-import core.gen_image as gen_image
+from core.gen_image import PersonalRecordStats, gen_personal_record_card
 
 from core.utils import register_plugin
 @register_plugin
@@ -34,25 +34,21 @@ class PersonalRecords(Plugin):
             else:
                 day_checkin_count[utils.day_of_year(row[2]) - 1] = -1
         
-        display_str = "打卡记录\n"
-        display_str = display_str + ("总次数({}): {}\n".format(year, len(time_map)))
-        display_str = display_str + ("打卡图({}): {}张\n".format(year, len(rows)))
-
-        display_str = display_str + ("------\n")
-
         streak_res = self.dbmanager.get_user_streaks(self.bot_event.user_id)
+        stats = PersonalRecordStats(
+            year=year,
+            total_distinct_days=len(time_map),
+            total_checkin_images=len(rows),
+            current_weekly=streak_res["current_weekly"],
+            longest_weekly=streak_res["longest_weekly"],
+            current_daily=streak_res["current_daily"],
+            longest_daily=streak_res["longest_daily"],
+            points=self.dbmanager.get_user_point(self.bot_event.user_id),
+        )
 
-        display_str = display_str + ("当前连击（周）: {}\n".format(streak_res["current_weekly"]))
-        display_str = display_str + ("最长连击（周）: {}\n".format(streak_res["longest_weekly"]))
-
-        display_str = display_str + ("当前连击（日）: {}\n".format(streak_res["current_daily"]))
-        display_str = display_str + ("最长连击（日）: {}\n".format(streak_res["longest_daily"]))
-
-        display_str = display_str + ("点数: {}\n".format(self.dbmanager.get_user_point(self.bot_event.user_id)))
-        
-        gen_image.gen_year_heatmap(year, day_checkin_count, self.bot_event.user_id)
+        gen_personal_record_card(year, day_checkin_count, self.bot_event.user_id, stats)
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(
             context.llonebot_data_path,
             self.bot_event.user_id)
         )
-        self.api.send_msg(at(self.bot_event.user_id), text(display_str), image("file://" + image_path))
+        self.api.send_msg(at(self.bot_event.user_id), image("file://" + image_path))
