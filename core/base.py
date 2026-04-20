@@ -2,6 +2,7 @@ from core.cq import *
 from core.api import ApiWrapper
 from core.database_manager import DbManager
 from datetime import datetime
+from typing import Iterable, Optional, Set, Tuple, Union
 
 from core.event import Event
 
@@ -108,10 +109,47 @@ class Plugin:
         return self.super_user() or self.bot_event.sender.get("role", "") in ("admin", "owner")
 
 
+AnnualDateItem = Union[Tuple[int, int], str]
+
+
 class TimedHeartbeatPlugin(Plugin):
     # 触发时间，格式 HH:MM（24小时制）
     RUN_AT = "00:00"
+    # 可选：仅在指定星期运行。使用 ISO 星期：1=周一 … 7=周日。None 或空序列表示不限制。
+    RUN_WEEKDAYS: Optional[Iterable[int]] = None
+    # 可选：仅在每年指定月日运行。元素可为 (month, day) 或 "MM-DD" / "M-D" 字符串。None 或空序列表示不限制。
+    # 若与 RUN_WEEKDAYS 同时配置，则两者都满足时才触发（AND）。
+    RUN_ANNUAL_DATES: Optional[Iterable[AnnualDateItem]] = None
     _last_run_minute = {}
+
+    @staticmethod
+    def _annual_dates_as_set(raw: Iterable[AnnualDateItem]) -> Set[Tuple[int, int]]:
+        out: Set[Tuple[int, int]] = set()
+        for item in raw:
+            if isinstance(item, str):
+                s = item.strip().replace("/", "-")
+                parts = s.split("-")
+                if len(parts) != 2:
+                    continue
+                out.add((int(parts[0]), int(parts[1])))
+            elif isinstance(item, (tuple, list)) and len(item) == 2:
+                out.add((int(item[0]), int(item[1])))
+        return out
+
+    def _passes_weekday_filter(self, now: datetime) -> bool:
+        cls = type(self)
+        days = getattr(cls, "RUN_WEEKDAYS", None)
+        if not days:
+            return True
+        return now.isoweekday() in set(days)
+
+    def _passes_annual_filter(self, now: datetime) -> bool:
+        cls = type(self)
+        dates = getattr(cls, "RUN_ANNUAL_DATES", None)
+        if not dates:
+            return True
+        allowed = self._annual_dates_as_set(dates)
+        return (now.month, now.day) in allowed
 
     def should_run_on_heartbeat(self, event_type: str) -> bool:
         if event_type != "meta":
@@ -120,6 +158,11 @@ class TimedHeartbeatPlugin(Plugin):
         now = datetime.now()
         current_minute = now.strftime("%H:%M")
         if current_minute != self.RUN_AT:
+            return False
+
+        if not self._passes_weekday_filter(now):
+            return False
+        if not self._passes_annual_filter(now):
             return False
 
         run_key = now.strftime("%Y-%m-%d %H:%M")
