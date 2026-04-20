@@ -197,6 +197,14 @@ def get_lottery_title_ids():
     return [tid for tid, data in TITLE_DEFS.items() if data.get("unlock_type") == "lottery"]
 
 
+def _title_collection_progress(unlocked: int, total: int, width: int = 16) -> str:
+    if total <= 0:
+        return f"[{'░' * width}] 0/0 (0.0%)"
+    pct = max(0.0, min(100.0, 100.0 * unlocked / total))
+    filled = min(int(width * unlocked / total), width)
+    return f"[{'█' * filled}{'░' * (width - filled)}] {unlocked}/{total} ({pct:.1f}%)"
+
+
 def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None = None):
     user_id = int(user_id)
     newly_unlocked = []
@@ -335,7 +343,11 @@ class TitlePlugin(Plugin):
             self.api.send_msg(at(show_to_user_id), text("还没有解锁任何称号喵~"))
             return
 
-        lines = ["已解锁称号：", ""]
+        lines = [
+            "已解锁称号：",
+            f"搜集进度：{_title_collection_progress(len(title_ids), len(TITLE_DEFS))}",
+            "",
+        ]
         for tid in title_ids:
             lines.append(self._title_line(tid, equipped))
         self.api.send_forward_msg([at(show_to_user_id), text("\n".join(lines))])
