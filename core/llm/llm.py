@@ -214,7 +214,7 @@ def chat_assistant_reply(user_text: str) -> str:
 
     注意：该函数不注入系统提示词，不维护历史，仅做最薄封装。
     """
-    llm = LLM()
-    request = ChatRequest(messages=[Message(role="user", content=user_text)])
-    response = llm.chat(request)
-    return response.message
+    from core.llm.chat_facade import CompletionContext, complete
+
+    outcome = complete(CompletionContext(messages=[Message(role="user", content=user_text)]))
+    return outcome.message

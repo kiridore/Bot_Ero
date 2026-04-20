@@ -12,7 +12,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
 
-from core.llm.llm import ChatRequest, ChatResponse, LLM, Message, ToolCall, ToolSpec
+from core.llm.chat_facade import CompletionContext, complete
+from core.llm.client_protocol import LLMTransport
+from core.llm.llm import ChatResponse, Message, ToolCall, ToolSpec
 from core.llm.prompt_builder import Memory, Persona, PromptBuilder, PromptRequest, Summary
 
 
@@ -156,7 +158,7 @@ class ConversationEngine:
     def __init__(
         self,
         *,
-        llm: LLM,
+        llm: LLMTransport,
         prompt_builder: PromptBuilder | None = None,
         context_provider: ContextProvider | None = None,
         policy: Policy | None = None,
@@ -243,13 +245,19 @@ class ConversationEngine:
             )
         )
 
-        # 4) 调用 LLM
-        response = self.llm.chat(
-            ChatRequest(
-                messages=prompt_result.messages,
+        # 4) 调用 LLM（经门面，便于统一观测与后续扩展）
+        outcome = complete(
+            CompletionContext(
+                messages=list(prompt_result.messages),
                 tools=context.tools if decision.allow_tool_call else None,
-            )
+                meta={
+                    "session_id": request.session_id,
+                    "user_id": request.user_id,
+                },
+            ),
+            client=self.llm,
         )
+        response = outcome.raw
         events.append(
             EngineEvent(
                 event_type=TurnState.LLM_RESPONDED.value,
