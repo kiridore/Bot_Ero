@@ -1,4 +1,6 @@
 import os
+import time
+
 import core.context as runtime_context
 from core import utils
 from core.base import TimedHeartbeatPlugin
@@ -25,6 +27,7 @@ class BackupPlugin(TimedHeartbeatPlugin):
         error_cnt = 0
         remedy_cnt = 0
 
+        t0 = time.perf_counter()
         for row in rows:
             # 根据QQ号创建文件夹
             user_id = row[1]
@@ -64,5 +67,31 @@ class BackupPlugin(TimedHeartbeatPlugin):
                 exists_cnt += 1
 
             # print("尝试备份{}, {}".format(backup_image, flag))
-        success_percent = (exists_cnt + success_cnt + remedy_cnt)/len(rows) * 100
-        self.api.send_msg(text("备份完成喵，共检查{}次打卡记录\n{}张图片通过数据校验\n本次备份{}张图片\n有{}张图片不幸遗失在历史的长河里\n包含{}次补卡记录\n\n{}%的数据确认安全备份了".format(len(rows), exists_cnt, success_cnt, error_cnt, remedy_cnt, success_percent)))
+
+        elapsed = time.perf_counter() - t0
+        if elapsed < 60:
+            duration_text = f"{elapsed:.2f} 秒"
+        else:
+            duration_text = f"{int(elapsed // 60)} 分 {elapsed % 60:.2f} 秒"
+
+        total = len(rows)
+        if total:
+            safe_pct = (exists_cnt + success_cnt + remedy_cnt) / total * 100
+        else:
+            safe_pct = 0.0
+
+        summary = (
+            "备份完成喵\n"
+            "────────\n"
+            f"本次耗时：{duration_text}\n"
+            "────────\n"
+            "统计\n"
+            f"· 检查记录：{total} 条\n"
+            f"· 校验通过（本地已有）：{exists_cnt} 张\n"
+            f"· 新下载备份：{success_cnt} 张\n"
+            f"· 备份失败：{error_cnt} 张\n"
+            f"· 补卡（跳过图片）：{remedy_cnt} 次\n"
+            "────────\n"
+            f"数据安全覆盖率：{safe_pct:.2f}%"
+        )
+        self.api.send_msg(text(summary))
