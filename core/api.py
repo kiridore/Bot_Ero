@@ -125,10 +125,16 @@ class ApiWrapper:
             return ""
 
 
-    def get_qq_avatar(self, user_id):
+    def get_qq_avatar(self, user_id) -> str:
+        """OneBot `get_qq_avatar`，成功返回头像 URL，失败返回空串。"""
         params = {"user_id": user_id}
         ret = self.call_api("get_qq_avatar", params)
-        return ret["data"]["url"]
+        if not ret or ret.get("status") != "ok":
+            return ""
+        data = ret.get("data")
+        if not isinstance(data, dict):
+            return ""
+        return data.get("url") or ""
 
     def set_friend_add_request(self, flag, approve = True):
         params = {"flag": flag, "approve" : approve, "remark": ""}

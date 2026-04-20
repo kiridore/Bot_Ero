@@ -3,3 +3,4 @@ data.db
 pyrightconfig.json
 __pycache__/
 backup
+test/gen_image_output/

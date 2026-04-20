@@ -44,3 +44,16 @@ def text_width(draw, text: str, font: FontType) -> float:
         return float(draw.textlength(text, font=font))
     bbox = draw.textbbox((0, 0), text, font=font)
     return float(bbox[2] - bbox[0])
+
+
+def truncate_text(draw, text: str, font: FontType, max_width: float) -> str:
+    if max_width <= 0:
+        return ""
+    if text_width(draw, text, font) <= max_width:
+        return text
+    ell = "…"
+    for i in range(len(text), 0, -1):
+        candidate = text[:i] + ell
+        if text_width(draw, candidate, font) <= max_width:
+            return candidate
+    return ell

@@ -19,9 +19,18 @@ def gen_personal_record_card(
     day_checkin_count: list[int],
     user_id: int,
     stats: PersonalRecordStats,
+    *,
+    user_display_name: str | None = None,
+    avatar=None,
 ) -> str:
     """生成完整档案图并保存，返回写入的 PNG 路径（相对/与原先一致）。"""
-    img = build_personal_record_image(year, day_checkin_count, stats)
+    img = build_personal_record_image(
+        year,
+        day_checkin_count,
+        stats,
+        user_display_name=user_display_name,
+        avatar=avatar,
+    )
     return save_personal_record_png(user_id, img)
 
 
