@@ -25,7 +25,7 @@ class WeekListPlugin(Plugin):
         return "「{}」".format("·".join(names))
 
     def match(self, message_type):
-        return self.on_full_match("/本周板油")
+        return self.on_full_match_any("/本周板油", "/本週板油")
 
     def handle(self):
         #计算本周起止日期

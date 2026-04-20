@@ -9,7 +9,7 @@ class GrantPointsAllPlugin(Plugin):
     description = '给全部用户统一发放积分。'
 
     def match(self, message_type):
-        return self.admin_user() and self.on_command("/发金币")
+        return self.admin_user() and self.on_command_any("/发金币", "/發金幣")
 
     def handle(self):
         if len(self.args) < 2:

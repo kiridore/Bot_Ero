@@ -8,7 +8,7 @@ class GroupSpecialTitlePlugin(Plugin):
     description = '设置或清空用户群头衔。'
 
     def match(self, message_type):
-        return self.on_command("/群头衔")
+        return self.on_command_any("/群头衔", "/群頭銜")
 
     def handle(self):
         if self.bot_event.user_id == None:

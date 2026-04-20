@@ -8,7 +8,7 @@ class CallPlugin(Plugin):
     description = '在被点名时回复机器人在线状态。'
 
     def match(self, message_type):
-        return self.on_full_match("小埃同学")
+        return self.on_full_match_any("小埃同学", "小埃同學")
 
     def handle(self):
         self.api.send_msg(text("我在~"))

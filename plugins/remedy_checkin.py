@@ -21,11 +21,11 @@ class RemedyCheckinPlugin(Plugin):
         return True
     
     def match(self, message_type):
-        if self.on_command("/单日补卡"):
+        if self.on_command_any("/单日补卡", "/單日補卡"):
             return True
-        elif self.on_command("/补卡"):
+        elif self.on_command_any("/补卡", "/補卡"):
             return True
-        elif self.on_command("/超级补卡") and self.admin_user():
+        elif self.on_command_any("/超级补卡", "/超級補卡") and self.admin_user():
             self.super_mode = True
             return True
         return False
@@ -34,7 +34,7 @@ class RemedyCheckinPlugin(Plugin):
         if self.bot_event.user_id == None:
             return
 
-        if self.args[0] == "/单日补卡":
+        if self.args[0] in ("/单日补卡", "/單日補卡"):
             self.handle_single_day_remedy()
             return
 

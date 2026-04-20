@@ -308,9 +308,9 @@ class TitlePlugin(Plugin):
     description = '查询、查看、装备和卸下称号。'
 
     def match(self, message_type):
-        if self.on_full_match("/称号一览"):
+        if self.on_full_match_any("/称号一览", "/稱號一覽"):
             return True
-        return self.on_command("/称号")
+        return self.on_command_any("/称号", "/稱號")
 
     def _title_line(self, title_id, equipped_titles):
         data = TITLE_DEFS.get(title_id)
@@ -420,7 +420,7 @@ class TitlePlugin(Plugin):
 
         user_id = self.bot_event.user_id
 
-        if self.on_full_match("/称号一览"):
+        if self.on_full_match_any("/称号一览", "/稱號一覽"):
             self._show_title_list(user_id, user_id)
             return
 
@@ -433,22 +433,22 @@ class TitlePlugin(Plugin):
             return
 
         sub = args[1]
-        if sub == "当前":
+        if sub in ("当前", "當前"):
             self._show_current(user_id)
             return
         if sub == "卸下":
             self._unequip(user_id)
             return
-        if sub == "随机":
+        if sub in ("随机", "隨機"):
             self._equip_random(user_id)
             return
-        if sub == "详情":
+        if sub in ("详情", "詳情"):
             if len(args) < 3 or not args[2].isdigit():
                 self.api.send_msg(at(user_id), text("请使用 /称号 详情 <index>"))
                 return
             self._show_detail(user_id, int(args[2]))
             return
-        if sub == "查看":
+        if sub in ("查看", "檢視"):
             target_user = self._get_target_user_id_from_at()
             if target_user is None:
                 self.api.send_msg(at(user_id), text("请使用 /称号 查看 @用户"))

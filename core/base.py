@@ -44,6 +44,18 @@ class Plugin:
             return msg_text.strip() == keyword
         return False
 
+    def on_full_match_any(self, *keywords) -> bool:
+        if self.bot_event.message == None:
+            return False
+        message_list = self.bot_event.message
+        if len(message_list) != 1:
+            return False
+        msg = message_list[0]
+        if msg["type"] != "text":
+            return False
+        msg_text = msg["data"]["text"].strip()
+        return msg_text in keywords
+
     def on_begin_with(self, keyword="") -> bool:
         if self.bot_event.message == []:
             return False
@@ -69,6 +81,19 @@ class Plugin:
                 return True
             else:
                 return False
+        return False
+
+    def on_command_any(self, *commands) -> bool:
+        if self.bot_event.message == []:
+            return False
+        raw_data = self.bot_event.message[0]
+        if raw_data["type"] != "text":
+            return False
+        text_body = raw_data["data"]["text"]
+        sp = text_body.split(" ")
+        if sp[0] in commands:
+            self.args = text_body.split(" ")
+            return True
         return False
 
     def super_user(self) -> bool:

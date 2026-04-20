@@ -8,7 +8,7 @@ class AtAllReplyPlugin(Plugin):
     name = 'at_all_reply'
     description = '回复指定消息并艾特全体成员转发内容。'
 
-    COMMAND = "/全体成员"
+    COMMANDS = ("/全体成员", "/全體成員")
 
     def match(self, message_type):
         if message_type != "message":
@@ -22,7 +22,7 @@ class AtAllReplyPlugin(Plugin):
             if seg.get("type") == "reply":
                 has_reply = True
             if seg.get("type") == "text":
-                if seg.get("data", {}).get("text", "").strip() == self.COMMAND:
+                if seg.get("data", {}).get("text", "").strip() in self.COMMANDS:
                     has_command = True
         return has_reply and has_command
 

@@ -13,7 +13,7 @@ class RandomReferencePlugin(Plugin):
     PICSUM_URL = "https://picsum.photos/512"
 
     def match(self, message_type):
-        return self.on_full_match("/随机参考")
+        return self.on_full_match_any("/随机参考", "/隨機參考")
 
     def _resolve_image_url(self) -> str:
         # picsum.photos returns a redirect to the actual image.

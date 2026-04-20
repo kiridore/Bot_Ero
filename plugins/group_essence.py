@@ -19,7 +19,7 @@ class GroupEssencePlugin(Plugin):
                 continue
             if parts[0] == "/加精":
                 return "set"
-            if parts[0] == "/删除精华":
+            if parts[0] in ("/删除精华", "/刪除精華"):
                 return "delete"
         return None
 

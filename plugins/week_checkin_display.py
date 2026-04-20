@@ -9,7 +9,7 @@ class WeekCheckinDisplayPlugin(Plugin):
     description = '展示用户本周打卡图片。'
 
     def match(self, message_type):
-        return self.on_full_match("/本周打卡图")
+        return self.on_full_match_any("/本周打卡图", "/本週打卡圖")
 
     def handle(self):
         if self.bot_event.user_id == None:

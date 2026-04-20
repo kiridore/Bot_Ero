@@ -24,7 +24,7 @@ class DailyMessageStatsPlugin(Plugin):
         today = datetime.now().strftime("%Y-%m-%d")
         self.dbmanager.increment_group_daily_message_count(today, group_id, user_id, 1)
 
-        if not self.on_full_match("/今日发言统计"):
+        if not self.on_full_match_any("/今日发言统计", "/今日發言統計"):
             return
 
         rows = self.dbmanager.get_group_daily_message_stats(today, group_id, limit=20)

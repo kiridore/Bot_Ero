@@ -12,7 +12,7 @@ class MonitorPlugin(Plugin):
     description = '查询机器人运行时长和磁盘状态。'
 
     def match(self, message_type):
-        return self.super_user() and self.on_full_match("/系统状态")
+        return self.super_user() and self.on_full_match_any("/系统状态", "/系統狀態")
 
     def handle(self):
         usage = shutil.disk_usage("/")

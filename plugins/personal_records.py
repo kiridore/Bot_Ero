@@ -13,7 +13,7 @@ class PersonalRecords(Plugin):
     description = '生成并展示用户年度打卡档案。'
 
     def match(self, message_type):
-        return self.on_command("/档案") 
+        return self.on_command_any("/档案", "/檔案") 
 
     def handle(self):
         if self.bot_event.user_id == None:

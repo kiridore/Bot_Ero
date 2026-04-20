@@ -18,9 +18,9 @@ class LotteryPlugin(Plugin):
     FREE_DRAW_HINT = "本次抽卡免费（今日首抽）"
 
     def match(self, message_type):
-        if self.on_full_match("/抽奖") or self.on_full_match("/抽卡"):
+        if self.on_full_match_any("/抽奖", "/抽獎") or self.on_full_match("/抽卡"):
             return True
-        return self.on_command("/抽卡消费")
+        return self.on_command_any("/抽卡消费", "/抽卡消費")
 
     def _extract_target_user_id(self, default_user_id):
         for seg in self.bot_event.message:
@@ -88,7 +88,7 @@ class LotteryPlugin(Plugin):
             return
         user_id = self.bot_event.user_id
         args = getattr(self, "args", None)
-        if args and args[0] == "/抽卡消费":
+        if args and args[0] in ("/抽卡消费", "/抽卡消費"):
             target_user_id = self._extract_target_user_id(user_id)
             spent = self.dbmanager.get_lottery_spent(target_user_id)
             self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))

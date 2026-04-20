@@ -13,7 +13,7 @@ class BackupPlugin(TimedHeartbeatPlugin):
     RUN_AT = "08:00"
 
     def match(self, message_type):
-        return self.should_run_on_heartbeat(message_type) or self.on_full_match("/数据备份")
+        return self.should_run_on_heartbeat(message_type) or self.on_full_match_any("/数据备份", "/數據備份")
 
     def handle(self):
         rows = self.dbmanager.get_all_record()
