@@ -15,22 +15,10 @@ from plugins.title import get_title_def
 ShopApply = Callable[["RedeemShopPlugin"], None]
 
 SHOP_ITEMS: dict[str, dict[str, Any]] = {
-    "title_43": {
-        "description": "解锁稀有称号「卷」",
-        "cost": 40,
-        "initial_stock": 10,
-        "apply": None,
-    },
-    "title_51": {
-        "description": "解锁传奇称号「我还没有睡饱」",
-        "cost": 120,
-        "initial_stock": 3,
-        "apply": None,
-    },
     "points_pack": {
-        "description": "小额积分包（支付10积分，到账10积分）",
+        "description": "小额积分包（支付10积分，到账20积分）",
         "cost": 10,
-        "initial_stock": -1,
+        "initial_stock": 0,
         "apply": None,
     },
 }
@@ -56,7 +44,7 @@ def _grant_points_pack(plugin: "RedeemShopPlugin", bonus: int) -> None:
 def _wire_applies() -> None:
     SHOP_ITEMS["title_43"]["apply"] = lambda p: _grant_title(p, 43)
     SHOP_ITEMS["title_51"]["apply"] = lambda p: _grant_title(p, 51)
-    SHOP_ITEMS["points_pack"]["apply"] = lambda p: _grant_points_pack(p, 10)
+    SHOP_ITEMS["points_pack"]["apply"] = lambda p: _grant_points_pack(p, 20)
 
 
 _wire_applies()
@@ -112,7 +100,7 @@ class RedeemShopPlugin(Plugin):
         _ensure_shop_rows(self.dbmanager)
 
         if len(args) < 2:
-            self.api.send_msg(at(user_id), text(self._format_list()))
+            self.api.send_forward_msg([at(user_id), text(self._format_list())])
             return
 
         product_id = args[1].strip()
