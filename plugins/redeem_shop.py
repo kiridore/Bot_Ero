@@ -1,27 +1,26 @@
 """
-积分商店：商品定义在内存 SHOP_ITEMS；库存仅在数据库 shop_stock。
+积分商店：商品以 title_<id> 存在 shop_stock；内存 SHOP_ITEMS 由数据库同步。
+每周一 8:00 清空货架并从 title.TITLE_DEFS 随机上架 4 个称号（4 积分、库存 2）。
 """
 
 from __future__ import annotations
 
+import random
 from typing import Any, Callable
 
-from core.base import Plugin
+from core.base import Plugin, TimedHeartbeatPlugin
 from core.cq import at, text
+from core.logger import logger
 from core.utils import register_plugin
-from plugins.title import get_title_def
+from plugins.title import TITLE_DEFS, get_title_def
 
 
 ShopApply = Callable[["RedeemShopPlugin"], None]
 
-SHOP_ITEMS: dict[str, dict[str, Any]] = {
-    "points_pack": {
-        "description": "小额积分包（支付10积分，到账20积分）",
-        "cost": 10,
-        "initial_stock": 0,
-        "apply": None,
-    },
-}
+SHOP_ITEMS: dict[str, dict[str, Any]] = {}
+
+WEEKLY_TITLE_COST = 4
+WEEKLY_TITLE_STOCK = 2
 
 
 def _grant_title(plugin: "RedeemShopPlugin", title_id: int) -> None:
@@ -34,38 +33,64 @@ def _grant_title(plugin: "RedeemShopPlugin", title_id: int) -> None:
         raise RuntimeError("称号发放失败")
 
 
-def _grant_points_pack(plugin: "RedeemShopPlugin", bonus: int) -> None:
-    uid = plugin.bot_event.user_id
-    if uid is None:
-        raise RuntimeError("无法识别用户")
-    plugin.dbmanager.adjust_user_points(uid, bonus, commit=False)
+def refresh_shop_items_from_database(db) -> None:
+    """根据 shop_stock 重建内存中的 SHOP_ITEMS（进程重启后与数据库一致）。"""
+    global SHOP_ITEMS
+    rows = db.get_all_shop_stock()
+    SHOP_ITEMS.clear()
+    for pid, _stock in rows:
+        if not str(pid).startswith("title_"):
+            continue
+        try:
+            tid = int(str(pid).split("_", 1)[1])
+        except (ValueError, IndexError):
+            continue
+        tdef = get_title_def(tid) or {}
+        nm = tdef.get("name", "?")
+        SHOP_ITEMS[pid] = {
+            "description": f"解锁称号「{nm}」",
+            "cost": WEEKLY_TITLE_COST,
+            "initial_stock": int(_stock),
+            "apply": (lambda p, tt=tid: _grant_title(p, tt)),
+        }
 
 
-def _wire_applies() -> None:
-    SHOP_ITEMS["points_pack"]["apply"] = lambda p: _grant_points_pack(p, 20)
+def weekly_refresh_shop_shelf(db) -> list[int]:
+    """清空商店，随机选 4 个称号上架（固定售价与库存），并同步内存。"""
+    all_ids = list(TITLE_DEFS.keys())
+    if not all_ids:
+        db.replace_entire_shop_shelf({})
+        refresh_shop_items_from_database(db)
+        return []
+    k = min(4, len(all_ids))
+    picked = random.sample(all_ids, k=k)
+    mapping = {f"title_{tid}": WEEKLY_TITLE_STOCK for tid in picked}
+    db.replace_entire_shop_shelf(mapping)
+    refresh_shop_items_from_database(db)
+    return picked
 
 
-_wire_applies()
+@register_plugin
+class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
+    name = "shop_weekly_rotation"
+    description = "每周一 8:00 刷新积分商店称号上架。"
 
-_shop_stock_ready = False
+    RUN_AT = "08:00"
+    RUN_WEEKDAYS = [1]
 
+    def match(self, event_type):
+        return self.should_run_on_heartbeat(event_type)
 
-def _ensure_shop_rows(db) -> None:
-    global _shop_stock_ready
-    if _shop_stock_ready:
-        return
-    for pid, meta in SHOP_ITEMS.items():
-        db.ensure_shop_stock(pid, int(meta["initial_stock"]))
-    _shop_stock_ready = True
-
-
-def _stock_label(db, product_id: str) -> str:
-    n = db.get_shop_stock(product_id)
-    if n is None:
-        return "未上架"
-    if n == -1:
-        return "不限"
-    return str(n)
+    def handle(self):
+        try:
+            picked = weekly_refresh_shop_shelf(self.dbmanager)
+            logger.info(
+                "积分商店已刷新（本周 %s 个称号）：%s",
+                len(picked),
+                picked,
+            )
+        except Exception as e:
+            logger.exception("积分商店周刷新失败: %s", e)
 
 
 @register_plugin
@@ -77,13 +102,24 @@ class RedeemShopPlugin(Plugin):
         return event_type == "message" and self.on_command("/兑换")
 
     def _format_list(self) -> str:
-        _ensure_shop_rows(self.dbmanager)
+        refresh_shop_items_from_database(self.dbmanager)
         lines = ["—— 积分商店 ——", "用法：/兑换 <商品id>", ""]
+        if not SHOP_ITEMS:
+            lines.append("本周暂无上架商品（每周一 8:00 刷新）。")
+            lines.append("")
+            lines.append("发送 /兑换 <商品id> 兑换。")
+            return "\n".join(lines).rstrip()
         for pid in sorted(SHOP_ITEMS.keys()):
             meta = SHOP_ITEMS[pid]
             cost = meta["cost"]
             desc = meta["description"]
-            stock = _stock_label(self.dbmanager, pid)
+            stock_n = self.dbmanager.get_shop_stock(pid)
+            if stock_n is None:
+                stock = "未上架"
+            elif stock_n == -1:
+                stock = "不限"
+            else:
+                stock = str(stock_n)
             lines.append(f"[{pid}] {desc}")
             lines.append(f"    售价 {cost} 积分｜剩余 {stock}")
             lines.append("")
@@ -95,7 +131,7 @@ class RedeemShopPlugin(Plugin):
             return
         user_id = self.bot_event.user_id
         args = [p for p in (getattr(self, "args", []) or []) if p]
-        _ensure_shop_rows(self.dbmanager)
+        refresh_shop_items_from_database(self.dbmanager)
 
         if len(args) < 2:
             self.api.send_forward_msg([at(user_id), text(self._format_list())])
@@ -148,8 +184,6 @@ class RedeemShopPlugin(Plugin):
                 msg = f"兑换成功，称号「{name}」已解锁。剩余积分 {rest}。"
             except (ValueError, IndexError):
                 msg = f"兑换成功，剩余积分 {rest}。"
-        elif product_id == "points_pack":
-            msg = f"兑换成功，积分已入账。剩余积分 {rest}。"
         else:
             msg = f"兑换成功，剩余积分 {rest}。"
         self.api.send_msg(at(user_id), text(msg))

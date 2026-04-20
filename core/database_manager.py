@@ -359,6 +359,28 @@ class DbManager:
         row = self.cur.fetchone()
         return None if row is None else int(row[0])
 
+    def get_all_shop_stock(self):
+        self.cur.execute("""
+            SELECT product_id, stock FROM shop_stock
+            ORDER BY product_id ASC
+        """)
+        return [(str(row[0]), int(row[1])) for row in self.cur.fetchall()]
+
+    def replace_entire_shop_shelf(self, product_stocks: dict[str, int]):
+        """清空商店库存表并写入新商品（键为 product_id，值为库存，-1 表示不限量）。"""
+        self.cur.execute("BEGIN IMMEDIATE")
+        try:
+            self.cur.execute("DELETE FROM shop_stock")
+            for pid, stock in product_stocks.items():
+                self.cur.execute("""
+                    INSERT INTO shop_stock (product_id, stock)
+                    VALUES (?, ?)
+                """, (str(pid), int(stock)))
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def redeem_shop_item(self, product_id: str, user_id, cost: int, grant_fn) -> tuple:
         """原子兑换：扣积分与库存（stock=-1 为不限量）、执行 grant_fn；任一步失败则整笔回滚。"""
         product_id = str(product_id)
