@@ -195,6 +195,34 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
 
 
 @register_plugin
+class ShopManualRefreshPlugin(Plugin):
+    name = "shop_manual_refresh"
+    description = "管理员指令：立刻刷新积分商店货架。"
+
+    def match(self, event_type):
+        return (
+            event_type == "message"
+            and self.admin_user()
+            and self.on_full_match("/刷新商店")
+        )
+
+    def handle(self):
+        if self.bot_event.user_id is None:
+            return
+        uid = self.bot_event.user_id
+        try:
+            picked = weekly_refresh_shop_shelf(self.dbmanager)
+            logger.info("管理员手动刷新积分商店（随机称号 id）：%s", picked)
+            self.api.send_msg(
+                at(uid),
+                text(f"商店已刷新。本周随机上架称号（共 {len(picked)} 个）：{picked}"),
+            )
+        except Exception as e:
+            logger.exception("管理员刷新商店失败: %s", e)
+            self.api.send_msg(at(uid), text(f"刷新失败：{e}"))
+
+
+@register_plugin
 class RedeemShopPlugin(Plugin):
     name = "redeem_shop"
     description = "使用积分兑换商店称号或权益。"
