@@ -118,11 +118,80 @@ class DbManager:
             FROM user_title_state
             WHERE equipped_title IS NOT NULL
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS group_alarms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL,
+                creator_user_id INTEGER NOT NULL,
+                fire_at TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                fired INTEGER NOT NULL DEFAULT 0
+            );
+        """)
+        self.cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_group_alarms_due ON group_alarms (fired, fire_at)"
+        )
         self.conn.commit()
 
     def __del__(self):
         self.conn.commit()
         self.conn.close()
+
+    def add_group_alarm(self, group_id: int, creator_user_id: int, fire_at: datetime, content: str) -> int:
+        fs = fire_at.strftime("%Y-%m-%d %H:%M:%S")
+        cs = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute(
+            """
+            INSERT INTO group_alarms (group_id, creator_user_id, fire_at, content, created_at, fired)
+            VALUES (?, ?, ?, ?, ?, 0)
+            """,
+            (int(group_id), int(creator_user_id), fs, content, cs),
+        )
+        self.conn.commit()
+        return int(self.cur.lastrowid)
+
+    def list_pending_alarms_for_user(self, group_id: int, creator_user_id: int):
+        self.cur.execute(
+            """
+            SELECT id, fire_at, content FROM group_alarms
+            WHERE group_id = ? AND creator_user_id = ? AND fired = 0
+            ORDER BY fire_at ASC
+            """,
+            (int(group_id), int(creator_user_id)),
+        )
+        return self.cur.fetchall()
+
+    def cancel_group_alarm(self, alarm_id: int, group_id: int, creator_user_id: int) -> bool:
+        self.cur.execute(
+            """
+            DELETE FROM group_alarms
+            WHERE id = ? AND group_id = ? AND creator_user_id = ? AND fired = 0
+            """,
+            (int(alarm_id), int(group_id), int(creator_user_id)),
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    def get_due_alarms(self, now: datetime, limit: int = 200):
+        ns = now.strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute(
+            """
+            SELECT id, group_id, creator_user_id, content FROM group_alarms
+            WHERE fired = 0 AND fire_at <= ?
+            ORDER BY fire_at ASC
+            LIMIT ?
+            """,
+            (ns, int(limit)),
+        )
+        return self.cur.fetchall()
+
+    def try_mark_alarm_fired(self, alarm_id: int) -> bool:
+        self.cur.execute(
+            "UPDATE group_alarms SET fired = 1 WHERE id = ? AND fired = 0", (int(alarm_id),)
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
 
     # 获取用户现在的积分
     def get_user_point(self, user_id)->int:
