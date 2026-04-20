@@ -8,7 +8,7 @@ from plugins.title import get_lottery_title_ids, get_title_def, evaluate_and_unl
 
 
 from core.utils import register_plugin
-# @register_plugin
+@register_plugin
 class LotteryPlugin(Plugin):
     name = 'lottery'
     description = '执行抽卡抽奖并发放奖励或称号。'
