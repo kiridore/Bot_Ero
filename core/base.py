@@ -105,7 +105,7 @@ class Plugin:
         if self.bot_event.sender == None:
             return False
 
-        return self.super_user() or self.bot_event.sender["role"] in ("admin", "owner")
+        return self.super_user() or self.bot_event.sender.get("role", "") in ("admin", "owner")
 
 
 class TimedHeartbeatPlugin(Plugin):
