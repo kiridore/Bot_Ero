@@ -102,6 +102,12 @@ class DbManager:
                 has_hit_ten INTEGER NOT NULL DEFAULT 0
             );
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS shop_stock (
+                product_id TEXT PRIMARY KEY,
+                stock INTEGER NOT NULL
+            );
+        """)
         self.cur.execute("PRAGMA table_info(checkin_records)")
         _cols = [row[1] for row in self.cur.fetchall()]
         if "message_id" not in _cols:
@@ -144,6 +150,91 @@ class DbManager:
         """, (user_id, value))
         self.conn.commit()
 
+    def adjust_user_points(self, user_id, delta: int, commit: bool = True):
+        user_id = str(user_id)
+        delta = int(delta)
+        self.cur.execute("""
+            INSERT OR IGNORE INTO user_assets (user_id, points)
+            VALUES (?, 0)
+        """, (user_id,))
+        self.cur.execute("""
+            UPDATE user_assets SET points = points + ?
+            WHERE user_id = ?
+        """, (delta, user_id))
+        if commit:
+            self.conn.commit()
+
+    def ensure_shop_stock(self, product_id: str, default_stock: int):
+        self.cur.execute("""
+            INSERT OR IGNORE INTO shop_stock (product_id, stock)
+            VALUES (?, ?)
+        """, (str(product_id), int(default_stock)))
+        self.conn.commit()
+
+    def get_shop_stock(self, product_id: str):
+        self.cur.execute("""
+            SELECT stock FROM shop_stock WHERE product_id = ?
+        """, (str(product_id),))
+        row = self.cur.fetchone()
+        return None if row is None else int(row[0])
+
+    def redeem_shop_item(self, product_id: str, user_id, cost: int, grant_fn) -> tuple:
+        """原子兑换：扣积分与库存（stock=-1 为不限量）、执行 grant_fn；任一步失败则整笔回滚。"""
+        product_id = str(product_id)
+        user_id_s = str(user_id)
+        cost = int(cost)
+        self.cur.execute("BEGIN IMMEDIATE")
+        try:
+            self.cur.execute(
+                "INSERT OR IGNORE INTO user_assets (user_id, points) VALUES (?, 0)",
+                (user_id_s,),
+            )
+            self.cur.execute("SELECT points FROM user_assets WHERE user_id = ?", (user_id_s,))
+            row = self.cur.fetchone()
+            points = 0 if row is None or row[0] is None else int(row[0])
+            if points < cost:
+                self.conn.rollback()
+                return False, "积分不足"
+
+            self.cur.execute("SELECT stock FROM shop_stock WHERE product_id = ?", (product_id,))
+            srow = self.cur.fetchone()
+            if srow is None:
+                self.conn.rollback()
+                return False, "商品不存在"
+            stock = int(srow[0])
+            if stock == 0:
+                self.conn.rollback()
+                return False, "库存不足"
+            if stock > 0:
+                self.cur.execute(
+                    "UPDATE shop_stock SET stock = stock - 1 WHERE product_id = ? AND stock > 0",
+                    (product_id,),
+                )
+                if self.cur.rowcount == 0:
+                    self.conn.rollback()
+                    return False, "库存不足"
+            elif stock != -1:
+                self.conn.rollback()
+                return False, "库存数据异常"
+
+            self.cur.execute(
+                "UPDATE user_assets SET points = points - ? WHERE user_id = ? AND points >= ?",
+                (cost, user_id_s, cost),
+            )
+            if self.cur.rowcount == 0:
+                self.conn.rollback()
+                return False, "积分不足"
+            try:
+                grant_fn()
+            except Exception as e:
+                self.conn.rollback()
+                return False, str(e) or "发放失败"
+            self.conn.commit()
+            return True, "ok"
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e) or "兑换失败"
+
     def get_point_leaderboard(self, limit=10):
         self.cur.execute("""
             SELECT user_id, points
@@ -162,13 +253,14 @@ class DbManager:
         """, (str(user_id),))
         return [row[0] for row in self.cur.fetchall()]
 
-    def unlock_title(self, user_id, title_id):
+    def unlock_title(self, user_id, title_id, commit: bool = True):
         self.cur.execute("""
             INSERT OR IGNORE INTO user_titles (user_id, title_id, unlocked_at)
             VALUES (?, ?, ?)
         """, (str(user_id), int(title_id), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         inserted = self.cur.rowcount > 0
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return inserted
 
     def has_title(self, user_id, title_id):
