@@ -1,6 +1,7 @@
 from core.base import Plugin
 from core.group_message_text import flatten_group_message_content
 from core.utils import register_plugin
+from core import context
 
 
 def _sender_display_name(bot_event) -> str:
