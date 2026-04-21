@@ -7,6 +7,8 @@ from typing import Protocol, Sequence, runtime_checkable
 
 import numpy as np
 
+from core.logger import logger
+
 DEFAULT_SIMILARITY_THRESHOLD = 0.55
 MIN_TEXT_LEN_FOR_TOPIC = 2
 
@@ -124,13 +126,32 @@ class GroupTopicSegmenter:
         best_id: int | None = None
         best_sim = -1.0
         best_record: TopicRecord | None = None
+        sim_pairs: list[tuple[int, float]] = []
 
         for t in topics:
             sim = float(np.dot(emb, t.centroid))
+            sim_pairs.append((t.id, sim))
             if sim > best_sim:
                 best_sim = sim
                 best_id = t.id
                 best_record = t
+
+        if sim_pairs:
+            sims_fmt = " ".join(f"{tid}:{s:.4f}" for tid, s in sim_pairs)
+        else:
+            sims_fmt = "(no topics)"
+        logger.debug(
+            "[group_topic_embed] group=%s user=%s msg_id=%s dim=%s threshold=%.3f | vs_topics: %s | best_topic=%s best_sim=%.4f preview=%r",
+            group_id,
+            user_id,
+            message_id,
+            int(emb.shape[0]),
+            self._threshold,
+            sims_fmt,
+            best_id if best_id is not None else "-",
+            best_sim,
+            preview[:120],
+        )
 
         if not topics or best_record is None or best_sim < self._threshold:
             blob = embedding_to_f32_blob(emb)

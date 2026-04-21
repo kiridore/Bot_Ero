@@ -292,6 +292,25 @@ class DbManager:
             )
         return out
 
+    def clear_group_chat_topics_for_group(self, group_id: int) -> tuple[int, int]:
+        """删除指定群全部 topic 与归属记录。返回 (删除的归属行数, 删除的 topic 行数)。"""
+        gid = int(group_id)
+        self.cur.execute("DELETE FROM group_chat_topic_messages WHERE group_id = ?", (gid,))
+        msg_deleted = self.cur.rowcount if self.cur.rowcount is not None and self.cur.rowcount >= 0 else 0
+        self.cur.execute("DELETE FROM group_chat_topics WHERE group_id = ?", (gid,))
+        topic_deleted = self.cur.rowcount if self.cur.rowcount is not None and self.cur.rowcount >= 0 else 0
+        self.conn.commit()
+        return (int(msg_deleted), int(topic_deleted))
+
+    def clear_all_group_chat_topics(self) -> tuple[int, int]:
+        """删除所有群的 topic 与归属记录（测试用，慎用）。"""
+        self.cur.execute("DELETE FROM group_chat_topic_messages")
+        msg_deleted = self.cur.rowcount if self.cur.rowcount is not None and self.cur.rowcount >= 0 else 0
+        self.cur.execute("DELETE FROM group_chat_topics")
+        topic_deleted = self.cur.rowcount if self.cur.rowcount is not None and self.cur.rowcount >= 0 else 0
+        self.conn.commit()
+        return (int(msg_deleted), int(topic_deleted))
+
     def add_group_alarm(
         self,
         creator_user_id: int,
