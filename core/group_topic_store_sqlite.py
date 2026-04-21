@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import sqlite3
 
-from core.group_topic_segmenter import TopicRecord, TopicSegmenterStore, blob_to_normalized_centroid
+import numpy as np
+
+from core.group_topic_segmenter import (
+    RECENT_EMBEDDING_MAX,
+    TopicRecord,
+    TopicSegmenterStore,
+    blob_to_normalized_centroid,
+)
 
 
 class GroupTopicStoreSqlite:
@@ -29,6 +36,19 @@ class GroupTopicStoreSqlite:
             if not isinstance(blob, (bytes, memoryview)):
                 continue
             b = bytes(blob)
+            self._cur.execute(
+                """
+                SELECT msg_embedding_blob FROM group_chat_topic_messages
+                WHERE topic_id = ? AND msg_embedding_blob IS NOT NULL
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (int(rid), RECENT_EMBEDDING_MAX),
+            )
+            recent_list: list[np.ndarray] = []
+            for (bb,) in reversed(self._cur.fetchall()):
+                if bb and isinstance(bb, (bytes, memoryview)):
+                    recent_list.append(blob_to_normalized_centroid(bytes(bb)))
             out.append(
                 TopicRecord(
                     id=int(rid),
@@ -36,6 +56,7 @@ class GroupTopicStoreSqlite:
                     centroid=blob_to_normalized_centroid(b),
                     message_count=int(mc),
                     anchor_preview=str(ap or ""),
+                    recent_embeddings=tuple(recent_list),
                 )
             )
         return out
@@ -95,13 +116,15 @@ class GroupTopicStoreSqlite:
         content_preview: str,
         similarity: float | None,
         created_at: str,
+        msg_embedding_blob: bytes | None = None,
     ) -> None:
         self._cur.execute(
             """
             INSERT OR IGNORE INTO group_chat_topic_messages (
-                topic_id, group_id, message_id, user_id, content_preview, similarity, created_at
+                topic_id, group_id, message_id, user_id, content_preview, similarity, created_at,
+                msg_embedding_blob
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(topic_id),
@@ -111,6 +134,7 @@ class GroupTopicStoreSqlite:
                 content_preview,
                 similarity,
                 created_at,
+                msg_embedding_blob,
             ),
         )
         self._conn.commit()

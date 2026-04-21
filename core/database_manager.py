@@ -228,6 +228,12 @@ class DbManager:
             ON group_chat_topic_messages(group_id, message_id)
             WHERE message_id >= 0
         """)
+        self.cur.execute("PRAGMA table_info(group_chat_topic_messages)")
+        _gctm_cols = [row[1] for row in self.cur.fetchall()]
+        if _gctm_cols and "msg_embedding_blob" not in _gctm_cols:
+            self.cur.execute(
+                "ALTER TABLE group_chat_topic_messages ADD COLUMN msg_embedding_blob BLOB"
+            )
         self.conn.commit()
 
     def __del__(self):
