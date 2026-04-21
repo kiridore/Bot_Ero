@@ -75,3 +75,31 @@ class GroupTopicDebugPlugin(Plugin):
             return
         report = _format_topics_report(int(gid), self.dbmanager)
         self.api.send_forward_msg(text(report))
+
+
+@register_plugin
+class GroupTopicClearPlugin(Plugin):
+    name = "group_topic_clear"
+    description = "超级用户：清空本群或全库话题划分数据（测试）。"
+
+    def match(self, message_type: str) -> bool:
+        if message_type != "message" or not self.super_user():
+            return False
+        if self.on_full_match_any("/话题清空全部", "/topic_clear_all"):
+            return True
+        return bool(self.bot_event.is_group) and self.on_full_match_any("/话题清空", "/topic_clear")
+
+    def handle(self) -> None:
+        if self.on_full_match_any("/话题清空全部", "/topic_clear_all"):
+            m, t = self.dbmanager.clear_all_group_chat_topics()
+            self.api.send_msg(
+                text(f"【话题】已清空全库：归属记录 {m} 条，topic {t} 个。"),
+            )
+            return
+        gid = self.bot_event.group_id
+        if gid is None:
+            return
+        m, t = self.dbmanager.clear_group_chat_topics_for_group(int(gid))
+        self.api.send_msg(
+            text(f"【话题】已清空本群 {gid}：归属记录 {m} 条，topic {t} 个。"),
+        )
