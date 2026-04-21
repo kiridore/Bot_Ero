@@ -7,8 +7,8 @@ from datetime import datetime
 import numpy as np
 
 from core.database_manager import DbManager
-from core.group_message_text import flatten_group_message_content
-from core.group_topic_segmenter import AssignmentResult, GroupTopicSegmenter
+from core.group_message_text import flatten_group_message_content, group_message_has_user_text
+from core.group_topic_segmenter import AssignmentResult, GroupTopicSegmenter, TopicSegmenterStore
 from core.llm.embedder import Embedder
 
 
@@ -40,6 +40,8 @@ class GroupTopicService:
         message_id: int,
         message_segments: list | tuple | str | None,
     ) -> AssignmentResult | None:
+        if not group_message_has_user_text(message_segments, int(group_id)):
+            return None
         text = flatten_group_message_content(message_segments, int(group_id)).strip()
         if len(text) < self._min_len:
             return None

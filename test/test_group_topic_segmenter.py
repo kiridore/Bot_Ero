@@ -263,6 +263,50 @@ class TestGroupTopicService(unittest.TestCase):
         self.assertIsNone(r)
         emb.embed.assert_not_called()
 
+    def test_on_group_message_skips_image_only_without_embed(self) -> None:
+        from unittest.mock import MagicMock
+
+        from core.group_topic_service import GroupTopicService
+
+        emb = MagicMock()
+        store = _FakeStore()
+        svc = GroupTopicService(embedder=emb, store=store)
+        r = svc.on_group_message(1, 1, 1, [{"type": "image", "data": {"file": "x"}}])
+        self.assertIsNone(r)
+        emb.embed.assert_not_called()
+
+    def test_on_group_message_skips_forward_only_without_embed(self) -> None:
+        from unittest.mock import MagicMock
+
+        from core.group_topic_service import GroupTopicService
+
+        emb = MagicMock()
+        store = _FakeStore()
+        svc = GroupTopicService(embedder=emb, store=store)
+        r = svc.on_group_message(1, 1, 1, [{"type": "forward", "data": {}}])
+        self.assertIsNone(r)
+        emb.embed.assert_not_called()
+
+    def test_on_group_message_with_text_calls_embed(self) -> None:
+        from unittest.mock import MagicMock
+
+        import numpy as np
+
+        from core.group_topic_service import GroupTopicService
+
+        emb = MagicMock()
+        emb.embed.return_value = np.array([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32)
+        store = _FakeStore()
+        svc = GroupTopicService(embedder=emb, store=store, min_text_len=2)
+        r = svc.on_group_message(
+            1,
+            1,
+            1,
+            [{"type": "image", "data": {}}, {"type": "text", "data": {"text": "  hello  "}}],
+        )
+        self.assertIsNotNone(r)
+        emb.embed.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -5,6 +5,30 @@ from __future__ import annotations
 from core import context
 
 
+def group_message_has_user_text(message, group_id: int) -> bool:
+    """是否存在用户输入的纯文本段（非空 strip）。
+
+    纯图片、仅转发、仅 @、仅表情等无 ``type=='text'`` 且有效正文的，返回 False，
+    不参与话题划分 / 向量计算（避免用占位符串做 embedding）。
+    """
+    if isinstance(message, str):
+        return bool(message.strip())
+    if not isinstance(message, list):
+        return False
+    for seg in message:
+        if not isinstance(seg, dict):
+            continue
+        if seg.get("type") != "text":
+            continue
+        data = seg.get("data") or {}
+        raw = data.get("text", "")
+        if isinstance(raw, str) and raw.strip():
+            return True
+        if raw is not None and not isinstance(raw, str) and str(raw).strip():
+            return True
+    return False
+
+
 def flatten_group_message_content(message, group_id: int) -> str:
     """将 OneBot 11 message 数组转为可读文本（非文本段用占位符）。"""
     if isinstance(message, str):
