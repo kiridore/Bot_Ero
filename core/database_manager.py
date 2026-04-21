@@ -240,6 +240,58 @@ class DbManager:
 
         return GroupTopicStoreSqlite(self.conn, self.cur)
 
+    def list_group_chat_topics_for_debug(self, group_id: int) -> list[dict]:
+        """本群所有 topic：表内 message_count、归属消息行数、时间戳（供 /话题统计）。"""
+        self.cur.execute(
+            """
+            SELECT t.id, t.message_count, t.anchor_preview, t.created_at, t.updated_at,
+                   (SELECT COUNT(*) FROM group_chat_topic_messages m WHERE m.topic_id = t.id)
+            FROM group_chat_topics t
+            WHERE t.group_id = ?
+            ORDER BY t.id ASC
+            """,
+            (int(group_id),),
+        )
+        out: list[dict] = []
+        for row in self.cur.fetchall():
+            out.append(
+                {
+                    "topic_id": int(row[0]),
+                    "message_count": int(row[1]),
+                    "anchor_preview": str(row[2] or ""),
+                    "created_at": str(row[3] or ""),
+                    "updated_at": str(row[4] or ""),
+                    "assigned_rows": int(row[5]),
+                }
+            )
+        return out
+
+    def list_recent_topic_assignments(self, group_id: int, limit: int = 35) -> list[dict]:
+        """本群最近若干条划分记录（新→旧）。"""
+        self.cur.execute(
+            """
+            SELECT topic_id, message_id, user_id, content_preview, similarity, created_at
+            FROM group_chat_topic_messages
+            WHERE group_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (int(group_id), int(limit)),
+        )
+        out: list[dict] = []
+        for row in self.cur.fetchall():
+            out.append(
+                {
+                    "topic_id": int(row[0]),
+                    "message_id": int(row[1]),
+                    "user_id": int(row[2]),
+                    "content_preview": str(row[3] or ""),
+                    "similarity": row[4],
+                    "created_at": str(row[5] or ""),
+                }
+            )
+        return out
+
     def add_group_alarm(
         self,
         creator_user_id: int,
