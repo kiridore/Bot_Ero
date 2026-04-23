@@ -38,6 +38,7 @@ class AssignmentResult:
     is_new_topic: bool
     similarity: float
     text_preview: str
+    message_count_after: int
 
 
 @runtime_checkable
@@ -232,6 +233,7 @@ class GroupTopicSegmenter:
                 is_new_topic=True,
                 similarity=sim_out,
                 text_preview=preview,
+                message_count_after=1,
             )
 
         assert best_record is not None and best_id is not None
@@ -260,4 +262,5 @@ class GroupTopicSegmenter:
             is_new_topic=False,
             similarity=float(best_sim),
             text_preview=preview,
+            message_count_after=new_count,
         )

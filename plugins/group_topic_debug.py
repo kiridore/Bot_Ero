@@ -32,10 +32,14 @@ def _format_topics_report(group_id: int, db) -> str:
             ar = t["assigned_rows"]
             ap = _one_line(t["anchor_preview"], 64)
             mismatch = " ⚠表内条数≠归属行" if mc != ar else ""
+            summ = _one_line(str(t.get("topic_summary") or ""), 120)
+            sum_ts = str(t.get("summary_updated_at") or "").strip()
+            sum_line = f"\n  摘要: {summ}" if summ else ""
+            sum_ts_line = f"\n  摘要时间: {sum_ts}" if sum_ts else ""
             lines.append(
                 f"#{tid} | 质心计数={mc} | 归属消息行={ar}{mismatch}\n"
                 f"  预览: {ap}\n"
-                f"  更新: {t['updated_at']}"
+                f"  更新: {t['updated_at']}{sum_line}{sum_ts_line}"
             )
 
     lines.extend(["", "---------- 最近划分记录 ----------"])
@@ -57,7 +61,7 @@ def _format_topics_report(group_id: int, db) -> str:
     return body
 
 
-@register_plugin
+# @register_plugin
 class GroupTopicDebugPlugin(Plugin):
     name = "group_topic_debug"
     description = "超级用户：本群话题划分统计（调试用）。"
@@ -77,7 +81,7 @@ class GroupTopicDebugPlugin(Plugin):
         self.api.send_forward_msg(text(report))
 
 
-@register_plugin
+# @register_plugin
 class GroupTopicClearPlugin(Plugin):
     name = "group_topic_clear"
     description = "超级用户：清空本群或全库话题划分数据（测试）。"

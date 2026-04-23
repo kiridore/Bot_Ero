@@ -234,6 +234,14 @@ class DbManager:
             self.cur.execute(
                 "ALTER TABLE group_chat_topic_messages ADD COLUMN msg_embedding_blob BLOB"
             )
+        self.cur.execute("PRAGMA table_info(group_chat_topics)")
+        _gct_cols = [row[1] for row in self.cur.fetchall()]
+        if _gct_cols and "topic_summary" not in _gct_cols:
+            self.cur.execute("ALTER TABLE group_chat_topics ADD COLUMN topic_summary TEXT")
+        self.cur.execute("PRAGMA table_info(group_chat_topics)")
+        _gct_cols2 = [row[1] for row in self.cur.fetchall()]
+        if _gct_cols2 and "summary_updated_at" not in _gct_cols2:
+            self.cur.execute("ALTER TABLE group_chat_topics ADD COLUMN summary_updated_at TEXT")
         self.conn.commit()
 
     def __del__(self):
@@ -251,7 +259,8 @@ class DbManager:
         self.cur.execute(
             """
             SELECT t.id, t.message_count, t.anchor_preview, t.created_at, t.updated_at,
-                   (SELECT COUNT(*) FROM group_chat_topic_messages m WHERE m.topic_id = t.id)
+                   (SELECT COUNT(*) FROM group_chat_topic_messages m WHERE m.topic_id = t.id),
+                   t.topic_summary, t.summary_updated_at
             FROM group_chat_topics t
             WHERE t.group_id = ?
             ORDER BY t.id ASC
@@ -268,6 +277,8 @@ class DbManager:
                     "created_at": str(row[3] or ""),
                     "updated_at": str(row[4] or ""),
                     "assigned_rows": int(row[5]),
+                    "topic_summary": str(row[6]) if row[6] is not None else "",
+                    "summary_updated_at": str(row[7]) if row[7] is not None else "",
                 }
             )
         return out
@@ -316,6 +327,30 @@ class DbManager:
         topic_deleted = self.cur.rowcount if self.cur.rowcount is not None and self.cur.rowcount >= 0 else 0
         self.conn.commit()
         return (int(msg_deleted), int(topic_deleted))
+
+    def list_topic_message_previews(self, topic_id: int, limit: int = 30) -> list[str]:
+        """某 topic 下归属消息的 content_preview（时间正序）。"""
+        self.cur.execute(
+            """
+            SELECT content_preview FROM group_chat_topic_messages
+            WHERE topic_id = ?
+            ORDER BY id ASC
+            LIMIT ?
+            """,
+            (int(topic_id), int(limit)),
+        )
+        return [str(r[0] or "") for r in self.cur.fetchall()]
+
+    def update_topic_summary(self, topic_id: int, summary: str, updated_at: str) -> None:
+        self.cur.execute(
+            """
+            UPDATE group_chat_topics
+            SET topic_summary = ?, summary_updated_at = ?
+            WHERE id = ?
+            """,
+            (summary, updated_at, int(topic_id)),
+        )
+        self.conn.commit()
 
     def add_group_alarm(
         self,

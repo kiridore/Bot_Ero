@@ -7,7 +7,7 @@ from core.group_topic_service import GroupTopicService
 from core.utils import register_plugin
 
 
-@register_plugin
+# @register_plugin
 class GroupTopicSegmentPlugin(Plugin):
     name = "group_topic_segment"
     description = "群聊话题向量划分（无指令触发，依赖 Embedder）。"
