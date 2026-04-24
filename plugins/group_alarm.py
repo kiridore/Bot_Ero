@@ -7,8 +7,11 @@ from core.base import Plugin
 from core.cq import at, text
 from core.utils import register_plugin
 
-# 相对：…年后，缺省的年/月/日视为 0；须至少含一个数字
-_REL_AFTER_RE = re.compile(r"(?:(\d+)年)?(?:(\d+)月)?(?:(\d+)日)?后")
+# 相对：…年…月…日…时…分后（年/月/日/时/分均可省略，视为 0）；须至少含一个数字；可与独立 HH:MM 并存时以本段内的时/分为准
+_REL_AFTER_RE = re.compile(
+    r"(?:(\d+)年)?(?:(\d+)月)?(?:(\d+)日)?(?:(\d+)时)?(?:(\d+)分)?后"
+)
+_MIN_ALARM_LEAD = timedelta(minutes=5)
 # 绝对：不含「后」；按从长到短匹配，避免「1月」吞掉「1月15日」的一部分
 _ABS_DATE_RE = re.compile(
     r"(?:\d+年\d+月\d+日|\d+年\d+月|\d+年\d+日|\d+年|\d+月\d+日|\d+月|\d+日)(?!后)"
@@ -52,6 +55,21 @@ def _rel_match_valid(m: re.Match) -> bool:
         return False
     span = m.group(0)
     return bool(re.search(r"\d", span[:-1]))
+
+
+def _rel_has_embedded_clock(m: re.Match) -> bool:
+    """相对片段内是否写了「X时」或「Y分」（与独立 HH:MM 区分）。"""
+    g = m.groups()
+    if len(g) < 5:
+        return False
+    return g[3] is not None or g[4] is not None
+
+
+def _rel_embedded_hours_minutes(m: re.Match) -> Tuple[int, int]:
+    g = m.groups()
+    ha = int(g[3]) if len(g) > 3 and g[3] is not None else 0
+    mia = int(g[4]) if len(g) > 4 and g[4] is not None else 0
+    return ha, mia
 
 
 def _weekday_token_to_n(token: str) -> Optional[int]:
@@ -322,7 +340,7 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
     if not has_recur and not has_rel and not has_abs and not has_time:
         return (
             "请至少指定「每天/每日」「每N日/天」「每周…」「每年…月…日」「每月…日」之一，"
-            "或「…年后」相对日期、「…年…月…日」具体日期，或「HH:MM」时间。"
+            "或「…年…月…日…时…分后」相对时间、「…年…月…日」具体日期，或「HH:MM」时间。"
         )
     content = _strip_patterns_for_content(body)
     if not content:
@@ -357,7 +375,10 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
         ma = int(rel_m.group(2) or 0)
         da = int(rel_m.group(3) or 0)
         fire = _apply_year_month_day_offset(now, ya, ma, da)
-        if has_time:
+        if _rel_has_embedded_clock(rel_m):
+            ha, mia = _rel_embedded_hours_minutes(rel_m)
+            fire = fire + timedelta(hours=ha, minutes=mia)
+        elif has_time:
             fire = fire.replace(hour=th, minute=tm, second=0, microsecond=0)
     elif has_abs:
         gy, gm, gd = _extract_ymd_from_fragment(abs_m.group(0))
@@ -378,6 +399,8 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
         fire = datetime.combine(now.date(), dtime(th, tm, 0, 0))
     if fire <= now:
         return "闹钟触发时间不能早于或等于当前时刻（无日期时默认为当天该时刻）。"
+    if fire - now < _MIN_ALARM_LEAD:
+        return "闹钟须设置在至少 5 分钟之后（距当前时刻过近）。"
     return fire, content, recur
 
 
@@ -442,12 +465,15 @@ class GroupAlarmPlugin(Plugin):
             text(
                 "用法：\n"
                 "· 「X年X月X日」无「后」— 具体日历日，可只写年/月/日或任意组合（缺省补当前年、月或 1 日）。\n"
-                "· 「X年X月X日后」— 相对当前时刻的偏移；未写的年/月/日视为 0。\n"
+                "· 「X年X月X日X时X分后」— 相对当前时刻的偏移；未写的年/月/日/时/分视为 0；"
+                "可与独立 HH:MM 并存，若本段内写了时/分则以本段为准。\n"
+                "· 任意闹钟的触发时刻须距当前至少 5 分钟。\n"
                 "· 循环（须写在开头，且不能与紧接的「…日后」或定时用具体日历日混用）：\n"
                 "  「每天」「每日」— 等价于每 1 天；「每N日」或「每N天」— 每隔 N 天；"
                 "「每周一」…「每周日」或「每星期一」…「每星期日」；\n"
                 "  「每年M月D日」；「每月D日」。\n"
-                "· 可同时写 HH:MM；无时间时，具体日/循环为当天当前时刻，相对「…日后」为偏移后当前时刻。\n"
+                "· 可同时写 HH:MM；无时间时，具体日/循环为当天当前时刻；"
+                "相对「…后」若未写时/分，则为偏移后沿用当前时刻（否则以段内时/分为准）。\n"
                 "· /闹钟 HH:MM 内容 — 无日期时，为当天该时刻；若该时刻已过则无法设置。\n"
                 "须至少包含上述之一，且必须有文字内容。\n"
                 "群聊与私聊均可设置；到点后在原会话中提醒。\n"
