@@ -7,16 +7,17 @@ from core.base import Plugin
 from core.cq import at, text
 from core.utils import register_plugin
 
-# 相对：…年…月…日…(时|小时)…(分|分钟)后（均可省略，视为 0）；须至少含一个数字；「分钟」须在「分」之前匹配
+# 相对：…年…月…日…(时|時|小时|小時)…(分|分钟|分鐘)後|后（均可省略，视为 0）；长词序在前；须至少含一个数字
 _REL_AFTER_RE = re.compile(
     r"(?:(\d+)年)?(?:(\d+)月)?(?:(\d+)日)?"
-    r"(?:(\d+)(?:小时|时))?(?:(\d+)(?:分钟|分))?后"
+    r"(?:(\d+)(?:小時|小时|時|时))?(?:(\d+)(?:分鐘|分钟|分))?(?:後|后)"
 )
 # 最短提前量：须至少满 5 分钟（拒绝 fire - now < 5 分钟；刚好 5 分钟允许）
 _MIN_ALARM_LEAD = timedelta(minutes=5)
-# 绝对：不含「后」；按从长到短匹配，避免「1月」吞掉「1月15日」的一部分
+# 绝对：不含「后/後」；日可写作 日/號/号；按从长到短匹配
+_ABS_DAY = r"(?:日|號|号)"
 _ABS_DATE_RE = re.compile(
-    r"(?:\d+年\d+月\d+日|\d+年\d+月|\d+年\d+日|\d+年|\d+月\d+日|\d+月|\d+日)(?!后)"
+    rf"(?:\d+年\d+月\d+{_ABS_DAY}|\d+年\d+月|\d+年\d+{_ABS_DAY}|\d+年|\d+月\d+{_ABS_DAY}|\d+月|\d+{_ABS_DAY})(?!后|後)"
 )
 _TIME_RE = re.compile(r"(?<![0-9])([0-1]?\d|2[0-3])[:：]([0-5]\d)(?![0-9])")
 
@@ -27,10 +28,10 @@ RECUR_YEARLY = 3
 RECUR_MONTHLY = 4
 
 # 前缀从长到短匹配；周一=1 … 周日=7（与 datetime.weekday 的 0=周一 对应：py = wd - 1）
-_RECUR_MONTHLY_RE = re.compile(r"^每月(\d{1,2})[日号]")
-_RECUR_YEARLY_RE = re.compile(r"^每年(\d{1,2})月(\d{1,2})[日号]")
+_RECUR_MONTHLY_RE = re.compile(rf"^每月(\d{{1,2}}){_ABS_DAY}")
+_RECUR_YEARLY_RE = re.compile(rf"^每年(\d{{1,2}})月(\d{{1,2}}){_ABS_DAY}")
 _RECUR_WEEKLY_LONG_RE = re.compile(r"^每星期([一二三四五六日天])")
-_RECUR_WEEKLY_RE = re.compile(r"^每周(周天|周日|[一二三四五六日天])")
+_RECUR_WEEKLY_RE = re.compile(r"^每(?:周|週)(周天|周日|週日|[一二三四五六日天])")
 # 「每天」「每日」中间无数字，等价于每 1 天（须在「每N日/天」之前尝试，避免与「每3日」冲突）
 _RECUR_EVERY_DAY_RE = re.compile(r"^每(?:日|天)")
 _RECUR_N_DAYS_RE = re.compile(r"^每(\d+)(?:日|天)")
@@ -60,7 +61,7 @@ def _rel_match_valid(m: re.Match) -> bool:
 
 
 def _rel_has_embedded_clock(m: re.Match) -> bool:
-    """相对片段内是否写了「X时/X小时」或「Y分/Y分钟」（与独立 HH:MM 区分）。"""
+    """相对片段内是否写了「X时/…小时」或「Y分/…分钟」（与独立 HH:MM 区分）。"""
     g = m.groups()
     if len(g) < 5:
         return False
@@ -78,7 +79,7 @@ def _weekday_token_to_n(token: str) -> Optional[int]:
     """返回 1–7（周一…周日）。token 为「一」「日」「周天」等。"""
     if not token:
         return None
-    if token in ("周天", "周日"):
+    if token in ("周天", "周日", "週日"):
         return 7
     if len(token) != 1:
         return None
@@ -150,7 +151,7 @@ def _extract_ymd_from_fragment(fragment: str) -> Tuple[Optional[int], Optional[i
     mm = re.search(r"(\d+)月", fragment)
     if mm:
         m_ = int(mm.group(1))
-    md = re.search(r"(\d+)日", fragment)
+    md = re.search(r"(\d+)(?:日|號|号)", fragment)
     if md:
         d = int(md.group(1))
     return y, m_, d
@@ -326,7 +327,7 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
         rest_after = s0[em.end() :].strip()
         rm0 = _REL_AFTER_RE.match(rest_after)
         if _rel_match_valid(rm0):
-            return "循环前缀不能与「…日后」紧接在同一指令中。"
+            return "循环前缀不能与「…日后／…日後」紧接在同一指令中。"
         am0 = _ABS_DATE_RE.match(rest_after)
         if am0:
             return "循环前缀不能与用于定时的具体日历日期紧接在同一指令中。"
@@ -426,6 +427,8 @@ class GroupAlarmPlugin(Plugin):
         if m0.get("type") != "text":
             return False
         t = m0["data"]["text"].strip()
+        if t.startswith("／"):
+            t = "/" + t[1:]
         return t.startswith("/闹钟") or t.startswith("/鬧鐘")
 
     def _should_scan_alarms(self):
@@ -438,6 +441,8 @@ class GroupAlarmPlugin(Plugin):
 
     def _command_body(self) -> Tuple[str, str]:
         raw = self.bot_event.message[0]["data"]["text"].strip()
+        if raw.startswith("／"):
+            raw = "/" + raw[1:]
         if raw.startswith("/鬧鐘"):
             return "/鬧鐘", raw[len("/鬧鐘") :].strip()
         return "/闹钟", raw[len("/闹钟") :].strip()
@@ -453,10 +458,10 @@ class GroupAlarmPlugin(Plugin):
             self._send_usage()
             return
         first = body.split(None, 1)[0]
-        if first == "一览" or first == "一覽":
+        if first in ("一览", "一覽", "清單", "清单"):
             self._handle_list()
             return
-        if first == "取消":
+        if first in ("取消", "撤銷"):
             rest = body[len(first) :].strip()
             self._handle_cancel(rest)
             return
@@ -479,8 +484,9 @@ class GroupAlarmPlugin(Plugin):
                 "· /闹钟 HH:MM 内容 — 无日期时，为当天该时刻；若该时刻已过则无法设置。\n"
                 "须至少包含上述之一，且必须有文字内容。\n"
                 "群聊与私聊均可设置；到点后在原会话中提醒。\n"
-                "/闹钟 一览 — 查看本人待触发闹钟\n"
-                "/闹钟 取消 <编号> — 取消对应闹钟（仅本人创建）"
+                "/闹钟、/鬧鐘 一览／一覽／清單 — 查看本人待触发闹钟\n"
+                "/闹钟、/鬧鐘 取消／撤銷 <编号> — 取消对应闹钟（仅本人创建）；"
+                "亦可用全形「／」代替「/」。"
             )
         )
 
@@ -504,7 +510,7 @@ class GroupAlarmPlugin(Plugin):
 
     def _handle_cancel(self, rest: str):
         if not rest.isdigit():
-            self.api.send_msg(text("请使用：/闹钟 取消 <编号>（编号见「一览」）。"))
+            self.api.send_msg(text("请使用：/闹钟 取消 <编号> 或 /鬧鐘 撤銷 <编号>（编号见「一览／一覽」）。"))
             return
         aid = int(rest)
         ok = self.dbmanager.cancel_group_alarm(aid, self.bot_event.user_id, self.bot_event.group_id)
