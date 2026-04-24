@@ -5,7 +5,6 @@ import json as json_
 from datetime import datetime
 from core import api
 from core.logger import logger
-from core.llm.embedder import preload_embedder_model
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 
@@ -48,12 +47,6 @@ def on_message(_, message):
 
 
 if __name__ == "__main__":
-    try:
-        preload_embedder_model()
-        logger.info("句向量模型预加载完成（Embedder）。")
-    except Exception as exc:
-        logger.warning("句向量模型预加载失败（话题划分等功能将不可用）: %s", exc)
-
     api.echo = api.Echo()
     api.WS_APP = websocket.WebSocketApp(
         WS_URL,
