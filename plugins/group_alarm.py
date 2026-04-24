@@ -7,10 +7,12 @@ from core.base import Plugin
 from core.cq import at, text
 from core.utils import register_plugin
 
-# 相对：…年…月…日…时…分后（年/月/日/时/分均可省略，视为 0）；须至少含一个数字；可与独立 HH:MM 并存时以本段内的时/分为准
+# 相对：…年…月…日…(时|小时)…(分|分钟)后（均可省略，视为 0）；须至少含一个数字；「分钟」须在「分」之前匹配
 _REL_AFTER_RE = re.compile(
-    r"(?:(\d+)年)?(?:(\d+)月)?(?:(\d+)日)?(?:(\d+)时)?(?:(\d+)分)?后"
+    r"(?:(\d+)年)?(?:(\d+)月)?(?:(\d+)日)?"
+    r"(?:(\d+)(?:小时|时))?(?:(\d+)(?:分钟|分))?后"
 )
+# 最短提前量：须至少满 5 分钟（拒绝 fire - now < 5 分钟；刚好 5 分钟允许）
 _MIN_ALARM_LEAD = timedelta(minutes=5)
 # 绝对：不含「后」；按从长到短匹配，避免「1月」吞掉「1月15日」的一部分
 _ABS_DATE_RE = re.compile(
@@ -58,7 +60,7 @@ def _rel_match_valid(m: re.Match) -> bool:
 
 
 def _rel_has_embedded_clock(m: re.Match) -> bool:
-    """相对片段内是否写了「X时」或「Y分」（与独立 HH:MM 区分）。"""
+    """相对片段内是否写了「X时/X小时」或「Y分/Y分钟」（与独立 HH:MM 区分）。"""
     g = m.groups()
     if len(g) < 5:
         return False
@@ -340,7 +342,7 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
     if not has_recur and not has_rel and not has_abs and not has_time:
         return (
             "请至少指定「每天/每日」「每N日/天」「每周…」「每年…月…日」「每月…日」之一，"
-            "或「…年…月…日…时…分后」相对时间、「…年…月…日」具体日期，或「HH:MM」时间。"
+            "或「…年…月…日…(时|小时)…(分|分钟)后」相对时间、「…年…月…日」具体日期，或「HH:MM」时间。"
         )
     content = _strip_patterns_for_content(body)
     if not content:
@@ -400,7 +402,7 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
     if fire <= now:
         return "闹钟触发时间不能早于或等于当前时刻（无日期时默认为当天该时刻）。"
     if fire - now < _MIN_ALARM_LEAD:
-        return "闹钟须设置在至少 5 分钟之后（距当前时刻过近）。"
+        return "闹钟须设置在至少 5 分钟之后（距当前时刻不足 5 分钟）。"
     return fire, content, recur
 
 
@@ -465,9 +467,9 @@ class GroupAlarmPlugin(Plugin):
             text(
                 "用法：\n"
                 "· 「X年X月X日」无「后」— 具体日历日，可只写年/月/日或任意组合（缺省补当前年、月或 1 日）。\n"
-                "· 「X年X月X日X时X分后」— 相对当前时刻的偏移；未写的年/月/日/时/分视为 0；"
+                "· 「X年X月X日X时/小时X分/分钟后」— 相对当前时刻的偏移；未写的年/月/日/时/分视为 0；"
                 "可与独立 HH:MM 并存，若本段内写了时/分则以本段为准。\n"
-                "· 任意闹钟的触发时刻须距当前至少 5 分钟。\n"
+                "· 任意闹钟的触发时刻须距当前至少满 5 分钟（不足 5 分钟不可设，刚好 5 分钟可以）。\n"
                 "· 循环（须写在开头，且不能与紧接的「…日后」或定时用具体日历日混用）：\n"
                 "  「每天」「每日」— 等价于每 1 天；「每N日」或「每N天」— 每隔 N 天；"
                 "「每周一」…「每周日」或「每星期一」…「每星期日」；\n"
