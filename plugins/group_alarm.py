@@ -19,7 +19,34 @@ _ABS_DAY = r"(?:日|號|号)"
 _ABS_DATE_RE = re.compile(
     rf"(?:\d+年\d+月\d+{_ABS_DAY}|\d+年\d+月|\d+年\d+{_ABS_DAY}|\d+年|\d+月\d+{_ABS_DAY}|\d+月|\d+{_ABS_DAY})(?!后|後)"
 )
+# 与 YYYY年MM月DD日 等价的公历 YYYY-MM-DD（月日允许 1～2 位，解析后再校验）
+_ISO_DATE_RE = re.compile(
+    r"(?<![0-9])(?P<y>[12][0-9]{3})-(?P<mo>\d{1,2})-(?P<d>\d{1,2})(?![0-9])"
+)
 _TIME_RE = re.compile(r"(?<![0-9])([0-1]?\d|2[0-3])[:：]([0-5]\d)(?![0-9])")
+
+
+def _find_first_absolute_date(s: str) -> Optional[re.Match]:
+    """在全文取最先出现的公历「中文片段」或「YYYY-MM-DD」。"""
+    cands = []
+    m1 = _ISO_DATE_RE.search(s)
+    m2 = _ABS_DATE_RE.search(s)
+    if m1:
+        cands.append(m1)
+    if m2:
+        cands.append(m2)
+    if not cands:
+        return None
+    return min(cands, key=lambda m: m.start())
+
+
+def _abs_at_line_start(rest: str) -> Optional[re.Match]:
+    """与循环前缀互斥时：判断 rest 是否以公历绝对日期（中文或 ISO）开头。"""
+    t = rest.strip()
+    m = _ISO_DATE_RE.match(t)
+    if m:
+        return m
+    return _ABS_DATE_RE.match(t)
 
 # 循环类型（与 DB recur_kind 一致）
 RECUR_INTERVAL_DAYS = 1
@@ -306,7 +333,7 @@ def _strip_patterns_for_content(body: str) -> str:
         if _rel_match_valid(rel_m):
             s = s[: rel_m.start()] + " " + s[rel_m.end() :]
         else:
-            abs_m = _ABS_DATE_RE.search(s)
+            abs_m = _find_first_absolute_date(s)
             if abs_m:
                 s = s[: abs_m.start()] + " " + s[abs_m.end() :]
     s = _TIME_RE.sub(" ", s)
@@ -328,7 +355,7 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
         rm0 = _REL_AFTER_RE.match(rest_after)
         if _rel_match_valid(rm0):
             return "循环前缀不能与「…日后／…日後」紧接在同一指令中。"
-        am0 = _ABS_DATE_RE.match(rest_after)
+        am0 = _abs_at_line_start(rest_after)
         if am0:
             return "循环前缀不能与用于定时的具体日历日期紧接在同一指令中。"
         rel_m = None
@@ -338,12 +365,13 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
     else:
         rel_m = _REL_AFTER_RE.search(body)
         has_rel = _rel_match_valid(rel_m)
-        abs_m = None if has_rel else _ABS_DATE_RE.search(body)
+        abs_m = None if has_rel else _find_first_absolute_date(body)
         has_abs = abs_m is not None
     if not has_recur and not has_rel and not has_abs and not has_time:
         return (
             "请至少指定「每天/每日」「每N日/天」「每周…」「每年…月…日」「每月…日」之一，"
-            "或「…年…月…日…(时|小时)…(分|分钟)后」相对时间、「…年…月…日」具体日期，或「HH:MM」时间。"
+            "或「…年…月…日…(时|小时)…(分|分钟)后」相对时间、"
+            "「…年…月…日」或 YYYY-MM-DD 具体日期，或「HH:MM」时间。"
         )
     content = _strip_patterns_for_content(body)
     if not content:
@@ -384,11 +412,19 @@ def _parse_create_body(body: str) -> Union[Tuple[datetime, str, Optional[Tuple[i
         elif has_time:
             fire = fire.replace(hour=th, minute=tm, second=0, microsecond=0)
     elif has_abs:
-        gy, gm, gd = _extract_ymd_from_fragment(abs_m.group(0))
-        try:
-            yy, mm, dd = _build_absolute_ymd(now, gy, gm, gd)
-        except ValueError:
-            return "日期不合法，请检查年、月、日。"
+        if "y" in abs_m.groupdict():
+            try:
+                yy = int(abs_m.group("y"))
+                mm = int(abs_m.group("mo"))
+                dd = int(abs_m.group("d"))
+            except (TypeError, ValueError):
+                return "日期不合法，请检查 YYYY-MM-DD 格式。"
+        else:
+            gy, gm, gd = _extract_ymd_from_fragment(abs_m.group(0))
+            try:
+                yy, mm, dd = _build_absolute_ymd(now, gy, gm, gd)
+            except ValueError:
+                return "日期不合法，请检查年、月、日。"
         if yy < datetime.min.year or yy > 9999:
             return "年份超出可表示范围。"
         try:
@@ -471,7 +507,8 @@ class GroupAlarmPlugin(Plugin):
         self.api.send_msg(
             text(
                 "用法：\n"
-                "· 「X年X月X日」无「后」— 具体日历日，可只写年/月/日或任意组合（缺省补当前年、月或 1 日）。\n"
+                "· 「X年X月X日」无「后」— 具体日历日，可只写年/月/日或任意组合（缺省补当前年、月或 1 日）；"
+                "亦可用 YYYY-MM-DD（与「YYYY年MM月DD日」等价）。\n"
                 "· 「X年X月X日X时/小时X分/分钟后」— 相对当前时刻的偏移；未写的年/月/日/时/分视为 0；"
                 "可与独立 HH:MM 并存，若本段内写了时/分则以本段为准。\n"
                 "· 任意闹钟的触发时刻须距当前至少满 5 分钟（不足 5 分钟不可设，刚好 5 分钟可以）。\n"
