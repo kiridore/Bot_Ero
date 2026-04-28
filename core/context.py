@@ -19,6 +19,17 @@ plugin_registry: list[type["Plugin"]] = []
 DEFAULT_GROUP_ID = 296470819 # 在这里填写你想固定使用的群号
 
 
+def _format_record_time(ts) -> str:
+    if ts is None:
+        return "?"
+    if isinstance(ts, (int, float)):
+        try:
+            return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        except (OverflowError, OSError, ValueError):
+            return str(ts)
+    return str(ts)
+
+
 def get_recent_chat_records(group_id: int, limit: Optional[int] = None) -> list[dict]:
     """读取指定群最近聊天记录（按时间从旧到新）。"""
     records = list(recent_chat_records.get(int(group_id), ()))
@@ -38,7 +49,7 @@ def get_last_chat_record(group_id: int) -> Optional[dict]:
 def format_chat_record(record: dict, include_group_id: bool = False) -> str:
     """把单条聊天记录格式化为易读文本。"""
     ts = record.get("time")
-    time_text = str(ts) if ts is not None else "?"
+    time_text = _format_record_time(ts)
     nickname = str(record.get("nickname") or "未知用户")
     user_id = str(record.get("user_id") or "?")
     message_id = str(record.get("message_id") or "?")

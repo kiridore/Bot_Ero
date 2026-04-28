@@ -11,11 +11,11 @@ from core.llm.llm import ChatRequest, GenerationConfig, LLM, Message
 
 MEMORY_BATCH_SIZE = 40
 MEMORY_CONTEXT_SIZE = 50
-MEMORY_LLM_MODEL = "Qwen/Qwen3-8B"
+MEMORY_LLM_MODEL = "deepseek-v4-flash"
 MEMORY_PROMPT_PATH = (
     Path(__file__).resolve().parent / "llm" / "prompts" / "memory_point_gen_prompt.md"
 )
-MEMORY_LLM_BASE_URL = "https://api.siliconflow.cn/v1"
+MEMORY_LLM_BASE_URL = "https://api.deepseek.com"
 MEMORY_MAX_RETRIES = 3
 
 _group_message_counter: DefaultDict[int, int] = defaultdict(int)
@@ -36,7 +36,7 @@ def extract_group_memory_points(group_id: int, records: list[dict]) -> list[dict
     if not records:
         return []
 
-    api_key = os.getenv("SIFLOW_API_KEY", "").strip()
+    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
     if not api_key:
         logger.warning("群聊记忆提取跳过：缺少环境变量 SIFLOW_API_KEY。")
         return []
