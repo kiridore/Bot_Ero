@@ -38,7 +38,7 @@ def extract_group_memory_points(group_id: int, records: list[dict]) -> list[dict
 
     api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
     if not api_key:
-        logger.warning("群聊记忆提取跳过：缺少环境变量 SIFLOW_API_KEY。")
+        logger.warning("群聊记忆提取跳过：缺少环境变量 DEEPSEEK_API_KEY")
         return []
 
     try:
