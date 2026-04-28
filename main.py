@@ -8,7 +8,7 @@ from core.logger import logger
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 
-import websocket
+import websocket  # pyright: ignore[reportMissingImports]
 
 # WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
 WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
