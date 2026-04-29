@@ -47,7 +47,7 @@ def on_message(_, message):
         if event_type == "meta":
             logger.debug("心跳事件 -> " + message)
         else:
-            logger.info("收到事件 -> " + message)
+            logger.info("收到事件 -> \n" + json_.dumps(message, indent=2, ensure_ascii=False))
         t = threading.Thread(target=plugin_pool, args=(context, event_type))
         t.start()
 
