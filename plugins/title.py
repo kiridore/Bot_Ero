@@ -350,7 +350,7 @@ class TitlePlugin(Plugin):
         ]
         for tid in title_ids:
             lines.append(self._title_line(tid, equipped))
-        self.api.send_forward_msg([at(show_to_user_id), text("\n".join(lines))])
+        self.api.send_forward_msg([text("\n".join(lines))])
 
     def _show_current(self, user_id):
         equipped = self.dbmanager.get_equipped_titles(user_id)

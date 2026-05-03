@@ -263,7 +263,7 @@ class RedeemShopPlugin(Plugin):
         refresh_shop_items_from_database(self.dbmanager)
 
         if len(args) < 2:
-            self.api.send_forward_msg([at(user_id), text(self._format_list())])
+            self.api.send_forward_msg([text(self._format_list())])
             return
 
         product_id = args[1].strip()
