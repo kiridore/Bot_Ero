@@ -11,12 +11,12 @@ class RemedyCheckinPlugin(Plugin):
     description = '为用户补卡并扣除对应积分。'
 
     super_mode = False
-    YEARLY_LIMIT = 4
+    YEARLY_LIMIT = 4 * 7
 
     def _check_remedy_limit(self, user_id, year):
-        used = self.dbmanager.get_user_remedy_used(year, user_id)
+        used = self.dbmanager.get_user_remedy_days(year, user_id)
         if used >= self.YEARLY_LIMIT:
-            self.api.send_msg(text("{}年补卡次数已达上限（{}/{}）".format(year, used, self.YEARLY_LIMIT)))
+            self.api.send_msg(text("{}年补卡天数已达上限（{}/{}）".format(year, used, self.YEARLY_LIMIT)))
             return False
         return True
     
@@ -64,7 +64,6 @@ class RemedyCheckinPlugin(Plugin):
                     self.dbmanager.remedy_checkin(user_id, start.split(" ")[0])
                     if not self.super_mode:
                         utils.add_user_point(self.dbmanager, user_id, cost * -1)
-                        self.dbmanager.add_user_remedy_used(dt.year, user_id, 1)
                 else:
                     self.api.send_msg(text("补卡当然不是免费的喵!\n你现在现在点数是：{}\n补卡需要{}点喵".format(points, cost)))
             else:
