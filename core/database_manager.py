@@ -68,6 +68,14 @@ class DbManager:
             );
         """)
         self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_remedy_usage (
+                year INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                used_count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (year, user_id)
+            );
+        """)
+        self.cur.execute("""
             CREATE TABLE IF NOT EXISTS user_lottery_stats (
                 user_id INTEGER PRIMARY KEY,
                 total_spent INTEGER NOT NULL DEFAULT 0
@@ -741,14 +749,22 @@ class DbManager:
         """, (int(user_id), start, end))
         return self.cur.fetchone() is not None
 
-    def get_user_remedy_days(self, year, user_id):
+    def get_user_remedy_used(self, year, user_id):
         self.cur.execute("""
-            SELECT content
-            FROM checkin_records
-            WHERE year = ? AND user_id = ? AND content = "remedy_checkin"
+            SELECT used_count
+            FROM user_remedy_usage
+            WHERE year = ? AND user_id = ?
         """, (int(year), int(user_id)))
         row = self.cur.fetchone()
         return 0 if row is None else int(row[0])
+
+    def add_user_remedy_used(self, year, user_id, inc=1):
+        self.cur.execute("""
+            INSERT INTO user_remedy_usage (year, user_id, used_count)
+            VALUES (?, ?, ?)
+            ON CONFLICT(year, user_id) DO UPDATE SET used_count = used_count + excluded.used_count
+        """, (int(year), int(user_id), int(inc)))
+        self.conn.commit()
 
     def grant_points_to_all_users(self, amount):
         amount = int(amount)
