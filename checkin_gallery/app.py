@@ -1,14 +1,23 @@
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from checkin_gallery import config
+from checkin_gallery.auth import verify_login_key
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
-from checkin_gallery.onebot_client import resolve_display_name
-from checkin_gallery.repository import fetch_checkins_paginated, list_user_ids, resolve_image_path
+from checkin_gallery.onebot_client import resolve_avatar_url, resolve_display_name
+from checkin_gallery.profile_service import build_profile
+from checkin_gallery.repository import (
+    CheckinImage,
+    fetch_checkins_paginated,
+    fetch_user_settlement_day,
+    list_user_ids,
+    resolve_image_path,
+)
 from checkin_gallery.thumbnails import ensure_thumbnail
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -43,6 +52,22 @@ class UserIdsOut(BaseModel):
     users: list[UserOptionOut]
 
 
+class LoginIn(BaseModel):
+    key: str
+
+
+class SessionOut(BaseModel):
+    user_id: str
+    display_name: str
+    avatar_url: str
+    token: str
+
+
+class DayCheckinsOut(BaseModel):
+    date: str
+    items: list[CheckinItemOut]
+
+
 def _file_slug(content: str) -> str:
     return content.replace("{", "").replace("}", "").replace("-", "")
 
@@ -53,6 +78,74 @@ def _media_url(user_id: str, content: str) -> str:
 
 def _thumb_url(user_id: str, content: str) -> str:
     return f"/thumb/{user_id}/{_file_slug(content)}"
+
+
+def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
+    return CheckinItemOut(
+        id=item.id,
+        user_id=item.user_id,
+        display_name=display_name,
+        checkin_date=item.checkin_date,
+        thumbnail_url=_thumb_url(item.user_id, item.content),
+        image_url=_media_url(item.user_id, item.content),
+        has_file=item.image_path is not None,
+    )
+
+
+def get_current_user_id(
+    authorization: Annotated[str | None, Header()] = None,
+) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未登录")
+    uid = verify_login_key(authorization[7:].strip())
+    if uid is None:
+        raise HTTPException(status_code=401, detail="密钥无效")
+    return uid
+
+
+@app.post("/api/auth/login", response_model=SessionOut)
+def api_login(body: LoginIn):
+    uid = verify_login_key(body.key.strip())
+    if uid is None:
+        raise HTTPException(status_code=401, detail="密钥无效")
+    token = body.key.strip()
+    return SessionOut(
+        user_id=uid,
+        display_name=resolve_display_name(uid),
+        avatar_url=resolve_avatar_url(uid),
+        token=token,
+    )
+
+
+@app.get("/api/auth/me", response_model=SessionOut)
+def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return SessionOut(
+        user_id=user_id,
+        display_name=resolve_display_name(user_id),
+        avatar_url=resolve_avatar_url(user_id),
+        token="",
+    )
+
+
+@app.get("/api/me/profile")
+def api_my_profile(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    year: int | None = Query(None, ge=2000, le=2100),
+):
+    return build_profile(user_id, year)
+
+
+@app.get("/api/me/day", response_model=DayCheckinsOut)
+def api_my_day(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
+):
+    items = fetch_user_settlement_day(user_id, date)
+    name = resolve_display_name(user_id)
+    return DayCheckinsOut(
+        date=date,
+        items=[_checkin_to_out(it, name) for it in items],
+    )
 
 
 @app.get("/api/users", response_model=UserIdsOut)
@@ -143,6 +236,14 @@ def index():
     if not index_file.is_file():
         raise HTTPException(status_code=500, detail="缺少静态页面")
     return FileResponse(index_file)
+
+
+@app.get("/profile")
+def profile_page():
+    page = STATIC_DIR / "profile.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少个人主页")
+    return FileResponse(page)
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

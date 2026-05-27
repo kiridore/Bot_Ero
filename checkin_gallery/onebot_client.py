@@ -60,3 +60,15 @@ def resolve_display_name(user_id: str) -> str:
         return _member_display_name(info, uid)
 
     return uid
+
+
+@lru_cache(maxsize=4096)
+def resolve_avatar_url(user_id: str) -> str:
+    try:
+        qq = int(user_id)
+    except ValueError:
+        return ""
+    data = _call_onebot("get_qq_avatar", {"user_id": qq})
+    if not data:
+        return ""
+    return str(data.get("url") or "")

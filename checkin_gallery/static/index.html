@@ -23,7 +23,21 @@
       <button type="button" id="applyBtn">筛选</button>
       <span id="stats" class="stats"></span>
     </div>
+    <div class="auth-area" id="authArea"></div>
   </header>
+
+  <dialog id="loginDialog" class="login-dialog">
+    <form method="dialog" id="loginForm">
+      <h2>图库登录</h2>
+      <p class="login-hint">请向机器人私聊发送 <code>/图库密钥</code> 获取密钥</p>
+      <input type="password" id="loginKey" placeholder="粘贴登录密钥" autocomplete="off" required />
+      <p class="login-error hidden" id="loginError"></p>
+      <div class="login-actions">
+        <button type="button" id="loginCancel">取消</button>
+        <button type="submit" class="primary">登录</button>
+      </div>
+    </form>
+  </dialog>
 
   <main>
     <div id="gallery" class="gallery" aria-live="polite"></div>
@@ -38,6 +52,7 @@
     </figure>
   </div>
 
+  <script src="/static/auth.js"></script>
   <script src="/static/gallery.js"></script>
 </body>
 </html>

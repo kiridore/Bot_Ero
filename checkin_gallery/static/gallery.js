@@ -181,3 +181,56 @@ const observer = new IntersectionObserver(
 observer.observe(sentinel);
 
 loadUsers().then(() => loadPage(true));
+
+// —— 登录 / 用户入口 ——
+const authArea = document.getElementById("authArea");
+const loginDialog = document.getElementById("loginDialog");
+const loginForm = document.getElementById("loginForm");
+const loginKey = document.getElementById("loginKey");
+const loginError = document.getElementById("loginError");
+const loginCancel = document.getElementById("loginCancel");
+
+function renderAuthArea() {
+  const session = GalleryAuth.load();
+  authArea.innerHTML = "";
+  if (session && session.token) {
+    const link = document.createElement("a");
+    link.className = "user-chip";
+    link.href = "/profile";
+    const img = document.createElement("img");
+    img.alt = session.display_name || session.user_id;
+    img.src = session.avatar_url || "";
+    img.onerror = () => {
+      img.style.display = "none";
+    };
+    const textWrap = document.createElement("span");
+    textWrap.innerHTML = `<strong>${escapeHtml(session.display_name || session.user_id)}</strong><br><span class="uid">${session.user_id}</span>`;
+    link.appendChild(img);
+    link.appendChild(textWrap);
+    authArea.appendChild(link);
+  } else {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-login";
+    btn.textContent = "登录";
+    btn.addEventListener("click", () => loginDialog.showModal());
+    authArea.appendChild(btn);
+  }
+}
+
+loginCancel.addEventListener("click", () => loginDialog.close());
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.classList.add("hidden");
+  try {
+    await GalleryAuth.login(loginKey.value);
+    loginDialog.close();
+    loginKey.value = "";
+    renderAuthArea();
+  } catch (err) {
+    loginError.textContent = err.message || "登录失败";
+    loginError.classList.remove("hidden");
+  }
+});
+
+GalleryAuth.refreshMe().finally(renderAuthArea);

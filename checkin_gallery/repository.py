@@ -121,3 +121,55 @@ def fetch_checkins_paginated(
     end = start + page_size
     page_items = matched[start:end]
     return page_items, total, end < total
+
+
+def fetch_user_year_rows(user_id: str, year: int) -> list[sqlite3.Row]:
+    with _connect() as conn:
+        return conn.execute(
+            """
+            SELECT id, user_id, checkin_date, content
+            FROM checkin_records
+            WHERE CAST(user_id AS TEXT) = ?
+            AND checkin_date BETWEEN ? AND ?
+            ORDER BY checkin_date ASC
+            """,
+            (str(user_id), f"{year}-01-01 00:00:00", f"{year}-12-31 23:59:59"),
+        ).fetchall()
+
+
+def fetch_user_settlement_day(
+    user_id: str,
+    day_key: str,
+    *,
+    only_with_file: bool = True,
+) -> list[CheckinImage]:
+    from checkin_gallery.dates import settlement_day_range
+
+    start, end = settlement_day_range(day_key)
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, user_id, checkin_date, content
+            FROM checkin_records
+            WHERE CAST(user_id AS TEXT) = ?
+            AND content != ?
+            AND checkin_date BETWEEN ? AND ?
+            ORDER BY checkin_date ASC, id ASC
+            """,
+            (str(user_id), REMEDY_MARKER, start, end),
+        ).fetchall()
+    items: list[CheckinImage] = []
+    for row in rows:
+        path = resolve_image_path(row["user_id"], row["content"])
+        if only_with_file and path is None:
+            continue
+        items.append(
+            CheckinImage(
+                id=row["id"],
+                user_id=str(row["user_id"]),
+                checkin_date=row["checkin_date"],
+                content=row["content"],
+                image_path=path,
+            )
+        )
+    return items
