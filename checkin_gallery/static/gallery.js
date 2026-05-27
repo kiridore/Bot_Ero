@@ -103,7 +103,8 @@ function appendCard(item) {
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = `${userLabel(item)} 打卡`;
-  img.src = item.image_url;
+  img.src = item.thumbnail_url || item.image_url;
+  img.dataset.fullSrc = item.image_url;
   const meta = document.createElement("div");
   meta.className = "meta";
   meta.innerHTML = `<strong>${escapeHtml(userLabel(item))}</strong><br>${formatTime(item.checkin_date)}`;
@@ -114,10 +115,17 @@ function appendCard(item) {
 }
 
 function openLightbox(item, dayKey) {
-  lightboxImg.src = item.image_url;
   const dayLabel = dayKey ? formatDayHeader(dayKey) : settlementDayKey(item.checkin_date);
   lightboxCaption.textContent = `${userLabel(item)} · ${dayLabel} ${formatTime(item.checkin_date)}`;
   lightbox.classList.remove("hidden");
+  lightbox.classList.add("is-loading");
+  lightboxImg.alt = userLabel(item);
+  lightboxImg.onload = () => lightbox.classList.remove("is-loading");
+  lightboxImg.onerror = () => {
+    lightbox.classList.remove("is-loading");
+    lightboxCaption.textContent += "（原图加载失败）";
+  };
+  lightboxImg.src = item.image_url;
 }
 
 function closeLightbox() {

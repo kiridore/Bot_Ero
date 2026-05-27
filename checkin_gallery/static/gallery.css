@@ -212,6 +212,19 @@ main {
   max-height: 82vh;
   object-fit: contain;
   border-radius: var(--radius);
+  transition: opacity 0.2s ease;
+}
+
+.lightbox.is-loading img {
+  opacity: 0.25;
+}
+
+.lightbox.is-loading figure::after {
+  content: "加载原图…";
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .lightbox figcaption {

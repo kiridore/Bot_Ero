@@ -9,6 +9,7 @@ from checkin_gallery import config
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from checkin_gallery.onebot_client import resolve_display_name
 from checkin_gallery.repository import fetch_checkins_paginated, list_user_ids, resolve_image_path
+from checkin_gallery.thumbnails import ensure_thumbnail
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -20,6 +21,7 @@ class CheckinItemOut(BaseModel):
     user_id: str
     display_name: str
     checkin_date: str
+    thumbnail_url: str
     image_url: str
     has_file: bool
 
@@ -41,9 +43,16 @@ class UserIdsOut(BaseModel):
     users: list[UserOptionOut]
 
 
+def _file_slug(content: str) -> str:
+    return content.replace("{", "").replace("}", "").replace("-", "")
+
+
 def _media_url(user_id: str, content: str) -> str:
-    name = content.replace("{", "").replace("}", "").replace("-", "")
-    return f"/media/{user_id}/{name}"
+    return f"/media/{user_id}/{_file_slug(content)}"
+
+
+def _thumb_url(user_id: str, content: str) -> str:
+    return f"/thumb/{user_id}/{_file_slug(content)}"
 
 
 @app.get("/api/users", response_model=UserIdsOut)
@@ -81,6 +90,7 @@ def api_checkins(
                 user_id=item.user_id,
                 display_name=name_cache[item.user_id],
                 checkin_date=item.checkin_date,
+                thumbnail_url=_thumb_url(item.user_id, item.content),
                 image_url=_media_url(item.user_id, item.content),
                 has_file=item.image_path is not None,
             )
@@ -101,14 +111,29 @@ def _assert_under_root(path: Path) -> None:
         raise HTTPException(status_code=403, detail="禁止访问") from exc
 
 
-@app.get("/media/{user_id}/{filename}")
-def serve_media(user_id: str, filename: str):
+def _resolve_and_guard(user_id: str, filename: str) -> Path:
     if ".." in user_id or ".." in filename or "/" in filename or "\\" in filename:
         raise HTTPException(status_code=400, detail="非法路径")
     path = resolve_image_path(user_id, filename)
     if path is None:
         raise HTTPException(status_code=404, detail="图片不存在")
     _assert_under_root(path)
+    return path
+
+
+@app.get("/thumb/{user_id}/{filename}")
+def serve_thumb(user_id: str, filename: str):
+    source = _resolve_and_guard(user_id, filename)
+    try:
+        thumb = ensure_thumbnail(source)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="缩略图生成失败") from exc
+    return FileResponse(thumb, media_type="image/jpeg")
+
+
+@app.get("/media/{user_id}/{filename}")
+def serve_media(user_id: str, filename: str):
+    path = _resolve_and_guard(user_id, filename)
     return FileResponse(path)
 
 
