@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>打卡图库</title>
+  <link rel="stylesheet" href="/static/gallery.css" />
+</head>
+<body>
+  <header class="toolbar">
+    <h1>打卡图库</h1>
+    <div class="filters">
+      <label>
+        用户
+        <select id="userFilter">
+          <option value="">全部</option>
+        </select>
+      </label>
+      <label>
+        年份
+        <input type="number" id="yearFilter" placeholder="全部" min="2000" max="2100" />
+      </label>
+      <button type="button" id="applyBtn">筛选</button>
+      <span id="stats" class="stats"></span>
+    </div>
+  </header>
+
+  <main>
+    <div id="gallery" class="gallery" aria-live="polite"></div>
+    <p id="sentinel" class="sentinel">加载中…</p>
+  </main>
+
+  <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true">
+    <button type="button" class="lightbox-close" id="lightboxClose" aria-label="关闭">×</button>
+    <figure>
+      <img id="lightboxImg" alt="" />
+      <figcaption id="lightboxCaption"></figcaption>
+    </figure>
+  </div>
+
+  <script src="/static/gallery.js"></script>
+</body>
+</html>
