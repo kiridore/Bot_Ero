@@ -9,6 +9,6 @@ script_start_time = datetime.now()
 llonebot_data_path = "/app/llonebot/server_data"    # 使用api是用这个地址
 python_data_path = "./server_data"                  # 在python脚本中访问用这个地址
 onebot_qq_volume = "/var/lib/docker/volumes/onebot_qq_volume/_data"
-startup_changelog_sent = False
+startup_changelog_sent = True
 plugin_registry: list[type["Plugin"]] = []
 DEFAULT_GROUP_ID = 296470819 # 在这里填写你想固定使用的群号
