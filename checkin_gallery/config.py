@@ -19,7 +19,7 @@ PAGE_SIZE_MAX = 100
 REMEDY_MARKER = "remedy_checkin"
 
 # OneBot HTTP（NapCat / Lagrange 等），用于拉取 QQ 昵称
-ONEBOT_HTTP_URL = os.environ.get("BOTERO_ONEBOT_HTTP", "http://127.0.0.1:3001")
+ONEBOT_HTTP_URL = os.environ.get("BOTERO_ONEBOT_HTTP", "http://127.0.0.1:3000")
 ONEBOT_TOKEN = os.environ.get("BOTERO_ONEBOT_TOKEN", "123456")
 GROUP_ID = int(os.environ.get("BOTERO_GROUP_ID", "296470819"))
 
