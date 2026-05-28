@@ -1,41 +1,6 @@
-"""独立启动：python -m botero_mcp [--db PATH]"""
+"""python -m botero_mcp（须在 PYTHONPATH 含项目根时可用；跨目录请用 run_stdio.py）。"""
 
-from __future__ import annotations
-
-import argparse
-import os
-
-from botero_mcp._bootstrap import bootstrap, configure_database
-from botero_mcp.config import DB_PATH, DEFAULT_USER_ID
-
-
-def main() -> None:
-    bootstrap()
-
-    parser = argparse.ArgumentParser(description="BotEro MCP 服务（stdio）")
-    parser.add_argument("--db", default=None, help="data.db 路径，默认项目根 data.db")
-    args = parser.parse_args()
-
-    if args.db:
-        os.environ["BOTERO_DB_PATH"] = os.path.abspath(args.db)
-
-    configure_database()
-
-    db = os.environ.get("BOTERO_DB_PATH", str(DB_PATH))
-    print(f"BotEro MCP | 数据库: {db}", flush=True)
-    if DEFAULT_USER_ID:
-        print(f"BotEro MCP | 默认 user_id: {DEFAULT_USER_ID}", flush=True)
-    else:
-        print(
-            "BotEro MCP | 未设置 BOTERO_MCP_DEFAULT_USER_ID，工具调用需显式传入 user_id",
-            flush=True,
-        )
-
-    # server 模块导入时会再次 configure_database（幂等）
-    from botero_mcp.server import mcp
-
-    mcp.run()
-
+from botero_mcp.entry import main
 
 if __name__ == "__main__":
     main()
