@@ -13,6 +13,7 @@ from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from checkin_gallery.onebot_client import resolve_avatar_url, resolve_display_name
 from checkin_gallery.profile_service import build_profile
 from checkin_gallery.alarm_service import cancel_alarm, create_alarm, list_alarms
+from checkin_gallery.guestbook_service import like_entry, list_entries, post_entry
 from checkin_gallery.shop_service import get_shop, redeem_shop_item
 from checkin_gallery.title_settings import (
     clear_equipped_titles,
@@ -106,6 +107,10 @@ class AlarmCreateIn(BaseModel):
     day: int | None = None
 
 
+class GuestbookPostIn(BaseModel):
+    content: str
+
+
 def _file_slug(content: str) -> str:
     return content.replace("{", "").replace("}", "").replace("-", "")
 
@@ -139,6 +144,14 @@ def get_current_user_id(
     if uid is None:
         raise HTTPException(status_code=401, detail="密钥无效")
     return uid
+
+
+def get_optional_user_id(
+    authorization: Annotated[str | None, Header()] = None,
+) -> str | None:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    return verify_login_key(authorization[7:].strip())
 
 
 @app.post("/api/auth/login", response_model=SessionOut)
@@ -250,6 +263,31 @@ def api_alarms_cancel(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     return _checkin_or_400(cancel_alarm, user_id, alarm_id)
+
+
+@app.get("/api/guestbook")
+def api_guestbook_list(
+    viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
+    page: int = Query(1, ge=1),
+    page_size: int = Query(30, ge=1, le=100),
+):
+    return list_entries(viewer_id, page, page_size)
+
+
+@app.post("/api/guestbook")
+def api_guestbook_post(
+    body: GuestbookPostIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    return _checkin_or_400(post_entry, user_id, body.content)
+
+
+@app.post("/api/guestbook/{entry_id}/like")
+def api_guestbook_like(
+    entry_id: int,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    return _checkin_or_400(like_entry, user_id, entry_id)
 
 
 @app.get("/api/me/titles/settings")
@@ -413,6 +451,14 @@ def profile_alarms_page():
     page = STATIC_DIR / "alarms.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少闹钟页")
+    return FileResponse(page)
+
+
+@app.get("/guestbook")
+def guestbook_page():
+    page = STATIC_DIR / "guestbook.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少留言簿页")
     return FileResponse(page)
 
 

@@ -48,6 +48,19 @@ body {
   flex: 1;
 }
 
+.toolbar-link {
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(122, 162, 247, 0.35);
+}
+
+.toolbar-link:hover {
+  background: rgba(122, 162, 247, 0.12);
+}
+
 .filters label {
   display: flex;
   align-items: center;

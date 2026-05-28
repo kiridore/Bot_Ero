@@ -156,6 +156,27 @@ class DbManager:
         self.cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_group_alarms_due ON group_alarms (fired, fire_at)"
         )
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS guestbook_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                author_user_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS guestbook_likes (
+                entry_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (entry_id, user_id),
+                FOREIGN KEY (entry_id) REFERENCES guestbook_entries(id)
+            );
+        """)
+        self.cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_guestbook_entries_created "
+            "ON guestbook_entries (created_at DESC)"
+        )
         self.cur.execute("PRAGMA table_info(group_alarms)")
         _alarm_cols = [row[1] for row in self.cur.fetchall()]
         if _alarm_cols and "is_private" not in _alarm_cols:
