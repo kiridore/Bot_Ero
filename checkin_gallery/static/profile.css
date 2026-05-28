@@ -759,21 +759,95 @@
   margin-top: 0;
 }
 
+.alarm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.alarm-field-block {
+  margin-top: 0.85rem;
+}
+
+.alarm-field-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.alarm-fields {
+  margin-top: 0.85rem;
+}
+
+.alarm-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.65rem 0.85rem;
+}
+
+.alarm-field-hint {
+  margin: 0.65rem 0 0;
+}
+
+.alarm-type-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.alarm-type-btn,
+.weekday-btn {
+  padding: 0.38rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.alarm-type-btn:hover,
+.weekday-btn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.alarm-type-btn.active,
+.weekday-btn.active {
+  background: rgba(78, 154, 108, 0.22);
+  border-color: #4e9a6c;
+  color: #d4f5dc;
+}
+
+.weekday-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.weekday-btn {
+  min-width: 2.2rem;
+  text-align: center;
+  padding-inline: 0.55rem;
+}
+
 .alarm-input {
   width: 100%;
   box-sizing: border-box;
-  margin-top: 0.75rem;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  resize: vertical;
+}
+
+.alarm-input-sm {
+  padding: 0.5rem 0.65rem;
 }
 
 .alarm-actions {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
   display: flex;
   justify-content: flex-end;
 }

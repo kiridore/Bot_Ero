@@ -1,5 +1,32 @@
 const alarmsMain = document.getElementById("alarmsMain");
 
+const SCHEDULE_TYPES = [
+  { id: "once_date", label: "指定日期" },
+  { id: "once_relative", label: "相对时间" },
+  { id: "once_today", label: "今天" },
+  { id: "daily", label: "每天" },
+  { id: "interval_days", label: "每 N 天" },
+  { id: "weekly", label: "每周" },
+  { id: "monthly", label: "每月" },
+  { id: "yearly", label: "每年" },
+];
+
+const WEEKDAYS = [
+  { value: 1, label: "一" },
+  { value: 2, label: "二" },
+  { value: 3, label: "三" },
+  { value: 4, label: "四" },
+  { value: 5, label: "五" },
+  { value: 6, label: "六" },
+  { value: 7, label: "日" },
+];
+
+let formState = {
+  scheduleType: "daily",
+  weekday: 1,
+  minLeadMinutes: 5,
+};
+
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -45,19 +72,219 @@ function showToast(msg, isError = false) {
   showToast._t = setTimeout(() => toast.classList.add("hidden"), 3500);
 }
 
-function renderCreateForm(usageHint) {
+function defaultTimeValue() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 30);
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function defaultDateValue() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function fieldRow(label, inputEl) {
+  const row = document.createElement("label");
+  row.className = "alarm-field";
+  const span = document.createElement("span");
+  span.className = "alarm-field-label";
+  span.textContent = label;
+  row.append(span, inputEl);
+  return row;
+}
+
+function makeNumberInput(id, placeholder, min = 0, max = null) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.id = id;
+  input.className = "alarm-input alarm-input-sm";
+  input.placeholder = placeholder;
+  input.min = String(min);
+  if (max != null) input.max = String(max);
+  input.value = "0";
+  return input;
+}
+
+function makeTimeInput(id, value = defaultTimeValue()) {
+  const input = document.createElement("input");
+  input.type = "time";
+  input.id = id;
+  input.className = "alarm-input alarm-input-sm";
+  input.value = value;
+  return input;
+}
+
+function makeDateInput(id, value = defaultDateValue()) {
+  const input = document.createElement("input");
+  input.type = "date";
+  input.id = id;
+  input.className = "alarm-input alarm-input-sm";
+  input.value = value;
+  return input;
+}
+
+function renderScheduleFields(container) {
+  container.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "alarm-fields-grid";
+  const type = formState.scheduleType;
+
+  if (type === "once_date") {
+    grid.append(
+      fieldRow("日期", makeDateInput("alarmDate")),
+      fieldRow("时刻", makeTimeInput("alarmTime"))
+    );
+  } else if (type === "once_relative") {
+    grid.append(
+      fieldRow("年", makeNumberInput("alarmYears", "0")),
+      fieldRow("月", makeNumberInput("alarmMonths", "0")),
+      fieldRow("日", makeNumberInput("alarmDays", "0")),
+      fieldRow("小时", makeNumberInput("alarmHours", "0")),
+      fieldRow("分钟", makeNumberInput("alarmMinutes", "30"))
+    );
+    const hint = document.createElement("p");
+    hint.className = "preview-hint alarm-field-hint";
+    hint.textContent = "至少填写一项；合计须距当前至少 5 分钟。";
+    container.append(grid, hint);
+    return;
+  } else if (type === "once_today") {
+    grid.append(fieldRow("时刻", makeTimeInput("alarmTime")));
+  } else if (type === "daily" || type === "monthly" || type === "yearly") {
+    if (type === "monthly") {
+      const day = makeNumberInput("alarmDay", "15", 1, 31);
+      day.value = "1";
+      grid.append(fieldRow("每月第几天", day));
+    }
+    if (type === "yearly") {
+      const month = makeNumberInput("alarmMonth", "6", 1, 12);
+      month.value = "1";
+      const day = makeNumberInput("alarmDay", "1", 1, 31);
+      day.value = "1";
+      grid.append(fieldRow("月", month), fieldRow("日", day));
+    }
+    grid.append(fieldRow("时刻", makeTimeInput("alarmTime")));
+  } else if (type === "interval_days") {
+    const interval = makeNumberInput("alarmInterval", "3", 1);
+    interval.value = "3";
+    grid.append(
+      fieldRow("间隔天数", interval),
+      fieldRow("时刻", makeTimeInput("alarmTime"))
+    );
+  } else if (type === "weekly") {
+    const group = document.createElement("div");
+    group.className = "weekday-group";
+    group.id = "alarmWeekdayGroup";
+    for (const wd of WEEKDAYS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "weekday-btn";
+      btn.textContent = wd.label;
+      btn.dataset.value = String(wd.value);
+      if (wd.value === formState.weekday) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        formState.weekday = wd.value;
+        group.querySelectorAll(".weekday-btn").forEach((el) => {
+          el.classList.toggle("active", Number(el.dataset.value) === wd.value);
+        });
+      });
+      group.appendChild(btn);
+    }
+    const wrap = document.createElement("div");
+    wrap.className = "alarm-field alarm-field-block";
+    const label = document.createElement("span");
+    label.className = "alarm-field-label";
+    label.textContent = "星期";
+    wrap.append(label, group);
+    grid.append(wrap, fieldRow("时刻", makeTimeInput("alarmTime")));
+  }
+
+  container.appendChild(grid);
+}
+
+function setScheduleType(type) {
+  formState.scheduleType = type;
+  document.querySelectorAll(".alarm-type-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.type === type);
+  });
+  const fields = document.getElementById("alarmFields");
+  if (fields) renderScheduleFields(fields);
+}
+
+function renderCreateForm(minLeadMinutes) {
+  formState.minLeadMinutes = minLeadMinutes || 5;
   const section = document.createElement("section");
   section.className = "alarm-form settings-section";
   section.innerHTML = `
     <h2>新建闹钟</h2>
-    <p class="preview-hint">${escapeHtml(usageHint)}</p>
-    <textarea id="alarmBody" class="alarm-input" rows="3" placeholder="例如：每天 8:00 起床"></textarea>
+    <p class="preview-hint">网页创建的闹钟为私聊提醒，触发时刻须距当前至少 ${formState.minLeadMinutes} 分钟。</p>
+    <label class="alarm-field alarm-field-block">
+      <span class="alarm-field-label">提醒内容</span>
+      <input type="text" id="alarmContent" class="alarm-input" maxlength="200" placeholder="例如：起床、交报告" />
+    </label>
+    <div class="alarm-field alarm-field-block">
+      <span class="alarm-field-label">触发方式</span>
+      <div class="alarm-type-grid" id="alarmTypeGrid"></div>
+    </div>
+    <div id="alarmFields" class="alarm-fields"></div>
     <div class="alarm-actions">
-      <button type="button" class="btn-sm primary" id="alarmCreateBtn">创建</button>
+      <button type="button" class="btn-sm primary" id="alarmCreateBtn">创建闹钟</button>
     </div>
   `;
+
+  const grid = section.querySelector("#alarmTypeGrid");
+  for (const item of SCHEDULE_TYPES) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "alarm-type-btn";
+    btn.dataset.type = item.id;
+    btn.textContent = item.label;
+    if (item.id === formState.scheduleType) btn.classList.add("active");
+    btn.addEventListener("click", () => setScheduleType(item.id));
+    grid.appendChild(btn);
+  }
+
+  renderScheduleFields(section.querySelector("#alarmFields"));
   section.querySelector("#alarmCreateBtn").addEventListener("click", createAlarm);
   return section;
+}
+
+function readFormPayload() {
+  const content = (document.getElementById("alarmContent")?.value || "").trim();
+  const payload = {
+    content,
+    schedule_type: formState.scheduleType,
+  };
+
+  const timeEl = document.getElementById("alarmTime");
+  if (timeEl) payload.time = timeEl.value;
+
+  const type = formState.scheduleType;
+  if (type === "once_date") {
+    payload.date = document.getElementById("alarmDate")?.value || "";
+  } else if (type === "once_relative") {
+    payload.years = Number(document.getElementById("alarmYears")?.value || 0);
+    payload.months = Number(document.getElementById("alarmMonths")?.value || 0);
+    payload.days = Number(document.getElementById("alarmDays")?.value || 0);
+    payload.hours = Number(document.getElementById("alarmHours")?.value || 0);
+    payload.minutes = Number(document.getElementById("alarmMinutes")?.value || 0);
+  } else if (type === "interval_days") {
+    payload.interval_days = Number(document.getElementById("alarmInterval")?.value || 0);
+  } else if (type === "weekly") {
+    payload.weekday = formState.weekday;
+  } else if (type === "monthly" || type === "yearly") {
+    payload.day = Number(document.getElementById("alarmDay")?.value || 0);
+    if (type === "yearly") {
+      payload.month = Number(document.getElementById("alarmMonth")?.value || 0);
+    }
+  }
+
+  return payload;
+}
+
+function resetCreateForm() {
+  const content = document.getElementById("alarmContent");
+  if (content) content.value = "";
+  setScheduleType("daily");
 }
 
 function renderAlarmList(items) {
@@ -106,7 +333,7 @@ function renderAlarmList(items) {
 
 function renderAlarms(data) {
   alarmsMain.innerHTML = "";
-  alarmsMain.appendChild(renderCreateForm(data.usage_hint));
+  alarmsMain.appendChild(renderCreateForm(data.min_lead_minutes));
   alarmsMain.appendChild(renderAlarmList(data.items));
 }
 
@@ -126,31 +353,31 @@ async function loadAlarms() {
 }
 
 async function createAlarm() {
-  const input = document.getElementById("alarmBody");
   const btn = document.getElementById("alarmCreateBtn");
-  const body = (input.value || "").trim();
-  if (!body) {
-    showToast("请填写闹钟内容", true);
+  const payload = readFormPayload();
+  if (!payload.content) {
+    showToast("请填写提醒内容", true);
     return;
   }
+
   btn.disabled = true;
   btn.textContent = "创建中…";
   try {
     const res = await fetch("/api/me/alarms", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || "创建失败");
-    input.value = "";
+    resetCreateForm();
     showToast(data.message || "创建成功");
     await loadAlarms();
   } catch (err) {
     showToast(err.message || "创建失败", true);
   } finally {
     btn.disabled = false;
-    btn.textContent = "创建";
+    btn.textContent = "创建闹钟";
   }
 }
 

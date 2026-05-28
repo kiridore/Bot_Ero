@@ -91,7 +91,19 @@ class ShopRedeemIn(BaseModel):
 
 
 class AlarmCreateIn(BaseModel):
-    body: str
+    content: str
+    schedule_type: str
+    date: str | None = None
+    time: str | None = None
+    years: int = 0
+    months: int = 0
+    days: int = 0
+    hours: int = 0
+    minutes: int = 0
+    interval_days: int | None = None
+    weekday: int | None = None
+    month: int | None = None
+    day: int | None = None
 
 
 def _file_slug(content: str) -> str:
@@ -229,7 +241,7 @@ def api_alarms_create(
     body: AlarmCreateIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
-    return _checkin_or_400(create_alarm, user_id, body.body)
+    return _checkin_or_400(create_alarm, user_id, body.model_dump())
 
 
 @app.delete("/api/me/alarms/{alarm_id}")
