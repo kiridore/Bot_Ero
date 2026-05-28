@@ -19,6 +19,8 @@ TOP_MARGIN = 60
 MONTH_LABEL_OFFSET = 20
 GRID_TOP_EXTRA = 50
 GRID_TOP_EXTRA_COMPACT = 40
+TODAY_OUTLINE = (212, 175, 55)
+TODAY_OUTLINE_WIDTH = 2
 
 
 def _month_grids(year: int, data: Sequence[int]) -> dict[int, tuple[datetime.date, list[int]]]:
@@ -79,6 +81,8 @@ def render_year_heatmap(year: int, data: Sequence[int], *, include_heading: bool
     draw = ImageDraw.Draw(image)
     font_month = load_font(16)
     font_title = load_font(20)
+    today = datetime.date.today()
+    highlight_today = year == today.year
 
     if include_heading:
         title = f"{year} 打卡热力图"
@@ -118,11 +122,14 @@ def render_year_heatmap(year: int, data: Sequence[int], *, include_heading: bool
                 color = github_green_level(val)
                 rx = x0 + week * (CELL + PAD)
                 ry = y0 + dow * (CELL + PAD)
+                cell_date = month_start + datetime.timedelta(days=day_i)
+                is_today = highlight_today and cell_date == today
                 draw.rounded_rectangle(
                     [rx, ry, rx + CELL, ry + CELL],
                     radius=4,
                     fill=color,
-                    outline=(220, 220, 220),
+                    outline=TODAY_OUTLINE if is_today else (220, 220, 220),
+                    width=TODAY_OUTLINE_WIDTH if is_today else 1,
                 )
                 day_i += 1
 
