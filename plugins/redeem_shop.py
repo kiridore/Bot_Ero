@@ -171,10 +171,47 @@ def weekly_refresh_shop_shelf(db) -> list[int]:
     return picked
 
 
+def format_shop_shelf_lines(db) -> list[str]:
+    """返回本周货架每条商品的文案行（含空行分隔）。"""
+    refresh_shop_items_from_database(db)
+    lines: list[str] = []
+    for pid in sorted(SHOP_ITEMS.keys()):
+        meta = SHOP_ITEMS[pid]
+        cost = meta["cost"]
+        desc = meta["description"]
+        stock_n = db.get_shop_stock(pid)
+        if stock_n is None:
+            stock = "未上架"
+        elif stock_n == -1:
+            stock = "不限"
+        else:
+            stock = str(stock_n)
+        lines.append(f"[{pid}] {desc}")
+        lines.append(f"    售价 {cost} 积分｜剩余 {stock}")
+        lines.append("")
+    return lines
+
+
+def format_shop_weekly_announcement(db) -> str:
+    """每周刷新后发到群里的公告文案。"""
+    shelf = format_shop_shelf_lines(db)
+    lines = [
+        "积分商店已刷新~",
+        "发送 /商店 查看完整列表，或 /商店 <商品id> 兑换。（方括号里的是商品id）",
+        "",
+        "—— 本周货架 ——",
+    ]
+    if shelf:
+        lines.extend(shelf)
+    else:
+        lines.append("本周暂无上架商品。")
+    return "\n".join(lines).rstrip()
+
+
 @register_plugin
 class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
     name = "shop_weekly_rotation"
-    description = "每周一 8:00 刷新积分商店称号上架。"
+    description = "每周一 8:00 刷新积分商店并在群内公告本周货架。"
 
     RUN_AT = "08:00"
     RUN_WEEKDAYS = [1]
@@ -190,6 +227,7 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
                 len(picked),
                 picked,
             )
+            self.api.send_msg(text(format_shop_weekly_announcement(self.dbmanager)))
         except Exception as e:
             logger.exception("积分商店周刷新失败: %s", e)
 
@@ -228,31 +266,18 @@ class RedeemShopPlugin(Plugin):
     description = "使用积分兑换商店称号或权益。"
 
     def match(self, event_type):
-        return event_type == "message" and self.on_command("/兑换")
+        return event_type == "message" and self.on_command("/商店")
 
     def _format_list(self) -> str:
-        refresh_shop_items_from_database(self.dbmanager)
-        lines = ["—— 积分商店 ——", "用法：/兑换 <商品id>", ""]
-        if not SHOP_ITEMS:
+        lines = ["—— 积分商店 ——", "用法：/商店 <商品id>", ""]
+        shelf = format_shop_shelf_lines(self.dbmanager)
+        if not shelf:
             lines.append("本周暂无上架商品（每周一 8:00 刷新）。")
             lines.append("")
-            lines.append("发送 /兑换 <商品id> 兑换。")
+            lines.append("发送 /商店 <商品id> 兑换。")
             return "\n".join(lines).rstrip()
-        for pid in sorted(SHOP_ITEMS.keys()):
-            meta = SHOP_ITEMS[pid]
-            cost = meta["cost"]
-            desc = meta["description"]
-            stock_n = self.dbmanager.get_shop_stock(pid)
-            if stock_n is None:
-                stock = "未上架"
-            elif stock_n == -1:
-                stock = "不限"
-            else:
-                stock = str(stock_n)
-            lines.append(f"[{pid}] {desc}")
-            lines.append(f"    售价 {cost} 积分｜剩余 {stock}")
-            lines.append("")
-        lines.append("发送 /兑换 <商品id> 兑换。")
+        lines.extend(shelf)
+        lines.append("发送 /商店 <商品id> 兑换。")
         return "\n".join(lines).rstrip()
 
     def handle(self):
@@ -268,7 +293,7 @@ class RedeemShopPlugin(Plugin):
 
         product_id = args[1].strip()
         if product_id not in SHOP_ITEMS:
-            self.api.send_msg(at(user_id), text(f"未知商品 id：{product_id}，发送 /兑换 查看列表。"))
+            self.api.send_msg(at(user_id), text(f"未知商品 id：{product_id}，发送 /商店 查看列表。"))
             return
 
         meta = SHOP_ITEMS[product_id]
