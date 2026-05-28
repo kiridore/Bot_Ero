@@ -11,6 +11,13 @@ from checkin_gallery.auth import verify_login_key
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from checkin_gallery.onebot_client import resolve_avatar_url, resolve_display_name
 from checkin_gallery.profile_service import build_profile
+from checkin_gallery.title_settings import (
+    clear_equipped_titles,
+    equip_title,
+    get_title_settings,
+    set_equipped_titles,
+    unequip_title,
+)
 from checkin_gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
@@ -66,6 +73,14 @@ class SessionOut(BaseModel):
 class DayCheckinsOut(BaseModel):
     date: str
     items: list[CheckinItemOut]
+
+
+class EquippedTitlesIn(BaseModel):
+    title_ids: list[int]
+
+
+class EquipOneIn(BaseModel):
+    title_id: int
 
 
 def _file_slug(content: str) -> str:
@@ -146,6 +161,47 @@ def api_my_day(
         date=date,
         items=[_checkin_to_out(it, name) for it in items],
     )
+
+
+def _title_settings_or_400(fn, user_id: str, *args):
+    try:
+        return fn(user_id, *args)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/me/titles/settings")
+def api_title_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return get_title_settings(user_id)
+
+
+@app.put("/api/me/titles/equipped")
+def api_set_equipped(
+    body: EquippedTitlesIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    return _title_settings_or_400(set_equipped_titles, user_id, body.title_ids)
+
+
+@app.post("/api/me/titles/equip")
+def api_equip_one(
+    body: EquipOneIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    return _title_settings_or_400(equip_title, user_id, body.title_id)
+
+
+@app.delete("/api/me/titles/equipped")
+def api_clear_equipped(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return clear_equipped_titles(user_id)
+
+
+@app.delete("/api/me/titles/equip/{title_id}")
+def api_unequip_one(
+    title_id: int,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    return _title_settings_or_400(unequip_title, user_id, title_id)
 
 
 @app.get("/api/users", response_model=UserIdsOut)
@@ -243,6 +299,14 @@ def profile_page():
     page = STATIC_DIR / "profile.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少个人主页")
+    return FileResponse(page)
+
+
+@app.get("/profile/settings")
+def profile_settings_page():
+    page = STATIC_DIR / "settings.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少设置页")
     return FileResponse(page)
 
 
