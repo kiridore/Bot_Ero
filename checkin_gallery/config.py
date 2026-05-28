@@ -33,3 +33,7 @@ THUMB_JPEG_QUALITY = int(os.environ.get("BOTERO_THUMB_QUALITY", "82"))
 
 # 图库登录密钥（QQ 号 + 盐 → HMAC → Base64）
 AUTH_SALT = os.environ.get("BOTERO_AUTH_SALT", "BotEro-Gallery-ChangeMe")
+
+# 网页打卡上传
+CHECKIN_MAX_IMAGES = int(os.environ.get("BOTERO_CHECKIN_MAX_IMAGES", "9"))
+CHECKIN_MAX_BYTES = int(os.environ.get("BOTERO_CHECKIN_MAX_BYTES", str(10 * 1024 * 1024)))

@@ -163,12 +163,13 @@ function renderProfile(data) {
   const heatTitle = document.createElement("h3");
   heatTitle.className = "section-title";
   const yearSel = document.createElement("select");
-  const y = data.year;
-  for (let i = y; i >= y - 3; i--) {
+  const selectedYear = data.year;
+  const currentYear = new Date().getFullYear();
+  for (let i = currentYear; i >= currentYear - 3; i--) {
     const opt = document.createElement("option");
     opt.value = String(i);
     opt.textContent = `${i} 年`;
-    if (i === y) opt.selected = true;
+    if (i === selectedYear) opt.selected = true;
     yearSel.appendChild(opt);
   }
   yearSel.addEventListener("change", () => loadProfile(parseInt(yearSel.value, 10)));

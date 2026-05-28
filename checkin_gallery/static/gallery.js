@@ -194,6 +194,12 @@ function renderAuthArea() {
   const session = GalleryAuth.load();
   authArea.innerHTML = "";
   if (session && session.token) {
+    const checkinLink = document.createElement("a");
+    checkinLink.className = "btn-checkin";
+    checkinLink.href = "/profile/checkin";
+    checkinLink.textContent = "打卡";
+    authArea.appendChild(checkinLink);
+
     const link = document.createElement("a");
     link.className = "user-chip";
     link.href = "/profile";
