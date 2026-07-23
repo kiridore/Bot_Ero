@@ -147,6 +147,46 @@ TITLE_DEFS = {
     131: {"id": 131, "name": "破坏者", "rarity": "common", "description": "From Werwolf", "unlock_type": "lottery"},
     132: {"id": 132, "name": "族长", "rarity": "common", "description": "From Werwolf", "unlock_type": "lottery"},
 
+    # Minecraft
+    133: {"id": 133, "name": "草方块", "rarity": "common", "description": "万物之始", "unlock_type": "lottery"},
+    134: {"id": 134, "name": "苦力怕", "rarity": "common", "description": "SSssssSSss~", "unlock_type": "lottery"},
+    135: {"id": 135, "name": "末影人", "rarity": "common", "description": "不要看它的眼睛", "unlock_type": "lottery"},
+    136: {"id": 136, "name": "铁镐", "rarity": "common", "description": "挖矿第一步", "unlock_type": "lottery"},
+    137: {"id": 137, "name": "史莱姆", "rarity": "common", "description": "越大越可爱", "unlock_type": "lottery"},
+    138: {"id": 138, "name": "溺尸", "rarity": "common", "description": "沉在水底的麻烦", "unlock_type": "lottery"},
+    139: {"id": 139, "name": "幻翼", "rarity": "common", "description": "三天不睡觉就会找来", "unlock_type": "lottery"},
+    140: {"id": 140, "name": "工作台", "rarity": "common", "description": "一切的开始", "unlock_type": "lottery"},
+    141: {"id": 141, "name": "熔炉", "rarity": "common", "description": "烧一烧更香", "unlock_type": "lottery"},
+    142: {"id": 142, "name": "箱子", "rarity": "common", "description": "收藏家的伴侣", "unlock_type": "lottery"},
+    143: {"id": 143, "name": "TNT", "rarity": "common", "description": "砰！", "unlock_type": "lottery"},
+    144: {"id": 144, "name": "石头", "rarity": "common", "description": "最朴实的方块", "unlock_type": "lottery"},
+    145: {"id": 145, "name": "泥土", "rarity": "common", "description": "随处可见", "unlock_type": "lottery"},
+    146: {"id": 146, "name": "沙子", "rarity": "common", "description": "总会往下掉", "unlock_type": "lottery"},
+    147: {"id": 147, "name": "圆石", "rarity": "common", "description": "挖矿人的老朋友", "unlock_type": "lottery"},
+    148: {"id": 148, "name": "玻璃", "rarity": "common", "description": "透明而脆弱", "unlock_type": "lottery"},
+
+    # Minecraft rare
+    149: {"id": 149, "name": "史蒂夫", "rarity": "rare", "description": "浅蓝色衬衫的传奇", "unlock_type": "lottery"},
+    150: {"id": 150, "name": "钻石", "rarity": "rare", "description": "挖矿的终极浪漫", "unlock_type": "lottery"},
+    151: {"id": 151, "name": "红石", "rarity": "rare", "description": "无限的可能性", "unlock_type": "lottery"},
+    152: {"id": 152, "name": "下界", "rarity": "rare", "description": "欢迎来到地狱", "unlock_type": "lottery"},
+    153: {"id": 153, "name": "末地", "rarity": "rare", "description": "最终的旅程", "unlock_type": "lottery"},
+    154: {"id": 154, "name": "附魔", "rarity": "rare", "description": "30级附魔，看天意", "unlock_type": "lottery"},
+    155: {"id": 155, "name": "铁傀儡", "rarity": "rare", "description": "村庄的守护者", "unlock_type": "lottery"},
+    156: {"id": 156, "name": "凋零", "rarity": "rare", "description": "三个脑袋的灾厄", "unlock_type": "lottery"},
+    157: {"id": 157, "name": "恶魂", "rarity": "rare", "description": "来自下界的悲鸣", "unlock_type": "lottery"},
+    158: {"id": 158, "name": "烈焰人", "rarity": "rare", "description": "十二点经验值", "unlock_type": "lottery"},
+    159: {"id": 159, "name": "猪灵", "rarity": "rare", "description": "金光闪闪的东西交出来", "unlock_type": "lottery"},
+    160: {"id": 160, "name": "黑曜石", "rarity": "rare", "description": "坚不可摧", "unlock_type": "lottery"},
+    161: {"id": 161, "name": "海晶灯", "rarity": "rare", "description": "海底的明珠", "unlock_type": "lottery"},
+
+    # Minecraft legendary
+    162: {"id": 162, "name": "末影龙", "rarity": "legendary", "description": "一切的终结与开始", "unlock_type": "lottery"},
+    163: {"id": 163, "name": "鞘翅", "rarity": "legendary", "description": "真正的自由", "unlock_type": "lottery"},
+    164: {"id": 164, "name": "信标", "rarity": "legendary", "description": "金字塔顶端的光芒", "unlock_type": "lottery"},
+    165: {"id": 165, "name": "下界之星", "rarity": "legendary", "description": "凋零的遗物", "unlock_type": "lottery"},
+    166: {"id": 166, "name": "基岩", "rarity": "legendary", "description": "不可破坏的底层", "unlock_type": "lottery"},
+
     # condition: 打卡时段/日期/进度
     201: {"id": 201, "name": "早起的鸟儿", "rarity": "common", "description": "在早上8点到12点完成打卡", "unlock_type": "condition"},
     202: {"id": 202, "name": "下午茶", "rarity": "common", "description": "在下午2点到下午4点完成打卡", "unlock_type": "condition"},
