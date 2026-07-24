@@ -16,6 +16,9 @@ class WeeklyQuestPlugin(Plugin):
         if user_id is None:
             return
 
+        sender = self.bot_event.sender or {}
+        display_name = sender.get("card") or sender.get("nickname") or str(user_id)
+
         start_date, end_date = get_monday_to_monday()
         week_start_short = start_date.split(" ")[0][5:]
         week_end_short = end_date.split(" ")[0][5:]
@@ -23,7 +26,7 @@ class WeeklyQuestPlugin(Plugin):
 
         progress = self.dbmanager.get_quest_progress(user_id, week_key)
 
-        lines = [f"📋 本周任务 ({week_start_short} - {week_end_short})"]
+        lines = [f"📋 {display_name} 的本周任务 ({week_start_short} - {week_end_short})"]
         lines.append("━" * 22)
 
         for q in QUEST_DEFS:
@@ -33,7 +36,8 @@ class WeeklyQuestPlugin(Plugin):
             mark = "✅" if done else "  "
             bar = _make_bar(cur, q["goal"])
             status = "已完成" if done else "进行中"
-            lines.append(f"{mark} {q['name']:6s}  [{cur}/{q['goal']}]  +{q['reward']}  {bar}  {status}")
+            lines.append(f"{mark} {q['name']}  [{cur}/{q['goal']}]  +{q['reward']}  {status}")
+            lines.append(f"   {bar}")
 
         self.api.send_msg(text("\n".join(lines)))
 
