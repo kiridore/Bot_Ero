@@ -108,6 +108,14 @@ with _connect() as conn:
 
 任务定义硬编码在 `core/utils.py` 的 `QUEST_DEFS` 中，5 个任务（打卡 3 个，抽奖 2 个）。
 
+#### `quest_completion_stats`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY | 用户 QQ 号 |
+| `total_completions` | INTEGER | DEFAULT 0 | 累计完成任务次数（跨周不重置） |
+
+每次任务完成时通过 `increment_quest_completion()` 自增，不收周清理影响。称号 238-241 基于此统计解锁。
+
 ### 抽奖
 
 #### `user_lottery_daily_stats`

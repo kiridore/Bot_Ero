@@ -5,6 +5,8 @@ import sqlite3
 class DbManager:
     def __init__(self):
         self.conn = sqlite3.connect("data.db")
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA foreign_keys=ON")
         self.cur = self.conn.cursor()
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS checkin_records (
@@ -267,6 +269,12 @@ class DbManager:
                 completed INTEGER DEFAULT 0,
                 claimed_at TEXT,
                 PRIMARY KEY (user_id, quest_id, week_key)
+            );
+        """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS quest_completion_stats (
+                user_id TEXT PRIMARY KEY,
+                total_completions INTEGER DEFAULT 0
             );
         """)
         # 已移除群聊 topic 功能：若旧库存在相关表则删除
@@ -1516,3 +1524,20 @@ class DbManager:
             WHERE week_key < ?
         """, (str(current_week_key),))
         self.conn.commit()
+
+    def increment_quest_completion(self, user_id):
+        self.cur.execute("""
+            INSERT INTO quest_completion_stats (user_id, total_completions)
+            VALUES (?, 1)
+            ON CONFLICT(user_id) DO UPDATE SET total_completions = total_completions + 1
+        """, (str(user_id),))
+        self.conn.commit()
+
+    def get_quest_completion(self, user_id):
+        self.cur.execute("""
+            SELECT total_completions
+            FROM quest_completion_stats
+            WHERE user_id = ?
+        """, (str(user_id),))
+        row = self.cur.fetchone()
+        return 0 if row is None else int(row[0])

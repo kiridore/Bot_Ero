@@ -225,6 +225,15 @@ TITLE_DEFS = {
     235: {"id": 235, "name": "大赚", "rarity": "rare", "description": "抽到10点积分", "unlock_type": "condition"},
     236: {"id": 236, "name": "BUG", "rarity": "legendary", "description": "连续3次什么都没抽到", "unlock_type": "condition"},
     237: {"id": 237, "name": "致命错误", "rarity": "legendary", "description": "连续10次什么都没抽到", "unlock_type": "condition"},
+    238: {"id": 238, "name": "任务达人", "rarity": "common", "description": "累计完成5次周常任务", "unlock_type": "condition"},
+    239: {"id": 239, "name": "勤勉板油", "rarity": "rare", "description": "累计完成15次周常任务", "unlock_type": "condition"},
+    240: {"id": 240, "name": "劳模奖章", "rarity": "rare", "description": "累计完成30次周常任务", "unlock_type": "condition"},
+    241: {"id": 241, "name": "任务狂人", "rarity": "legendary", "description": "累计完成50次周常任务", "unlock_type": "condition"},
+    242: {"id": 242, "name": "沉迷抽卡", "rarity": "rare", "description": "累计抽奖200次", "unlock_type": "condition"},
+    243: {"id": 243, "name": "倾家荡产", "rarity": "legendary", "description": "累计抽奖500次", "unlock_type": "condition"},
+    244: {"id": 244, "name": "无底深渊", "rarity": "legendary", "description": "累计抽奖1000次", "unlock_type": "condition"},
+    245: {"id": 245, "name": "称号收藏家", "rarity": "legendary", "description": "累计解锁50个称号", "unlock_type": "condition"},
+    246: {"id": 246, "name": "称号大师", "rarity": "legendary", "description": "累计解锁100个称号", "unlock_type": "condition"},
 }
 
 
@@ -316,6 +325,12 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(233)
     if draw_count >= 100:
         unlock(234)
+    if draw_count >= 200:
+        unlock(242)
+    if draw_count >= 500:
+        unlock(243)
+    if draw_count >= 1000:
+        unlock(244)
     if profile["duplicate_count"] >= 1:
         unlock(227)
     if profile["duplicate_count"] >= 10:
@@ -329,6 +344,17 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
     if profile["max_zero_streak"] >= 10:
         unlock(237)
 
+    # 累计周常任务完成次数
+    quest_total = dbmanager.get_quest_completion(user_id)
+    if quest_total >= 5:
+        unlock(238)
+    if quest_total >= 15:
+        unlock(239)
+    if quest_total >= 30:
+        unlock(240)
+    if quest_total >= 50:
+        unlock(241)
+
     # 依赖称号状态的进度称号
     titles = dbmanager.get_user_titles(user_id)
     cnt = len(titles)
@@ -338,6 +364,10 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(223)
     if cnt >= 30:
         unlock(224)
+    if cnt >= 50:
+        unlock(245)
+    if cnt >= 100:
+        unlock(246)
 
     titles = dbmanager.get_user_titles(user_id)
     if any((TITLE_DEFS.get(t, {}).get("rarity") == "legendary") for t in titles):

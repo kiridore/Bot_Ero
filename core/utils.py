@@ -114,6 +114,7 @@ def on_quest_trigger(db, user_id, trigger_type):
         db.upsert_quest_progress(user_id, q["id"], week_key, count)
         if count >= q["goal"] and db.claim_quest_reward(user_id, q["id"], week_key):
             add_user_point(db, user_id, q["reward"])
+            db.increment_quest_completion(user_id)
             completed.append({"name": q["name"], "reward": q["reward"]})
     return completed
 
