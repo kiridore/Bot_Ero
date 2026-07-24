@@ -43,7 +43,7 @@ class ApiWrapper:
             return q.get(timeout=30)
         except queue.Empty:
             logger.error("API调用[{echo_num}] 超时......")
-            return {}
+            return {"status": "failed"}
 
     def _build_title_prefix(self, user_id):
         try:
@@ -89,7 +89,7 @@ class ApiWrapper:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_private_msg-%E5%8F%91%E9%80%81%E7%A7%81%E8%81%8A%E6%B6%88%E6%81%AF
         params = {"user_id": self.context.user_id, "message": message}
         ret = self.call_api("send_private_msg", params)
-        return 0 if ret is None or ret["status"] == "failed" else ret["data"]["message_id"]
+        return 0 if ret.get("status") != "ok" else ret.get("data", {}).get("message_id", 0)
 
     def send_group_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_group_msg-%E5%8F%91%E9%80%81%E7%BE%A4%E6%B6%88%E6%81%AF
@@ -98,20 +98,20 @@ class ApiWrapper:
             group_id = runtime_context.DEFAULT_GROUP_ID
         params = {"group_id": group_id, "message": message}
         ret = self.call_api("send_group_msg", params)
-        return 0 if ret is None or ret["status"] == "failed" else ret["data"]["message_id"]
+        return 0 if ret.get("status") != "ok" else ret.get("data", {}).get("message_id", 0)
 
     def get_group_member_info(self, user_id):
         #https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_group_member_info-%E8%8E%B7%E5%8F%96%E7%BE%A4%E6%88%90%E5%91%98%E4%BF%A1%E6%81%AF
         params = {"group_id": self.context.group_id, "user_id": user_id}
         ret = self.call_api("get_group_member_info", params)
-        return ret["data"]
+        return ret.get("data", {})
 
     def get_image(self, file):
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_image-%E8%8E%B7%E5%8F%96%E5%9B%BE%E7%89%87
         params = {"file": file}
         ret = self.call_api("get_image", params)
-        if ret["status"] == "ok":
-            return ret["data"]["file"]
+        if ret.get("status") == "ok":
+            return ret.get("data", {}).get("file", "")
         else :
             return ""
 
@@ -119,8 +119,8 @@ class ApiWrapper:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_image-%E8%8E%B7%E5%8F%96%E5%9B%BE%E7%89%87
         params = {"file": file}
         ret = self.call_api("get_image", params)
-        if ret["status"] == "ok":
-            return ret["data"]["url"]
+        if ret.get("status") == "ok":
+            return ret.get("data", {}).get("url", "")
         else :
             return ""
 
@@ -152,17 +152,17 @@ class ApiWrapper:
             group_id = runtime_context.DEFAULT_GROUP_ID
         params = {"group_id": group_id, "messages": forward(message)}
         ret = self.call_api("send_group_forward_msg", params)
-        return 0 if ret is None or ret["status"] == "failed" else 1
+        return 0 if ret.get("status") != "ok" else 1
 
     def send_private_forward_msg(self, message: list):
         params = {"user_id": self.context.user_id, "messages": forward(message)}
         ret = self.call_api("send_private_forward_msg", params)
-        return 0 if ret is None or ret["status"] == "failed" else 1
+        return 0 if ret.get("status") != "ok" else 1
 
     def get_group_album_list(self, group_id):
         params = {"group_id": group_id}
         ret = self.call_api("get_group_album_list", params)
-        return ret["data"]
+        return ret.get("data", {})
 
     def set_group_special_title(self, group_id, user_id, title):
         params = {"group_id": group_id, "user_id": user_id, "special_title": title}

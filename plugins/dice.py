@@ -23,16 +23,13 @@ class DicePlugin(Plugin):
         if seg.get("type") != "text":
             return False
         msg = seg.get("data", {}).get("text", "").strip()
-        matched = self.PATTERN.match(msg)
-        if not matched:
-            return False
-        self._dice_count = int(matched.group(1))
-        self._dice_faces = int(matched.group(2))
-        return True
+        return self.PATTERN.match(msg) is not None
 
     def handle(self):
-        a = self._dice_count
-        b = self._dice_faces
+        msg = self.bot_event.message[0].get("data", {}).get("text", "").strip()
+        m = self.PATTERN.match(msg)
+        a = int(m.group(1))
+        b = int(m.group(2))
         if a <= 0 or b <= 0:
             self.api.send_msg(text("骰子数量和面数都必须大于0"))
             return

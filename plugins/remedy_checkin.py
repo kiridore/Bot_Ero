@@ -10,7 +10,6 @@ class RemedyCheckinPlugin(Plugin):
     name = 'remedy_checkin'
     description = '为用户补卡并扣除对应积分。'
 
-    super_mode = False
     YEARLY_LIMIT = 4
 
     def _check_remedy_limit(self, user_id, year):
@@ -26,13 +25,14 @@ class RemedyCheckinPlugin(Plugin):
         elif self.on_command_any("/补卡", "/補卡"):
             return True
         elif self.on_command_any("/超级补卡", "/超級補卡") and self.admin_user():
-            self.super_mode = True
             return True
         return False
 
     def handle(self):
         if self.bot_event.user_id == None:
             return
+
+        super_mode = self.args[0] in ("/超级补卡", "/超級補卡")
 
         if self.args[0] in ("/单日补卡", "/單日補卡"):
             self.handle_single_day_remedy()
@@ -55,14 +55,14 @@ class RemedyCheckinPlugin(Plugin):
             cost = 4
 
             if len(rows) == 0:
-                if not self.super_mode and not self._check_remedy_limit(user_id, dt.year):
+                if not super_mode and not self._check_remedy_limit(user_id, dt.year):
                     return
                 points = self.dbmanager.get_user_point(user_id)
-                if points >= cost or self.super_mode:
+                if points >= cost or super_mode:
                     success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费{}点数，谢谢惠顾喵"
                     self.api.send_msg(text(success_msg.format(start.split(" ")[0], end.split(" ")[0], cost)))
                     self.dbmanager.remedy_checkin(user_id, start.split(" ")[0])
-                    if not self.super_mode:
+                    if not super_mode:
                         utils.add_user_point(self.dbmanager, user_id, cost * -1)
                         self.dbmanager.add_user_remedy_used(dt.year, user_id, 1)
                 else:

@@ -121,7 +121,8 @@ logger.exception("异常（自动附带 traceback）")
 - 日志格式: `[bot] %(asctime)s - %(levelname)s - %(message)s`
 - 日志级别: `INFO`
 - **MUST NOT** 使用 `print()` 代替 logger
-- **MUST** 在 `handle()` 中捕获异常并记录 `logger.exception()`
+- **MUST NOT** 使用 `print()` 代替 logger
+- `main.py` 的 `plugin_pool()` 已在框架层统一 catch 插件异常并记录 `logger.exception()`；插件 `handle()` 不再强制自行 try/except（但复杂子逻辑仍建议有自己的错误处理）
 
 ---
 
@@ -168,13 +169,13 @@ def handle(self):
 ```
 
 **MUST:**
-- `handle()` 中**必须**有 try/except 包裹（线程静默死掉难以排查）
-- 异常必须用 `logger.exception()` 记录
+- 异常由 `main.py` 框架层统一记录 `logger.exception()`，不会静默死线程
+- 插件 `handle()` 内可以不做最外层 try/except（框架已保护），但复杂子逻辑仍建议有自己的错误处理
 - 给用户返回友好的错误消息（使用 bot 的语气：喵~、波浪线）
 
 **ApiWrapper 错误返回值:**
-- `call_api` 超时 → 返回 `{}`
-- API 调用失败 → `ret["status"] == "failed"`
+- `call_api` 超时 → 返回 `{"status": "failed"}`
+- API 调用失败 → `ret.get("status") != "ok"`
 - 大多数方法对失败返回 `0` / `""` / `False`
 - 使用前检查返回值
 
@@ -233,7 +234,7 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 - [ ] 1. 新增插件 → 是否加了 `@register_plugin`？
 - [ ] 2. 新增指令 → 是否更新了 `BOT_MENU_TEXT`？
-- [ ] 3. 修改 `handle()` → 是否有 try/except 保护？
+- [ ] 3. 插件异常 → 框架层统一捕获，不需要每个 handle() 自行 try/except
 - [ ] 4. 修改数据库 → 是否用了参数化查询（`?` 占位符）？
 - [ ] 5. 新增表/列 → 是否用了 `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ADD COLUMN`？
 - [ ] 6. 涉及"周"的逻辑 → 是否用了 08:00 偏移？

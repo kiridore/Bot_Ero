@@ -31,8 +31,11 @@ def resolve_event_type(context: dict) -> str:
 def plugin_pool(context: dict, event_type: str):
     for plugin_cls in runtime_context.plugin_registry:
         plugin = plugin_cls(context)
-        if plugin.match(event_type):
-            plugin.handle()
+        try:
+            if plugin.match(event_type):
+                plugin.handle()
+        except Exception:
+            logger.exception("插件 %s 处理失败", plugin_cls.__name__)
 
 
 def on_message(_, message):

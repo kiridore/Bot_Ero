@@ -1,0 +1,24 @@
+# ============================================================
+# BotEro 依赖清单
+# pip install -r requirements.txt
+# ============================================================
+
+# ---- 机器人核心 (core/) ----
+websocket-client>=1.6.0
+requests>=2.31.0
+Pillow>=10.0.0
+
+# ---- LLM 子系统 (core/llm/) ----
+openai>=1.0.0
+
+# ---- 更新插件 (plugins/update.py) ----
+GitPython>=3.1.0
+
+# ---- 系统监控插件 (plugins/monitor.py, 可选) ----
+psutil>=5.9.0
+
+# ---- Web 打卡画廊 (checkin_gallery/) ----
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+python-multipart>=0.0.9
