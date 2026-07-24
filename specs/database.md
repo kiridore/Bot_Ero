@@ -2,7 +2,7 @@
 
 > 关联规范: [conventions.md](conventions.md) | [plugins.md](plugins.md) | [web-gallery.md](web-gallery.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-06-29
+> 最后更新: 2026-07-24
 
 ---
 
@@ -93,6 +93,20 @@ with _connect() as conn:
 | `period_key` | TEXT | PRIMARY KEY | 周期标识 |
 | `points` | INTEGER | NOT NULL | 奖励积分 |
 | `claimed_at` | TEXT | NOT NULL | 领取时间 |
+
+### 周常任务
+
+#### `quest_progress`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY (with quest_id, week_key) | 用户 QQ 号 |
+| `quest_id` | INTEGER | PRIMARY KEY (with user_id, week_key) | 任务 ID（1-5） |
+| `week_key` | TEXT | PRIMARY KEY (with user_id, quest_id) | 周一日期 `"YYYY-MM-DD"` |
+| `progress` | INTEGER | DEFAULT 0 | 当前进度值 |
+| `completed` | INTEGER | DEFAULT 0 | 是否已完成 |
+| `claimed_at` | TEXT | | 奖励领取时间 |
+
+任务定义硬编码在 `core/utils.py` 的 `QUEST_DEFS` 中，5 个任务（打卡 3 个，抽奖 2 个）。
 
 ### 抽奖
 

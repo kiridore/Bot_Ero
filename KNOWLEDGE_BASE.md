@@ -282,30 +282,32 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 | 23 | `random_reference` | `random_reference.py` | 完全匹配 `/随机参考` | picsum.photos 随机 512x512 |
 | 24 | `gallery_login_key` | `gallery_login_key.py` | 完全匹配 `/图库密钥`/`/网页密钥` | HMAC 登录密钥（仅私聊） |
 | 25 | `ff_news` | `ff_news.py` | 完全匹配 `/FF新闻` + 心跳 | FF14 国服新闻，每小时自动推送 |
+| 26 | `weekly_quest` | `weekly_quest.py` | 完全匹配 `/周常` | 查看本周打卡/抽奖任务进度 |
 
 ### 4.2 通知/请求处理
 
 | # | 插件名 | 文件 | 触发 | 功能 |
 |---|--------|------|------|------|
-| 26 | `auto_friend` | `auto_friend.py` | `request_type == "friend"` | 自动同意好友请求 |
-| 27 | `welcome` | `welcome.py` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
+| 27 | `auto_friend` | `auto_friend.py` | `request_type == "friend"` | 自动同意好友请求 |
+| 28 | `welcome` | `welcome.py` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
 
 ### 4.3 定时/心跳
 
 | # | 插件名 | 文件 | 计划 | 功能 |
 |---|--------|------|------|------|
-| 28 | `backup` | `backup.py` | 每天 08:00 | 自动备份打卡图片到本地 |
-| 29 | `shop_weekly_rotation` | `redeem_shop.py` | 每周一 08:00 | 刷新商店货架 |
+| 29 | `backup` | `backup.py` | 每天 08:00 | 自动备份打卡图片到本地 |
+| 30 | `shop_weekly_rotation` | `redeem_shop.py` | 每周一 08:00 | 刷新商店货架 |
 | 30 | `startup_changelog` | `startup_changelog.py` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
+| 31 | `weekly_quest_reset` | `weekly_quest.py` | 每周一 08:00 | 清理过期任务进度 |
 
 ### 4.4 管理/超级用户
 
 | # | 插件名 | 文件 | 触发 | 权限 | 功能 |
 |---|--------|------|------|------|------|
-| 31 | `grant_points_all` | `grant_points_all.py` | `/发金币 <数量>` | admin_user() | 全员发积分 |
-| 32 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
-| 33 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
-| 34 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
+| 32 | `grant_points_all` | `grant_points_all.py` | `/发金币 <数量>` | admin_user() | 全员发积分 |
+| 33 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
+| 34 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
+| 35 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
 
 ### 4.5 插件间数据依赖
 
@@ -397,6 +399,16 @@ core.api.py (_build_title_prefix)
 | period_key | TEXT | PK | 周期标识 |
 | points | INTEGER | NOT NULL | |
 | claimed_at | TEXT | NOT NULL | |
+
+#### quest_progress
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| user_id | TEXT | PK (复合) | |
+| quest_id | INTEGER | PK | 对应 QUEST_DEFS 中的任务 ID |
+| week_key | TEXT | PK | 周一日期 `YYYY-MM-DD` |
+| progress | INTEGER | DEFAULT 0 | 当前累计值 |
+| completed | INTEGER | DEFAULT 0 | 是否已完成 |
+| claimed_at | TEXT | | 奖励领取时间，NULL 表示未领取 |
 
 ### 5.4 抽奖
 
@@ -579,20 +591,22 @@ start, end = get_monday_to_monday()
 
 | 奖励 | 条件 | 积分 | 重复保护 |
 |------|------|------|---------|
-| 首次打卡 | 本周首次打卡 | +1 | `weekly_streak_reward_claims` |
-| 自然周全勤 | 7 天不同日打卡 | +1 | `full_week_daily` |
 | 当月全勤 | 该月每天打卡 | +1 | `full_month_weekly_check` |
 | 打卡幸运 | 商店 buff，10% 概率 | +1 | buff 次数消耗 |
+| 周常任务 | 3 个打卡任务（1/3/7次） | +1/+2/+3 | `quest_progress` |
+| 周常任务 | 2 个抽奖任务（3/7次） | +1/+2 | `quest_progress` |
+
+> **变更:** 原"首次打卡 +1"和"自然周全勤 +1"已合并到周常任务系统的打卡任务中。任务通过 `on_quest_trigger()` 自动完成和发放奖励。
 
 ### 8.3 撤回打卡 (`/撤回打卡`)
 
 - 删除本周最近一次打卡记录
 - 回滚已领取的 attendance rewards（全勤/满月）
-- 点数不直接扣回，但全勤奖励被撤
+- 回滚周常任务进度（通过 `on_quest_rollback()` 回收已完成任务的积分）
 
 ### 8.4 打卡消息被撤回 (自动)
 
-`checkin_recall.py` 监听 `notice_type == "group_recall"`，根据 `message_id` 查找并回滚打卡记录和奖励。
+`checkin_recall.py` 监听 `notice_type == "group_recall"`，根据 `message_id` 查找并回滚打卡记录和奖励（含任务进度）。
 
 ### 8.5 补卡系统
 
@@ -602,7 +616,24 @@ start, end = get_monday_to_monday()
 | `/单日补卡 YYYY-MM-DD` | 2 积分 | 无 | 补单个日期 |
 | `/超级补卡 YYYY-MM-DD [uid]` | 免费 | 无 | 管理员补卡 |
 
-补卡记录 `content = "remedy_checkin"`，查询打卡图时排除。
+补卡记录 `content = "remedy_checkin"`，查询打卡图时排除。补卡**不会**计入周常任务进度。
+
+### 8.6 周常任务系统
+
+5 个硬编码任务，以 Monday 08:00 周为周期重置。任务定义在 `core/utils.py:QUEST_DEFS`。
+
+| ID | 名称 | 触发类型 | 目标 | 奖励 |
+|----|------|----------|------|------|
+| 1 | 打个卡先 | checkin | 1次 | +1 |
+| 2 | 三连打卡 | checkin | 3次 | +2 |
+| 3 | 一周都打了 | checkin | 7次 | +3 |
+| 4 | 随便抽抽 | lottery | 3次 | +1 |
+| 5 | 猛猛上瘾 | lottery | 7次 | +2 |
+
+- **自动完成**: 打卡/抽奖后 `on_quest_trigger()` 自动检查并发放积分，打卡时显示完成通知，抽奖静默。
+- **进度回滚**: 撤回打卡时 `on_quest_rollback()` 回退进度，若低于已完成任务目标则回收积分。
+- **查看进度**: `/周常` 命令分任务显示进度条。
+- **周重置**: `WeeklyQuestResetPlugin`（TimedHeartbeatPlugin，周一 08:00）清理过期数据。
 
 ---
 
@@ -610,8 +641,7 @@ start, end = get_monday_to_monday()
 
 ### 9.1 积分获取
 
-- 打卡首次 +1
-- 自然周全勤 +1
+- 周常任务（3个打卡 + 2个抽奖，合计最多 +9）
 - 当月全勤 +1
 - 打卡幸运 +1
 - 抽奖随机获得

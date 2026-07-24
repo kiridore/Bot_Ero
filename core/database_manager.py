@@ -258,6 +258,17 @@ class DbManager:
                 UNIQUE (issue_code)
             );
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS quest_progress (
+                user_id TEXT NOT NULL,
+                quest_id INTEGER NOT NULL,
+                week_key TEXT NOT NULL,
+                progress INTEGER DEFAULT 0,
+                completed INTEGER DEFAULT 0,
+                claimed_at TEXT,
+                PRIMARY KEY (user_id, quest_id, week_key)
+            );
+        """)
         # 已移除群聊 topic 功能：若旧库存在相关表则删除
         self.cur.execute("DROP TABLE IF EXISTS group_chat_topic_messages")
         self.cur.execute("DROP TABLE IF EXISTS group_chat_topics")
@@ -1447,3 +1458,61 @@ class DbManager:
         except Exception as e:
             self.conn.rollback()
             return False, str(e) or "下注失败"
+
+    def get_weekly_lottery_draw_count(self, user_id, week_start_str):
+        ws = datetime.strptime(week_start_str, "%Y-%m-%d %H:%M:%S")
+        we = ws + timedelta(days=7)
+        self.cur.execute("""
+            SELECT COALESCE(SUM(draw_count), 0)
+            FROM user_lottery_daily_stats
+            WHERE user_id = ? AND stat_date >= ? AND stat_date < ?
+        """, (int(user_id), ws.strftime("%Y-%m-%d"), we.strftime("%Y-%m-%d")))
+        row = self.cur.fetchone()
+        return 0 if row is None else int(row[0])
+
+    def upsert_quest_progress(self, user_id, quest_id, week_key, progress):
+        self.cur.execute("""
+            INSERT INTO quest_progress (user_id, quest_id, week_key, progress)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, quest_id, week_key) DO UPDATE SET progress = excluded.progress
+        """, (str(user_id), int(quest_id), str(week_key), int(progress)))
+        self.conn.commit()
+
+    def claim_quest_reward(self, user_id, quest_id, week_key):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute("""
+            UPDATE quest_progress
+            SET completed = 1, claimed_at = ?
+            WHERE user_id = ? AND quest_id = ? AND week_key = ?
+            AND claimed_at IS NULL
+        """, (now, str(user_id), int(quest_id), str(week_key)))
+        ok = self.cur.rowcount > 0
+        self.conn.commit()
+        return ok
+
+    def revoke_quest_reward(self, user_id, quest_id, week_key):
+        self.cur.execute("""
+            UPDATE quest_progress
+            SET completed = 0, claimed_at = NULL
+            WHERE user_id = ? AND quest_id = ? AND week_key = ?
+            AND claimed_at IS NOT NULL
+        """, (str(user_id), int(quest_id), str(week_key)))
+        ok = self.cur.rowcount > 0
+        self.conn.commit()
+        return ok
+
+    def get_quest_progress(self, user_id, week_key):
+        self.cur.execute("""
+            SELECT quest_id, progress, completed
+            FROM quest_progress
+            WHERE user_id = ? AND week_key = ?
+        """, (str(user_id), str(week_key)))
+        rows = self.cur.fetchall()
+        return {row[0]: {"progress": row[1], "completed": row[2]} for row in rows}
+
+    def cleanup_old_quest_progress(self, current_week_key):
+        self.cur.execute("""
+            DELETE FROM quest_progress
+            WHERE week_key < ?
+        """, (str(current_week_key),))
+        self.conn.commit()

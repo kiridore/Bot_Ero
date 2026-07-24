@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from core import utils
 from core.base import Plugin
 from core.cq import at, text
-from core.utils import get_monday_to_monday
+from core.utils import get_monday_to_monday, on_quest_rollback
 
 
 from core.utils import register_plugin
@@ -90,7 +90,6 @@ class CheckinRecallPlugin(Plugin):
             user_id, start_date, end_date, limit=9999999
         )
         if len(week_after) == 0 and count_before_n > 0:
-            utils.add_user_point(self.dbmanager, user_id, -1)
             week_start = start_date.split(" ")[0]
             month_weekly_points = self.dbmanager.revoke_attendance_reward_if_claimed(
                 user_id, "full_month_weekly_check", week_start
@@ -98,6 +97,7 @@ class CheckinRecallPlugin(Plugin):
             if month_weekly_points > 0:
                 utils.add_user_point(self.dbmanager, user_id, -month_weekly_points)
         self._rollback_attendance_rewards(user_id, dt)
+        on_quest_rollback(self.dbmanager, user_id, "checkin", len(week_after))
 
         self.api.send_msg(
             at(user_id),

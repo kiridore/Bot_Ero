@@ -4,6 +4,7 @@ from datetime import datetime
 from core import utils
 from core.base import Plugin
 from core.cq import at, text
+from core.utils import on_quest_trigger
 from plugins.title import get_lottery_title_ids, get_title_def, evaluate_and_unlock_titles
 
 
@@ -130,6 +131,8 @@ class LotteryPlugin(Plugin):
                 utils.add_user_point(self.dbmanager, user_id, -self.COST)
                 self.dbmanager.add_lottery_spent(user_id, self.COST)
         self.dbmanager.add_lottery_draw_count(user_id, today, 1)
+        # ponytail: silent quest trigger, users check progress via /周常
+        on_quest_trigger(self.dbmanager, user_id, "lottery")
         cost_paid = 0 if free_daily else (0 if payment_exempt else self.COST)
         draw_cost_hint = (
             self.FREE_DRAW_HINT

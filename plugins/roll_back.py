@@ -1,7 +1,7 @@
 from core import utils
 from core.base import Plugin
 from core.cq import text,image
-from core.utils import get_monday_to_monday
+from core.utils import get_monday_to_monday, on_quest_rollback
 from core.logger import logger
 from datetime import datetime, timedelta
 
@@ -70,8 +70,6 @@ class RollbackCheckinPlugin(Plugin):
             self.api.send_msg(text("成功撤回了本周最近一次打卡喵:\n{}".format(del_time)), image(del_image))
 
             if len(rows) == 1:
-                self.api.send_msg(text("你刚刚撤回了本周第一次打卡，需要扣掉本周的点数喵！"))
-                utils.add_user_point(self.dbmanager, self.bot_event.user_id, -1)
                 week_start = start_date.split(" ")[0]
                 month_weekly_points = self.dbmanager.revoke_attendance_reward_if_claimed(
                     self.bot_event.user_id, "full_month_weekly_check", week_start
@@ -80,5 +78,7 @@ class RollbackCheckinPlugin(Plugin):
                     utils.add_user_point(self.dbmanager, self.bot_event.user_id, -month_weekly_points)
 
             self.dbmanager.delete_checkin_by_id(rows[0][0])
+            new_rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
+            on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin", len(new_rows))
             dt = datetime.strptime(del_time, "%Y-%m-%d %H:%M:%S")
             self._rollback_attendance_rewards(self.bot_event.user_id, dt)

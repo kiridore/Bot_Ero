@@ -2,8 +2,8 @@ import random
 from core.base import Plugin
 from core.cq import text,at
 from core.logger import logger
-from core.utils import add_user_point, get_monday_to_monday
-from datetime import datetime, timedelta
+from core.utils import add_user_point, get_monday_to_monday, on_quest_trigger
+from datetime import datetime
 from plugins.title import evaluate_and_unlock_titles, get_title_def
 
 from core.utils import register_plugin
@@ -70,21 +70,6 @@ class CheckinPlugin(Plugin):
             week_start = start_date.split(" ")[0]
 
             now_dt = datetime.now()
-            # 自然周全勤奖励（每自然周一次）
-            natural_week_start = now_dt - timedelta(days=now_dt.weekday())
-            natural_week_end = natural_week_start + timedelta(days=7)
-            week_start_str = natural_week_start.strftime("%Y-%m-%d")
-            week_end_str = natural_week_end.strftime("%Y-%m-%d")
-            week_full_days = self.dbmanager.get_distinct_checkin_day_count(
-                self.bot_event.user_id,
-                f"{week_start_str} 00:00:00",
-                f"{week_end_str} 00:00:00",
-            )
-            if week_full_days >= 7 and self.dbmanager.claim_attendance_reward(
-                self.bot_event.user_id, "full_week_daily", now_dt.strftime("%Y-%m-%d"), 1
-            ):
-                bonus_total += 1
-                bonus_lines.append("自然周全勤奖励 +1")
 
             # 自然月全勤奖励（每自然月一次）
             month_start = now_dt.replace(day=1)
@@ -104,10 +89,6 @@ class CheckinPlugin(Plugin):
                 bonus_total += 1
                 bonus_lines.append("当月全勤奖励 +1")
 
-            if is_first:
-                bonus_total += 1
-                bonus_lines.append("当周首次打卡奖励 +1")
-
             if checkin_luck_bonus:
                 bonus_total += checkin_luck_bonus
                 bonus_lines.append("打卡增强：概率奖励 +1")
@@ -115,6 +96,11 @@ class CheckinPlugin(Plugin):
             if bonus_total > 0:
                 add_user_point(self.dbmanager, self.bot_event.user_id, bonus_total)
                 display_str += "\n" + "\n".join(bonus_lines)
+
+            completed = on_quest_trigger(self.dbmanager, self.bot_event.user_id, "checkin")
+            if completed:
+                names = [f"{q['name']} +{q['reward']}" for q in completed]
+                display_str += "\n🎯 " + " | ".join(names)
 
             if streak_res["current_weekly"] > 1:
                 display_str += "\n已经连续打卡了{}周了，真厉害喵！".format(streak_res["current_weekly"])

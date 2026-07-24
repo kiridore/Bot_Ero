@@ -2,9 +2,9 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-06-29
+> 最后更新: 2026-07-24
 
-全部 36 个已注册插件的完整目录。新增插件时必须在此添加条目。
+全部 38 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
 ---
 
@@ -37,6 +37,7 @@
 | `random_reference.py` | `RandomReferencePlugin` | `random_reference` | 完全匹配 | `/随机参考` | 随机返回一张 512×512 参考图 |
 | `gallery_login_key.py` | `GalleryLoginKeyPlugin` | `gallery_login_key` | 完全匹配 | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
 | `ff_news.py` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
+| `weekly_quest.py` | `WeeklyQuestPlugin` | `weekly_quest` | 完全匹配 | `/周常` | 查看本周打卡/抽奖任务进度 |
 
 ## 通知/请求处理插件
 
@@ -52,6 +53,7 @@
 | `backup.py` | `BackupPlugin` | `backup` | TimedHeartbeatPlugin | 每天 08:00 | 自动备份打卡图片 |
 | `redeem_shop.py` | `ShopWeeklyRotationPlugin` | `shop_weekly_rotation` | TimedHeartbeatPlugin | 每周一 08:00 | 刷新商店货架 |
 | `startup_changelog.py` | `StartupChangelogPlugin` | `startup_changelog` | Plugin (手动 meta) | 启动时一次 | 发送开机问候 |
+| `weekly_quest.py` | `WeeklyQuestResetPlugin` | `weekly_quest_reset` | TimedHeartbeatPlugin | 每周一 08:00 | 清理过期任务进度 |
 
 ## 管理/超级用户插件
 

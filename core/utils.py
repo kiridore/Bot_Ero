@@ -86,3 +86,42 @@ def register_plugin(cls: PluginType) -> PluginType:
     if cls not in context.plugin_registry:
         context.plugin_registry.append(cls)
     return cls
+
+# ponytail: quest defs hardcoded, add admin-created quests later if needed
+QUEST_DEFS = [
+    {"id": 1, "name": "打个卡先", "trigger": "checkin", "goal": 1, "reward": 1},
+    {"id": 2, "name": "三连打卡", "trigger": "checkin", "goal": 3, "reward": 2},
+    {"id": 3, "name": "一周都打了", "trigger": "checkin", "goal": 7, "reward": 3},
+    {"id": 4, "name": "随便抽抽", "trigger": "lottery", "goal": 3, "reward": 1},
+    {"id": 5, "name": "猛猛上瘾", "trigger": "lottery", "goal": 7, "reward": 2},
+]
+
+def get_quest_week_key():
+    return get_monday_to_monday()[0].split(" ")[0]
+
+def on_quest_trigger(db, user_id, trigger_type):
+    week_key = get_quest_week_key()
+    if trigger_type == "checkin":
+        start, end = get_monday_to_monday()
+        count = len(db.search_target_user_checkin_range(user_id, start, end))
+    else:
+        start, _ = get_monday_to_monday()
+        count = db.get_weekly_lottery_draw_count(user_id, start)
+    completed = []
+    for q in QUEST_DEFS:
+        if q["trigger"] != trigger_type:
+            continue
+        db.upsert_quest_progress(user_id, q["id"], week_key, count)
+        if count >= q["goal"] and db.claim_quest_reward(user_id, q["id"], week_key):
+            add_user_point(db, user_id, q["reward"])
+            completed.append({"name": q["name"], "reward": q["reward"]})
+    return completed
+
+def on_quest_rollback(db, user_id, trigger_type, new_count):
+    week_key = get_quest_week_key()
+    for q in QUEST_DEFS:
+        if q["trigger"] != trigger_type:
+            continue
+        db.upsert_quest_progress(user_id, q["id"], week_key, new_count)
+        if new_count < q["goal"] and db.revoke_quest_reward(user_id, q["id"], week_key):
+            add_user_point(db, user_id, -q["reward"])
