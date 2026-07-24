@@ -146,12 +146,14 @@ class LotteryPlugin(Plugin):
         zero_streak = profile["zero_streak"]
         max_zero_streak = profile["max_zero_streak"]
         has_hit_ten = profile["has_hit_ten"]
+        total_zeros = profile["total_zeros"]
 
         if result["type"] == "points":
             reward = result["value"]
             utils.add_user_point(self.dbmanager, user_id, reward)
             if reward == 0:
                 zero_streak += 1
+                total_zeros += 1
                 if zero_streak > max_zero_streak:
                     max_zero_streak = zero_streak
             else:
@@ -159,7 +161,7 @@ class LotteryPlugin(Plugin):
             if reward == 10:
                 has_hit_ten = 1
             self.dbmanager.upsert_user_lottery_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)
@@ -198,7 +200,7 @@ class LotteryPlugin(Plugin):
         if result["type"] == "title_new":
             zero_streak = 0
             self.dbmanager.upsert_user_lottery_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)
@@ -217,7 +219,7 @@ class LotteryPlugin(Plugin):
             duplicate_count += 1
             zero_streak = 0
             self.dbmanager.upsert_user_lottery_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)
@@ -246,7 +248,7 @@ class LotteryPlugin(Plugin):
         if result["type"] == "title_none":
             zero_streak = 0
             self.dbmanager.upsert_user_lottery_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)

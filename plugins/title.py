@@ -234,6 +234,20 @@ TITLE_DEFS = {
     244: {"id": 244, "name": "无底深渊", "rarity": "legendary", "description": "累计抽奖1000次", "unlock_type": "condition"},
     245: {"id": 245, "name": "称号收藏家", "rarity": "legendary", "description": "累计解锁50个称号", "unlock_type": "condition"},
     246: {"id": 246, "name": "称号大师", "rarity": "legendary", "description": "累计解锁100个称号", "unlock_type": "condition"},
+    247: {"id": 247, "name": "抽抽乐", "rarity": "common", "description": "累计抽奖3次", "unlock_type": "condition"},
+    248: {"id": 248, "name": "抽卡成精", "rarity": "rare", "description": "累计抽奖75次", "unlock_type": "condition"},
+    249: {"id": 249, "name": "攒着抽", "rarity": "legendary", "description": "累计抽奖150次", "unlock_type": "condition"},
+    250: {"id": 250, "name": "挥金如土", "rarity": "legendary", "description": "累计抽奖300次", "unlock_type": "condition"},
+    251: {"id": 251, "name": "抽穿卡池", "rarity": "legendary", "description": "累计抽奖2000次", "unlock_type": "condition"},
+    252: {"id": 252, "name": "非气初现", "rarity": "common", "description": "有过一次什么都没抽到", "unlock_type": "condition"},
+    253: {"id": 253, "name": "连连看", "rarity": "rare", "description": "连续5次什么都没抽到", "unlock_type": "condition"},
+    254: {"id": 254, "name": "非酋认证", "rarity": "legendary", "description": "连续15次什么都没抽到", "unlock_type": "condition"},
+    255: {"id": 255, "name": "天命之人", "rarity": "legendary", "description": "连续30次什么都没抽到", "unlock_type": "condition"},
+    256: {"id": 256, "name": "空", "rarity": "common", "description": "累计空抽1次", "unlock_type": "condition"},
+    257: {"id": 257, "name": "酋长", "rarity": "rare", "description": "累计空抽10次", "unlock_type": "condition"},
+    258: {"id": 258, "name": "空抽", "rarity": "legendary", "description": "累计空抽50次", "unlock_type": "condition"},
+    259: {"id": 259, "name": "黑黑", "rarity": "legendary", "description": "累计空抽100次", "unlock_type": "condition"},
+    260: {"id": 260, "name": "虚空行者", "rarity": "legendary", "description": "累计空抽300次", "unlock_type": "condition"},
 }
 
 
@@ -331,6 +345,16 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(243)
     if draw_count >= 1000:
         unlock(244)
+    if draw_count >= 3:
+        unlock(247)
+    if draw_count >= 75:
+        unlock(248)
+    if draw_count >= 150:
+        unlock(249)
+    if draw_count >= 300:
+        unlock(250)
+    if draw_count >= 2000:
+        unlock(251)
     if profile["duplicate_count"] >= 1:
         unlock(227)
     if profile["duplicate_count"] >= 10:
@@ -343,6 +367,24 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(236)
     if profile["max_zero_streak"] >= 10:
         unlock(237)
+    if profile["max_zero_streak"] >= 1:
+        unlock(252)
+    if profile["max_zero_streak"] >= 5:
+        unlock(253)
+    if profile["max_zero_streak"] >= 15:
+        unlock(254)
+    if profile["max_zero_streak"] >= 30:
+        unlock(255)
+    if profile["total_zeros"] >= 1:
+        unlock(256)
+    if profile["total_zeros"] >= 10:
+        unlock(257)
+    if profile["total_zeros"] >= 50:
+        unlock(258)
+    if profile["total_zeros"] >= 100:
+        unlock(259)
+    if profile["total_zeros"] >= 300:
+        unlock(260)
 
     # 累计周常任务完成次数
     quest_total = dbmanager.get_quest_completion(user_id)

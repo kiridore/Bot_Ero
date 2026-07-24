@@ -108,9 +108,14 @@ class DbManager:
                 duplicate_count INTEGER NOT NULL DEFAULT 0,
                 zero_streak INTEGER NOT NULL DEFAULT 0,
                 max_zero_streak INTEGER NOT NULL DEFAULT 0,
-                has_hit_ten INTEGER NOT NULL DEFAULT 0
+                has_hit_ten INTEGER NOT NULL DEFAULT 0,
+                total_zeros INTEGER NOT NULL DEFAULT 0
             );
         """)
+        self.cur.execute("PRAGMA table_info(user_lottery_profile)")
+        _lp_cols = [row[1] for row in self.cur.fetchall()]
+        if "total_zeros" not in _lp_cols:
+            self.cur.execute("ALTER TABLE user_lottery_profile ADD COLUMN total_zeros INTEGER NOT NULL DEFAULT 0")
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS shop_stock (
                 product_id TEXT PRIMARY KEY,
@@ -954,7 +959,7 @@ class DbManager:
 
     def get_user_lottery_profile(self, user_id):
         self.cur.execute("""
-            SELECT draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten
+            SELECT draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             FROM user_lottery_profile
             WHERE user_id = ?
         """, (int(user_id),))
@@ -966,6 +971,7 @@ class DbManager:
                 "zero_streak": 0,
                 "max_zero_streak": 0,
                 "has_hit_ten": 0,
+                "total_zeros": 0,
             }
         return {
             "draw_count": int(row[0]),
@@ -973,18 +979,20 @@ class DbManager:
             "zero_streak": int(row[2]),
             "max_zero_streak": int(row[3]),
             "has_hit_ten": int(row[4]),
+            "total_zeros": int(row[5]),
         }
 
-    def upsert_user_lottery_profile(self, user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten):
+    def upsert_user_lottery_profile(self, user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros):
         self.cur.execute("""
-            INSERT INTO user_lottery_profile (user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO user_lottery_profile (user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 draw_count = excluded.draw_count,
                 duplicate_count = excluded.duplicate_count,
                 zero_streak = excluded.zero_streak,
                 max_zero_streak = excluded.max_zero_streak,
-                has_hit_ten = excluded.has_hit_ten
+                has_hit_ten = excluded.has_hit_ten,
+                total_zeros = excluded.total_zeros
         """, (
             int(user_id),
             int(draw_count),
@@ -992,6 +1000,7 @@ class DbManager:
             int(zero_streak),
             int(max_zero_streak),
             int(has_hit_ten),
+            int(total_zeros),
         ))
         self.conn.commit()
 
