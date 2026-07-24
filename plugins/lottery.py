@@ -53,16 +53,16 @@ class LotteryPlugin(Plugin):
     def draw_reward(self, user_id):
         roll = random.random() * 100
         table = [
-            (40.0, {"type": "points", "value": 0}),
+            (31.0, {"type": "points", "value": 0}),
             (28.0, {"type": "points", "value": 1}),
             (10.0, {"type": "points", "value": 2}),
             (6.0, {"type": "points", "value": 3}),
             (3.0, {"type": "points", "value": 5}),
             (0.8, {"type": "points", "value": 8}),
             (0.2, {"type": "points", "value": 10}),
-            (9.0, {"type": "title_roll", "rarity": "common"}),
-            (2.0, {"type": "title_roll", "rarity": "rare"}),
-            (1.0, {"type": "title_roll", "rarity": "legendary"}),
+            (12.0, {"type": "title_roll", "rarity": "common"}),
+            (5.0, {"type": "title_roll", "rarity": "rare"}),
+            (4.0, {"type": "title_roll", "rarity": "legendary"}),
         ]
 
         threshold = 0.0
