@@ -5,7 +5,7 @@ from core.cq import text
 from core.utils import register_plugin
 @register_plugin
 class GroupEssencePlugin(Plugin):
-    """回复某条群消息后发送 /加精 或 /删除精华，设置或移除群精华。"""
+    """回复某条群消息后发送 /加精 /群精华 /精华 或 /删除精华，设置或移除群精华。"""
 
     name = 'manage_group_essence'
     description = '设置或取消指定消息的群精华。'
@@ -17,7 +17,7 @@ class GroupEssencePlugin(Plugin):
             parts = seg.get("data", {}).get("text", "").strip().split(None, 1)
             if not parts:
                 continue
-            if parts[0] == "/加精":
+            if parts[0] in ("/加精", "/群精华", "/精华"):
                 return "set"
             if parts[0] in ("/删除精华", "/刪除精華"):
                 return "delete"
@@ -57,7 +57,7 @@ class GroupEssencePlugin(Plugin):
             if kind == "delete":
                 self.api.send_msg(text("请先回复要取消精华的那条消息，再发送 /删除精华"))
             else:
-                self.api.send_msg(text("请先回复要加精的那条消息，再发送 /加精"))
+                self.api.send_msg(text("请先回复要加精的那条消息，再发送 /加精 /群精华 或 /精华"))
             return
 
         if kind == "delete":
