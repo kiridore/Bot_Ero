@@ -132,7 +132,7 @@ class LotteryPlugin(Plugin):
                 self.dbmanager.add_lottery_spent(user_id, self.COST)
         self.dbmanager.add_lottery_draw_count(user_id, today, 1)
         # ponytail: silent quest trigger, users check progress via /周常
-        on_quest_trigger(self.dbmanager, user_id, "lottery")
+        completed = on_quest_trigger(self.dbmanager, user_id, "lottery")
         cost_paid = 0 if free_daily else (0 if payment_exempt else self.COST)
         draw_cost_hint = (
             self.FREE_DRAW_HINT
@@ -189,6 +189,9 @@ class LotteryPlugin(Plugin):
                         )
                     ),
                 )
+            if completed:
+                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
+                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
             return
 
         now_points = self.dbmanager.get_user_point(user_id)
@@ -205,6 +208,9 @@ class LotteryPlugin(Plugin):
                 at(user_id),
                 text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n{}\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], draw_cost_hint, now_points)),
             )
+            if completed:
+                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
+                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
             return
 
         if result["type"] == "title_duplicate":
@@ -232,6 +238,9 @@ class LotteryPlugin(Plugin):
                     )
                 ),
             )
+            if completed:
+                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
+                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
             return
 
         if result["type"] == "title_none":
@@ -255,9 +264,15 @@ class LotteryPlugin(Plugin):
                     )
                 ),
             )
+            if completed:
+                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
+                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
             return
 
         self.api.send_msg(
             at(user_id),
             text("*摇骰子* 居然抽到了……{}！\n{}\n当前积分：{}".format(result["value"], draw_cost_hint, now_points)),
         )
+        if completed:
+            names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
+            self.api.send_msg(at(user_id), text(f"🎯 {names}"))

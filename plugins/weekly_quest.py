@@ -33,7 +33,7 @@ class WeeklyQuestPlugin(Plugin):
             mark = "✅" if done else "  "
             bar = _make_bar(cur, q["goal"])
             status = "已完成" if done else "进行中"
-            lines.append(f"{mark} {q['name']:6s}  [{cur}/{q['goal']}]  {bar}  {status}")
+            lines.append(f"{mark} {q['name']:6s}  [{cur}/{q['goal']}]  +{q['reward']}  {bar}  {status}")
 
         self.api.send_msg(text("\n".join(lines)))
 
