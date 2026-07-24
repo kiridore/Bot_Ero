@@ -1,0 +1,39 @@
+#!/bin/sh
+# Conventional Commits validation hook
+# Spec: https://www.conventionalcommits.org/zh-hans/v1.0.0/
+
+COMMIT_MSG=$(cat "$1")
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
+
+# Skip merge commits, reverts, and interactive rebase autosquash
+case "$FIRST_LINE" in
+    Merge\ *|Revert\ \"*|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+# Format: <type>[optional scope][!]: <description>
+TYPES="build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test"
+PATTERN="^($TYPES)(\([^)]+\))?!?: .+"
+
+if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
+    echo "ERROR: commit message does not follow Conventional Commits"
+    echo ""
+    echo "Format: <type>[optional scope]: <description>"
+    echo "Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+    echo ""
+    echo "Examples:"
+    echo "  feat(title): add 34 Minecraft-themed lottery titles"
+    echo "  fix(lottery): correct draw probability calculation"
+    echo "  docs: update README"
+    echo ""
+    echo "Your message:"
+    echo "  $FIRST_LINE"
+    exit 1
+fi
+
+# Warn if description is too short
+DESC=$(echo "$FIRST_LINE" | sed -E 's/^[^:]+: //')
+if [ ${#DESC} -lt 4 ]; then
+    echo "WARNING: commit description is very short, consider adding more detail"
+fi
+
+exit 0
