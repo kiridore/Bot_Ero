@@ -78,7 +78,6 @@ class RollbackCheckinPlugin(Plugin):
                     utils.add_user_point(self.dbmanager, self.bot_event.user_id, -month_weekly_points)
 
             self.dbmanager.delete_checkin_by_id(rows[0][0])
-            new_rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
-            on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin", len(new_rows))
+            on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin")
             dt = datetime.strptime(del_time, "%Y-%m-%d %H:%M:%S")
             self._rollback_attendance_rewards(self.bot_event.user_id, dt)

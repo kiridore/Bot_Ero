@@ -97,7 +97,7 @@ class CheckinRecallPlugin(Plugin):
             if month_weekly_points > 0:
                 utils.add_user_point(self.dbmanager, user_id, -month_weekly_points)
         self._rollback_attendance_rewards(user_id, dt)
-        on_quest_rollback(self.dbmanager, user_id, "checkin", len(week_after))
+        on_quest_rollback(self.dbmanager, user_id, "checkin")
 
         self.api.send_msg(
             at(user_id),

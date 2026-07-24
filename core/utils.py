@@ -103,7 +103,7 @@ def on_quest_trigger(db, user_id, trigger_type):
     week_key = get_quest_week_key()
     if trigger_type == "checkin":
         start, end = get_monday_to_monday()
-        count = len(db.search_target_user_checkin_range(user_id, start, end))
+        count = db.get_distinct_checkin_day_count(user_id, start, end)
     else:
         start, _ = get_monday_to_monday()
         count = db.get_weekly_lottery_draw_count(user_id, start)
@@ -118,11 +118,13 @@ def on_quest_trigger(db, user_id, trigger_type):
             completed.append({"name": q["name"], "reward": q["reward"]})
     return completed
 
-def on_quest_rollback(db, user_id, trigger_type, new_count):
+def on_quest_rollback(db, user_id, trigger_type):
     week_key = get_quest_week_key()
+    start, end = get_monday_to_monday()
+    count = db.get_distinct_checkin_day_count(user_id, start, end)
     for q in QUEST_DEFS:
         if q["trigger"] != trigger_type:
             continue
-        db.upsert_quest_progress(user_id, q["id"], week_key, new_count)
-        if new_count < q["goal"] and db.revoke_quest_reward(user_id, q["id"], week_key):
+        db.upsert_quest_progress(user_id, q["id"], week_key, count)
+        if count < q["goal"] and db.revoke_quest_reward(user_id, q["id"], week_key):
             add_user_point(db, user_id, -q["reward"])
