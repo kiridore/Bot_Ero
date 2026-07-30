@@ -1,30 +1,18 @@
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import at, text
 
 from core.utils import register_plugin
 @register_plugin
-class GroupSpecialTitlePlugin(Plugin):
+class GroupSpecialTitlePlugin(CommandPlugin):
     name = 'set_group_special_title'
     description = '设置或清空用户群头衔。'
-
-    def match(self, message_type):
-        return self.on_command_any("/群头衔", "/群頭銜")
+    COMMANDS = ("/群头衔", "/群頭銜")
 
     def handle(self):
         if self.bot_event.user_id == None:
             return
 
-        raw_data = self.bot_event.message[0]
-
-        if raw_data['type'] != 'text':
-            return
-
-        msg = raw_data['data']['text']
-        args = msg.split(" ")
-        title = ""
-
-        if len(args) > 1:
-            title = args[1]
+        title = self.args[0] if len(self.args) > 0 else ""
 
         if title == "":
             self.api.send_msg(text("给"), at(self.bot_event.user_id), text("取消头衔了喵~"))

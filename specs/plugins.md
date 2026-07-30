@@ -446,7 +446,7 @@ class GrantPointsAllPlugin(CommandPlugin):
 | 3 | 在 `handle()` 中循环调用 `send_msg` 不限制频率 | 合并为转发消息或批处理 |
 | 4 | 从一个插件直接 `import` 另一个插件类 | 插件间通过数据库共享状态，不过 `import title.py` 中的纯数据定义是允许的 |
 | 5 | 修改 `core/` 模块来添加功能特定逻辑 | 通过插件实现功能，修改 core 需极高审慎 |
-| 6 | 在 `match()` 中使用 `self.args` | `self.args` 仅由 `on_command`/`on_command_any` 在匹配成功时设置 |
+| 6 | 在 `match()` 中使用 `self.args` | `self.args` 由 `on_command`/`on_command_any` 或 `CommandPlugin` 在匹配成功时设置 |
 | 7 | 假设 `self.bot_event.group_id` 始终存在 | 私聊中 `group_id` 为 None，使用前检查 |
 | 8 | 在 `handle()` 中创建新的 `DbManager()` | `self.dbmanager` 已在 `__init__` 中创建 |
 | 9 | 吞掉异常不记录日志 | 使用 `logger.exception()` 记录，并发送用户友好的错误消息 |

@@ -1,6 +1,6 @@
 import random
 
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import at, text
 from core.utils import register_plugin
 
@@ -22,14 +22,10 @@ __all__ = [
 
 
 @register_plugin
-class TitlePlugin(Plugin):
+class TitlePlugin(CommandPlugin):
     name = 'manage_titles'
     description = '查询、查看、装备和卸下称号。'
-
-    def match(self, message_type):
-        if self.on_full_match_any("/称号一览", "/稱號一覽"):
-            return True
-        return self.on_command_any("/称号", "/稱號")
+    COMMANDS = ("/称号一览", "/稱號一覽", "/称号", "/稱號")
 
     def _title_line(self, title_id, equipped_titles):
         data = TITLE_DEFS.get(title_id)
@@ -143,19 +139,19 @@ class TitlePlugin(Plugin):
 
         user_id = self.bot_event.user_id
 
-        if self.on_full_match_any("/称号一览", "/稱號一覽"):
+        if self.cmd in ("/称号一览", "/稱號一覽"):
             self._show_title_list(user_id, user_id)
             return
 
         args = [a for a in self.args if a.strip() != ""]
-        if len(args) == 1:
+        if len(args) == 0:
             self.api.send_msg(
                 at(user_id),
                 text("用法：/称号 当前 | /称号 卸下 | /称号 详情 <index> | /称号 随机 | /称号 <index> | /称号 查看 @用户（最多装备3个）"),
             )
             return
 
-        sub = args[1]
+        sub = args[0]
         if sub in ("当前", "當前"):
             self._show_current(user_id)
             return
@@ -166,10 +162,10 @@ class TitlePlugin(Plugin):
             self._equip_random(user_id)
             return
         if sub in ("详情", "詳情"):
-            if len(args) < 3 or not args[2].isdigit():
+            if len(args) < 2 or not args[1].isdigit():
                 self.api.send_msg(at(user_id), text("请使用 /称号 详情 <index>"))
                 return
-            self._show_detail(user_id, int(args[2]))
+            self._show_detail(user_id, int(args[1]))
             return
         if sub in ("查看", "檢視"):
             target_user = self._get_target_user_id_from_at()

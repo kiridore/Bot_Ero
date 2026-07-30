@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta
 from core import utils
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text
 from core.utils import get_monday_to_monday
 
 from core.utils import register_plugin
 @register_plugin
-class RemedyCheckinPlugin(Plugin):
+class RemedyCheckinPlugin(CommandPlugin):
     name = 'remedy_checkin'
     description = '为用户补卡并扣除对应积分。'
+    COMMANDS = ("/补卡", "/補卡", "/单日补卡", "/單日補卡", "/超级补卡", "/超級補卡")
 
     YEARLY_LIMIT = 4
 
@@ -18,36 +19,27 @@ class RemedyCheckinPlugin(Plugin):
             self.api.send_msg(text("{}年补卡次数已达上限（{}/{}）".format(year, used, self.YEARLY_LIMIT)))
             return False
         return True
-    
-    def match(self, message_type):
-        if self.on_command_any("/单日补卡", "/單日補卡"):
-            return True
-        elif self.on_command_any("/补卡", "/補卡"):
-            return True
-        elif self.on_command_any("/超级补卡", "/超級補卡") and self.admin_user():
-            return True
-        return False
 
     def handle(self):
         if self.bot_event.user_id == None:
             return
 
-        super_mode = self.args[0] in ("/超级补卡", "/超級補卡")
+        super_mode = self.cmd in ("/超级补卡", "/超級補卡")
 
-        if self.args[0] in ("/单日补卡", "/單日補卡"):
+        if self.cmd in ("/单日补卡", "/單日補卡"):
             self.handle_single_day_remedy()
             return
 
-        if len(self.args) > 1:
+        if len(self.args) > 0:
             try:
-                dt = datetime.strptime(self.args[1], "%Y-%m-%d") + timedelta(hours=8)
+                dt = datetime.strptime(self.args[0], "%Y-%m-%d") + timedelta(hours=8)
             except Exception as e:
-                self.api.send_msg(text("{}格式不正确".format(self.args[1])))
+                self.api.send_msg(text("{}格式不正确".format(self.args[0])))
                 return
 
             user_id = self.bot_event.user_id
-            if len(self.args) > 2:
-                user_id = self.args[2] # 特殊补卡指令可以给其他人补卡
+            if len(self.args) > 1:
+                user_id = self.args[1] # 特殊补卡指令可以给其他人补卡
 
             start, end = get_monday_to_monday(dt)
             rows = self.dbmanager.checkin.search_user_range(user_id, start, end)
@@ -77,7 +69,7 @@ class RemedyCheckinPlugin(Plugin):
         if self.bot_event.user_id == None:
             return
 
-        if len(self.args) <= 1:
+        if len(self.args) <= 0:
             suggest_day = self.find_single_day_remedy()
             if suggest_day is None:
                 self.api.send_msg(text("今年每天都打过卡了喵，不需要单日补卡"))
@@ -86,9 +78,9 @@ class RemedyCheckinPlugin(Plugin):
             return
 
         try:
-            day = datetime.strptime(self.args[1], "%Y-%m-%d")
+            day = datetime.strptime(self.args[0], "%Y-%m-%d")
         except Exception:
-            self.api.send_msg(text("{}格式不正确".format(self.args[1])))
+            self.api.send_msg(text("{}格式不正确".format(self.args[0])))
             return
 
         day_start = day.strftime("%Y-%m-%d 08:00:00")
@@ -97,7 +89,7 @@ class RemedyCheckinPlugin(Plugin):
 
         rows = self.dbmanager.checkin.search_user_range(user_id, day_start, day_end)
         if len(rows) > 0:
-            self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[1])))
+            self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[0])))
             return
 
         if not self._check_remedy_limit(user_id, day.year):
@@ -109,10 +101,10 @@ class RemedyCheckinPlugin(Plugin):
             self.api.send_msg(text("补卡当然不是免费的喵!\n你现在点数是：{}\n单日补卡需要{}点喵".format(points, cost)))
             return
 
-        self.dbmanager.checkin.remedy_day(user_id, self.args[1])
+        self.dbmanager.checkin.remedy_day(user_id, self.args[0])
         utils.add_user_point(self.dbmanager, user_id, cost * -1)
         self.dbmanager.checkin.add_remedy_used(day.year, user_id, 1)
-        self.api.send_msg(text("{} 已补卡成功喵，一共消费{}点数".format(self.args[1], cost)))
+        self.api.send_msg(text("{} 已补卡成功喵，一共消费{}点数".format(self.args[0], cost)))
 
     def find_single_day_remedy(self):
         # 从昨天开始往前找，返回最近一次未打卡日期（按 8 点结算）

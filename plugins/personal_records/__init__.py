@@ -6,7 +6,7 @@ import requests
 from PIL import Image as PILImage
 
 from core import context
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import image, at
 from core.event import Event
 import core.utils as utils
@@ -39,20 +39,18 @@ def _load_avatar_from_url(url: str) -> PILImage.Image | None:
 
 
 @register_plugin
-class PersonalRecords(Plugin):
+class PersonalRecords(CommandPlugin):
     name = 'show_personal_records'
     description = '生成并展示用户年度打卡档案。'
-
-    def match(self, message_type):
-        return self.on_command_any("/档案", "/檔案")
+    COMMANDS = ("/档案", "/檔案")
 
     def handle(self):
         if self.bot_event.user_id == None:
             return
         # TODO@支持At某人查看他的档案
         year = int(datetime.today().year)
-        if len(self.args) > 1:
-            year = int(self.args[1])
+        if len(self.args) > 0:
+            year = int(self.args[0])
 
         rows = self.dbmanager.checkin.search_year(self.bot_event.user_id, year)
         time_map = {}

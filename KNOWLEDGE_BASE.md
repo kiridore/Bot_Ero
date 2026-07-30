@@ -280,26 +280,26 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 |---|--------|------|------|------|
 | 1 | `call` | `call.py` | CommandPlugin `小埃同学`/`小埃同學` | 回复"我在~" |
 | 2 | `menu` | `menu.py` | CommandPlugin `/菜单`/`/菜單` | 发送 BOT_MENU_TEXT（合并转发） |
-| 3 | `checkin` | `checkin.py` | begin_with `/打卡` + 图片 | 打卡：存储图片、计算奖励、解锁称号 |
+| 3 | `checkin` | `checkin.py` | CommandPlugin `/打卡` + 图片 | 打卡：存储图片、计算奖励、解锁称号 |
 | 4 | `checkin_recall` | `checkin_recall.py` | notice `group_recall` | 打卡消息被撤回时回滚记录和奖励 |
 | 5 | `rollback_checkin` | `roll_back.py` | CommandPlugin `/撤回打卡` | 撤回本周最近一次打卡 |
-| 6 | `remedy_checkin` | `remedy_checkin.py` | begin_with `/补卡`/`/单日补卡`/`/超级补卡` | 补卡系统（详见 8.2） |
+| 6 | `remedy_checkin` | `remedy_checkin.py` | CommandPlugin `/补卡`/`/单日补卡`/`/超级补卡` | 补卡系统（详见 8.2） |
 | 7 | `all_checkin_display` | `all_checkin_display.py` | CommandPlugin `/ALL` | 显示全量打卡图和统计（合并转发） |
 | 8 | `week_checkin_display` | `week_checkin_display.py` | CommandPlugin `/本周打卡图` | 本周打卡图（私发） |
 | 9 | `week_list` | `week_list.py` | CommandPlugin `/本周板油` | 本周完成打卡的成员列表 |
-| 10 | `personal_records` | `personal_records.py` | begin_with `/档案 [年份]` | 生成年度热力图档案卡 |
+| 10 | `personal_records` | `personal_records.py` | CommandPlugin `/档案 [年份]` | 生成年度热力图档案卡 |
 | 11 | `leaderboard` | `leaderboard.py` | CommandPlugin `/排名`/`/rank` | TOP10 积分排行榜 |
-| 12 | `lottery` | `lottery.py` | begin_with `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统（详见 9.2） |
+| 12 | `lottery` | `lottery.py` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统（详见 9.2） |
 | 13 | `immortal_lottery` | `immortal_lottery.py` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩（详见 9.3） |
 | 14 | `dice` | `dice.py` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
 | 15 | `divination` | `divination.py` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
-| 16 | `title` | `title.py` | command_any `/称号`/`/稱號` | 称号系统（详见 10） |
-| 17 | `redeem_shop` | `redeem_shop.py` | command `/商店 [id]` | 积分商店（详见 9.4） |
+| 16 | `title` | `title.py` | CommandPlugin `/称号`/`/稱號` | 称号系统（详见 10） |
+| 17 | `redeem_shop` | `redeem_shop.py` | CommandPlugin `/商店 [id]` | 积分商店（详见 9.4） |
 | 18 | `group_alarm` | `group_alarm.py` | begin_with `/闹钟` + meta | 闹钟系统（详见 9.5） |
 | 19 | `group_essence` | `group_essence.py` | reply + `/加精`/`/精华`/`/删除精华` | 设置/取消群精华 |
 | 20 | `at_all_reply` | `at_all_reply.py` | reply + `/全体成员` | @全体转发回复内容 |
 | 21 | `recall_message` | `recall_message.py` | reply + `/撤回` | 代撤回 bot 消息 |
-| 22 | `set_group_title` | `set_group_title.py` | begin_with `/群头衔 [文本]` | 设置群头衔（最長 10 字） |
+| 22 | `set_group_title` | `set_group_title.py` | CommandPlugin `/群头衔 [文本]` | 设置群头衔（最長 10 字） |
 | 23 | `random_reference` | `random_reference.py` | CommandPlugin `/随机参考` | picsum.photos 随机 512x512 |
 | 24 | `gallery_login_key` | `gallery_login_key.py` | CommandPlugin `/图库密钥`/`/网页密钥` | HMAC 登录密钥（仅私聊） |
 | 25 | `ff_news` | `ff_news.py` | 完全匹配 `/FF新闻` + 心跳 | FF14 国服新闻，每小时自动推送 |

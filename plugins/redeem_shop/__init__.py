@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from core.base import Plugin, TimedHeartbeatPlugin
+from core.base import CommandPlugin, Plugin, TimedHeartbeatPlugin
 from core.cq import at, text
 from core.logger import logger
 from core.utils import register_plugin
@@ -74,12 +74,10 @@ class ShopManualRefreshPlugin(Plugin):
 
 
 @register_plugin
-class RedeemShopPlugin(Plugin):
+class RedeemShopPlugin(CommandPlugin):
     name = "redeem_shop"
     description = "使用积分兑换商店称号或权益。"
-
-    def match(self, event_type):
-        return event_type == "message" and self.on_command("/商店")
+    COMMANDS = "/商店"
 
     def _format_list(self) -> str:
         lines = ["—— 积分商店 ——", "用法：/商店 <商品id>", ""]
@@ -97,14 +95,13 @@ class RedeemShopPlugin(Plugin):
         if self.bot_event.user_id is None:
             return
         user_id = self.bot_event.user_id
-        args = [p for p in (getattr(self, "args", []) or []) if p]
         refresh_shop_items_from_database(self.dbmanager)
 
-        if len(args) < 2:
+        if len(self.args) < 1:
             self.api.send_forward_msg([text(self._format_list())])
             return
 
-        product_id = args[1].strip()
+        product_id = self.args[0].strip()
         if product_id not in SHOP_ITEMS:
             self.api.send_msg(at(user_id), text(f"未知商品 id：{product_id}，发送 /商店 查看列表。"))
             return

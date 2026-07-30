@@ -2,7 +2,7 @@ import random
 from datetime import datetime
 
 from core import utils
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import at, text
 from core.utils import on_quest_trigger, register_plugin
 from plugins.title import get_title_def, evaluate_and_unlock_titles
@@ -11,17 +11,13 @@ from .rewards import draw_reward
 
 
 @register_plugin
-class LotteryPlugin(Plugin):
+class LotteryPlugin(CommandPlugin):
     name = 'lottery'
     description = '执行抽卡抽奖并发放奖励或称号。'
 
     COST = 1
     FREE_DRAW_HINT = "本次抽卡免费（今日首抽）"
-
-    def match(self, message_type):
-        if self.on_full_match_any("/抽奖", "/抽獎") or self.on_full_match("/抽卡"):
-            return True
-        return self.on_command_any("/抽卡消费", "/抽卡消費")
+    COMMANDS = ("/抽奖", "/抽獎", "/抽卡", "/抽卡消费", "/抽卡消費")
 
     def _extract_target_user_id(self, default_user_id):
         for seg in self.bot_event.message:
@@ -44,8 +40,7 @@ class LotteryPlugin(Plugin):
         if self.bot_event.user_id == None:
             return
         user_id = self.bot_event.user_id
-        args = getattr(self, "args", None)
-        if args and args[0] in ("/抽卡消费", "/抽卡消費"):
+        if self.cmd in ("/抽卡消费", "/抽卡消費"):
             target_user_id = self._extract_target_user_id(user_id)
             spent = self.dbmanager.lottery.spent(target_user_id)
             self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))

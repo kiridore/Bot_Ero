@@ -1,5 +1,5 @@
 import random
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text,at
 from core.logger import logger
 from core.utils import add_user_point, get_monday_to_monday, on_quest_trigger
@@ -9,12 +9,10 @@ from plugins.title import evaluate_and_unlock_titles, get_title_def
 from core.utils import register_plugin
 # 打卡插件
 @register_plugin
-class CheckinPlugin(Plugin):
+class CheckinPlugin(CommandPlugin):
     name = 'checkin'
     description = '记录用户本周打卡图片并结算奖励。'
-
-    def match(self, message_type):
-        return self.on_begin_with("/打卡")
+    COMMANDS = "/打卡"
 
     def handle(self):
         if self.bot_event.user_id == None:
