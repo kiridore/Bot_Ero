@@ -13,14 +13,14 @@ from .game import (
     advance_to_voting, tally_votes, check_winner, advance_to_describe,
 )
 from .relay import (
-    broadcast_descriptions, broadcast_vote_instructions,
+    broadcast, broadcast_descriptions, broadcast_vote_instructions,
     broadcast_describe_instructions, broadcast_vote_result,
     broadcast_game_over, build_forward_nodes, send_forward_to_group,
 )
 from .titles import grant_game_titles
 
 COMMANDS = frozenset({
-    "/创建卧底", "/开始卧底", "/加入卧底", "/离开卧底",
+    "/创建卧底", "/开始卧底", "/加入卧底", "/离开卧底", "/退出卧底",
     "/卧底状态", "/放弃卧底",
 })
 
@@ -156,14 +156,36 @@ class WhoIsSpyPlugin(Plugin):
                     "message": [text(f"玩家 {nick} 已加入房间 {rid}（{n}/{room['max_players']}）")],
                 })
 
-        elif cmd == "/离开卧底":
+        elif cmd in ("/离开卧底", "/退出卧底"):
             room = find_player_room(uid)
             if not room:
                 self.api.send_msg(text("你不在任何房间中"))
                 return
             rid = room["room_id"]
+            nick = self._sender_nickname()
             result = remove_player(rid, uid)
             self.api.send_msg(text(result))
+
+            room = get_room(rid)
+            if room and room["phase"] != "waiting":
+                self.api.call_api("send_group_msg", {
+                    "group_id": room["group_id"],
+                    "message": [text(f"玩家 {nick} 已退出房间 {rid}（游戏中弃权出局）")],
+                })
+                alive = [p for p in room["players"].values() if p["alive"]]
+                if alive:
+                    broadcast(self.api, room, [text(f"玩家 {nick} 退出游戏，当前存活 {len(alive)} 人")])
+                from .game import check_winner
+                winner = check_winner(room)
+                if winner:
+                    room["_winner"] = winner
+                    room["phase"] = "game_over"
+                    room["ready_descriptions"] = {}
+                    room["votes"] = {}
+                    broadcast_game_over(self.api, room, winner)
+                    nodes = build_forward_nodes(room)
+                    send_forward_to_group(self.api, room["group_id"], nodes)
+                    remove_room(rid)
 
         elif cmd == "/卧底状态":
             rid = args[0] if args else None

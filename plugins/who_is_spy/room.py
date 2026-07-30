@@ -88,19 +88,20 @@ def remove_player(room_id: str, user_id: int) -> str:
             return "房间不存在"
         if uid not in room["players"]:
             return "你不在这个房间中"
-        if room["phase"] != "waiting":
-            return "游戏已开始，无法退出"
-        del room["players"][uid]
-        for i, pid in enumerate(room["players"], 1):
-            room["players"][pid]["alias"] = f"{i}号"
-        if not room["players"]:
-            context.game_rooms.pop(room_id, None)
-            return "房间已解散"
-        if uid == room["creator_id"]:
-            new_creator = list(room["players"].keys())[0]
-            old_alias = room["players"][new_creator]["alias"]
-            room["creator_id"] = new_creator
-    return f"已退出房间 {room_id}，房主已转移给 {old_alias}"
+        if room["phase"] == "waiting":
+            del room["players"][uid]
+            for i, pid in enumerate(room["players"], 1):
+                room["players"][pid]["alias"] = f"{i}号"
+            if not room["players"]:
+                context.game_rooms.pop(room_id, None)
+                return "房间已解散"
+            if uid == room["creator_id"]:
+                new_creator = list(room["players"].keys())[0]
+                old_alias = room["players"][new_creator]["alias"]
+                room["creator_id"] = new_creator
+            return f"已退出房间 {room_id}，房主已转移给 {old_alias}"
+        room["players"][uid]["alive"] = False
+    return "已退出房间（游戏中退出，自动视为弃权出局）"
 
 
 def find_player_room(user_id: int) -> dict | None:
