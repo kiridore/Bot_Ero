@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-07-24
+> 最后更新: 2026-07-30 (added who_is_spy)
 
 全部 39 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
@@ -40,6 +40,7 @@
 | `gallery_login_key.py` | `GalleryLoginKeyPlugin` | `gallery_login_key` | CommandPlugin | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
 | `ff_news.py` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
 | `weekly_quest.py` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
+| `who_is_spy/` | `WhoIsSpyPlugin` | `who_is_spy` | 自定义 match: COMMANDS + 私聊游戏阶段 | `/创建卧底 [人数]` `/开始卧底 <房间号>` `/加入卧底 <房间号>` `/离开卧底` `/卧底状态 [房间号]` `/放弃卧底 <房间号>` | 谁是卧底：群聊创建房间，私聊匿名游戏进行 |
 
 ## 通知/请求处理插件
 
@@ -79,6 +80,9 @@ title.py (TITLE_DEFS, get_title_def, evaluate_and_unlock_titles, get_lottery_tit
   ├── lottery.py           (lottery title pool)
   ├── week_list.py         (format_title_prefix)
   └── redeem_shop.py       (shop title definitions)
+
+who_is_spy/ (grant_game_titles)
+  └── title.py        (evaluate_and_unlock_titles, get_title_def)
 
 bot_menu_text.py (BOT_MENU_TEXT)
   └── menu.py

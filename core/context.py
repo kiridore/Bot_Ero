@@ -35,6 +35,10 @@ RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session"})
 # 跑团角色：group_id → {user_id → "dm"|"ob"}
 group_roles: dict[int, dict[str, str]] = {}
 
+# 卧底游戏
+game_lock = Lock()
+game_rooms: dict[str, dict] = {}
+
 def is_group_recording(group_id: int) -> bool:
     return group_id in recording_sessions
 

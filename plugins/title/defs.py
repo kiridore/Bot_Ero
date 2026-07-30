@@ -245,4 +245,7 @@ TITLE_DEFS = {
     263: {"id": 263, "name": "全清达人", "rarity": "rare", "description": "累计5周全清", "unlock_type": "condition"},
     264: {"id": 264, "name": "周常大师", "rarity": "legendary", "description": "累计10周全清", "unlock_type": "condition"},
     265: {"id": 265, "name": "任务终结者", "rarity": "legendary", "description": "累计20周全清", "unlock_type": "condition"},
+    301: {"id": 301, "name": "初出茅庐", "rarity": "common", "description": "完成第一场卧底游戏", "unlock_type": "condition"},
+    302: {"id": 302, "name": "火眼金睛", "rarity": "common", "description": "作为平民赢得一场卧底游戏", "unlock_type": "condition"},
+    303: {"id": 303, "name": "完美伪装", "rarity": "common", "description": "作为卧底赢得一场卧底游戏", "unlock_type": "condition"},
 }

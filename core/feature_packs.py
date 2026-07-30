@@ -15,7 +15,7 @@ FEATURE_PACKS = {
         ],
     },
     "休闲娱乐": {
-        "plugins": ["ff_news", "group_alarm", "dice", "divination", "random_reference", "call"],
+        "plugins": ["ff_news", "group_alarm", "dice", "divination", "random_reference", "call", "who_is_spy"],
     },
     "跑团": {
         "plugins": ["trpg_dice", "trpg_session"],
