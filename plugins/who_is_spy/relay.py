@@ -1,5 +1,10 @@
+import json
+import os
+from datetime import datetime
+
 from core.cq import text
 from core.api import ApiWrapper
+from core.logger import logger
 
 
 def _alive_list(room: dict) -> list[dict]:
@@ -164,3 +169,90 @@ def send_forward_to_group(api: ApiWrapper, group_id: int, nodes: list[dict]):
         "group_id": group_id,
         "messages": nodes,
     })
+
+
+def save_game_record(room: dict):
+    record = {
+        "room_id": room["room_id"],
+        "game_type": room.get("game_type", "卧底"),
+        "group_id": room["group_id"],
+        "created_at": room.get("created_at", 0),
+        "ended_at": datetime.now().timestamp(),
+        "winner": room.get("_winner", ""),
+        "civilian_word": room.get("civilian_word", ""),
+        "spy_word": room.get("spy_word", ""),
+        "players": [
+            {"user_id": p["user_id"], "nickname": p["nickname"],
+             "alias": p["alias"], "role": p["role"], "word": p["word"]}
+            for p in room["players"].values()
+        ],
+        "history": room.get("history", []),
+    }
+    base = f"server_data/game_records/{room['group_id']}"
+    os.makedirs(base, exist_ok=True)
+    path = f"{base}/{room['room_id']}.json"
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+    except Exception:
+        logger.exception("保存游戏记录失败")
+
+
+def get_saved_records(group_id: int) -> list[dict]:
+    base = f"server_data/game_records/{group_id}"
+    if not os.path.isdir(base):
+        return []
+    records = []
+    for fname in os.listdir(base):
+        if not fname.endswith(".json"):
+            continue
+        path = f"{base}/{fname}"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                records.append(json.load(f))
+        except Exception:
+            logger.exception(f"读取游戏记录失败: {path}")
+    records.sort(key=lambda r: r.get("ended_at", 0), reverse=True)
+    return records
+
+
+def format_record_summary(data: dict) -> str:
+    ts = datetime.fromtimestamp(data.get("ended_at", 0)).strftime("%Y-%m-%d %H:%M")
+    winner_label = "平民" if data.get("winner") == "civilian" else "卧底"
+    n = len(data.get("players", []))
+    lines = [
+        f"游戏记录：{data.get('room_id', '?')}",
+        f"游戏类型：{data.get('game_type', '?')}",
+        f"结束时间：{ts}",
+        f"参与人数：{n}",
+        f"胜负结果：{winner_label}胜利",
+        f"平民词条：{data.get('civilian_word', '?')}",
+        f"卧底词条：{data.get('spy_word', '?')}",
+        "",
+        "玩家身份：",
+    ]
+    for p in data.get("players", []):
+        role_label = "平民" if p.get("role") == "civilian" else "卧底"
+        lines.append(f"  {p.get('alias', '?')} {p.get('nickname', '?')} - {role_label} - \"{p.get('word', '')}\"")
+    lines.append("")
+    for rec in data.get("history", []):
+        rn = rec.get("round_num", 0)
+        lines.append(f"──── 第{rn}轮 ────")
+        uid_to_alias = {p["user_id"]: p["alias"] for p in data.get("players", [])}
+        for uid, desc in rec.get("descriptions", {}).items():
+            alias = uid_to_alias.get(uid, "?")
+            lines.append(f"  {alias} \"{desc}\"")
+        elim = rec.get("eliminated", "")
+        counts = rec.get("vote_counts", {})
+        if counts:
+            parts = []
+            for uid, alias in uid_to_alias.items():
+                c = counts.get(uid, 0)
+                marker = " (出局)" if uid == elim else ""
+                parts.append(f"{alias} {c}票{marker}")
+            lines.append(f"  投票结果：{'  '.join(parts)}")
+        if elim:
+            p = next((x for x in data.get("players", []) if x["user_id"] == elim), {})
+            lines.append(f"  → {p.get('alias', '?')} 出局 - {'卧底' if p.get('role') == 'spy' else '平民'}")
+        lines.append("")
+    return "\n".join(lines)

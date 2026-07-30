@@ -119,3 +119,12 @@ def find_player_room(user_id: int) -> dict | None:
 
 def get_player(room: dict, user_id: int) -> dict | None:
     return room["players"].get(str(user_id))
+
+
+def list_rooms(group_id: int) -> list[dict]:
+    result = []
+    with context.game_lock:
+        for r in context.game_rooms.values():
+            if r["group_id"] == group_id:
+                result.append(dict(r))
+    return result

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from core.base import Plugin, BOT_QQ
 from core.cq import text
 from core.logger import logger
@@ -6,7 +8,8 @@ from core.database_manager import DbManager
 
 from .room import (
     create_room, get_room, remove_room,
-    add_player, remove_player, find_player_room, get_player, GAME_TYPES,
+    add_player, remove_player, find_player_room, get_player,
+    list_rooms, GAME_TYPES,
 )
 from .game import (
     start_game, collect_description, collect_vote,
@@ -16,12 +19,13 @@ from .relay import (
     broadcast, broadcast_descriptions, broadcast_vote_instructions,
     broadcast_describe_instructions, broadcast_vote_result,
     broadcast_game_over, build_forward_nodes, send_forward_to_group,
+    save_game_record, get_saved_records, format_record_summary,
 )
 from .titles import grant_game_titles
 
 COMMANDS = frozenset({
     "/创建游戏", "/开始", "/加入", "/离开", "/退出",
-    "/状态", "/放弃",
+    "/状态", "/放弃", "/房间列表", "/游戏记录",
 })
 
 
@@ -188,6 +192,7 @@ class WhoIsSpyPlugin(Plugin):
                     room["ready_descriptions"] = {}
                     room["votes"] = {}
                     broadcast_game_over(self.api, room, winner)
+                    save_game_record(room)
                     nodes = build_forward_nodes(room)
                     send_forward_to_group(self.api, room["group_id"], nodes)
                     remove_room(rid)
@@ -241,6 +246,47 @@ class WhoIsSpyPlugin(Plugin):
             game_type = room.get("game_type", "游戏")
             remove_room(rid)
             self.api.send_msg(text(f"「{game_type}」房间 {rid} 已解散"))
+
+        elif cmd == "/房间列表" and gid:
+            rooms = list_rooms(gid)
+            if not rooms:
+                self.api.send_msg(text("该群没有活跃房间"))
+                return
+            lines = ["该群活跃房间："]
+            for r in rooms:
+                phase_map = {"waiting": "等待中", "playing_describe": "描述中", "playing_vote": "投票中", "game_over": "已结束"}
+                phase = phase_map.get(r["phase"], r["phase"])
+                player_info = f"{len(r['players'])}人"
+                if r["phase"] != "waiting":
+                    alive = sum(1 for p in r["players"].values() if p["alive"])
+                    player_info = f"{alive}/{len(r['players'])} 存活"
+                lines.append(f"  {r['room_id']}  {r.get('game_type', '?')}  {phase}  {player_info}")
+            self.api.send_msg(text("\n".join(lines)))
+
+        elif cmd == "/游戏记录" and gid:
+            if args:
+                rid = args[0]
+                records = get_saved_records(gid)
+                match = [r for r in records if r["room_id"] == rid]
+                if not match:
+                    self.api.send_msg(text(f"未找到房间 {rid} 的游戏记录"))
+                    return
+                text_body = format_record_summary(match[0])
+                self.api.send_msg(text(text_body))
+            else:
+                records = get_saved_records(gid)
+                if not records:
+                    self.api.send_msg(text("该群暂无已保存的游戏记录"))
+                    return
+                lines = ["已保存的游戏记录："]
+                for i, r in enumerate(records, 1):
+                    ts = datetime.fromtimestamp(r.get("ended_at", 0)).strftime("%m-%d %H:%M")
+                    winner_label = "平民" if r.get("winner") == "civilian" else "卧底"
+                    n = len(r.get("players", []))
+                    lines.append(f"[{i}] {ts}  {r.get('room_id', '?')}  {r.get('game_type', '?')}  {n}人  {winner_label}胜")
+                lines.append("")
+                lines.append("输入 /游戏记录 <房间号> 查看详情")
+                self.api.send_msg(text("\n".join(lines)))
 
     def _handle_game_input(self):
         if self.bot_event.user_id is None:
@@ -305,6 +351,7 @@ class WhoIsSpyPlugin(Plugin):
                                     text(f"获得称号：{' '.join(names)}"),
                                 )
 
+                    save_game_record(room)
                     nodes = build_forward_nodes(room)
                     send_forward_to_group(self.api, room["group_id"], nodes)
 
