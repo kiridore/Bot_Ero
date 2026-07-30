@@ -22,7 +22,7 @@
 | 12 | `lottery` | `lottery.py` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统 |
 | 13 | `immortal_lottery` | `immortal_lottery.py` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩 |
 | 14 | `dice` | `dice.py` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
-| 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/ra/rd/rc/rcb/rh` | 跑团骰子系统：DND5e/COC7th 检定、优势劣势、属性投点 |
+| 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/ra/rc/rh` | 跑团骰子系统：DND5e/COC7th 万能骰点、暗骰 |
 | 16 | `divination` | `divination.py` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
 | 17 | `title` | `title.py` | CommandPlugin `/称号`/`/稱號` | 称号系统 |
 | 18 | `redeem_shop` | `redeem_shop.py` | CommandPlugin `/商店 [id]` | 积分商店 |
@@ -72,7 +72,7 @@
 | **基础包** | `checkin`, `checkin_recall`, `roll_back`, `remedy_checkin`, `week_checkin_display`, `all_checkin_display`, `week_list`, `personal_records`, `leaderboard` | 打卡、补卡、撤回、统计、排行 |
 | **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
 | **休闲娱乐** | `ff_news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | FF14 新闻、闹钟、骰子、占卜、随机图、召唤 |
-| **跑团** | `trpg_dice`, `trpg_session` | 跑团骰子 + 跑团聊天记录 |
+| **跑团** | `trpg_dice`, `trpg_session` | Sealdice 风格骰子 + 跑团聊天记录 |
 | **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |
 
 **语义：**

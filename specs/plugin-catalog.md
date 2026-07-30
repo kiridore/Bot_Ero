@@ -26,7 +26,7 @@
 | `lottery.py` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` | 抽卡系统：消耗积分随机获取奖励 |
 | `immortal_lottery.py` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
 | `dice.py` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
-| `trpg_dice/` | `TrpgPlugin` | `trpg_dice` | 正则前缀匹配 | `.r <expr>` `.ra` `.rd` `.rc` `.rcb` `.rh` | 跑团骰子系统：DND5e/COC7th 检定、优势劣势、属性投点 |
+| `trpg_dice/` | `TrpgPlugin` | `trpg_dice` | 正则前缀匹配 | `.r` `.ra` `.rc` `.rh` | 跑团骰子系统：Sealdice 风格万能骰点、COC 检定、暗骰 |
 | `trpg_session/` | `TrpgSessionPlugin` | `trpg_session` | CommandPlugin + 录制期间全匹配 | `/跑团记录 开始/强制开始/结束/导出/列表/#N` | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
 | `divination.py` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
 | `title.py` | `TitlePlugin` | `title` | CommandPlugin | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |
