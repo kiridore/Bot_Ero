@@ -1,4 +1,4 @@
-from core.base import NICKNAME, Plugin
+from core.base import NICKNAME, CommandPlugin
 from core.cq import at, text
 
 from checkin_gallery.auth import make_login_key
@@ -6,17 +6,10 @@ from core.utils import register_plugin
 
 
 @register_plugin
-class GalleryLoginKeyPlugin(Plugin):
+class GalleryLoginKeyPlugin(CommandPlugin):
     name = "gallery_login_key"
     description = "私聊发放打卡图库网页登录密钥。"
-
-    def match(self, message_type):
-        return self.on_full_match_any(
-            "/图库密钥",
-            "/圖庫密鑰",
-            "/网页密钥",
-            "/網頁密鑰",
-        )
+    COMMANDS = ("/图库密钥", "/圖庫密鑰", "/网页密钥", "/網頁密鑰")
 
     def handle(self):
         if self.bot_event.user_id is None:

@@ -1,13 +1,14 @@
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text
 from plugins.title import get_title_def
 
 
 from core.utils import register_plugin
 @register_plugin
-class LeaderboardPlugin(Plugin):
+class LeaderboardPlugin(CommandPlugin):
     name = 'show_leaderboard'
     description = '展示积分排行榜。'
+    COMMANDS = ("/排名", "/rank")
 
     def _format_title_prefix(self, user_id):
         titles = self.dbmanager.titles.equipped_all(user_id)[:3]
@@ -21,9 +22,6 @@ class LeaderboardPlugin(Plugin):
         if len(names) == 0:
             return ""
         return "「{}」".format("·".join(names))
-
-    def match(self, message_type):
-        return self.on_full_match("/排名") or self.on_full_match("/rank")
 
     def handle(self):
         group_id = self.bot_event.group_id

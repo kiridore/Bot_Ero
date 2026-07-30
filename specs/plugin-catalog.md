@@ -12,17 +12,17 @@
 
 | 文件 | 类名 | `name` | 触发方式 | 命令 | 说明 |
 |------|------|--------|---------|------|------|
-| `call.py` | `CallPlugin` | `call` | 完全匹配 | `小埃同学` / `小埃同學` | 召唤 bot，回复 "我在~" |
+| `call.py` | `CallPlugin` | `call` | CommandPlugin | `小埃同学` / `小埃同學` | 召唤 bot，回复 "我在~" |
 | `menu.py` | `MenuPlugin` | `menu` | CommandPlugin | `/菜单` / `/菜單` | 发送 BOT_MENU_TEXT 指令菜单 |
 | `checkin.py` | `CheckinPlugin` | `checkin` | begin_with | `/打卡` + 图片 | 打卡：存储图片、解锁称号、计算满勤奖励 |
 | `checkin_recall.py` | `CheckinRecallPlugin` | `checkin_recall` | notice 事件 | (notice: group_recall) | 打卡消息被撤回时回滚记录和奖励 |
-| `roll_back.py` | `RollbackCheckinPlugin` | `rollback_checkin` | 完全匹配 | `/撤回打卡` | 撤回本周最近一次打卡 |
+| `roll_back.py` | `RollbackCheckinPlugin` | `rollback_checkin` | CommandPlugin | `/撤回打卡` | 撤回本周最近一次打卡 |
 | `remedy_checkin.py` | `RemedyCheckinPlugin` | `remedy_checkin` | begin_with | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` | 补卡系统：周补卡(6点)、单日补卡(2点)、管理员超级补卡 |
-| `all_checkin_display.py` | `AllCheckinDisplay` | `all_checkin_display` | 完全匹配 | `/ALL` | 显示全量打卡图（合并转发） |
-| `week_checkin_display.py` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | 完全匹配 | `/本周打卡图` | 显示本周打卡图（私发） |
-| `week_list.py` | `WeekListPlugin` | `week_list` | 完全匹配 | `/本周板油` | 显示本周完成打卡的成员列表 |
+| `all_checkin_display.py` | `AllCheckinDisplay` | `all_checkin_display` | CommandPlugin | `/ALL` | 显示全量打卡图（合并转发） |
+| `week_checkin_display.py` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | CommandPlugin | `/本周打卡图` | 显示本周打卡图（私发） |
+| `week_list.py` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |
 | `personal_records.py` | `PersonalRecords` | `personal_records` | begin_with | `/档案 [年份]` | 生成年度打卡热力图档案卡 |
-| `leaderboard.py` | `LeaderboardPlugin` | `leaderboard` | 完全匹配 | `/排名` / `/rank` | TOP10 积分排行榜 |
+| `leaderboard.py` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分排行榜 |
 | `lottery.py` | `LotteryPlugin` | `lottery` | begin_with / command | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` | 抽卡系统：消耗积分随机获取奖励 |
 | `immortal_lottery.py` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
 | `dice.py` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
@@ -34,10 +34,10 @@
 | `at_all_reply.py` | `AtAllReplyPlugin` | `at_all_reply` | reply + 文本匹配 | `/全体成员` | 回复消息并 @全体成员转发 |
 | `recall_message.py` | `RecallMessagePlugin` | `recall_message` | reply + 文本匹配 | `/撤回` | 代用户撤回 bot 自己发送的消息 |
 | `set_group_title.py` | `GroupSpecialTitlePlugin` | `group_special_title` | begin_with | `/群头衔 [文本]` | 设置/取消群头衔 |
-| `random_reference.py` | `RandomReferencePlugin` | `random_reference` | 完全匹配 | `/随机参考` | 随机返回一张 512×512 参考图 |
-| `gallery_login_key.py` | `GalleryLoginKeyPlugin` | `gallery_login_key` | 完全匹配 | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
+| `random_reference.py` | `RandomReferencePlugin` | `random_reference` | CommandPlugin | `/随机参考` | 随机返回一张 512×512 参考图 |
+| `gallery_login_key.py` | `GalleryLoginKeyPlugin` | `gallery_login_key` | CommandPlugin | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
 | `ff_news.py` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
-| `weekly_quest.py` | `WeeklyQuestPlugin` | `weekly_quest` | 完全匹配 | `/周常` | 查看本周打卡/抽奖任务进度 |
+| `weekly_quest.py` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
 
 ## 通知/请求处理插件
 

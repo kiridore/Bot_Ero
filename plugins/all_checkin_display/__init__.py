@@ -1,14 +1,12 @@
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text,at,image
 
 from core.utils import register_plugin
 @register_plugin
-class AllCheckinDisplay(Plugin):
+class AllCheckinDisplay(CommandPlugin):
     name = 'show_all_checkin_images'
     description = '展示用户历史全部打卡图片。'
-
-    def match(self, message_type):
-        return self.on_full_match("/ALL")
+    COMMANDS = "/ALL"
 
     def handle(self):
         if self.bot_event.user_id == None:

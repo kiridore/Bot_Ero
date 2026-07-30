@@ -1,5 +1,5 @@
 from core import utils
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text,image
 from core.utils import get_monday_to_monday, on_quest_rollback
 from core.logger import logger
@@ -7,9 +7,10 @@ from datetime import datetime, timedelta
 
 from core.utils import register_plugin
 @register_plugin
-class RollbackCheckinPlugin(Plugin):
+class RollbackCheckinPlugin(CommandPlugin):
     name = 'rollback_checkin'
     description = '撤回用户本周最近一次打卡并回滚奖励。'
+    COMMANDS = "/撤回打卡"
 
     def _rollback_attendance_rewards(self, user_id, dt):
         # 自然周奖励回滚
@@ -51,9 +52,6 @@ class RollbackCheckinPlugin(Plugin):
             )
             if points > 0:
                 utils.add_user_point(self.dbmanager, user_id, -points)
-
-    def match(self, message_type):
-        return self.on_full_match("/撤回打卡")
 
     def handle(self):
         if self.bot_event.user_id == None:

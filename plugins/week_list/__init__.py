@@ -1,4 +1,4 @@
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text
 from core.utils import get_monday_to_monday
 from core.logger import logger
@@ -7,9 +7,10 @@ from plugins.title import get_title_def
 from core.utils import register_plugin
 # 每周打卡板油
 @register_plugin
-class WeekListPlugin(Plugin):
+class WeekListPlugin(CommandPlugin):
     name = 'show_weekly_checkin_members'
     description = '展示本周完成打卡的成员列表。'
+    COMMANDS = ("/本周板油", "/本週板油")
 
     def _format_title_prefix(self, user_id):
         titles = self.dbmanager.titles.equipped_all(user_id)[:3]
@@ -23,9 +24,6 @@ class WeekListPlugin(Plugin):
         if len(names) == 0:
             return ""
         return "「{}」".format("·".join(names))
-
-    def match(self, message_type):
-        return self.on_full_match_any("/本周板油", "/本週板油")
 
     def handle(self):
         #计算本周起止日期

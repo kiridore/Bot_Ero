@@ -1,15 +1,13 @@
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text,at,image
 from core.utils import get_monday_to_monday
 
 from core.utils import register_plugin
 @register_plugin
-class WeekCheckinDisplayPlugin(Plugin):
+class WeekCheckinDisplayPlugin(CommandPlugin):
     name = 'show_week_checkin_images'
     description = '展示用户本周打卡图片。'
-
-    def match(self, message_type):
-        return self.on_full_match_any("/本周打卡图", "/本週打卡圖")
+    COMMANDS = ("/本周打卡图", "/本週打卡圖")
 
     def handle(self):
         if self.bot_event.user_id == None:

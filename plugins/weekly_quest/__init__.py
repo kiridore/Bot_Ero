@@ -1,15 +1,13 @@
-from core.base import Plugin, TimedHeartbeatPlugin
+from core.base import CommandPlugin, TimedHeartbeatPlugin
 from core.cq import text
 from core.utils import register_plugin, get_monday_to_monday, get_quest_week_key, QUEST_DEFS
 
 
 @register_plugin
-class WeeklyQuestPlugin(Plugin):
+class WeeklyQuestPlugin(CommandPlugin):
     name = 'weekly_quest'
     description = '查看本周任务进度'
-
-    def match(self, message_type):
-        return self.on_full_match("/周常")
+    COMMANDS = "/周常"
 
     def handle(self):
         user_id = self.bot_event.user_id

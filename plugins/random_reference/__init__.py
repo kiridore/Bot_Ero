@@ -1,19 +1,17 @@
 import requests
 
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import at, image, text
 
 
 from core.utils import register_plugin
 @register_plugin
-class RandomReferencePlugin(Plugin):
+class RandomReferencePlugin(CommandPlugin):
     name = 'random_reference'
     description = '发送一张随机参考图片。'
+    COMMANDS = ("/随机参考", "/隨機參考")
 
     PICSUM_URL = "https://picsum.photos/512"
-
-    def match(self, message_type):
-        return self.on_full_match_any("/随机参考", "/隨機參考")
 
     def _resolve_image_url(self) -> str:
         # picsum.photos returns a redirect to the actual image.
