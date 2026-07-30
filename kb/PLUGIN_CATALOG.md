@@ -72,7 +72,8 @@
 |--------|---------|------|
 | **基础包** | `checkin`, `checkin_recall`, `roll_back`, `remedy_checkin`, `week_checkin_display`, `all_checkin_display`, `week_list`, `personal_records`, `leaderboard` | 打卡、补卡、撤回、统计、排行 |
 | **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
-| **休闲娱乐** | `ff_news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call`, `who_is_spy` | FF14 新闻、闹钟、骰子、占卜、随机图、召唤、谁是卧底 |
+| **休闲娱乐** | `ff_news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | FF14 新闻、闹钟、骰子、占卜、随机图、召唤 |
+| **匿名游戏** | `who_is_spy` | 谁是卧底：群聊创建房间，私聊匿名进行 |
 | **跑团** | `trpg_dice`, `trpg_session` | Sealdice 风格骰子 + 跑团聊天记录 |
 | **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |
 
