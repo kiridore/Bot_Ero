@@ -6,6 +6,8 @@ from core.utils import register_plugin
 import core.context as runtime_context
 from core.feature_packs import FEATURE_PACKS
 
+ACTIONS = {"on": "on", "开启": "on", "off": "off", "关闭": "off"}
+
 
 def _get_config(group_id: int) -> set[str]:
     conn = sqlite3.connect("data.db")
@@ -90,12 +92,6 @@ def _set_pack_config(group_id: int, pack_name: str, enable: bool):
     return True
 
 
-def _resolve_group(cmd_args: list[str], current_gid: int | None) -> int | None:
-    if cmd_args and cmd_args[-1].isdigit():
-        return int(cmd_args[-1])
-    return current_gid
-
-
 def _find_pack(name: str) -> str | None:
     for key in FEATURE_PACKS:
         if name == key or name in key:
@@ -103,93 +99,74 @@ def _find_pack(name: str) -> str | None:
     return None
 
 
+def _all_plugin_names() -> set[str]:
+    return {runtime_context.plugin_key(cls) for cls in runtime_context.plugin_registry}
+
+
+def _resolve_target_gid(args_tail: list[str], gid: int | None) -> int:
+    if args_tail and args_tail[-1].isdigit():
+        return int(args_tail[-1])
+    return gid if gid is not None else 0
+
+
 @register_plugin
 class GroupManagerPlugin(CommandPlugin):
-    COMMANDS = (
-        "/群插件列表", "/启用插件", "/禁用插件",
-        "/全局插件列表", "/全局启用", "/全局禁用",
-        "/功能包列表", "/开启功能包", "/关闭功能包",
-        "/全局功能包列表", "/全局开启功能包", "/全局关闭功能包",
-    )
+    COMMANDS = ("/插件", "/功能包")
+
+    def _parse(self) -> tuple[str, str, int] | str:
+        if not self.args:
+            return f"用法：{self.cmd} <名称|列表> [off|关闭] [群号]"
+        first = self.args[0]
+        rest = self.args[1:]
+        action = "on"
+        clean = []
+        for a in rest:
+            if a in ACTIONS:
+                action = ACTIONS[a]
+            else:
+                clean.append(a)
+        gid = self.bot_event.group_id
+        target_gid = _resolve_target_gid(clean, gid)
+        return first, action, target_gid
 
     def handle(self):
         if not self.super_user():
             self.api.send_msg(text("仅超级用户可管理插件"))
             return
+        parsed = self._parse()
+        if isinstance(parsed, str):
+            self.api.send_msg(text(parsed))
+            return
+        name, action, target_gid = parsed
+        if self.cmd == "/插件":
+            self._plugin(name, action, target_gid)
+        else:
+            self._pack(name, action, target_gid)
 
-        cmd = self.cmd
-        args = self.args
-        gid = self.bot_event.group_id
+    def _plugin(self, name: str, action: str, target_gid: int):
+        if name == "列表":
+            self.api.send_msg(text(_list_plugins_text(target_gid)))
+            return
+        valid = _all_plugin_names()
+        if name not in valid:
+            lines = "\n".join(sorted(valid))
+            self.api.send_msg(text(f"插件「{name}」不存在\n可用插件：\n{lines}"))
+            return
+        enable = action == "on"
+        _set_config(target_gid, name, enable)
+        scope = "全局" if target_gid == 0 else f"群{target_gid}"
+        self.api.send_msg(text(f"已{scope}{'启用' if enable else '禁用'}插件「{name}」"))
 
-        if cmd in ("/群插件列表",):
-            target = _resolve_group(args, gid)
-            if target is None:
-                self.api.send_msg(text("请在群聊中使用，或指定群号"))
-                return
-            self.api.send_msg(text(_list_plugins_text(target)))
-
-        elif cmd in ("/全局插件列表",):
-            self.api.send_msg(text(_list_plugins_text(0)))
-
-        elif cmd in ("/启用插件", "/禁用插件"):
-            if not args:
-                self.api.send_msg(text(f"用法：{cmd} <插件名> [群号]"))
-                return
-            name = args[0]
-            target = _resolve_group(args[1:], gid)
-            if target is None:
-                self.api.send_msg(text("请在群聊中使用，或指定群号"))
-                return
-            enable = cmd == "/启用插件"
-            _set_config(target, name, enable)
-            self.api.send_msg(text(f"已{'启用' if enable else '禁用'}插件「{name}」"))
-
-        elif cmd in ("/全局启用", "/全局禁用"):
-            if not args:
-                self.api.send_msg(text(f"用法：{cmd} <插件名>"))
-                return
-            enable = cmd == "/全局启用"
-            _set_config(0, args[0], enable)
-            self.api.send_msg(text(f"已全局{'启用' if enable else '禁用'}插件「{args[0]}」"))
-
-        elif cmd in ("/功能包列表",):
-            target = _resolve_group(args, gid)
-            if target is None:
-                self.api.send_msg(text("请在群聊中使用，或指定群号"))
-                return
-            self.api.send_msg(text(_list_packs_text(target)))
-
-        elif cmd in ("/全局功能包列表",):
-            self.api.send_msg(text(_list_packs_text(0)))
-
-        elif cmd in ("/开启功能包", "/关闭功能包"):
-            if not args:
-                self.api.send_msg(text(f"用法：{cmd} <功能包名> [群号]"))
-                return
-            name = args[0]
-            target = _resolve_group(args[1:], gid)
-            if target is None:
-                self.api.send_msg(text("请在群聊中使用，或指定群号"))
-                return
-            pack_key = _find_pack(name)
-            if pack_key is None:
-                names = "\n".join(FEATURE_PACKS)
-                self.api.send_msg(text(f"未找到功能包「{name}」\n可用：\n{names}"))
-                return
-            enable = cmd == "/开启功能包"
-            ok = _set_pack_config(target, pack_key, enable)
-            self.api.send_msg(text(f"已{'开启' if enable else '关闭'}功能包「{pack_key}」"))
-
-        elif cmd in ("/全局开启功能包", "/全局关闭功能包"):
-            if not args:
-                self.api.send_msg(text(f"用法：{cmd} <功能包名>"))
-                return
-            name = args[0]
-            pack_key = _find_pack(name)
-            if pack_key is None:
-                names = "\n".join(FEATURE_PACKS)
-                self.api.send_msg(text(f"未找到功能包「{name}」\n可用：\n{names}"))
-                return
-            enable = cmd == "/全局开启功能包"
-            _set_pack_config(0, pack_key, enable)
-            self.api.send_msg(text(f"已全局{'开启' if enable else '关闭'}功能包「{pack_key}」"))
+    def _pack(self, name: str, action: str, target_gid: int):
+        if name == "列表":
+            self.api.send_msg(text(_list_packs_text(target_gid)))
+            return
+        pk = _find_pack(name)
+        if pk is None:
+            lines = "\n".join(FEATURE_PACKS)
+            self.api.send_msg(text(f"功能包「{name}」不存在\n可用功能包：\n{lines}"))
+            return
+        enable = action == "on"
+        _set_pack_config(target_gid, pk, enable)
+        scope = "全局" if target_gid == 0 else f"群{target_gid}"
+        self.api.send_msg(text(f"已{scope}{'开启' if enable else '关闭'}功能包「{pk}」"))
