@@ -866,7 +866,7 @@ class DbManager:
 
     def get_distinct_checkin_day_count(self, user_id, start_datetime_str, end_datetime_str):
         self.cur.execute("""
-            SELECT COUNT(DISTINCT substr(checkin_date, 1, 10))
+            SELECT COUNT(DISTINCT substr(datetime(checkin_date, '-8 hours'), 1, 10))
             FROM checkin_records
             WHERE user_id = ?
             AND checkin_date >= ?
