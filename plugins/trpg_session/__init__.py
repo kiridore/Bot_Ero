@@ -141,6 +141,9 @@ class TrpgSessionPlugin(Plugin):
         end_time = datetime.now()
         messages = session["messages"]
 
+        # 按时间排序，同时间用户消息排在 bot 消息前面
+        messages.sort(key=lambda m: (m.get("time", 0), 1 if m.get("type") == "bot" else 0))
+
         with runtime_context.recording_lock:
             runtime_context.recording_sessions.pop(group_id, None)
             runtime_context.last_completed[group_id] = {
