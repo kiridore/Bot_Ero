@@ -7,6 +7,7 @@ from core import api
 from core.logger import logger
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
+runtime_context.migrate_group_plugin_config()
 
 import websocket  # pyright: ignore[reportMissingImports]
 
@@ -29,7 +30,10 @@ def resolve_event_type(context: dict) -> str:
 
 
 def plugin_pool(context: dict, event_type: str):
+    group_id = context.get("group_id")
     for plugin_cls in runtime_context.plugin_registry:
+        if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
+            continue
         plugin = plugin_cls(context)
         try:
             if plugin.match(event_type):

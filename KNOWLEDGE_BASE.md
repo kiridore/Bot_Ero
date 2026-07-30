@@ -1,12 +1,12 @@
 # BotEro (小埃同学) 知识库
 
-> 生成时间: 2026-07-24 | 基于完整仓库探索
+> 生成时间: 2026-07-30 | 基于完整仓库探索
 
 ---
 
 ## 0. 项目身份
 
-**BotEro (小埃同学)** 是一个基于 OneBot v11 协议的 QQ 群聊机器人，核心功能是**打卡图库 + 积分经济 + 称号系统**，附带抽奖、商店、闹钟、FF14 新闻等辅助功能。
+**BotEro (小埃同学)** 是一个基于 OneBot v11 协议的 QQ 群聊机器人，核心功能是**打卡图库 + 积分经济 + 称号系统**，附带抽奖、商店、闹钟、FF14 新闻等辅助功能。支持多群管理，每个群可独立开启/关闭插件。
 
 - **Bot QQ:** `3915014383`
 - **Bot 昵称:** `小埃同学`
@@ -36,6 +36,10 @@
 | API 超时 | `core/api.py:43` | 30 秒 |
 | 周边界偏移 | `core/utils.py:13-21` | 8 小时 (08:00) |
 | 重连延迟 | `main.py:67` | 5 秒 |
+| 系统插件（不可禁用） | `core/context.py:19-26` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome` |
+| 插件命名 | `core/context.py:28-30` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
+| 群插件配置表 | `core/db/_base.py:290-295` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
+| 私聊配置 group_id | `core/context.py:40` | `0` |
 | 最大装备称号数 | `plugins/title.py:394` | 3 |
 | 群头衔最大长度 | `plugins/set_group_title.py:32` | 10 字符 |
 | 年补卡上限 | `plugins/remedy_checkin.py:14` | 4 次 |
@@ -90,6 +94,12 @@
 | `/数据备份` | 手动备份 | 任何人 |
 | `/系统状态` | 服务器状态 | 超级用户 |
 | `/更新` | git pull + 重启 | 超级用户 |
+| `/群插件列表 [群号]` | 查看指定群的插件启用状态 | 超级用户 |
+| `/启用插件 <name> [群号]` | 启用指定群的某个插件 | 超级用户 |
+| `/禁用插件 <name> [群号]` | 禁用指定群的某个插件 | 超级用户 |
+| `/全局插件列表` | 查看全局（私聊）插件启用状态 | 超级用户 |
+| `/全局启用 <name>` | 全局启用插件 | 超级用户 |
+| `/全局禁用 <name>` | 全局禁用插件 | 超级用户 |
 
 ---
 
@@ -109,12 +119,16 @@ main.py: on_message(ws, msg)
            post_type == "notice"   → "notice"
            否则                     → "message"
          │
-         └── threading.Thread(plugin_pool, args=(msg, event_type))
-              │
-              └── for plugin_cls in context.plugin_registry:
-                   plugin = plugin_cls(raw_context)    ← 新实例
-                   if plugin.match(event_type):
-                       plugin.handle()
+          └── threading.Thread(plugin_pool, args=(msg, event_type))
+               │
+               └── for plugin_cls in context.plugin_registry:
+                    │  meta 事件跳过群组检查
+                    │  非 meta: 检查 context.is_plugin_enabled(cls, group_id)
+                    │           系统插件始终放行，禁用插件直接跳过
+                    │
+                    plugin = plugin_cls(raw_context)    ← 新实例
+                    if plugin.match(event_type):
+                        plugin.handle()
 ```
 
 **关键属性:**
@@ -272,7 +286,7 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 
 ---
 
-## 4. 完整插件目录（34 个）
+## 4. 完整插件目录（35 个）
 
 ### 4.1 消息指令插件
 
@@ -329,8 +343,9 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 | 33 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
 | 34 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
 | 35 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
+| 36 | `group_manager` | `group_manager.py` | CommandPlugin `/群插件列表`/`/启用插件`/`/禁用插件`/`/全局插件列表`/`/全局启用`/`/全局禁用` | super_user() | 管理各群插件启用状态 |
 
-### 4.5 插件间数据依赖
+### 4.6 插件间数据依赖
 
 ```
 title.py (TITLE_DEFS, get_title_def, evaluate_and_unlock_titles)
@@ -347,7 +362,7 @@ core.api.py (_build_title_prefix)
   └── plugins.title        (延迟导入)
 ```
 
-### 4.6 废弃模块
+### 4.7 废弃模块
 
 | 目录/文件 | 状态 | 说明 |
 |-----------|------|------|
@@ -523,7 +538,24 @@ id, author_user_id, content, created_at
 #### guestbook_likes
 entry_id, user_id, created_at
 
-### 5.9 仙人彩
+### 5.9 群插件配置
+
+#### group_plugin_config
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| group_id | INTEGER | PK | 群号（`0` = 私聊/全局配置） |
+| plugin_name | TEXT | PK | `plugin_key(cls)` 返回的标识符（如 `checkin`） |
+| — | — | — | 有行 = 启用，无行 = 禁用 |
+
+**默认策略:** 新群/新增插件默认全部禁用。首次部署时自动为 `DEFAULT_GROUP_ID` 启用所有非系统插件以保持向后兼容。
+
+**检查层级:**
+- `meta` 事件 → 跳过检查，所有插件运行
+- 系统插件 (`SYSTEM_PLUGINS`) → 始终运行，不可禁用
+- 群消息 → 查 `group_id = 当前群` 是否有该插件行
+- 私聊消息 → 查 `group_id = 0` 是否有该插件行
+
+### 5.10 仙人彩
 
 #### immortal_lottery_carry (per-group 累积)
 group_id → carry_4a, carry_3a, carry_2a
@@ -539,7 +571,7 @@ UNIQUE: (group_id, user_id, bet_bj_date)
 #### immortal_lottery_issue (期号)
 group_id, period_key → issue_code
 
-### 5.10 重要约束
+### 5.11 重要约束
 
 - **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER。
 - **无迁移框架:** Schema 演化通过在 `DbManager.__init__()` 中 `PRAGMA table_info` + `ALTER TABLE ADD COLUMN` 手动执行
@@ -908,6 +940,9 @@ core/gen_image/
 8. `self.args` → `match()` 中调了 `on_command` 吗？
 9. 新依赖 → 记录了吗？
 10. `async`/`await` → 确认没引入？
+11. 新增插件 → 新群默认禁用，是否通知管理员手动启用？
+12. 新增系统插件 → 加入 `SYSTEM_PLUGINS` 了吗？（`core/context.py`）
+13. `plugin_pool` 修改 → `is_plugin_enabled` 检查是否有 `sqlite3.Error` 兜底？
 
 ### 13.3 日志与错误处理
 

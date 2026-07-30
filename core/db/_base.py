@@ -284,6 +284,13 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             PRIMARY KEY (user_id, week_key)
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS group_plugin_config (
+            group_id INTEGER NOT NULL,
+            plugin_name TEXT NOT NULL,
+            PRIMARY KEY (group_id, plugin_name)
+        );
+    """)
     cur.execute("DROP TABLE IF EXISTS group_chat_topic_messages")
     cur.execute("DROP TABLE IF EXISTS group_chat_topics")
     conn.commit()
