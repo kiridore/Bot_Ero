@@ -332,6 +332,11 @@ class TrpgSessionPlugin(Plugin):
         group_id = self.bot_event.group_id
         if group_id is None:
             return
+        # 跳过机器人自己的消息（避免 message_sent 事件导致重复录制）
+        if self.bot_event.user_id:
+            from core.base import BOT_QQ
+            if str(self.bot_event.user_id) == str(BOT_QQ):
+                return
 
         session = runtime_context.get_recording_session(group_id)
         if not session:

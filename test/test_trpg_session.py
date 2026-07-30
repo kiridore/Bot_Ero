@@ -124,6 +124,15 @@ class TestTrpgSessionRecording(unittest.TestCase):
         self.assertEqual(session["messages"][0]["nickname"], "玩家A")
         self.assertEqual(session["messages"][0]["type"], "user")
 
+    def test_record_skips_bot_message(self):
+        runtime_context.recording_sessions[296470819] = {"start": None, "messages": [], "participants": {}}
+        ctx = make_group_message("bot 消息", user_id=3915014383, nickname="小埃同学")
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        plugin.handle()
+        session = runtime_context.get_recording_session(296470819)
+        self.assertEqual(len(session["messages"]), 0, "机器人自己的消息不应被录制")
+
     def test_stop_while_not_recording(self):
         ctx = make_group_message("/跑团记录 结束")
         plugin = TrpgSessionPlugin(ctx)
