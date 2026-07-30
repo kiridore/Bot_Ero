@@ -291,6 +291,15 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             PRIMARY KEY (group_id, plugin_name)
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_game_stats (
+            user_id TEXT PRIMARY KEY,
+            total_games INTEGER DEFAULT 0,
+            total_wins INTEGER DEFAULT 0,
+            civilian_wins INTEGER DEFAULT 0,
+            spy_wins INTEGER DEFAULT 0
+        );
+    """)
     cur.execute("DROP TABLE IF EXISTS group_chat_topic_messages")
     cur.execute("DROP TABLE IF EXISTS group_chat_topics")
     conn.commit()
