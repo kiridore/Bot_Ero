@@ -34,6 +34,12 @@ def plugin_pool(context: dict, event_type: str):
     for plugin_cls in runtime_context.plugin_registry:
         if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
             continue
+        # 录制期间跳过非跑团功能包插件
+        if group_id is not None and runtime_context.is_group_recording(group_id):
+            if not runtime_context.is_plugin_allowed_during_recording(
+                runtime_context.plugin_key(plugin_cls)
+            ):
+                continue
         plugin = plugin_cls(context)
         try:
             if plugin.match(event_type):

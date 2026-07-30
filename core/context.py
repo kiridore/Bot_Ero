@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 import sqlite3
+from threading import Lock
 
 if TYPE_CHECKING:
     from core.base import Plugin
@@ -24,6 +25,27 @@ SYSTEM_PLUGINS = frozenset({
     "auto_friend",
     "welcome",
 })
+
+# 跑团录制状态
+recording_lock = Lock()
+recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime, "messages": list, "participants": dict}
+last_completed: dict[int, dict] = {}           # group_id → {"start": datetime, "end": datetime, "messages": list, "participants": dict}
+RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session"})
+
+def is_group_recording(group_id: int) -> bool:
+    return group_id in recording_sessions
+
+def get_recording_session(group_id: int) -> dict | None:
+    return recording_sessions.get(group_id)
+
+def get_last_completed(group_id: int) -> dict | None:
+    return last_completed.get(group_id)
+
+def pop_last_completed(group_id: int) -> dict | None:
+    return last_completed.pop(group_id, None)
+
+def is_plugin_allowed_during_recording(key: str) -> bool:
+    return key in RECORDING_ALLOWED_PLUGINS
 
 def plugin_key(plugin_cls: type["Plugin"]) -> str:
     return plugin_cls.__module__.split(".", 1)[1]

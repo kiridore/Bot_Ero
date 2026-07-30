@@ -1,5 +1,6 @@
 import json as json_
 import queue
+from datetime import datetime
 from core import context as runtime_context
 from core.event import Event
 import websocket
@@ -98,7 +99,25 @@ class ApiWrapper:
             group_id = runtime_context.DEFAULT_GROUP_ID
         params = {"group_id": group_id, "message": message}
         ret = self.call_api("send_group_msg", params)
-        return 0 if ret.get("status") != "ok" else ret.get("data", {}).get("message_id", 0)
+        msg_id = 0 if ret.get("status") != "ok" else ret.get("data", {}).get("message_id", 0)
+
+        # 录制 bot 输出
+        if group_id and msg_id and runtime_context.is_group_recording(group_id):
+            session = runtime_context.get_recording_session(group_id)
+            if session:
+                from core.base import BOT_QQ
+                entry = {
+                    "type": "bot",
+                    "nickname": "小埃同学",
+                    "user_id": str(BOT_QQ),
+                    "message": list(message),
+                    "time": int(datetime.now().timestamp()),
+                }
+                session["messages"].append(entry)
+                if str(BOT_QQ) not in session["participants"]:
+                    session["participants"][str(BOT_QQ)] = {"nickname": "小埃同学", "user_id": str(BOT_QQ)}
+
+        return msg_id
 
     def get_group_member_info(self, user_id):
         #https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_group_member_info-%E8%8E%B7%E5%8F%96%E7%BE%A4%E6%88%90%E5%91%98%E4%BF%A1%E6%81%AF

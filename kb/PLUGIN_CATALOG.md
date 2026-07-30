@@ -1,6 +1,6 @@
 # 插件目录与功能包
 
-> 全部 36 个已注册插件、功能包定义、数据依赖
+> 全部 38 个已注册插件、功能包定义、数据依赖
 
 ---
 
@@ -22,44 +22,46 @@
 | 12 | `lottery` | `lottery.py` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统 |
 | 13 | `immortal_lottery` | `immortal_lottery.py` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩 |
 | 14 | `dice` | `dice.py` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
-| 15 | `divination` | `divination.py` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
-| 16 | `title` | `title.py` | CommandPlugin `/称号`/`/稱號` | 称号系统 |
-| 17 | `redeem_shop` | `redeem_shop.py` | CommandPlugin `/商店 [id]` | 积分商店 |
-| 18 | `group_alarm` | `group_alarm.py` | begin_with `/闹钟` + meta | 闹钟系统 |
-| 19 | `group_essence` | `group_essence.py` | reply + `/加精`/`/精华`/`/删除精华` | 设置/取消群精华 |
-| 20 | `at_all_reply` | `at_all_reply.py` | reply + `/全体成员` | @全体转发回复内容 |
-| 21 | `recall_message` | `recall_message.py` | reply + `/撤回` | 代撤回 bot 消息 |
-| 22 | `set_group_title` | `set_group_title.py` | CommandPlugin `/群头衔 [文本]` | 设置群头衔（最長 10 字） |
-| 23 | `random_reference` | `random_reference.py` | CommandPlugin `/随机参考` | picsum.photos 随机 512x512 |
-| 24 | `gallery_login_key` | `gallery_login_key.py` | CommandPlugin `/图库密钥`/`/网页密钥` | HMAC 登录密钥（仅私聊） |
-| 25 | `ff_news` | `ff_news.py` | 完全匹配 `/FF新闻` + 心跳 | FF14 国服新闻，每小时自动推送 |
-| 26 | `weekly_quest` | `weekly_quest.py` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
+| 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/ra/rd/rc/rcb/rh` | 跑团骰子系统：DND5e/COC7th 检定、优势劣势、属性投点 |
+| 16 | `divination` | `divination.py` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
+| 17 | `title` | `title.py` | CommandPlugin `/称号`/`/稱號` | 称号系统 |
+| 18 | `redeem_shop` | `redeem_shop.py` | CommandPlugin `/商店 [id]` | 积分商店 |
+| 19 | `group_alarm` | `group_alarm.py` | begin_with `/闹钟` + meta | 闹钟系统 |
+| 20 | `group_essence` | `group_essence.py` | reply + `/加精`/`/精华`/`/删除精华` | 设置/取消群精华 |
+| 21 | `at_all_reply` | `at_all_reply.py` | reply + `/全体成员` | @全体转发回复内容 |
+| 22 | `recall_message` | `recall_message.py` | reply + `/撤回` | 代撤回 bot 消息 |
+| 23 | `set_group_title` | `set_group_title.py` | CommandPlugin `/群头衔 [文本]` | 设置群头衔（最長 10 字） |
+| 24 | `random_reference` | `random_reference.py` | CommandPlugin `/随机参考` | picsum.photos 随机 512x512 |
+| 25 | `gallery_login_key` | `gallery_login_key.py` | CommandPlugin `/图库密钥`/`/网页密钥` | HMAC 登录密钥（仅私聊） |
+| 26 | `ff_news` | `ff_news.py` | 完全匹配 `/FF新闻` + 心跳 | FF14 国服新闻，每小时自动推送 |
+| 27 | `weekly_quest` | `weekly_quest.py` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
+| 28 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团记录` + 录制期间全匹配 | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
 
 ## 通知/请求处理
 
 | # | 插件名 | 文件 | 触发 | 功能 |
 |---|--------|------|------|------|
-| 27 | `auto_friend` | `auto_friend.py` | `request_type == "friend"` | 自动同意好友请求 |
-| 28 | `welcome` | `welcome.py` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
+| 29 | `auto_friend` | `auto_friend.py` | `request_type == "friend"` | 自动同意好友请求 |
+| 30 | `welcome` | `welcome.py` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
 
 ## 定时/心跳
 
 | # | 插件名 | 文件 | 计划 | 功能 |
 |---|--------|------|------|------|
-| 29 | `backup` | `backup.py` | 每天 08:00 | 自动备份打卡图片到本地 |
-| 30 | `shop_weekly_rotation` | `redeem_shop.py` | 每周一 08:00 | 刷新商店货架 |
-| 30 | `startup_changelog` | `startup_changelog.py` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
-| 31 | `weekly_quest_reset` | `weekly_quest.py` | 每周一 08:00 | 清理过期任务进度 |
+| 31 | `backup` | `backup.py` | 每天 08:00 | 自动备份打卡图片到本地 |
+| 32 | `shop_weekly_rotation` | `redeem_shop.py` | 每周一 08:00 | 刷新商店货架 |
+| 32 | `startup_changelog` | `startup_changelog.py` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
+| 33 | `weekly_quest_reset` | `weekly_quest.py` | 每周一 08:00 | 清理过期任务进度 |
 
 ## 管理/超级用户
 
 | # | 插件名 | 文件 | 触发 | 权限 | 功能 |
 |---|--------|------|------|------|------|
-| 32 | `grant_points_all` | `grant_points_all.py` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
-| 33 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
-| 34 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
-| 35 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
-| 36 | `group_manager` | `group_manager.py` | CommandPlugin `/群插件列表`/`/启用插件`/`/禁用插件`/`/全局插件列表`/`/全局启用`/`/全局禁用` | super_user() | 管理各群插件启用状态 |
+| 34 | `grant_points_all` | `grant_points_all.py` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
+| 35 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
+| 36 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
+| 37 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
+| 38 | `group_manager` | `group_manager.py` | CommandPlugin `/群插件列表`/`/启用插件`/`/禁用插件`/`/全局插件列表`/`/全局启用`/`/全局禁用` | super_user() | 管理各群插件启用状态 |
 
 ## 功能包
 
@@ -70,6 +72,7 @@
 | **基础包** | `checkin`, `checkin_recall`, `roll_back`, `remedy_checkin`, `week_checkin_display`, `all_checkin_display`, `week_list`, `personal_records`, `leaderboard` | 打卡、补卡、撤回、统计、排行 |
 | **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
 | **休闲娱乐** | `ff_news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | FF14 新闻、闹钟、骰子、占卜、随机图、召唤 |
+| **跑团** | `trpg_dice`, `trpg_session` | 跑团骰子 + 跑团聊天记录 |
 | **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |
 
 **语义：**
