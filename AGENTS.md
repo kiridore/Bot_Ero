@@ -46,6 +46,7 @@ Every event spawns a new thread with a **fresh Plugin instance**. Plugin instanc
 - **`match()` MUST NOT have side effects** (no DB writes, no message sends).
 - **Specs MUST be updated in the same commit** as related code changes (see `specs/README.md` maintenance rules).
 - **New/renamed commands MUST update `plugins/bot_menu_text.py`** in the same commit.
+- **Touching protocol code** (`core/api.py`, `core/event.py`, `core/cq.py`, or any plugin's OneBot event/message-segment access) **MUST consult the authoritative upstream first** — see `specs/onebot-protocol.md` §权威上游文档; the LLOneBot doc index is mirrored at `specs/llms.txt` (fetch the relevant single page via webfetch before editing).
 
 ## Hardcoded values (no config file)
 

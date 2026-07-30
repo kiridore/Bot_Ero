@@ -12,7 +12,39 @@
 - **通信方式:** WebSocket（正向连接，bot 作为客户端连接服务端）
 - **服务端兼容:** NapCat、Lagrange、LLOneBot
 - **传输格式:** JSON
-- **官方文档:** https://github.com/botuniverse/onebot-11
+- **官方标准:** https://github.com/botuniverse/onebot-11
+
+---
+
+## Constraint: 权威上游文档 (Authoritative upstream)
+
+OneBot v11 标准只覆盖基础协议；本工程实际后端是 **LLOneBot**，含标准之外的扩展 API（如 `set_essence_msg` / `delete_essence_msg`、群相册、`get_qq_avatar` 等 —— 已在 `core/api.py` 中封装）。
+
+| 用途 | 来源 |
+|------|------|
+| 标准协议（事件/CQ码/基础 API） | https://github.com/botuniverse/onebot-11 |
+| LLOneBot 官方接口（含扩展 API、Schema） | https://api.luckylillia.com/llms.txt |
+| 离线索引快照（与本 spec 同目录） | [`llms.txt`](llms.txt) |
+
+### 参阅规则（MUST）
+
+修改下列任一文件或区域前，**MUST** 先查阅上游文档确认 API/事件/消息段结构与参数：
+
+- `core/api.py` — `ApiWrapper` 的任何 `call_api` 调用或新增 API 方法
+- `core/event.py` — `Event` 属性（事件字段映射）
+- `core/cq.py` — 消息段构造器
+- `specs/onebot-protocol.md` — 本文档自身的协议描述
+- 任何插件的 `match()` / `handle()` 中对 OneBot 事件字段或消息段的访问
+
+### 取单页方法
+
+`llms.txt` 是按"OneBot 11 > 接口列表 > 用户/群组/消息/文件/系统" + "Schemas > 消息段/上报事件"两级分类的 URL 索引。按改动类别定位条目，取 URL 后用 webfetch 拉取单页，例：
+- 改消息段构造 → `Schemas > 消息段` 下对应段（如 `ImageSegment`、`AtSegment`）
+- 改 API 方法 → `API Docs` 下对应接口（如 `设置群头衔`、`设置群精华消息`）
+- 改事件处理 → `Schemas > 上报事件` 下对应事件（如 `MessageEvent`、`GroupRecallNoticeEvent`）
+- 改 WS 收发流程 → `Docs > OneBot 11 > 接口列表` 下 `Websocket 发送/接受消息`、`Token鉴权`
+
+> 索引可能落后于上游站点；若本地 `llms.txt` 与在线 https://api.luckylillia.com/llms.txt 出现分歧，以在线为准，并顺手更新本地快照。
 
 ---
 
