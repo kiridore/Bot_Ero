@@ -40,6 +40,7 @@
 | 插件命名 | `core/context.py:28-30` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
 | 群插件配置表 | `core/db/_base.py:290-295` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
 | 私聊配置 group_id | `core/context.py:40` | `0` |
+| 功能包定义 | `core/feature_packs.py` | 4 个功能包：基础包、基础扩展包、休闲娱乐、群管理工具 |
 | 最大装备称号数 | `plugins/title.py:394` | 3 |
 | 群头衔最大长度 | `plugins/set_group_title.py:32` | 10 字符 |
 | 年补卡上限 | `plugins/remedy_checkin.py:14` | 4 次 |
@@ -100,6 +101,12 @@
 | `/全局插件列表` | 查看全局（私聊）插件启用状态 | 超级用户 |
 | `/全局启用 <name>` | 全局启用插件 | 超级用户 |
 | `/全局禁用 <name>` | 全局禁用插件 | 超级用户 |
+| `/功能包列表 [群号]` | 查看指定群的功能包状态 | 超级用户 |
+| `/开启功能包 <name> [群号]` | 开启指定群的功能包 | 超级用户 |
+| `/关闭功能包 <name> [群号]` | 关闭指定群的功能包 | 超级用户 |
+| `/全局功能包列表` | 查看全局功能包状态 | 超级用户 |
+| `/全局开启功能包 <name>` | 全局开启功能包 | 超级用户 |
+| `/全局关闭功能包 <name>` | 全局关闭功能包 | 超级用户 |
 
 ---
 
@@ -555,7 +562,25 @@ entry_id, user_id, created_at
 - 群消息 → 查 `group_id = 当前群` 是否有该插件行
 - 私聊消息 → 查 `group_id = 0` 是否有该插件行
 
-### 5.10 仙人彩
+### 5.10 功能包 (Feature Packs)
+
+功能包是基于 `group_plugin_config` 的批量操作 shortcut，定义在 `core/feature_packs.py`：
+
+| 功能包 | 包含插件 | 说明 |
+|--------|---------|------|
+| **基础包** | `checkin`, `checkin_recall`, `roll_back`, `remedy_checkin`, `week_checkin_display`, `all_checkin_display`, `week_list`, `personal_records`, `leaderboard` | 打卡、补卡、撤回、统计、排行 |
+| **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
+| **休闲娱乐** | `ff_news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | FF14 新闻、闹钟、骰子、占卜、随机图、召唤 |
+| **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |
+
+**语义：**
+- 开启包 = 批量 `INSERT OR IGNORE` 包内每个插件的启用记录
+- 关闭包 = 批量 `DELETE` 包内每个插件的启用记录
+- 包操作后仍可单独 `/启用插件` / `/禁用插件` 微调
+- 系统插件不在任何功能包中，始终运行
+- 包列表展示：✅ 全部启用 / ⚡ 部分启用 / ❌ 全部禁用
+
+### 5.11 仙人彩
 
 #### immortal_lottery_carry (per-group 累积)
 group_id → carry_4a, carry_3a, carry_2a
@@ -571,7 +596,7 @@ UNIQUE: (group_id, user_id, bet_bj_date)
 #### immortal_lottery_issue (期号)
 group_id, period_key → issue_code
 
-### 5.11 重要约束
+### 5.12 重要约束
 
 - **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER。
 - **无迁移框架:** Schema 演化通过在 `DbManager.__init__()` 中 `PRAGMA table_info` + `ALTER TABLE ADD COLUMN` 手动执行
