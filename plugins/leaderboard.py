@@ -10,7 +10,7 @@ class LeaderboardPlugin(Plugin):
     description = '展示积分排行榜。'
 
     def _format_title_prefix(self, user_id):
-        titles = self.dbmanager.get_equipped_titles(user_id)[:3]
+        titles = self.dbmanager.titles.equipped_all(user_id)[:3]
         if len(titles) == 0:
             return ""
         names = []
@@ -31,7 +31,7 @@ class LeaderboardPlugin(Plugin):
             self.api.send_msg(text("请在群里使用 /排名 或 /rank"))
             return
 
-        top_rows = self.dbmanager.get_point_leaderboard(limit=10)
+        top_rows = self.dbmanager.points.leaderboard(limit=10)
         if len(top_rows) == 0:
             self.api.send_msg(text("当前还没有积分数据喵~"))
             return

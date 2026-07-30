@@ -168,9 +168,9 @@ class ImmortalLotteryPlugin(Plugin):
     def _send_pool_info(self):
         gid = int(self.bot_event.group_id)
         pk = self._current_period_key()
-        issue = self.dbmanager.immortal_lottery_get_or_create_issue_code(gid, pk)
-        st = self.dbmanager.immortal_lottery_period_stats(gid, pk)
-        c4, c3, c2 = self.dbmanager.immortal_lottery_get_carry(gid)
+        issue = self.dbmanager.immortal.issue_code(gid, pk)
+        st = self.dbmanager.immortal.period_stats(gid, pk)
+        c4, c3, c2 = self.dbmanager.immortal.carry(gid)
         pts = int(st.get("bet_points", 0))
         users = int(st.get("distinct_users", 0))
         bets = int(st.get("bet_count", 0))
@@ -198,12 +198,12 @@ class ImmortalLotteryPlugin(Plugin):
         gid = int(self.bot_event.group_id)
         pk = self._current_period_key()
         bet_date = _now_bj().strftime("%Y-%m-%d")
-        ok, err = self.dbmanager.immortal_lottery_try_place_bet(gid, pk, int(uid), digits, bet_date, 1)
+        ok, err = self.dbmanager.immortal.try_place_bet(gid, pk, int(uid), digits, bet_date, 1)
         if not ok:
             self.api.send_msg(at(int(uid)), text(err))
             return
-        issue = self.dbmanager.immortal_lottery_get_or_create_issue_code(gid, pk)
-        rest = self.dbmanager.get_user_point(uid)
+        issue = self.dbmanager.immortal.issue_code(gid, pk)
+        rest = self.dbmanager.points.get(uid)
         self.api.send_msg(
             at(int(uid)),
             text(
@@ -217,21 +217,21 @@ class ImmortalLotteryPlugin(Plugin):
         mon = _sunday_draw_period_monday(sun)
         pk = _period_key_from_monday(mon)
         db = self.dbmanager
-        groups = db.immortal_lottery_groups_for_period_draw(pk)
+        groups = db.immortal.groups_for_draw(pk)
         for gid in groups:
-            if db.immortal_lottery_has_result(gid, pk):
+            if db.immortal.has_result(gid, pk):
                 continue
             self._run_single_group_draw(gid, pk)
 
     def _run_single_group_draw(self, group_id: int, period_key: str):
         db = self.dbmanager
-        issue = db.immortal_lottery_get_or_create_issue_code(group_id, period_key)
-        bets = db.immortal_lottery_list_bets(group_id, period_key)
+        issue = db.immortal.issue_code(group_id, period_key)
+        bets = db.immortal.list_bets(group_id, period_key)
         bet_total = len(bets)
         p1 = bet_total * 60 // 100
         p2 = bet_total * 25 // 100
         p3 = bet_total - p1 - p2
-        c4, c3, c2 = db.immortal_lottery_get_carry(group_id)
+        c4, c3, c2 = db.immortal.carry(group_id)
         pool_4 = c4 + p1
         pool_3 = c3 + p2
         pool_2 = c2 + p3
@@ -294,7 +294,7 @@ class ImmortalLotteryPlugin(Plugin):
 
         drawn_at = _now_bj().strftime("%Y-%m-%d %H:%M:%S")
         try:
-            ok = db.immortal_lottery_finalize_draw(
+            ok = db.immortal.finalize_draw(
                 group_id,
                 period_key,
                 winning,

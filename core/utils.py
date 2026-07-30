@@ -29,8 +29,8 @@ def day_of_year(date_str):
     return dt.timetuple().tm_yday  # 获取一年中的第几天
 
 def add_user_point(db:DbManager, user_id:int, offer:int):
-        point = db.get_user_point(user_id)
-        db.set_user_point(user_id, point + offer)
+        point = db.points.get(user_id)
+        db.points.set(user_id, point + offer)
 
 def get_image_from_backup(user_id, image):
     python_user_folder = f"{context.python_data_path}/record_images/{user_id}/"
@@ -104,32 +104,32 @@ def on_quest_trigger(db, user_id, trigger_type):
     week_key = get_quest_week_key()
     if trigger_type == "checkin":
         start, end = get_monday_to_monday()
-        count = db.get_distinct_checkin_day_count(user_id, start, end)
+        count = db.checkin.count_days(user_id, start, end)
     else:
         start, _ = get_monday_to_monday()
-        count = db.get_weekly_lottery_draw_count(user_id, start)
+        count = db.lottery.weekly_draw_count(user_id, start)
     completed = []
     for q in QUEST_DEFS:
         if q["trigger"] != trigger_type:
             continue
-        db.upsert_quest_progress(user_id, q["id"], week_key, count)
-        if count >= q["goal"] and db.claim_quest_reward(user_id, q["id"], week_key):
+        db.quest.upsert_progress(user_id, q["id"], week_key, count)
+        if count >= q["goal"] and db.quest.claim_reward(user_id, q["id"], week_key):
             add_user_point(db, user_id, q["reward"])
-            db.increment_quest_completion(user_id)
+            db.quest.increment_completion(user_id)
             completed.append({"name": q["name"], "reward": q["reward"]})
     # 检查是否本周所有任务全清
-    progress = db.get_quest_progress(user_id, week_key)
+    progress = db.quest.progress(user_id, week_key)
     if progress and all(progress.get(q["id"], {}).get("completed") for q in QUEST_DEFS):
-        db.record_weekly_clear(user_id, week_key)
+        db.quest.record_clear(user_id, week_key)
     return completed
 
 def on_quest_rollback(db, user_id, trigger_type):
     week_key = get_quest_week_key()
     start, end = get_monday_to_monday()
-    count = db.get_distinct_checkin_day_count(user_id, start, end)
+    count = db.checkin.count_days(user_id, start, end)
     for q in QUEST_DEFS:
         if q["trigger"] != trigger_type:
             continue
-        db.upsert_quest_progress(user_id, q["id"], week_key, count)
-        if count < q["goal"] and db.revoke_quest_reward(user_id, q["id"], week_key):
+        db.quest.upsert_progress(user_id, q["id"], week_key, count)
+        if count < q["goal"] and db.quest.revoke_reward(user_id, q["id"], week_key):
             add_user_point(db, user_id, -q["reward"])

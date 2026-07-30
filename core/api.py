@@ -47,7 +47,7 @@ class ApiWrapper:
 
     def _build_title_prefix(self, user_id):
         try:
-            equipped_titles = self.dbmanager.get_equipped_titles(user_id)[:3]
+            equipped_titles = self.dbmanager.titles.equipped_all(user_id)[:3]
             if len(equipped_titles) == 0:
                 return ""
             names = []

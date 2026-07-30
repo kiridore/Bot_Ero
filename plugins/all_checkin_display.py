@@ -14,7 +14,7 @@ class AllCheckinDisplay(Plugin):
         if self.bot_event.user_id == None:
             return
 
-        rows = self.dbmanager.search_checkin_all(self.bot_event.user_id)
+        rows = self.dbmanager.checkin.search_all(self.bot_event.user_id)
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)

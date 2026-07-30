@@ -15,13 +15,13 @@ class RollbackCheckinPlugin(Plugin):
         # 自然周奖励回滚
         week_start = dt.date() - timedelta(days=dt.weekday())
         week_end = week_start + timedelta(days=7)
-        week_days = self.dbmanager.get_distinct_checkin_day_count(
+        week_days = self.dbmanager.checkin.count_days(
             user_id,
             week_start.strftime("%Y-%m-%d 00:00:00"),
             week_end.strftime("%Y-%m-%d 00:00:00"),
         )
         if week_days < 7:
-            points = self.dbmanager.revoke_attendance_rewards_by_type_and_range(
+            points = self.dbmanager.checkin.revoke_attendance_range(
                 user_id,
                 "full_week_daily",
                 week_start.strftime("%Y-%m-%d"),
@@ -38,13 +38,13 @@ class RollbackCheckinPlugin(Plugin):
             next_month_start = month_start.replace(month=month_start.month + 1, day=1)
         month_key = month_start.strftime("%Y-%m")
         month_days = (next_month_start - month_start).days
-        cur_days = self.dbmanager.get_distinct_checkin_day_count(
+        cur_days = self.dbmanager.checkin.count_days(
             user_id,
             month_start.strftime("%Y-%m-%d 00:00:00"),
             next_month_start.strftime("%Y-%m-%d 00:00:00"),
         )
         if cur_days < month_days:
-            points = self.dbmanager.revoke_attendance_rewards_by_type_and_prefix(
+            points = self.dbmanager.checkin.revoke_attendance_prefix(
                 user_id,
                 "full_month_weekly_check",
                 month_key,
@@ -60,7 +60,7 @@ class RollbackCheckinPlugin(Plugin):
             return
 
         start_date, end_date = get_monday_to_monday()
-        rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
+        rows = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
         if len(rows) <= 0:
             self.api.send_msg(text("本周你还没打过卡呢！"))
         else:
@@ -71,13 +71,13 @@ class RollbackCheckinPlugin(Plugin):
 
             if len(rows) == 1:
                 week_start = start_date.split(" ")[0]
-                month_weekly_points = self.dbmanager.revoke_attendance_reward_if_claimed(
+                month_weekly_points = self.dbmanager.checkin.revoke_attendance(
                     self.bot_event.user_id, "full_month_weekly_check", week_start
                 )
                 if month_weekly_points > 0:
                     utils.add_user_point(self.dbmanager, self.bot_event.user_id, -month_weekly_points)
 
-            self.dbmanager.delete_checkin_by_id(rows[0][0])
+            self.dbmanager.checkin.delete(rows[0][0])
             on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin")
             dt = datetime.strptime(del_time, "%Y-%m-%d %H:%M:%S")
             self._rollback_attendance_rewards(self.bot_event.user_id, dt)

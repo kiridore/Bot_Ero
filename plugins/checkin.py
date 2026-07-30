@@ -34,16 +34,16 @@ class CheckinPlugin(Plugin):
             start_date, end_date = get_monday_to_monday()
 
             # 确定是否首次打卡
-            before_checkin_list = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
+            before_checkin_list = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
             is_first = False
             if len(before_checkin_list) == 0:
                 is_first = True
 
             # 先打卡（带上 message_id，便于撤回消息时撤销记录）
             msg_id = self.bot_event.message_id
-            self.dbmanager.insert_checkin(self.bot_event.user_id, img_list, msg_id)
+            self.dbmanager.checkin.insert(self.bot_event.user_id, img_list, msg_id)
             checkin_luck_bonus = 0
-            if self.dbmanager.pop_shop_checkin_luck_attempt(self.bot_event.user_id):
+            if self.dbmanager.shop.pop_luck(self.bot_event.user_id):
                 if random.random() < 0.1:
                     checkin_luck_bonus = 1
             unlocked = evaluate_and_unlock_titles(self.dbmanager, self.bot_event.user_id, datetime.now())
@@ -55,8 +55,8 @@ class CheckinPlugin(Plugin):
                 self.api.send_msg(at(self.bot_event.user_id), text("\n".join(lines)))
 
             # 后搜索
-            checkin_list = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
-            streak_res = self.dbmanager.get_user_streaks(self.bot_event.user_id)
+            checkin_list = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
+            streak_res = self.dbmanager.checkin.streaks(self.bot_event.user_id)
 
             display_str = "\n🌟打卡成功喵🌟\n收录了{}张图片\n".format(len(img_list))
 
@@ -77,13 +77,13 @@ class CheckinPlugin(Plugin):
                 next_month_start = month_start.replace(year=month_start.year + 1, month=1, day=1)
             else:
                 next_month_start = month_start.replace(month=month_start.month + 1, day=1)
-            month_full_days = self.dbmanager.get_distinct_checkin_day_count(
+            month_full_days = self.dbmanager.checkin.count_days(
                 self.bot_event.user_id,
                 month_start.strftime("%Y-%m-%d 00:00:00"),
                 next_month_start.strftime("%Y-%m-%d 00:00:00"),
             )
             month_days = (next_month_start - month_start).days
-            if is_first and month_full_days >= month_days and self.dbmanager.claim_attendance_reward(
+            if is_first and month_full_days >= month_days and self.dbmanager.checkin.claim_attendance(
                 self.bot_event.user_id, "full_month_weekly_check", week_start, 1
             ):
                 bonus_total += 1

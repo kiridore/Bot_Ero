@@ -35,9 +35,9 @@ def _load_title_helpers():
 def get_checkin_status(user_id: str) -> dict:
     db = DbManager()
     start_date, end_date = get_monday_to_monday()
-    rows = db.search_target_user_checkin_range(user_id, start_date, end_date)
+    rows = db.checkin.search_user_range(user_id, start_date, end_date)
     real_rows = [r for r in rows if r[3] != "remedy_checkin"]
-    streaks = db.get_user_streaks(user_id)
+    streaks = db.checkin.streaks(user_id)
     return {
         "week_start": start_date.split(" ")[0],
         "week_end": end_date.split(" ")[0],
@@ -80,13 +80,13 @@ def perform_checkin(user_id: str, image_names: list[str]) -> dict:
     db = DbManager()
     evaluate_fn, get_title_def = _load_title_helpers()
     start_date, end_date = get_monday_to_monday()
-    before = db.search_target_user_checkin_range(user_id, start_date, end_date)
+    before = db.checkin.search_user_range(user_id, start_date, end_date)
     is_first = len(before) == 0
 
-    db.insert_checkin(user_id, image_names, message_id=None)
+    db.checkin.insert(user_id, image_names, message_id=None)
 
     checkin_luck_bonus = 0
-    if db.pop_shop_checkin_luck_attempt(user_id):
+    if db.shop.pop_luck(user_id):
         if random.random() < 0.1:
             checkin_luck_bonus = 1
 
@@ -94,8 +94,8 @@ def perform_checkin(user_id: str, image_names: list[str]) -> dict:
     if evaluate_fn:
         unlocked_ids = evaluate_fn(db, user_id, datetime.now())
 
-    checkin_list = db.search_target_user_checkin_range(user_id, start_date, end_date)
-    streak_res = db.get_user_streaks(user_id)
+    checkin_list = db.checkin.search_user_range(user_id, start_date, end_date)
+    streak_res = db.checkin.streaks(user_id)
 
     bonus_total = 0
     bonus_lines: list[str] = []
@@ -104,12 +104,12 @@ def perform_checkin(user_id: str, image_names: list[str]) -> dict:
 
     natural_week_start = now_dt - timedelta(days=now_dt.weekday())
     natural_week_end = natural_week_start + timedelta(days=7)
-    week_full_days = db.get_distinct_checkin_day_count(
+    week_full_days = db.checkin.count_days(
         user_id,
         f"{natural_week_start.strftime('%Y-%m-%d')} 00:00:00",
         f"{natural_week_end.strftime('%Y-%m-%d')} 00:00:00",
     )
-    if week_full_days >= 7 and db.claim_attendance_reward(
+    if week_full_days >= 7 and db.checkin.claim_attendance(
         user_id, "full_week_daily", now_dt.strftime("%Y-%m-%d"), 1
     ):
         bonus_total += 1
@@ -120,13 +120,13 @@ def perform_checkin(user_id: str, image_names: list[str]) -> dict:
         next_month_start = month_start.replace(year=month_start.year + 1, month=1, day=1)
     else:
         next_month_start = month_start.replace(month=month_start.month + 1, day=1)
-    month_full_days = db.get_distinct_checkin_day_count(
+    month_full_days = db.checkin.count_days(
         user_id,
         month_start.strftime("%Y-%m-%d 00:00:00"),
         next_month_start.strftime("%Y-%m-%d 00:00:00"),
     )
     month_days = (next_month_start - month_start).days
-    if is_first and month_full_days >= month_days and db.claim_attendance_reward(
+    if is_first and month_full_days >= month_days and db.checkin.claim_attendance(
         user_id, "full_month_weekly_check", week_start, 1
     ):
         bonus_total += 1

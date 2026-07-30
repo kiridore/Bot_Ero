@@ -24,7 +24,7 @@ class WeeklyQuestPlugin(Plugin):
         week_end_short = end_date.split(" ")[0][5:]
         week_key = get_quest_week_key()
 
-        progress = self.dbmanager.get_quest_progress(user_id, week_key)
+        progress = self.dbmanager.quest.progress(user_id, week_key)
 
         lines = [f"📋 {display_name} 的本周任务 ({week_start_short} - {week_end_short})"]
         lines.append("━" * 22)
@@ -57,4 +57,4 @@ class WeeklyQuestResetPlugin(TimedHeartbeatPlugin):
     RUN_WEEKDAYS = [1]
 
     def handle(self):
-        self.dbmanager.cleanup_old_quest_progress(get_quest_week_key())
+        self.dbmanager.quest.cleanup_old(get_quest_week_key())

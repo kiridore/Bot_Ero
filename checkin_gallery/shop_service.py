@@ -51,28 +51,28 @@ def title_price_from_def(tdef: dict | None) -> int:
 
 
 def _grant_title(db: DbManager, user_id, title_id: int) -> None:
-    if db.has_title(user_id, title_id):
+    if db.titles.has(user_id, title_id):
         raise RuntimeError("你已拥有该称号")
-    if not db.unlock_title(user_id, title_id, commit=False):
+    if not db.titles.unlock(user_id, title_id, commit=False):
         raise RuntimeError("称号发放失败")
 
 
 def _grant_extra_draw_pack(db: DbManager, user_id) -> None:
     until = (datetime.now() + timedelta(days=6)).strftime("%Y-%m-%d")
-    db.set_extra_draw_pack_until(user_id, until, commit=False)
+    db.shop.set_draw_pack(user_id, until, commit=False)
 
 
 def _grant_checkin_boost(db: DbManager, user_id) -> None:
-    db.add_shop_checkin_luck(user_id, 10, commit=False)
+    db.shop.add_luck(user_id, 10, commit=False)
 
 
 def _grant_lottery_waiver(db: DbManager, user_id) -> None:
-    db.add_shop_lottery_waiver(user_id, 10, commit=False)
+    db.shop.add_waiver(user_id, 10, commit=False)
 
 
 def _grant_lottery_refresh(db: DbManager, user_id) -> None:
     today = datetime.now().strftime("%Y-%m-%d")
-    db.clear_lottery_draw_count_for_date(user_id, today, commit=False)
+    db.shop.clear_draw_count(user_id, today, commit=False)
 
 
 FIXED_GRANTS: dict[str, GrantFn] = {
@@ -93,7 +93,7 @@ def _stock_label(stock_n: int | None) -> str:
 
 def _build_catalog(db: DbManager) -> dict[str, dict]:
     catalog: dict[str, dict] = {}
-    for pid, _stock in db.get_all_shop_stock():
+    for pid, _stock in db.shop.all_stock():
         pid = str(pid)
         if pid.startswith("title_"):
             try:
@@ -127,15 +127,15 @@ def _build_catalog(db: DbManager) -> dict[str, dict]:
 def get_shop(user_id: str) -> dict:
     db = DbManager()
     catalog = _build_catalog(db)
-    points = db.get_user_point(user_id)
+    points = db.points.get(user_id)
     items: list[dict] = []
 
     for pid in sorted(catalog.keys()):
         meta = catalog[pid]
-        stock_n = db.get_shop_stock(pid)
+        stock_n = db.shop.stock(pid)
         owned = False
         if meta.get("kind") == "title":
-            owned = db.has_title(user_id, meta["title_id"])
+            owned = db.titles.has(user_id, meta["title_id"])
         can_buy = stock_n is not None and stock_n != 0 and not owned
         items.append(
             {
@@ -181,13 +181,13 @@ def redeem_shop_item(user_id: str, product_id: str) -> dict:
 
     meta = catalog[product_id]
     cost = int(meta["cost"])
-    points = db.get_user_point(user_id)
+    points = db.points.get(user_id)
     if points < cost:
         raise ValueError(f"积分不足：需要 {cost}，当前 {points}。")
 
     if meta.get("kind") == "title":
         tid = meta["title_id"]
-        if db.has_title(user_id, tid):
+        if db.titles.has(user_id, tid):
             raise ValueError("你已拥有该称号，无需重复兑换")
 
         def grant() -> None:
@@ -202,11 +202,11 @@ def redeem_shop_item(user_id: str, product_id: str) -> dict:
     else:
         raise ValueError("该商品暂不可兑换")
 
-    ok, err = db.redeem_shop_item(product_id, user_id, cost, grant)
+    ok, err = db.shop.redeem(product_id, user_id, cost, grant)
     if not ok:
         raise ValueError(err or "兑换失败")
 
-    rest = db.get_user_point(user_id)
+    rest = db.points.get(user_id)
     return {
         "success": True,
         "product_id": product_id,

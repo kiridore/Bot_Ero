@@ -278,8 +278,8 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
     newly_unlocked = []
 
     def unlock(tid):
-        if tid in TITLE_DEFS and not dbmanager.has_title(user_id, tid):
-            dbmanager.unlock_title(user_id, tid)
+        if tid in TITLE_DEFS and not dbmanager.titles.has(user_id, tid):
+            dbmanager.titles.unlock(user_id, tid)
             newly_unlocked.append(tid)
 
     if checkin_dt is not None:
@@ -320,7 +320,7 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
             unlock(211)
 
     # 累计打卡天数
-    total_days = dbmanager.get_total_distinct_checkin_days(user_id)
+    total_days = dbmanager.checkin.count_all_days(user_id)
     if total_days >= 30:
         unlock(209)
     if total_days >= 100:
@@ -331,8 +331,8 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(206)
 
     # 抽奖画像（兼容旧数据：draw_count 至少为 total_spent）
-    profile = dbmanager.get_user_lottery_profile(user_id)
-    spent = dbmanager.get_lottery_spent(user_id)
+    profile = dbmanager.lottery.profile(user_id)
+    spent = dbmanager.lottery.spent(user_id)
     draw_count = max(profile["draw_count"], spent)
     if draw_count >= 1:
         unlock(230)
@@ -392,7 +392,7 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(260)
 
     # 累计周常任务完成次数
-    quest_total = dbmanager.get_quest_completion(user_id)
+    quest_total = dbmanager.quest.completion(user_id)
     if quest_total >= 5:
         unlock(238)
     if quest_total >= 15:
@@ -403,7 +403,7 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(241)
 
     # 累计全清周数
-    clear_count = dbmanager.get_weekly_clear_count(user_id)
+    clear_count = dbmanager.quest.clear_count(user_id)
     if clear_count >= 1:
         unlock(261)
     if clear_count >= 3:
@@ -416,7 +416,7 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(265)
 
     # 依赖称号状态的进度称号
-    titles = dbmanager.get_user_titles(user_id)
+    titles = dbmanager.titles.list(user_id)
     cnt = len(titles)
     if cnt >= 10:
         unlock(222)
@@ -429,11 +429,11 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
     if cnt >= 100:
         unlock(246)
 
-    titles = dbmanager.get_user_titles(user_id)
+    titles = dbmanager.titles.list(user_id)
     if any((TITLE_DEFS.get(t, {}).get("rarity") == "legendary") for t in titles):
         unlock(225)
 
-    equipped = dbmanager.get_equipped_titles(user_id)
+    equipped = dbmanager.titles.equipped_all(user_id)
     if len(equipped) == 3 and all((TITLE_DEFS.get(t, {}).get("rarity") == "legendary") for t in equipped):
         unlock(226)
 
@@ -467,8 +467,8 @@ class TitlePlugin(Plugin):
         return None
 
     def _show_title_list(self, user_id, show_to_user_id):
-        title_ids = self.dbmanager.get_user_titles(user_id)
-        equipped = set(self.dbmanager.get_equipped_titles(user_id))
+        title_ids = self.dbmanager.titles.list(user_id)
+        equipped = set(self.dbmanager.titles.equipped_all(user_id))
         if not title_ids:
             self.api.send_msg(at(show_to_user_id), text("还没有解锁任何称号喵~"))
             return
@@ -483,7 +483,7 @@ class TitlePlugin(Plugin):
         self.api.send_forward_msg([text("\n".join(lines))])
 
     def _show_current(self, user_id):
-        equipped = self.dbmanager.get_equipped_titles(user_id)
+        equipped = self.dbmanager.titles.equipped_all(user_id)
         if len(equipped) == 0:
             self.api.send_msg(at(user_id), text("你当前没有装备称号"))
             return
@@ -498,7 +498,7 @@ class TitlePlugin(Plugin):
         if not data:
             self.api.send_msg(at(user_id), text("没有这个称号编号喵"))
             return
-        if not self.dbmanager.has_title(user_id, title_id):
+        if not self.dbmanager.titles.has(user_id, title_id):
             self.api.send_msg(at(user_id), text("你还没有解锁这个称号喵"))
             return
         msg = f"[{data['id']}] 「{data['name']}」\n稀有度：{data['rarity']}\n说明：{data['description']}"
@@ -518,10 +518,10 @@ class TitlePlugin(Plugin):
         if not data:
             self.api.send_msg(at(user_id), text("没有这个称号编号喵"))
             return
-        if not self.dbmanager.has_title(user_id, title_id):
+        if not self.dbmanager.titles.has(user_id, title_id):
             self.api.send_msg(at(user_id), text("你还没有解锁这个称号喵"))
             return
-        ok, reason = self.dbmanager.equip_title(user_id, title_id, max_count=3)
+        ok, reason = self.dbmanager.titles.equip(user_id, title_id, max_count=3)
         if not ok and reason == "already":
             self.api.send_msg(at(user_id), text(f"称号已装备：「{data['name']}」"))
             return
@@ -533,19 +533,19 @@ class TitlePlugin(Plugin):
         self.api.send_msg(at(user_id), text(f"已装备称号：「{data['name']}」"))
 
     def _unequip(self, user_id):
-        self.dbmanager.clear_equipped_titles(user_id)
+        self.dbmanager.titles.clear_equipped(user_id)
         unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
         self._send_unlocked_titles_notice(user_id, unlocked)
         self.api.send_msg(at(user_id), text("已卸下所有装备称号"))
 
     def _equip_random(self, user_id):
-        title_ids = self.dbmanager.get_user_titles(user_id)
+        title_ids = self.dbmanager.titles.list(user_id)
         if not title_ids:
             self.api.send_msg(at(user_id), text("还没有可随机装备的称号喵"))
             return
         title_id = random.choice(title_ids)
         data = TITLE_DEFS.get(title_id, {"name": "未知称号"})
-        ok, reason = self.dbmanager.equip_title(user_id, title_id, max_count=3)
+        ok, reason = self.dbmanager.titles.equip(user_id, title_id, max_count=3)
         if not ok and reason == "already":
             self.api.send_msg(at(user_id), text(f"随机到了已装备称号：[{title_id}] 「{data['name']}」"))
             return

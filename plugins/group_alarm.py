@@ -530,7 +530,7 @@ class GroupAlarmPlugin(Plugin):
     def _handle_list(self):
         gid = self.bot_event.group_id
         uid = self.bot_event.user_id
-        rows = self.dbmanager.list_pending_alarms_for_user(uid, gid)
+        rows = self.dbmanager.alarm.pending(uid, gid)
         if not rows:
             self.api.send_msg(text("你还没有待触发的闹钟。"))
             return
@@ -550,7 +550,7 @@ class GroupAlarmPlugin(Plugin):
             self.api.send_msg(text("请使用：/闹钟 取消 <编号> 或 /鬧鐘 撤銷 <编号>（编号见「一览／一覽」）。"))
             return
         aid = int(rest)
-        ok = self.dbmanager.cancel_group_alarm(aid, self.bot_event.user_id, self.bot_event.group_id)
+        ok = self.dbmanager.alarm.cancel(aid, self.bot_event.user_id, self.bot_event.group_id)
         if ok:
             self.api.send_msg(text("小埃已经取消闹钟 #{}。".format(aid)))
         else:
@@ -563,7 +563,7 @@ class GroupAlarmPlugin(Plugin):
             return
         fire, clean_content, recur = parsed
         is_priv = self.bot_event.group_id is None
-        aid = self.dbmanager.add_group_alarm(
+        aid = self.dbmanager.alarm.add(
             self.bot_event.user_id,
             fire,
             clean_content,
@@ -587,7 +587,7 @@ class GroupAlarmPlugin(Plugin):
     def _handle_meta_due(self):
         db = self.dbmanager
         now = datetime.now()
-        for row in db.get_due_alarms(now):
+        for row in db.alarm.due(now):
             aid = row[0]
             gid = row[1]
             creator_uid = row[2]
@@ -617,9 +617,9 @@ class GroupAlarmPlugin(Plugin):
                     )
                 prev_dt = datetime.strptime(fat, "%Y-%m-%d %H:%M:%S")
                 nxt = _next_recurring_fire(prev_dt, now, rk, ra, rb, rc)
-                db.try_advance_recurring_fire_at(aid, fat, nxt)
+                db.alarm.advance(aid, fat, nxt)
             else:
-                if not db.try_mark_alarm_fired(aid):
+                if not db.alarm.mark_fired(aid):
                     continue
                 if is_priv:
                     self.api.call_api(

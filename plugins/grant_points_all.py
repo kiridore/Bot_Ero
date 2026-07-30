@@ -26,5 +26,5 @@ class GrantPointsAllPlugin(Plugin):
             self.api.send_msg(text("发0点就不要折腾我了喵"))
             return
 
-        user_count = self.dbmanager.grant_points_to_all_users(amount)
+        user_count = self.dbmanager.points.grant_all(amount)
         self.api.send_msg(text("已给 {} 位用户发放 {} 点积分".format(user_count, amount)))

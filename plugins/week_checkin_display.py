@@ -16,7 +16,7 @@ class WeekCheckinDisplayPlugin(Plugin):
             return
 
         start_date, end_date = get_monday_to_monday()
-        rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, start_date, end_date)
+        rows = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
         time_map = {}
         for row in rows:
             time_map.setdefault(row[2], 0)

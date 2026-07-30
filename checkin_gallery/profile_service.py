@@ -110,12 +110,12 @@ def _condition_progress(tid: int, ctx: dict) -> tuple[float, float, str]:
 
 
 def build_title_list(user_id: str, db: DbManager) -> list[dict]:
-    unlocked = set(db.get_user_titles(user_id))
-    equipped = set(db.get_equipped_titles(user_id))
-    profile = db.get_user_lottery_profile(user_id)
-    spent = db.get_lottery_spent(user_id)
+    unlocked = set(db.titles.list(user_id))
+    equipped = set(db.titles.equipped_all(user_id))
+    profile = db.lottery.profile(user_id)
+    spent = db.lottery.spent(user_id)
     ctx = {
-        "total_days": db.get_total_distinct_checkin_days(user_id),
+        "total_days": db.checkin.count_all_days(user_id),
         "draw_count": max(profile["draw_count"], spent),
         "duplicate_count": profile["duplicate_count"],
         "max_zero_streak": profile["max_zero_streak"],
@@ -159,14 +159,14 @@ def build_profile(user_id: str, year: int | None = None) -> dict:
     if year is None:
         year = dt.date.today().year
     db = DbManager()
-    streaks = db.get_user_streaks(user_id)
-    unlocked_ids = db.get_user_titles(user_id)
+    streaks = db.checkin.streaks(user_id)
+    unlocked_ids = db.titles.list(user_id)
     return {
         "user_id": str(user_id),
         "display_name": resolve_display_name(str(user_id)),
         "avatar_url": resolve_avatar_url(str(user_id)),
         "year": year,
-        "points": db.get_user_point(user_id),
+        "points": db.points.get(user_id),
         "streaks": streaks,
         "titles_unlocked": len(unlocked_ids),
         "titles_total": len(TITLE_DEFS),

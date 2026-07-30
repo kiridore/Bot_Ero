@@ -18,7 +18,7 @@ class BackupPlugin(TimedHeartbeatPlugin):
         return self.should_run_on_heartbeat(message_type) or self.on_full_match_any("/数据备份", "/數據備份")
 
     def handle(self):
-        rows = self.dbmanager.get_all_record()
+        rows = self.dbmanager.checkin.all_records()
         self.api.send_msg(text("早上好，昨天的打卡关门啦，开始进行备份~"))
         self.api.send_msg(text("找到了{}条打卡记录，正在备份到硬盘".format(len(rows))))
 

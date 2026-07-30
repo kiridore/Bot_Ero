@@ -13,7 +13,7 @@ class RemedyCheckinPlugin(Plugin):
     YEARLY_LIMIT = 4
 
     def _check_remedy_limit(self, user_id, year):
-        used = self.dbmanager.get_user_remedy_used(year, user_id)
+        used = self.dbmanager.checkin.remedy_used(year, user_id)
         if used >= self.YEARLY_LIMIT:
             self.api.send_msg(text("{}年补卡次数已达上限（{}/{}）".format(year, used, self.YEARLY_LIMIT)))
             return False
@@ -50,21 +50,21 @@ class RemedyCheckinPlugin(Plugin):
                 user_id = self.args[2] # 特殊补卡指令可以给其他人补卡
 
             start, end = get_monday_to_monday(dt)
-            rows = self.dbmanager.search_target_user_checkin_range(user_id, start, end)
+            rows = self.dbmanager.checkin.search_user_range(user_id, start, end)
 
             cost = 4
 
             if len(rows) == 0:
                 if not super_mode and not self._check_remedy_limit(user_id, dt.year):
                     return
-                points = self.dbmanager.get_user_point(user_id)
+                points = self.dbmanager.points.get(user_id)
                 if points >= cost or super_mode:
                     success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费{}点数，谢谢惠顾喵"
                     self.api.send_msg(text(success_msg.format(start.split(" ")[0], end.split(" ")[0], cost)))
-                    self.dbmanager.remedy_checkin(user_id, start.split(" ")[0])
+                    self.dbmanager.checkin.remedy_week(user_id, start.split(" ")[0])
                     if not super_mode:
                         utils.add_user_point(self.dbmanager, user_id, cost * -1)
-                        self.dbmanager.add_user_remedy_used(dt.year, user_id, 1)
+                        self.dbmanager.checkin.add_remedy_used(dt.year, user_id, 1)
                 else:
                     self.api.send_msg(text("补卡当然不是免费的喵!\n你现在现在点数是：{}\n补卡需要{}点喵".format(points, cost)))
             else:
@@ -95,7 +95,7 @@ class RemedyCheckinPlugin(Plugin):
         day_end = (day + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
         user_id = self.bot_event.user_id
 
-        rows = self.dbmanager.search_target_user_checkin_range(user_id, day_start, day_end)
+        rows = self.dbmanager.checkin.search_user_range(user_id, day_start, day_end)
         if len(rows) > 0:
             self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[1])))
             return
@@ -104,14 +104,14 @@ class RemedyCheckinPlugin(Plugin):
             return
 
         cost = 2
-        points = self.dbmanager.get_user_point(user_id)
+        points = self.dbmanager.points.get(user_id)
         if points < cost:
             self.api.send_msg(text("补卡当然不是免费的喵!\n你现在点数是：{}\n单日补卡需要{}点喵".format(points, cost)))
             return
 
-        self.dbmanager.remedy_checkin_one_day(user_id, self.args[1])
+        self.dbmanager.checkin.remedy_day(user_id, self.args[1])
         utils.add_user_point(self.dbmanager, user_id, cost * -1)
-        self.dbmanager.add_user_remedy_used(day.year, user_id, 1)
+        self.dbmanager.checkin.add_remedy_used(day.year, user_id, 1)
         self.api.send_msg(text("{} 已补卡成功喵，一共消费{}点数".format(self.args[1], cost)))
 
     def find_single_day_remedy(self):
@@ -121,7 +121,7 @@ class RemedyCheckinPlugin(Plugin):
         while date.year == current_year:
             day_start = date.strftime("%Y-%m-%d 08:00:00")
             day_end = (date + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
-            rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, day_start, day_end)
+            rows = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, day_start, day_end)
             if len(rows) == 0:
                 return date.strftime("%Y-%m-%d")
             date = date - timedelta(days=1)
@@ -139,7 +139,7 @@ class RemedyCheckinPlugin(Plugin):
                 self.api.send_msg(text("{}每一周都打了卡呢！完全不需要补卡喵".format(current_year)))
                 break
 
-            rows = self.dbmanager.search_target_user_checkin_range(self.bot_event.user_id, tmp_start, tmp_end)
+            rows = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, tmp_start, tmp_end)
             if len(rows) == 0:
                 self.api.send_msg(text("找到{}-{}这一周没有打卡喵，使用指令\"/补卡 {}\"确认补卡喵".format(tmp_start.split(" ")[0], tmp_end.split(" ")[0], tmp_start.split(" ")[0])))
                 break

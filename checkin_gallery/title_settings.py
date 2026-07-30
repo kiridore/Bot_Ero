@@ -36,8 +36,8 @@ def _title_brief(tid: int) -> dict:
 
 def get_title_settings(user_id: str) -> dict:
     db = DbManager()
-    equipped_ids = db.get_equipped_titles(user_id)
-    unlocked_ids = db.get_user_titles(user_id)
+    equipped_ids = db.titles.equipped_all(user_id)
+    unlocked_ids = db.titles.list(user_id)
     equipped_set = set(equipped_ids)
 
     equipped = []
@@ -72,7 +72,7 @@ def _validate_title_ids(user_id: str, title_ids: list[int]) -> list[int]:
         raise ValueError("不能重复装备同一称号")
 
     db = DbManager()
-    unlocked = set(db.get_user_titles(user_id))
+    unlocked = set(db.titles.list(user_id))
     cleaned: list[int] = []
     for raw in title_ids:
         tid = int(raw)
@@ -87,9 +87,9 @@ def _validate_title_ids(user_id: str, title_ids: list[int]) -> list[int]:
 def set_equipped_titles(user_id: str, title_ids: list[int]) -> dict:
     ordered = _validate_title_ids(user_id, title_ids)
     db = DbManager()
-    db.clear_equipped_titles(user_id)
+    db.titles.clear_equipped(user_id)
     for tid in ordered:
-        ok, reason = db.equip_title(user_id, tid, max_count=MAX_EQUIPPED)
+        ok, reason = db.titles.equip(user_id, tid, max_count=MAX_EQUIPPED)
         if not ok and reason != "already":
             raise ValueError("装备失败，请稍后重试")
     _evaluate_unlocks(user_id)
@@ -101,14 +101,14 @@ def equip_title(user_id: str, title_id: int) -> dict:
     if tid not in TITLE_DEFS:
         raise ValueError("无效称号编号")
     db = DbManager()
-    if not db.has_title(user_id, tid):
+    if not db.titles.has(user_id, tid):
         raise ValueError("尚未解锁该称号")
-    equipped = db.get_equipped_titles(user_id)
+    equipped = db.titles.equipped_all(user_id)
     if tid in equipped:
         return get_title_settings(user_id)
     if len(equipped) >= MAX_EQUIPPED:
         raise ValueError(f"最多装备 {MAX_EQUIPPED} 个称号，请先卸下")
-    ok, reason = db.equip_title(user_id, tid, max_count=MAX_EQUIPPED)
+    ok, reason = db.titles.equip(user_id, tid, max_count=MAX_EQUIPPED)
     if not ok and reason == "full":
         raise ValueError(f"最多装备 {MAX_EQUIPPED} 个称号")
     if not ok and reason != "already":
@@ -120,7 +120,7 @@ def equip_title(user_id: str, title_id: int) -> dict:
 def unequip_title(user_id: str, title_id: int) -> dict:
     tid = int(title_id)
     db = DbManager()
-    equipped = db.get_equipped_titles(user_id)
+    equipped = db.titles.equipped_all(user_id)
     if tid not in equipped:
         raise ValueError("当前未装备该称号")
     new_ids = [t for t in equipped if t != tid]
@@ -129,6 +129,6 @@ def unequip_title(user_id: str, title_id: int) -> dict:
 
 def clear_equipped_titles(user_id: str) -> dict:
     db = DbManager()
-    db.clear_equipped_titles(user_id)
+    db.titles.clear_equipped(user_id)
     _evaluate_unlocks(user_id)
     return get_title_settings(user_id)

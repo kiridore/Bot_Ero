@@ -171,7 +171,7 @@ def create_alarm(user_id: str, payload: dict[str, Any]) -> dict:
 
     fire, clean_content, recur = parsed
     db = DbManager()
-    aid = db.add_group_alarm(
+    aid = db.alarm.add(
         int(user_id),
         fire,
         clean_content,
@@ -209,7 +209,7 @@ def cancel_alarm(user_id: str, alarm_id: int) -> dict:
 
     is_priv, gid = int(row[0] or 0), row[1]
     cancel_gid = None if is_priv else int(gid)
-    ok = db.cancel_group_alarm(int(alarm_id), int(user_id), cancel_gid)
+    ok = db.alarm.cancel(int(alarm_id), int(user_id), cancel_gid)
     if not ok:
         raise ValueError("取消失败：编号不存在、已触发或不是你创建的闹钟")
     return {"message": f"已取消闹钟 #{alarm_id}"}

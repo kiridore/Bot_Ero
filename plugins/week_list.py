@@ -12,7 +12,7 @@ class WeekListPlugin(Plugin):
     description = '展示本周完成打卡的成员列表。'
 
     def _format_title_prefix(self, user_id):
-        titles = self.dbmanager.get_equipped_titles(user_id)[:3]
+        titles = self.dbmanager.titles.equipped_all(user_id)[:3]
         if len(titles) == 0:
             return ""
         names = []
@@ -30,7 +30,7 @@ class WeekListPlugin(Plugin):
     def handle(self):
         #计算本周起止日期
         start_date, end_date = get_monday_to_monday()
-        checkin_users = self.dbmanager.search_all_user_checkin_range(start_date, end_date)
+        checkin_users = self.dbmanager.checkin.search_range(start_date, end_date)
         if len(checkin_users) <= 0:
             self.api.send_msg(text("本周({}-{})竟然还没有板油完成打卡".format(start_date, end_date)))
         else:

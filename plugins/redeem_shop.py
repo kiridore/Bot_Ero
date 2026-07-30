@@ -43,9 +43,9 @@ def _grant_title(plugin: "RedeemShopPlugin", title_id: int) -> None:
     uid = plugin.bot_event.user_id
     if uid is None:
         raise RuntimeError("无法识别用户")
-    if plugin.dbmanager.has_title(uid, title_id):
+    if plugin.dbmanager.titles.has(uid, title_id):
         raise RuntimeError("你已拥有该称号")
-    if not plugin.dbmanager.unlock_title(uid, title_id, commit=False):
+    if not plugin.dbmanager.titles.unlock(uid, title_id, commit=False):
         raise RuntimeError("称号发放失败")
 
 
@@ -55,21 +55,21 @@ def _grant_extra_draw_pack(plugin: "RedeemShopPlugin") -> None:
         raise RuntimeError("无法识别用户")
     # 7 个自然日（含今日），至 6 天后 23:59:59 前均有效，按日期串比较
     until = (datetime.now() + timedelta(days=6)).strftime("%Y-%m-%d")
-    plugin.dbmanager.set_extra_draw_pack_until(uid, until, commit=False)
+    plugin.dbmanager.shop.set_draw_pack(uid, until, commit=False)
 
 
 def _grant_checkin_boost(plugin: "RedeemShopPlugin") -> None:
     uid = plugin.bot_event.user_id
     if uid is None:
         raise RuntimeError("无法识别用户")
-    plugin.dbmanager.add_shop_checkin_luck(uid, 10, commit=False)
+    plugin.dbmanager.shop.add_luck(uid, 10, commit=False)
 
 
 def _grant_lottery_waiver(plugin: "RedeemShopPlugin") -> None:
     uid = plugin.bot_event.user_id
     if uid is None:
         raise RuntimeError("无法识别用户")
-    plugin.dbmanager.add_shop_lottery_waiver(uid, 10, commit=False)
+    plugin.dbmanager.shop.add_waiver(uid, 10, commit=False)
 
 
 def _grant_lottery_refresh(plugin: "RedeemShopPlugin") -> None:
@@ -77,7 +77,7 @@ def _grant_lottery_refresh(plugin: "RedeemShopPlugin") -> None:
     if uid is None:
         raise RuntimeError("无法识别用户")
     today = datetime.now().strftime("%Y-%m-%d")
-    plugin.dbmanager.clear_lottery_draw_count_for_date(uid, today, commit=False)
+    plugin.dbmanager.shop.clear_draw_count(uid, today, commit=False)
 
 
 FIXED_FUNCTION_ITEMS: dict[str, dict[str, Any]] = {
@@ -122,7 +122,7 @@ def _fixed_shop_stock_mapping() -> dict[str, int]:
 def refresh_shop_items_from_database(db) -> None:
     """根据 shop_stock 重建内存中的 SHOP_ITEMS（进程重启后与数据库一致）。"""
     global SHOP_ITEMS
-    rows = db.get_all_shop_stock()
+    rows = db.shop.all_stock()
     SHOP_ITEMS.clear()
     for pid, _stock in rows:
         pid = str(pid)
@@ -166,7 +166,7 @@ def weekly_refresh_shop_shelf(db) -> list[int]:
         picked = random.sample(all_ids, k=k)
         for tid in picked:
             mapping[f"title_{tid}"] = WEEKLY_TITLE_STOCK
-    db.replace_entire_shop_shelf(mapping)
+    db.shop.replace_shelf(mapping)
     refresh_shop_items_from_database(db)
     return picked
 
@@ -179,7 +179,7 @@ def format_shop_shelf_lines(db) -> list[str]:
         meta = SHOP_ITEMS[pid]
         cost = meta["cost"]
         desc = meta["description"]
-        stock_n = db.get_shop_stock(pid)
+        stock_n = db.shop.stock(pid)
         if stock_n is None:
             stock = "未上架"
         elif stock_n == -1:
@@ -303,7 +303,7 @@ class RedeemShopPlugin(Plugin):
             self.api.send_msg(at(user_id), text("该商品未配置发放逻辑。"))
             return
 
-        points = self.dbmanager.get_user_point(user_id)
+        points = self.dbmanager.points.get(user_id)
         if points < cost:
             self.api.send_msg(
                 at(user_id),
@@ -317,19 +317,19 @@ class RedeemShopPlugin(Plugin):
                 tid = int(product_id.split("_", 1)[1])
             except (ValueError, IndexError):
                 tid = None
-            if tid is not None and self.dbmanager.has_title(uid, tid):
+            if tid is not None and self.dbmanager.titles.has(uid, tid):
                 self.api.send_msg(at(user_id), text("你已拥有该称号，无需重复兑换。"))
                 return
 
         def grant() -> None:
             apply_fn(self)
 
-        ok, err = self.dbmanager.redeem_shop_item(product_id, user_id, cost, grant)
+        ok, err = self.dbmanager.shop.redeem(product_id, user_id, cost, grant)
         if not ok:
             self.api.send_msg(at(user_id), text(f"兑换失败：{err}"))
             return
 
-        rest = self.dbmanager.get_user_point(user_id)
+        rest = self.dbmanager.points.get(user_id)
         tip = meta.get("success_tip")
         if isinstance(tip, str) and tip.strip():
             try:

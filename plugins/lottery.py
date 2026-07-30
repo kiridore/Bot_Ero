@@ -42,13 +42,13 @@ class LotteryPlugin(Plugin):
             return {"type": "title_none", "rarity": rarity}
 
         title_id = random.choice(candidates)
-        if self.dbmanager.has_title(user_id, title_id):
+        if self.dbmanager.titles.has(user_id, title_id):
             rebate = self.DUP_REBATE.get(rarity, 0)
             if rebate > 0:
                 utils.add_user_point(self.dbmanager, user_id, rebate)
             return {"type": "title_duplicate", "value": title_id, "rarity": rarity, "rebate": rebate}
 
-        self.dbmanager.unlock_title(user_id, title_id)
+        self.dbmanager.titles.unlock(user_id, title_id)
         return {"type": "title_new", "value": title_id, "rarity": rarity}
 
     def draw_reward(self, user_id):
@@ -91,14 +91,14 @@ class LotteryPlugin(Plugin):
         args = getattr(self, "args", None)
         if args and args[0] in ("/抽卡消费", "/抽卡消費"):
             target_user_id = self._extract_target_user_id(user_id)
-            spent = self.dbmanager.get_lottery_spent(target_user_id)
+            spent = self.dbmanager.lottery.spent(target_user_id)
             self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))
             return
 
         today = datetime.now().strftime("%Y-%m-%d")
-        draw_count = self.dbmanager.get_lottery_draw_count(user_id, today)
-        has_checkin_today = self.dbmanager.has_checkin_on_date(user_id, today)
-        extra_shop_draws = self.dbmanager.get_shop_extra_draw_bonus(user_id, today)
+        draw_count = self.dbmanager.lottery.draw_count(user_id, today)
+        has_checkin_today = self.dbmanager.checkin.has_on_date(user_id, today)
+        extra_shop_draws = self.dbmanager.shop.draw_bonus(user_id, today)
         max_draw = (5 if has_checkin_today else 2) + extra_shop_draws
         if draw_count >= max_draw:
             self.api.send_msg(
@@ -112,25 +112,25 @@ class LotteryPlugin(Plugin):
             return
 
         free_daily = draw_count == 0
-        points = self.dbmanager.get_user_point(user_id)
+        points = self.dbmanager.points.get(user_id)
         payment_exempt = False
         if not free_daily:
-            rem = self.dbmanager.get_shop_lottery_waiver_remaining(user_id)
+            rem = self.dbmanager.shop.waiver_remaining(user_id)
             if rem > 0:
                 if random.random() < 0.3:
                     payment_exempt = True
                 if not payment_exempt and points < self.COST:
                     self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
                     return
-                self.dbmanager.pop_shop_lottery_waiver_slot(user_id)
+                self.dbmanager.shop.pop_waiver(user_id)
             else:
                 if points < self.COST:
                     self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
                     return
             if not payment_exempt:
                 utils.add_user_point(self.dbmanager, user_id, -self.COST)
-                self.dbmanager.add_lottery_spent(user_id, self.COST)
-        self.dbmanager.add_lottery_draw_count(user_id, today, 1)
+                self.dbmanager.lottery.add_spent(user_id, self.COST)
+        self.dbmanager.lottery.add_draw(user_id, today, 1)
         # ponytail: silent quest trigger, users check progress via /周常
         completed = on_quest_trigger(self.dbmanager, user_id, "lottery")
         cost_paid = 0 if free_daily else (0 if payment_exempt else self.COST)
@@ -140,7 +140,7 @@ class LotteryPlugin(Plugin):
             else ("抽奖增强：本次不消耗积分" if payment_exempt else "本次消耗：1积分")
         )
         result = self.draw_reward(user_id)
-        profile = self.dbmanager.get_user_lottery_profile(user_id)
+        profile = self.dbmanager.lottery.profile(user_id)
         draw_count = profile["draw_count"] + 1
         duplicate_count = profile["duplicate_count"]
         zero_streak = profile["zero_streak"]
@@ -160,13 +160,13 @@ class LotteryPlugin(Plugin):
                 zero_streak = 0
             if reward == 10:
                 has_hit_ten = 1
-            self.dbmanager.upsert_user_lottery_profile(
+            self.dbmanager.lottery.upsert_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
             self._send_unlocked_titles_notice(user_id, unlocked)
             net = reward - cost_paid
-            now_points = self.dbmanager.get_user_point(user_id)
+            now_points = self.dbmanager.points.get(user_id)
             if free_daily:
                 free_mid = "{}\n".format(self.FREE_DRAW_HINT)
             elif payment_exempt:
@@ -196,10 +196,10 @@ class LotteryPlugin(Plugin):
                 self.api.send_msg(at(user_id), text(f"🎯 {names}"))
             return
 
-        now_points = self.dbmanager.get_user_point(user_id)
+        now_points = self.dbmanager.points.get(user_id)
         if result["type"] == "title_new":
             zero_streak = 0
-            self.dbmanager.upsert_user_lottery_profile(
+            self.dbmanager.lottery.upsert_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
@@ -218,7 +218,7 @@ class LotteryPlugin(Plugin):
         if result["type"] == "title_duplicate":
             duplicate_count += 1
             zero_streak = 0
-            self.dbmanager.upsert_user_lottery_profile(
+            self.dbmanager.lottery.upsert_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
@@ -247,7 +247,7 @@ class LotteryPlugin(Plugin):
 
         if result["type"] == "title_none":
             zero_streak = 0
-            self.dbmanager.upsert_user_lottery_profile(
+            self.dbmanager.lottery.upsert_profile(
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)

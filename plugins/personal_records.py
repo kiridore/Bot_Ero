@@ -54,7 +54,7 @@ class PersonalRecords(Plugin):
         if len(self.args) > 1:
             year = int(self.args[1])
 
-        rows = self.dbmanager.search_checkin_year(self.bot_event.user_id, year)
+        rows = self.dbmanager.checkin.search_year(self.bot_event.user_id, year)
         time_map = {}
         day_checkin_count = [0] * 366  # 全年每一天打卡数记录
         for row in rows:
@@ -65,7 +65,7 @@ class PersonalRecords(Plugin):
             else:
                 day_checkin_count[utils.day_of_year(row[2]) - 1] = -1
 
-        streak_res = self.dbmanager.get_user_streaks(self.bot_event.user_id)
+        streak_res = self.dbmanager.checkin.streaks(self.bot_event.user_id)
         stats = PersonalRecordStats(
             year=year,
             total_distinct_days=len(time_map),
@@ -74,7 +74,7 @@ class PersonalRecords(Plugin):
             longest_weekly=streak_res["longest_weekly"],
             current_daily=streak_res["current_daily"],
             longest_daily=streak_res["longest_daily"],
-            points=self.dbmanager.get_user_point(self.bot_event.user_id),
+            points=self.dbmanager.points.get(self.bot_event.user_id),
         )
 
         display_name = _sender_display_name(self.bot_event)
