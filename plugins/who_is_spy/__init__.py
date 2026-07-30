@@ -6,7 +6,7 @@ from core.database_manager import DbManager
 
 from .room import (
     create_room, get_room, remove_room,
-    add_player, remove_player, find_player_room, get_player,
+    add_player, remove_player, find_player_room, get_player, GAME_TYPES,
 )
 from .game import (
     start_game, collect_description, collect_vote,
@@ -20,8 +20,8 @@ from .relay import (
 from .titles import grant_game_titles
 
 COMMANDS = frozenset({
-    "/创建卧底", "/开始卧底", "/加入卧底", "/离开卧底", "/退出卧底",
-    "/卧底状态", "/放弃卧底",
+    "/创建游戏", "/开始", "/加入", "/离开", "/退出",
+    "/状态", "/放弃",
 })
 
 
@@ -89,27 +89,32 @@ class WhoIsSpyPlugin(Plugin):
             return
         gid = self.bot_event.group_id
 
-        if cmd == "/创建卧底" and gid:
+        if cmd == "/创建游戏" and gid:
+            if not args or args[0] not in GAME_TYPES:
+                types_str = "、".join(GAME_TYPES)
+                self.api.send_msg(text(f"用法：/创建游戏 <类型> [人数]\n支持的类型：{types_str}"))
+                return
+            game_type = args[0]
             max_p = 6
-            if args:
+            if len(args) > 1:
                 try:
-                    max_p = max(4, min(10, int(args[0])))
+                    max_p = max(4, min(10, int(args[1])))
                 except ValueError:
                     self.api.send_msg(text("人数必须为数字（4-10）"))
                     return
             try:
-                rid = create_room(gid, uid, max_p)
+                rid = create_room(gid, uid, game_type, max_p)
                 self.api.send_msg(text(
-                    f"卧底房间 {rid} 已创建（{max_p}人局）\n"
-                    f"请私聊机器人发送 /加入卧底 {rid} 加入\n"
-                    f"输入 /开始卧底 {rid} 开始游戏"
+                    f"「{game_type}」房间 {rid} 已创建（{max_p}人局）\n"
+                    f"请私聊机器人发送 /加入 {rid} 加入\n"
+                    f"输入 /开始 {rid} 开始游戏"
                 ))
             except RuntimeError as e:
                 self.api.send_msg(text(str(e)))
 
-        elif cmd == "/开始卧底" and gid:
+        elif cmd == "/开始" and gid:
             if not args:
-                self.api.send_msg(text("用法：/开始卧底 <房间号>"))
+                self.api.send_msg(text("用法：/开始 <房间号>"))
                 return
             rid = args[0]
             room = get_room(rid)
@@ -137,9 +142,9 @@ class WhoIsSpyPlugin(Plugin):
 
             broadcast_describe_instructions(self.api, room)
 
-        elif cmd == "/加入卧底" and not gid:
+        elif cmd == "/加入" and not gid:
             if not args:
-                self.api.send_msg(text("用法：/加入卧底 <房间号>"))
+                self.api.send_msg(text("用法：/加入 <房间号>"))
                 return
             rid = args[0]
             nick = self._sender_nickname()
@@ -156,7 +161,7 @@ class WhoIsSpyPlugin(Plugin):
                     "message": [text(f"玩家 {nick} 已加入房间 {rid}（{n}/{room['max_players']}）")],
                 })
 
-        elif cmd in ("/离开卧底", "/退出卧底"):
+        elif cmd in ("/离开", "/退出"):
             room = find_player_room(uid)
             if not room:
                 self.api.send_msg(text("你不在任何房间中"))
@@ -187,7 +192,7 @@ class WhoIsSpyPlugin(Plugin):
                     send_forward_to_group(self.api, room["group_id"], nodes)
                     remove_room(rid)
 
-        elif cmd == "/卧底状态":
+        elif cmd == "/状态":
             rid = args[0] if args else None
             room = None
             if rid:
@@ -198,7 +203,7 @@ class WhoIsSpyPlugin(Plugin):
                 self.api.send_msg(text("房间不存在，或你不在房间中"))
                 return
             lines = [
-                f"房间 {room['room_id']}",
+                f"房间 {room['room_id']}（{room.get('game_type', '?')}）",
                 f"状态：{room['phase']}",
                 f"人数：{len(room['players'])}/{room['max_players']}",
             ]
@@ -218,9 +223,9 @@ class WhoIsSpyPlugin(Plugin):
                         lines.append(f"  {p['alias']} {p['nickname']}{marker}")
             self.api.send_msg(text("\n".join(lines)))
 
-        elif cmd == "/放弃卧底" and gid:
+        elif cmd == "/放弃" and gid:
             if not args:
-                self.api.send_msg(text("用法：/放弃卧底 <房间号>"))
+                self.api.send_msg(text("用法：/放弃 <房间号>"))
                 return
             rid = args[0]
             room = get_room(rid)
@@ -233,8 +238,9 @@ class WhoIsSpyPlugin(Plugin):
             if str(uid) != room["creator_id"] and not self.super_user():
                 self.api.send_msg(text("只有房主或超管才能放弃游戏"))
                 return
+            game_type = room.get("game_type", "游戏")
             remove_room(rid)
-            self.api.send_msg(text(f"房间 {rid} 已解散"))
+            self.api.send_msg(text(f"「{game_type}」房间 {rid} 已解散"))
 
     def _handle_game_input(self):
         if self.bot_event.user_id is None:

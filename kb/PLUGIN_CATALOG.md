@@ -36,7 +36,7 @@
 | 26 | `ff_news` | `ff_news.py` | 完全匹配 `/FF新闻` + 心跳 | FF14 国服新闻，每小时自动推送 |
 | 27 | `weekly_quest` | `weekly_quest.py` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
 | 28 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团记录` + 录制期间全匹配 | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
-| 29 | `who_is_spy` | `who_is_spy/` | 自定义 match: COMMANDS + 私聊游戏阶段输入 | 谁是卧底：群聊创建房间，私聊匿名发言+投票 |
+| 29 | `who_is_spy` | `who_is_spy/` | 自定义 match: `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` + 私聊游戏阶段输入 | 谁是卧底：群聊创建房间，私聊匿名发言+投票 |
 
 ## 通知/请求处理
 

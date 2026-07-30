@@ -17,11 +17,15 @@ def _generate_room_id() -> str:
     raise RuntimeError("无法生成房间号")
 
 
-def create_room(group_id: int, creator_id: int, max_players: int = 6) -> str:
+GAME_TYPES = frozenset({"卧底"})
+
+
+def create_room(group_id: int, creator_id: int, game_type: str = "卧底", max_players: int = 6) -> str:
     rid = _generate_room_id()
     min_players = max(3, max_players - 2)
     room = {
         "room_id": rid,
+        "game_type": game_type,
         "group_id": group_id,
         "creator_id": str(creator_id),
         "max_players": max_players,
@@ -57,7 +61,7 @@ def add_player(room_id: str, user_id: int, nickname: str) -> str:
     with context.game_lock:
         for r in context.game_rooms.values():
             if uid in r["players"]:
-                return f"你已在房间 {r['room_id']} 中，请先 /离开卧底"
+                return f"你已在房间 {r['room_id']} 中，请先 /离开或/退出"
         room = context.game_rooms.get(room_id)
         if not room:
             return "房间不存在"
@@ -77,7 +81,7 @@ def add_player(room_id: str, user_id: int, nickname: str) -> str:
             "role": "",
             "alive": True,
         }
-    return f"已加入卧底房间 {room_id}（{n}/{room['max_players']}），你的代号是 {alias}"
+    return f"已加入 {room['game_type']} 房间 {room_id}（{n}/{room['max_players']}），你的代号是 {alias}"
 
 
 def remove_player(room_id: str, user_id: int) -> str:
