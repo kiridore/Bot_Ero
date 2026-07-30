@@ -131,7 +131,7 @@ main.py
  ├── core.context       (plugin_registry, 路径常量)
  ├── core.logger        (全局 logger)
  └── plugins            (触发自动发现 → 注册所有插件)
-      └── core.base     (Plugin, TimedHeartbeatPlugin)
+       └── core.base     (Plugin, CommandPlugin, TimedHeartbeatPlugin)
            ├── core.event       (Event 包装器)
            ├── core.api         (ApiWrapper — 每个插件实例一个)
            ├── core.cq          (消息段构造器)
@@ -223,7 +223,28 @@ class MyPlugin(Plugin):                   # 必须继承 Plugin
 | `admin_user()` | super_user 或群 admin/owner |
 | `should_run_on_heartbeat(event_type)` | TimedHeartbeatPlugin 的定时触发判断 |
 
-### 3.4 插件可用的实例属性
+### 3.4 CommandPlugin（指令插件基类）
+
+声明 `COMMANDS`，`match()` 自动提取指令和参数：
+
+```python
+@register_plugin
+class MyCommandPlugin(CommandPlugin):
+    name = "my_command"
+    description = "指令插件"
+    COMMANDS = ("/指令", "/cmd")      # str 或 tuple[str]
+
+    def handle(self):
+        self.cmd                     # 命中的指令（如 "/指令"）
+        self.args                    # 剩余参数列表（不含指令）
+```
+
+- 自动过滤 `event_type != "message"`
+- 找消息中首个文本段分词，首词匹配 `COMMANDS` 即命中
+- 带非文本段的消息（如 `/打卡` + 图片）也支持
+- 需要额外条件（如 `admin_user()`）时覆写 `match()` 并在开头调 `super().match()`
+
+### 3.5 插件可用的实例属性
 
 ```python
 self.bot_event       # Event — 当前事件包装器
@@ -231,7 +252,7 @@ self.api             # ApiWrapper — OneBot API 客户端
 self.dbmanager       # DbManager — 数据库访问
 ```
 
-### 3.5 TimedHeartbeatPlugin（定时插件）
+### 3.6 TimedHeartbeatPlugin（定时插件）
 
 ```python
 @register_plugin
@@ -258,7 +279,7 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 | # | 插件名 | 文件 | 触发 | 功能 |
 |---|--------|------|------|------|
 | 1 | `call` | `call.py` | 完全匹配 `小埃同学`/`小埃同學` | 回复"我在~" |
-| 2 | `menu` | `menu.py` | 完全匹配 `/菜单`/`/菜單` | 发送 BOT_MENU_TEXT（合并转发） |
+| 2 | `menu` | `menu.py` | CommandPlugin `/菜单`/`/菜單` | 发送 BOT_MENU_TEXT（合并转发） |
 | 3 | `checkin` | `checkin.py` | begin_with `/打卡` + 图片 | 打卡：存储图片、计算奖励、解锁称号 |
 | 4 | `checkin_recall` | `checkin_recall.py` | notice `group_recall` | 打卡消息被撤回时回滚记录和奖励 |
 | 5 | `rollback_checkin` | `roll_back.py` | 完全匹配 `/撤回打卡` | 撤回本周最近一次打卡 |
@@ -271,7 +292,7 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 | 12 | `lottery` | `lottery.py` | begin_with `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统（详见 9.2） |
 | 13 | `immortal_lottery` | `immortal_lottery.py` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩（详见 9.3） |
 | 14 | `dice` | `dice.py` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
-| 15 | `divination` | `divination.py` | 完全匹配 `/占卜` | 22 张大阿尔卡那 + 正逆位 |
+| 15 | `divination` | `divination.py` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
 | 16 | `title` | `title.py` | command_any `/称号`/`/稱號` | 称号系统（详见 10） |
 | 17 | `redeem_shop` | `redeem_shop.py` | command `/商店 [id]` | 积分商店（详见 9.4） |
 | 18 | `group_alarm` | `group_alarm.py` | begin_with `/闹钟` + meta | 闹钟系统（详见 9.5） |
@@ -304,7 +325,7 @@ class MyTimedPlugin(TimedHeartbeatPlugin):
 
 | # | 插件名 | 文件 | 触发 | 权限 | 功能 |
 |---|--------|------|------|------|------|
-| 32 | `grant_points_all` | `grant_points_all.py` | `/发金币 <数量>` | admin_user() | 全员发积分 |
+| 32 | `grant_points_all` | `grant_points_all.py` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
 | 33 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
 | 34 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
 | 35 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |

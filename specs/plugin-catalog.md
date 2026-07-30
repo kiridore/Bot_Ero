@@ -13,7 +13,7 @@
 | 文件 | 类名 | `name` | 触发方式 | 命令 | 说明 |
 |------|------|--------|---------|------|------|
 | `call.py` | `CallPlugin` | `call` | 完全匹配 | `小埃同学` / `小埃同學` | 召唤 bot，回复 "我在~" |
-| `menu.py` | `MenuPlugin` | `menu` | 完全匹配 | `/菜单` / `/菜單` | 发送 BOT_MENU_TEXT 指令菜单 |
+| `menu.py` | `MenuPlugin` | `menu` | CommandPlugin | `/菜单` / `/菜單` | 发送 BOT_MENU_TEXT 指令菜单 |
 | `checkin.py` | `CheckinPlugin` | `checkin` | begin_with | `/打卡` + 图片 | 打卡：存储图片、解锁称号、计算满勤奖励 |
 | `checkin_recall.py` | `CheckinRecallPlugin` | `checkin_recall` | notice 事件 | (notice: group_recall) | 打卡消息被撤回时回滚记录和奖励 |
 | `roll_back.py` | `RollbackCheckinPlugin` | `rollback_checkin` | 完全匹配 | `/撤回打卡` | 撤回本周最近一次打卡 |
@@ -26,7 +26,7 @@
 | `lottery.py` | `LotteryPlugin` | `lottery` | begin_with / command | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` | 抽卡系统：消耗积分随机获取奖励 |
 | `immortal_lottery.py` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
 | `dice.py` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
-| `divination.py` | `DivinationPlugin` | `divination` | 完全匹配 | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
+| `divination.py` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
 | `title.py` | `TitlePlugin` | `title` | command_any | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |
 | `redeem_shop.py` | `RedeemShopPlugin` | `redeem_shop` | command | `/商店 [商品id]` | 积分商店：浏览商品、兑换 |
 | `group_alarm.py` | `GroupAlarmPlugin` | `group_alarm` | begin_with + meta | `/闹钟 [参数]` | 闹钟系统：创建、列表、取消，支持循环 |
@@ -59,7 +59,7 @@
 
 | 文件 | 类名 | `name` | 触发 | 权限 | 说明 |
 |------|------|--------|------|------|------|
-| `grant_points_all.py` | `GrantPointsAllPlugin` | `grant_points_all` | `/发金币 <数量>` | `admin_user()` | 给所有用户统一发积分 |
+| `grant_points_all.py` | `GrantPointsAllPlugin` | `grant_points_all` | CommandPlugin + `admin_user()` | `/发金币 <数量>` | 给所有用户统一发积分 |
 | `monitor.py` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
 | `update.py` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop.py` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
@@ -91,7 +91,7 @@ core.api.py (_build_title_prefix)
 
 新增插件时，确保完成以下步骤：
 
-- [ ] 1. 继承 `Plugin` 或 `TimedHeartbeatPlugin`
+- [ ] 1. 继承 `Plugin` / `CommandPlugin` / `TimedHeartbeatPlugin`
 - [ ] 2. 添加 `@register_plugin` 装饰器
 - [ ] 3. 设置非空的 `name` 和 `description`
 - [ ] 4. 实现 `match()` 和 `handle()`

@@ -137,7 +137,7 @@ main.py
  ├── core.context      (plugin_registry, 路径常量)
  ├── core.logger       (全局 logger)
  └── plugins           (触发自动发现 → 注册所有插件)
-      └── core.base    (Plugin, TimedHeartbeatPlugin)
+       └── core.base    (Plugin, CommandPlugin, TimedHeartbeatPlugin)
            ├── core.event      (Event 包装器)
            ├── core.api        (ApiWrapper — 每个插件实例一个)
            ├── core.cq         (消息段构造器)

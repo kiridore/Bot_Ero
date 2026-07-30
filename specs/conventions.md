@@ -132,7 +132,7 @@ logger.exception("异常（自动附带 traceback）")
 # 插件中导入 core 模块 — 使用绝对路径
 from core.cq import text, image, at, reply
 from core.utils import register_plugin, get_monday_to_monday
-from core.base import Plugin, TimedHeartbeatPlugin
+from core.base import Plugin, CommandPlugin, TimedHeartbeatPlugin
 from core.event import Event
 
 # 从插件导入纯数据 — 允许（如 title.py 的标题定义）
@@ -232,14 +232,14 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 以下错误在新功能开发中最常见，AI 辅助编程时务必检查：
 
-- [ ] 1. 新增插件 → 是否加了 `@register_plugin`？
+- [ ] 1. 新增插件 → 是否加了 `@register_plugin`？是否选了正确的基类（`Plugin` / `CommandPlugin` / `TimedHeartbeatPlugin`）？
 - [ ] 2. 新增指令 → 是否更新了 `BOT_MENU_TEXT`？
 - [ ] 3. 插件异常 → 框架层统一捕获，不需要每个 handle() 自行 try/except
 - [ ] 4. 修改数据库 → 是否用了参数化查询（`?` 占位符）？
 - [ ] 5. 新增表/列 → 是否用了 `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ADD COLUMN`？
 - [ ] 6. 涉及"周"的逻辑 → 是否用了 08:00 偏移？
 - [ ] 7. 使用 `self.bot_event.group_id` → 是否检查了 `None`？
-- [ ] 8. 使用 `self.args` → 是否在 `match()` 中调用了 `on_command`/`on_command_any`？
+- [ ] 8. 使用 `self.args` → 是否在 `match()` 中调用了 `on_command`/`on_command_any`，或继承 `CommandPlugin`？
 - [ ] 9. 插件类 → `name` 和 `description` 是否非空？
 - [ ] 10. 是否有 `import` 引入了新依赖？→ 是否记录？
 - [ ] 11. 是否用了 `async`/`await`？→ 系统不支持

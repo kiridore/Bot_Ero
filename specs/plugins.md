@@ -34,6 +34,7 @@ class MyPlugin(Plugin):                   # REQUIRED: 必须继承 Plugin
 - 类必须直接或间接继承 `Plugin`
 
 **CAN:**
+- 继承 `CommandPlugin` 代替 `Plugin` 以获得自动指令解析
 - 继承 `TimedHeartbeatPlugin` 代替 `Plugin` 以获得定时触发能力
 
 ---
@@ -360,6 +361,77 @@ class FfNewsPlugin(TimedHeartbeatPlugin):
         return (self.should_run_on_heartbeat(event_type)
                 or self.on_full_match("/FF新闻"))
 ```
+
+---
+
+## Constraint: CommandPlugin
+
+继承 `CommandPlugin` 代替 `Plugin` 来为消息指令插件自动完成指令解析。
+
+### 类属性
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `COMMANDS` | `str \| tuple[str, ...]` | `()` | 指令前缀列表。设为 `str` 时视为单元素 tuple |
+
+### 自动设置
+
+`match()` 命中后自动设置以下实例属性：
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `self.cmd` | `str` | 命中的指令前缀（如 `"/商店"`） |
+| `self.args` | `list[str]` | 指令后的剩余参数（不含指令本身） |
+
+### 行为细节
+
+- 自动过滤 `event_type != "message"`
+- 在消息段中查找首个 `type == "text"` 的段，取其 `data.text` 空格分词后匹配首词
+- 支持多段消息（如 `/打卡` + 图片），不要求消息仅含一个文本段
+- 继承 `CommandPlugin` 的插件即使不覆写 `match()` 也能正常工作
+
+### 示例
+
+**简单指令（无额外条件）：**
+
+```python
+from core.base import CommandPlugin
+from core.utils import register_plugin
+
+@register_plugin
+class MenuPlugin(CommandPlugin):
+    name = "show_menu"
+    description = "发送功能菜单"
+    COMMANDS = ("/菜单", "/菜單")
+
+    def handle(self):
+        self.api.send_msg(text("菜单内容"))
+```
+
+**带权限检查的指令（覆写 match）：**
+
+```python
+from core.base import CommandPlugin
+from core.utils import register_plugin
+
+@register_plugin
+class GrantPointsAllPlugin(CommandPlugin):
+    name = "grant_points_all"
+    description = "全员发积分"
+    COMMANDS = ("/发金币", "/發金幣")
+
+    def match(self, event_type="message"):
+        return self.admin_user() and super().match(event_type)
+
+    def handle(self):
+        amount = int(self.args[0])  # args 不含指令前缀
+        ...
+```
+
+### 何时不使用
+
+- 非纯文本消息头部的命令（如 `.r3d6` 正则匹配）→ 仍用自定义 `match()`
+- 非 `"message"` 事件的处理（notice / meta）→ 仍用 `Plugin`
 
 ---
 

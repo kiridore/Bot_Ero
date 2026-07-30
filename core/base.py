@@ -109,6 +109,39 @@ class Plugin:
         return self.super_user() or self.bot_event.sender.get("role", "") in ("admin", "owner")
 
 
+class CommandPlugin(Plugin):
+    """Base for message command plugins.
+
+    Declare COMMANDS (str or tuple of str) and match() auto-checks the
+    first text segment against them.  self.cmd holds the matched word,
+    self.args holds everything after it.
+    """
+
+    COMMANDS: str | tuple[str, ...] = ()
+
+    def _first_text(self) -> str:
+        for seg in self.bot_event.message:
+            if seg.get("type") == "text":
+                return seg.get("data", {}).get("text", "").strip()
+        return ""
+
+    def match(self, event_type="message") -> bool:
+        if event_type != "message":
+            return False
+        text = self._first_text()
+        if not text:
+            return False
+        cmds = (self.COMMANDS,) if isinstance(self.COMMANDS, str) else tuple(self.COMMANDS)
+        if not cmds:
+            return False
+        parts = text.split()
+        if parts[0] not in cmds:
+            return False
+        self.cmd = parts[0]
+        self.args = parts[1:]
+        return True
+
+
 AnnualDateItem = Union[Tuple[int, int], str]
 
 

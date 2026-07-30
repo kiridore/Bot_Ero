@@ -1,17 +1,15 @@
 import random
 
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text
 
 
 from core.utils import register_plugin
 @register_plugin
-class DivinationPlugin(Plugin):
+class DivinationPlugin(CommandPlugin):
     name = 'divination'
     description = '进行一次塔罗占卜。'
-
-    def match(self, message_type):
-        return self.on_full_match("/占卜")
+    COMMANDS = "/占卜"
 
     def handle(self):
         cards = [

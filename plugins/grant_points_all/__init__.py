@@ -1,23 +1,24 @@
-from core.base import Plugin
+from core.base import CommandPlugin
 from core.cq import text
 
 
 from core.utils import register_plugin
 @register_plugin
-class GrantPointsAllPlugin(Plugin):
+class GrantPointsAllPlugin(CommandPlugin):
     name = 'grant_points_all'
     description = '给全部用户统一发放积分。'
+    COMMANDS = ("/发金币", "/發金幣")
 
-    def match(self, message_type):
-        return self.admin_user() and self.on_command_any("/发金币", "/發金幣")
+    def match(self, event_type="message"):
+        return self.admin_user() and super().match(event_type)
 
     def handle(self):
-        if len(self.args) < 2:
+        if len(self.args) < 1:
             self.api.send_msg(text("请使用 /发金币 <积分数量>"))
             return
 
         try:
-            amount = int(self.args[1])
+            amount = int(self.args[0])
         except Exception:
             self.api.send_msg(text("积分数量必须是整数喵"))
             return
