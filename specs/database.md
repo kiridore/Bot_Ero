@@ -106,7 +106,7 @@ with _connect() as conn:
 | `completed` | INTEGER | DEFAULT 0 | 是否已完成 |
 | `claimed_at` | TEXT | | 奖励领取时间 |
 
-任务定义硬编码在 `core/utils.py` 的 `QUEST_DEFS` 中，5 个任务（打卡 3 个，抽奖 2 个）。
+任务定义硬编码在 `core/utils.py` 的 `QUEST_DEFS` 中，6 个任务（打卡 3 个，抽奖 3 个）。
 
 #### `quest_completion_stats`
 | 列 | 类型 | 约束 | 说明 |
@@ -115,6 +115,15 @@ with _connect() as conn:
 | `total_completions` | INTEGER | DEFAULT 0 | 累计完成任务次数（跨周不重置） |
 
 每次任务完成时通过 `increment_quest_completion()` 自增，不收周清理影响。称号 238-241 基于此统计解锁。
+
+#### `quest_weekly_clears`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY (with week_key) | 用户 QQ 号 |
+| `week_key` | TEXT | PRIMARY KEY (with user_id) | 周一日期 |
+| `cleared_at` | TEXT | NOT NULL | 全清时间 |
+
+每周全清时 INSERT OR IGNORE，防重复。称号 261-265 基于 COUNT 解锁。
 
 ### 抽奖
 

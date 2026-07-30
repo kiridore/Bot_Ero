@@ -94,6 +94,7 @@ QUEST_DEFS = [
     {"id": 3, "name": "一周都打了", "trigger": "checkin", "goal": 7, "reward": 3},
     {"id": 4, "name": "随便抽抽", "trigger": "lottery", "goal": 3, "reward": 1},
     {"id": 5, "name": "猛猛上瘾", "trigger": "lottery", "goal": 7, "reward": 2},
+    {"id": 6, "name": "抽卡享受者", "trigger": "lottery", "goal": 15, "reward": 5},
 ]
 
 def get_quest_week_key():
@@ -116,6 +117,10 @@ def on_quest_trigger(db, user_id, trigger_type):
             add_user_point(db, user_id, q["reward"])
             db.increment_quest_completion(user_id)
             completed.append({"name": q["name"], "reward": q["reward"]})
+    # 检查是否本周所有任务全清
+    progress = db.get_quest_progress(user_id, week_key)
+    if progress and all(progress.get(q["id"], {}).get("completed") for q in QUEST_DEFS):
+        db.record_weekly_clear(user_id, week_key)
     return completed
 
 def on_quest_rollback(db, user_id, trigger_type):

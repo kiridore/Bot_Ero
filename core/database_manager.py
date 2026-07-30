@@ -282,6 +282,14 @@ class DbManager:
                 total_completions INTEGER DEFAULT 0
             );
         """)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS quest_weekly_clears (
+                user_id TEXT NOT NULL,
+                week_key TEXT NOT NULL,
+                cleared_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, week_key)
+            );
+        """)
         # 已移除群聊 topic 功能：若旧库存在相关表则删除
         self.cur.execute("DROP TABLE IF EXISTS group_chat_topic_messages")
         self.cur.execute("DROP TABLE IF EXISTS group_chat_topics")
@@ -1547,6 +1555,23 @@ class DbManager:
             SELECT total_completions
             FROM quest_completion_stats
             WHERE user_id = ?
+        """, (str(user_id),))
+        row = self.cur.fetchone()
+        return 0 if row is None else int(row[0])
+
+    def record_weekly_clear(self, user_id, week_key):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute("""
+            INSERT OR IGNORE INTO quest_weekly_clears (user_id, week_key, cleared_at)
+            VALUES (?, ?, ?)
+        """, (str(user_id), str(week_key), now))
+        ok = self.cur.rowcount > 0
+        self.conn.commit()
+        return ok
+
+    def get_weekly_clear_count(self, user_id):
+        self.cur.execute("""
+            SELECT COUNT(*) FROM quest_weekly_clears WHERE user_id = ?
         """, (str(user_id),))
         row = self.cur.fetchone()
         return 0 if row is None else int(row[0])

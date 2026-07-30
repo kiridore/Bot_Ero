@@ -248,6 +248,11 @@ TITLE_DEFS = {
     258: {"id": 258, "name": "空抽", "rarity": "legendary", "description": "累计空抽50次", "unlock_type": "condition"},
     259: {"id": 259, "name": "黑黑", "rarity": "legendary", "description": "累计空抽100次", "unlock_type": "condition"},
     260: {"id": 260, "name": "虚空行者", "rarity": "legendary", "description": "累计空抽300次", "unlock_type": "condition"},
+    261: {"id": 261, "name": "周常全清", "rarity": "common", "description": "1周内完成全部周常任务", "unlock_type": "condition"},
+    262: {"id": 262, "name": "任务能手", "rarity": "rare", "description": "累计3周全清", "unlock_type": "condition"},
+    263: {"id": 263, "name": "全清达人", "rarity": "rare", "description": "累计5周全清", "unlock_type": "condition"},
+    264: {"id": 264, "name": "周常大师", "rarity": "legendary", "description": "累计10周全清", "unlock_type": "condition"},
+    265: {"id": 265, "name": "任务终结者", "rarity": "legendary", "description": "累计20周全清", "unlock_type": "condition"},
 }
 
 
@@ -396,6 +401,19 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         unlock(240)
     if quest_total >= 50:
         unlock(241)
+
+    # 累计全清周数
+    clear_count = dbmanager.get_weekly_clear_count(user_id)
+    if clear_count >= 1:
+        unlock(261)
+    if clear_count >= 3:
+        unlock(262)
+    if clear_count >= 5:
+        unlock(263)
+    if clear_count >= 10:
+        unlock(264)
+    if clear_count >= 20:
+        unlock(265)
 
     # 依赖称号状态的进度称号
     titles = dbmanager.get_user_titles(user_id)
