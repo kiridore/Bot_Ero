@@ -21,8 +21,6 @@ def _load_all_plugin_modules() -> None:
     """导入当前包下的所有模块，以触发插件注册装饰器。"""
     package_name = __name__
     for finder, name, is_pkg in pkgutil.walk_packages(__path__, prefix=package_name + "."):  # type: ignore[name-defined]
-        if is_pkg:
-            continue
         importlib.import_module(name)
 
 

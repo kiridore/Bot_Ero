@@ -4,18 +4,18 @@ from datetime import datetime
 from core import utils
 from core.base import Plugin
 from core.cq import at, text
-from core.utils import on_quest_trigger
-from plugins.title import get_lottery_title_ids, get_title_def, evaluate_and_unlock_titles
+from core.utils import on_quest_trigger, register_plugin
+from plugins.title import get_title_def, evaluate_and_unlock_titles
+
+from .rewards import draw_reward
 
 
-from core.utils import register_plugin
 @register_plugin
 class LotteryPlugin(Plugin):
     name = 'lottery'
     description = '执行抽卡抽奖并发放奖励或称号。'
 
     COST = 1
-    DUP_REBATE = {"common": 1, "rare": 2, "legendary": 3}
     FREE_DRAW_HINT = "本次抽卡免费（今日首抽）"
 
     def match(self, message_type):
@@ -30,50 +30,6 @@ class LotteryPlugin(Plugin):
                 if qq and qq != "all":
                     return int(qq)
         return int(default_user_id)
-
-    def draw_title_by_rarity(self, user_id, rarity):
-        candidates = []
-        for tid in get_lottery_title_ids():
-            data = get_title_def(tid) or {}
-            if data.get("rarity") == rarity:
-                candidates.append(tid)
-
-        if not candidates:
-            return {"type": "title_none", "rarity": rarity}
-
-        title_id = random.choice(candidates)
-        if self.dbmanager.titles.has(user_id, title_id):
-            rebate = self.DUP_REBATE.get(rarity, 0)
-            if rebate > 0:
-                utils.add_user_point(self.dbmanager, user_id, rebate)
-            return {"type": "title_duplicate", "value": title_id, "rarity": rarity, "rebate": rebate}
-
-        self.dbmanager.titles.unlock(user_id, title_id)
-        return {"type": "title_new", "value": title_id, "rarity": rarity}
-
-    def draw_reward(self, user_id):
-        roll = random.random() * 100
-        table = [
-            (31.0, {"type": "points", "value": 0}),
-            (28.0, {"type": "points", "value": 1}),
-            (10.0, {"type": "points", "value": 2}),
-            (6.0, {"type": "points", "value": 3}),
-            (3.0, {"type": "points", "value": 5}),
-            (0.8, {"type": "points", "value": 8}),
-            (0.2, {"type": "points", "value": 10}),
-            (12.0, {"type": "title_roll", "rarity": "common"}),
-            (5.0, {"type": "title_roll", "rarity": "rare"}),
-            (4.0, {"type": "title_roll", "rarity": "legendary"}),
-        ]
-
-        threshold = 0.0
-        for prob, reward in table:
-            threshold += prob
-            if roll < threshold:
-                if reward["type"] == "points":
-                    return reward
-                return self.draw_title_by_rarity(user_id, reward["rarity"])
-        return {"type": "points", "value": 0}
 
     def _send_unlocked_titles_notice(self, user_id, unlocked_ids):
         if not unlocked_ids:
@@ -139,7 +95,7 @@ class LotteryPlugin(Plugin):
             if free_daily
             else ("抽奖增强：本次不消耗积分" if payment_exempt else "本次消耗：1积分")
         )
-        result = self.draw_reward(user_id)
+        result = draw_reward(self.dbmanager, user_id)
         profile = self.dbmanager.lottery.profile(user_id)
         draw_count = profile["draw_count"] + 1
         duplicate_count = profile["duplicate_count"]

@@ -1,4 +1,8 @@
-"""网页端闹钟（复用 plugins/group_alarm 解析逻辑，避免导入 plugins 包）。"""
+"""网页端闹钟（复用 plugins/group_alarm 解析逻辑，避免导入 plugins 包）。
+
+解析逻辑独立存放于 plugins/group_alarm/parser.py（纯 stdlib，无相对/插件导入），
+故可按文件路径直接加载，而不引入 plugins 包的依赖。
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,7 @@ from typing import Any
 
 from core.database_manager import DbManager
 
-_GROUP_ALARM_PATH = Path(__file__).resolve().parent.parent / "plugins" / "group_alarm.py"
+_GROUP_ALARM_PATH = Path(__file__).resolve().parent.parent / "plugins" / "group_alarm" / "parser.py"
 
 _TIME_RE = re.compile(r"^([0-1]?\d|2[0-3]):([0-5]\d)$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
