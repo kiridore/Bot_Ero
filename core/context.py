@@ -32,6 +32,9 @@ recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime,
 last_completed: dict[int, dict] = {}           # group_id → {"start": datetime, "end": datetime, "messages": list, "participants": dict}
 RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session"})
 
+# 跑团角色：group_id → {user_id → "dm"|"ob"}
+group_roles: dict[int, dict[str, str]] = {}
+
 def is_group_recording(group_id: int) -> bool:
     return group_id in recording_sessions
 

@@ -34,17 +34,22 @@ class TrpgSessionPlugin(Plugin):
         msg = self._first_text()
         if not msg:
             return False
-        # 录制期间所有消息都匹配，非录制期间仅匹配命令
+        if msg.startswith("/跑团记录") or msg.startswith(".dm") or msg.startswith(".ob"):
+            return True
         group_id = self.bot_event.group_id
         if group_id is not None and runtime_context.is_group_recording(group_id):
             return True
-        return msg.startswith("/跑团记录")
+        return False
 
     def handle(self):
         try:
             msg = self._first_text()
             if msg.startswith("/跑团记录"):
                 self._route_command(msg)
+            elif msg.startswith(".dm"):
+                self._handle_set_role("dm")
+            elif msg.startswith(".ob"):
+                self._handle_set_role("ob")
             elif self.bot_event.group_id and runtime_context.is_group_recording(self.bot_event.group_id):
                 self._record_user_message()
         except Exception:
@@ -71,6 +76,25 @@ class TrpgSessionPlugin(Plugin):
         else:
             self._handle_list()
 
+    # ── DM/OB 角色设置 ──────────────────────────────────
+
+    def _handle_set_role(self, role: str):
+        group_id = self.bot_event.group_id
+        if group_id is None:
+            self.api.send_msg(text("角色设置只能在群聊中使用"))
+            return
+        user_id = str(self.bot_event.user_id) if self.bot_event.user_id else "0"
+        # 先清空该用户在当前群的旧角色
+        if group_id not in runtime_context.group_roles:
+            runtime_context.group_roles[group_id] = {}
+        runtime_context.group_roles[group_id][user_id] = role
+        # 如果在录制中，同步到 session
+        session = runtime_context.get_recording_session(group_id)
+        if session and "roles" in session:
+            session["roles"][user_id] = role
+        label = "DM" if role == "dm" else "观察者"
+        self.api.send_msg(text(f"已将 {self._get_sender_nickname()} 设为{label}"))
+
     # ── 开始录制 ──────────────────────────────────────────
 
     def _handle_start(self):
@@ -93,11 +117,13 @@ class TrpgSessionPlugin(Plugin):
             return
 
         self.api.send_msg(text("跑团记录已开始——"))
+        session_roles = dict(runtime_context.group_roles.get(group_id, {}))
         with runtime_context.recording_lock:
             runtime_context.recording_sessions[group_id] = {
                 "start": datetime.now(),
                 "messages": [],
                 "participants": {},
+                "roles": session_roles,
             }
 
     def _handle_force_start(self):
@@ -114,11 +140,13 @@ class TrpgSessionPlugin(Plugin):
         runtime_context.pop_last_completed(group_id)
 
         self.api.send_msg(text("已丢弃上次记录，跑团记录已开始——"))
+        session_roles = dict(runtime_context.group_roles.get(group_id, {}))
         with runtime_context.recording_lock:
             runtime_context.recording_sessions[group_id] = {
                 "start": datetime.now(),
                 "messages": [],
                 "participants": {},
+                "roles": session_roles,
             }
 
     # ── 结束录制 ──────────────────────────────────────────
@@ -151,6 +179,7 @@ class TrpgSessionPlugin(Plugin):
                 "end": end_time,
                 "messages": messages,
                 "participants": session["participants"],
+                "roles": session.get("roles", {}),
             }
 
         if not messages:
@@ -185,11 +214,17 @@ class TrpgSessionPlugin(Plugin):
             os.makedirs(imgs_dir, exist_ok=True)
 
             # 收集参与人
+            roles = recording.get("roles", {})
             participants = list(recording["participants"].values())
             if not any(p["user_id"] == str(BOT_QQ) for p in participants):
                 participants.append({"nickname": "小埃同学", "user_id": str(BOT_QQ)})
 
-            # 写 meta.json
+            # 参与者加上角色和索引
+            for p in participants:
+                uid = p["user_id"]
+                p["role"] = roles.get(uid, "")
+
+            # 写 meta.json（含 qq 供后续 web 展示用）
             meta = {
                 "start": recording["start"].strftime("%Y-%m-%d %H:%M:%S"),
                 "end": recording["end"].strftime("%Y-%m-%d %H:%M:%S"),
@@ -199,6 +234,14 @@ class TrpgSessionPlugin(Plugin):
                 json.dump(meta, f, ensure_ascii=False, indent=2)
 
             # 写 record.md
+            def _role_prefix(uid: str) -> str:
+                r = roles.get(uid, "")
+                if r == "dm":
+                    return "[DM] "
+                if r == "ob":
+                    return "[OB] "
+                return ""
+
             md_lines = [
                 "# 跑团记录\n",
                 f"- 开始时间：{meta['start']}",
@@ -206,9 +249,13 @@ class TrpgSessionPlugin(Plugin):
                 "- 参与人：",
             ]
             for p in participants:
-                label = f"{p['nickname']} ({p['user_id']})"
-                if p["user_id"] == str(BOT_QQ):
+                uid = p["user_id"]
+                r = roles.get(uid, "")
+                label = _role_prefix(uid) + f"{p['nickname']} ({uid})"
+                if uid == str(BOT_QQ):
                     label += " Bot"
+                if r:
+                    label += f" [{r.upper()}]"
                 md_lines.append(f"  - {label}")
             md_lines.append("")
             md_lines.append("---")
@@ -217,8 +264,9 @@ class TrpgSessionPlugin(Plugin):
             img_counter = 0
             for entry in recording["messages"]:
                 ts = datetime.fromtimestamp(entry["time"]).strftime("%H:%M:%S")
+                uid = entry.get("user_id", "")
                 sender = entry.get("nickname", "未知")
-                md_lines.append(f"[{ts}] **{sender}**:")
+                md_lines.append(f"[{ts}] **{_role_prefix(uid)}{sender}**:")
                 for seg in entry.get("message", []):
                     seg_type = seg.get("type", "")
                     seg_data = seg.get("data", {})

@@ -133,6 +133,27 @@ class TestTrpgSessionRecording(unittest.TestCase):
         session = runtime_context.get_recording_session(296470819)
         self.assertEqual(len(session["messages"]), 0, "机器人自己的消息不应被录制")
 
+    def test_dm_sets_role(self):
+        ctx = make_group_message(".dm", user_id=111, nickname="玩家A")
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        plugin.handle()
+        self.assertIn("DM", _sent_text(plugin))
+        self.assertEqual(runtime_context.group_roles.get(296470819, {}).get("111"), "dm")
+
+    def test_ob_sets_role(self):
+        ctx = make_group_message(".ob", user_id=222, nickname="玩家B")
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        plugin.handle()
+        self.assertIn("观察者", _sent_text(plugin))
+        self.assertEqual(runtime_context.group_roles.get(296470819, {}).get("222"), "ob")
+
+    def test_role_carries_into_recording(self):
+        runtime_context.group_roles[296470819] = {"111": "dm"}
+        runtime_context.recording_sessions[296470819] = {"start": None, "messages": [], "participants": {}, "roles": dict(runtime_context.group_roles.get(296470819, {}))}
+        self.assertEqual(runtime_context.recording_sessions[296470819]["roles"]["111"], "dm")
+
     def test_stop_while_not_recording(self):
         ctx = make_group_message("/跑团记录 结束")
         plugin = TrpgSessionPlugin(ctx)
