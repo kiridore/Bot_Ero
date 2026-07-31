@@ -53,6 +53,11 @@ def assign_words(room: dict) -> bool:
             p["role"] = "civilian"
             p["word"] = pair["civilian"]
 
+    aliases = [f"{i}号" for i in range(1, total + 1)]
+    random.shuffle(aliases)
+    for pid, alias in zip(pids, aliases):
+        room["players"][pid]["alias"] = alias
+
     return True
 
 
