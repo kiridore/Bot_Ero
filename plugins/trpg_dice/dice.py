@@ -191,10 +191,10 @@ def _parse_atom(tokens, pos):
         return _parse_dice_implicit(tokens, pos)
 
     if t[0] == "b":
-        return _parse_bonus(tokens, pos)
+        raise ValueError("奖励骰 b 为 COC 规则，当前游戏规则为 DND 5E")
 
     if t[0] == "p":
-        return _parse_penalty(tokens, pos)
+        raise ValueError("惩罚骰 p 为 COC 规则，当前游戏规则为 DND 5E")
 
     if t[0] == "优势":
         return _eval_advantage(20), pos + 1
@@ -238,51 +238,3 @@ def _parse_dice_result(count, sides, tokens, pos):
 
     values = roll(count, sides)
     return _eval_dice(count, sides, values), pos
-
-
-def _parse_bonus(tokens, pos):
-    pos += 1  # skip b
-    count = 1
-    if pos < len(tokens) and tokens[pos][0] == "NUM":
-        count = tokens[pos][1]
-        if count < 1:
-            raise ValueError("奖励骰数量必须大于0")
-        pos += 1
-    return _eval_bonus(count), pos
-
-
-def _parse_penalty(tokens, pos):
-    pos += 1  # skip p
-    count = 1
-    if pos < len(tokens) and tokens[pos][0] == "NUM":
-        count = tokens[pos][1]
-        if count < 1:
-            raise ValueError("惩罚骰数量必须大于0")
-        pos += 1
-    return _eval_penalty(count), pos
-
-
-def _eval_bonus(count):
-    ten_dice = [random.randint(0, 9) for _ in range(count)]
-    tens = [str(d) for d in ten_dice]
-    base = random.randint(1, 100)
-    all_tens = [base % 10] + ten_dice
-    best = max(all_tens)
-    result = (base // 10) * 10 + best
-    if result > 100:
-        result = 100
-    detail = f"D100={base}, 奖励 {' '.join(tens)}"
-    return {"value": result, "detail": detail}
-
-
-def _eval_penalty(count):
-    ten_dice = [random.randint(0, 9) for _ in range(count)]
-    tens = [str(d) for d in ten_dice]
-    base = random.randint(1, 100)
-    all_tens = [base % 10] + ten_dice
-    worst = min(all_tens)
-    result = (base // 10) * 10 + worst
-    if result > 100:
-        result = 100
-    detail = f"D100={base}, 惩罚 {' '.join(tens)}"
-    return {"value": result, "detail": detail}

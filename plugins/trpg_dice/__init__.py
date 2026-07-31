@@ -4,18 +4,19 @@ from core.base import Plugin
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
+import core.context as runtime_context
 
 from .dice import parse, _eval_advantage, _eval_disadvantage
-from .rolls import coc_check
+from .games import GAME_SYSTEMS, DEFAULT_GAME_SYSTEM
 
 
 @register_plugin
 class TrpgPlugin(Plugin):
     name = "trpg_dice"
-    description = "跑团骰子系统：DND5e/COC7th 检定、奖惩骰、暗骰"
+    description = "跑团骰子系统：DND5E 检定、暗骰（规则可切换）"
 
     PREFIX_RE = re.compile(
-        r"^\.(?:rh(?:\s|$)|ra\s|rc\s|r(?:\s|$))",
+        r"^\.(?:rh(?:\s|$)|rc\s|r(?:\s|$))",
         re.IGNORECASE,
     )
 
@@ -38,10 +39,8 @@ class TrpgPlugin(Plugin):
 
             if raw.startswith(".rh"):
                 self._handle_dark_roll(raw, nickname)
-            elif raw.startswith(".ra "):
-                self._handle_coc_check(raw[4:], nickname)
             elif raw.startswith(".rc "):
-                self._handle_dnd_check(raw[4:], nickname)
+                self._dispatch_check(raw[4:], nickname)
             elif raw.startswith(".r"):
                 self._handle_roll(raw, nickname)
         except ValueError as e:
@@ -49,6 +48,18 @@ class TrpgPlugin(Plugin):
         except Exception:
             logger.exception("TRPG 插件处理异常")
             self.api.send_msg(text("指令处理出错，请检查格式"))
+
+    # ── 规则系统分发 ──────────────────────────────────────
+    # 未来规则切换功能修改 runtime_context.GAME_SYSTEM 即可
+
+    def _current_system(self) -> str:
+        return getattr(runtime_context, "GAME_SYSTEM", DEFAULT_GAME_SYSTEM)
+
+    def _dispatch_check(self, arg: str, nickname: str):
+        system = self._current_system()
+        cfg = GAME_SYSTEMS.get(system, GAME_SYSTEMS[DEFAULT_GAME_SYSTEM])
+        handler = getattr(self, cfg["check_handler"])
+        handler(arg, nickname)
 
     def _get_nickname(self):
         sender = self.bot_event.sender
@@ -70,16 +81,6 @@ class TrpgPlugin(Plugin):
             # Bare .r → D100
             value, detail = parse("")
             out = self._format(nickname, "D100", detail, value, reason)
-            self.api.send_msg(text(out))
-            return
-
-        if expr.startswith("c"):
-            try:
-                skill = int(expr[1:])
-            except ValueError:
-                raise ValueError("格式：.r c<技能值> — 例：.r c70")
-            roll, grade = coc_check(skill)
-            out = f"{nickname}的COC检定 D100={roll} [技能={skill}] → {grade}"
             self.api.send_msg(text(out))
             return
 
@@ -118,17 +119,7 @@ class TrpgPlugin(Plugin):
             resolved = resolved.replace(alias, str(values[SKILL_ALIASES[alias]]))
         return resolved, expr
 
-    def _handle_coc_check(self, arg: str, nickname: str):
-        arg = arg.strip()
-        try:
-            value = int(arg)
-        except ValueError:
-            self.api.send_msg(text("格式：.ra <技能值>  — 例：.ra 70"))
-            return
-
-        roll, grade = coc_check(value)
-        out = f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}"
-        self.api.send_msg(text(out))
+    # ── DND 5E 检定 ──────────────────────────────────────
 
     def _handle_dnd_check(self, arg: str, nickname: str):
         """DND d20 检定：.rc [优势|劣势] <属性|表达式> [豁免]"""
@@ -161,8 +152,7 @@ class TrpgPlugin(Plugin):
         head = f"{nickname}的{label}{suffix}{mode_str}: "
 
         # 纯数值修正（属性/技能名已替换，如 2、2+3）
-        import re as _re
-        if not _re.search(r"[dbp%#优势劣势]", resolved):
+        if not re.search(r"[dbp%#优势劣势]", resolved):
             mod, _ = parse(resolved)
             mod_str = f"+{mod}" if mod >= 0 else str(mod)
             if mode == "优势":
@@ -191,6 +181,8 @@ class TrpgPlugin(Plugin):
             out = f"{head}d20劣势={adv['detail']} + {rest_detail}={adv['value'] + rest_value}"
         self.api.send_msg(text(out))
 
+    # ── 暗骰 ──────────────────────────────────────────
+
     def _handle_dark_roll(self, raw: str, nickname: str):
         after = raw[3:].lstrip()
         parts = after.split(None, 1)
@@ -205,15 +197,6 @@ class TrpgPlugin(Plugin):
         if not expr:
             value, detail = parse("")
             expr_label = "D100"
-        elif expr.startswith("c"):
-            try:
-                skill = int(expr[1:])
-            except ValueError:
-                raise ValueError("格式：.rh c<技能值> — 例：.rh c70")
-            roll, grade = coc_check(skill)
-            expr_label = f"c{skill}"
-            detail = f"COC检定 D100={roll}"
-            value = roll
         else:
             resolved, expr_label = self._resolve_character_expr(expr)
             if resolved is None:

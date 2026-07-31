@@ -38,6 +38,9 @@ group_roles: dict[int, dict[str, str]] = {}
 # 角色创建引导进度：user_id → {"step": int, "data": dict}
 character_wizards: dict[int, dict] = {}
 
+# 当前游戏规则系统（跑团骰子检定用），未来规则切换功能修改此值
+GAME_SYSTEM = "dnd5e"
+
 # 卧底游戏
 game_lock = Lock()
 game_rooms: dict[str, dict] = {}

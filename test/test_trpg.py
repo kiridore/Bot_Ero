@@ -15,7 +15,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from plugins.trpg_dice.dice import parse
-from plugins.trpg_dice.rolls import coc_check
 from plugins.trpg_dice import TrpgPlugin
 from test.helper import MockApiWrapper, make_group_message
 
@@ -50,13 +49,13 @@ class TestDiceParse(unittest.TestCase):
         v, d = parse("d%")
         self.assertTrue(1 <= v <= 100)
 
-    def test_bonus(self):
-        v, d = parse("b")
-        self.assertTrue(1 <= v <= 100)
+    def test_bonus_rejected_dnd(self):
+        with self.assertRaises(ValueError):
+            parse("b")
 
-    def test_penalty(self):
-        v, d = parse("p2")
-        self.assertTrue(1 <= v <= 100)
+    def test_penalty_rejected_dnd(self):
+        with self.assertRaises(ValueError):
+            parse("p2")
 
     def test_advantage_keyword(self):
         v, d = parse("d20优势")
@@ -89,23 +88,6 @@ class TestDiceParse(unittest.TestCase):
             parse("abc")
 
 
-class TestCocCheck(unittest.TestCase):
-    @patch("plugins.trpg_dice.rolls.random.randint", return_value=45)
-    def test_regular_success(self, _):
-        roll, grade = coc_check(70)
-        self.assertEqual(grade, "常规成功")
-
-    @patch("plugins.trpg_dice.rolls.random.randint", return_value=7)
-    def test_extreme_success(self, _):
-        roll, grade = coc_check(70)
-        self.assertEqual(grade, "极限成功")
-
-    @patch("plugins.trpg_dice.rolls.random.randint", return_value=97)
-    def test_fumble(self, _):
-        roll, grade = coc_check(70)
-        self.assertEqual(grade, "大失败")
-
-
 class TestTrpgPluginMatch(unittest.TestCase):
     def test_match_r(self):
         ctx = make_group_message(".r 2d6")
@@ -119,9 +101,9 @@ class TestTrpgPluginMatch(unittest.TestCase):
         ctx = make_group_message(".r d20 攻击检定")
         self.assertTrue(TrpgPlugin(ctx).match("message"))
 
-    def test_match_ra(self):
+    def test_no_match_ra(self):
         ctx = make_group_message(".ra 70")
-        self.assertTrue(TrpgPlugin(ctx).match("message"))
+        self.assertFalse(TrpgPlugin(ctx).match("message"))
 
     def test_match_rc(self):
         ctx = make_group_message(".rc 70")
@@ -166,16 +148,6 @@ class TestTrpgPluginHandle(unittest.TestCase):
         self.assertIn("由于", out)
         self.assertIn("力量检定", out)
 
-    @patch("plugins.trpg_dice.rolls.random.randint", return_value=45)
-    def test_handle_ra(self, _):
-        ctx = make_group_message(".ra 70")
-        plugin = TrpgPlugin(ctx)
-        plugin.api = MockApiWrapper(ctx)
-        plugin.handle()
-        out = _sent_text(plugin)
-        self.assertIn("COC检定", out)
-        self.assertIn("常规成功", out)
-
     @patch("plugins.trpg_dice.dice.random.randint", return_value=13)
     def test_handle_rc_dnd_check(self, _):
         ctx = make_group_message(".rc 15")
@@ -185,6 +157,12 @@ class TestTrpgPluginHandle(unittest.TestCase):
         out = _sent_text(plugin)
         self.assertIn("检定", out)
         self.assertIn("d20+15", out)
+
+    def test_handle_ra_no_response(self):
+        ctx = make_group_message(".ra 70")
+        plugin = TrpgPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        self.assertFalse(plugin.match("message"))
 
     def test_handle_invalid_expr(self):
         ctx = make_group_message(".r abc")

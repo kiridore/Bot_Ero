@@ -22,7 +22,7 @@
 | 12 | `lottery` | `lottery.py` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统 |
 | 13 | `immortal_lottery` | `immortal_lottery.py` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩 |
 | 14 | `dice` | `dice.py` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
-| 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/ra/rc/rh` | 跑团骰子系统：DND5e/COC7th 万能骰点、暗骰、属性引用 |
+| 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/rc/rh` | 跑团骰子系统：DND5E 万能骰点、d20检定、暗骰、属性引用（规则可切换） |
 | 16 | `trpg_char` | `trpg_char/` | CommandPlugin `/角色` + 引导期间全匹配 | DND5E 角色卡：分步创建、查看、编辑、切换、删除 |
 | 17 | `divination` | `divination.py` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
 | 18 | `title` | `title.py` | CommandPlugin `/称号`/`/稱號` | 称号系统 |
