@@ -68,10 +68,7 @@ def broadcast_vote_result(api: ApiWrapper, room: dict, eliminated_uid: str):
         lines.append(f"{p['alias']} {cnt}票{marker}")
     lines.append("")
     elim = room["players"][eliminated_uid]
-    lines.append(f"{elim['alias']} 的角色是：{'卧底' if elim['role'] == 'spy' else '平民'}")
-    lines.append(f"他的词条是：{elim['word']}")
-    if elim["role"] == "spy":
-        lines.append(f"平民词条是：{room['civilian_word']}")
+    lines.append(f"{elim['alias']} 被投票出局！")
     msg = text("\n".join(lines))
     broadcast(api, room, [msg], include_dead=True)
 
