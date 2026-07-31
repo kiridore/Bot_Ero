@@ -165,9 +165,6 @@ def tally_votes(room: dict) -> str:
         "eliminated": eliminated,
     }
     room["history"].append(rec)
-
-    room["ready_descriptions"] = {}
-    room["votes"] = {}
     return eliminated
 
 
