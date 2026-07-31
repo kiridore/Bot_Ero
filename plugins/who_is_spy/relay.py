@@ -11,9 +11,9 @@ def _alive_list(room: dict) -> list[dict]:
     return [p for p in room["players"].values() if p["alive"]]
 
 
-def broadcast(api: ApiWrapper, room: dict, message: list[dict]):
+def broadcast(api: ApiWrapper, room: dict, message: list[dict], include_dead: bool = False):
     for p in room["players"].values():
-        if not p["alive"]:
+        if not include_dead and not p["alive"]:
             continue
         try:
             api.call_api("send_private_msg", {
@@ -58,12 +58,11 @@ def broadcast_describe_instructions(api: ApiWrapper, room: dict):
 
 
 def broadcast_vote_result(api: ApiWrapper, room: dict, eliminated_uid: str):
-    alive = _alive_list(room)
     vote_counts: dict[str, int] = {}
     for v in room["votes"].values():
         vote_counts[v] = vote_counts.get(v, 0) + 1
     lines = [f"第{room['round_num']}轮 投票结果："]
-    for p in alive:
+    for p in room["players"].values():
         cnt = vote_counts.get(p["user_id"], 0)
         marker = " ← 出局" if p["user_id"] == eliminated_uid else ""
         lines.append(f"{p['alias']} {cnt}票{marker}")
@@ -74,7 +73,15 @@ def broadcast_vote_result(api: ApiWrapper, room: dict, eliminated_uid: str):
     if elim["role"] == "spy":
         lines.append(f"平民词条是：{room['civilian_word']}")
     msg = text("\n".join(lines))
-    broadcast(api, room, [msg])
+    broadcast(api, room, [msg], include_dead=True)
+
+    try:
+        api.call_api("send_private_msg", {
+            "user_id": int(eliminated_uid),
+            "message": [text("你被投票出局！你已无法继续发言，请等待游戏结束。")],
+        })
+    except Exception:
+        pass
 
 
 def broadcast_game_over(api: ApiWrapper, room: dict, winner: str):
@@ -88,7 +95,7 @@ def broadcast_game_over(api: ApiWrapper, room: dict, winner: str):
     for alias, uid, p in pid_to_alias:
         role_label = "平民" if p["role"] == "civilian" else "卧底"
         lines.append(f"{alias} {p['nickname']} - {role_label} - \"{p['word']}\"")
-    broadcast(api, room, [text("\n".join(lines))])
+    broadcast(api, room, [text("\n".join(lines))], include_dead=True)
 
 
 def build_forward_nodes(room: dict) -> list[dict]:
