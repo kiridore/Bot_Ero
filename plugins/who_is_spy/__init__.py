@@ -136,7 +136,12 @@ class WhoIsSpyPlugin(Plugin):
                 self.api.send_msg(text(result))
                 return
 
-            self.api.send_msg(text("游戏开始！请查看私聊查看自己的词条"))
+            spies = sum(1 for p in room["players"].values() if p["role"] == "spy")
+            total = len(room["players"])
+            self.api.send_msg(text(
+                f"游戏开始！本局 {total} 人参与，{spies} 个卧底，{total - spies} 个平民\n"
+                f"请查看私聊查看自己的词条"
+            ))
             for pid, p in room["players"].items():
                 role_label = "平民" if p["role"] == "civilian" else "卧底"
                 self._send_private(
