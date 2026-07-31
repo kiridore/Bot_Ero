@@ -90,7 +90,7 @@ def collect_description(room: dict, user_id: str, text_body: str) -> bool | str:
     alive = [pid for pid, pp in room["players"].items() if pp["alive"]]
     if len(room["ready_descriptions"]) >= len(alive):
         return True
-    return "ok"
+    return False
 
 
 def advance_to_voting(room: dict):
@@ -139,7 +139,7 @@ def collect_vote(room: dict, user_id: str, raw: str) -> bool | str:
     alive = [pid for pid, pp in room["players"].items() if pp["alive"]]
     if len(room["votes"]) >= len(alive):
         return True
-    return "ok"
+    return False
 
 
 def tally_votes(room: dict) -> str:
