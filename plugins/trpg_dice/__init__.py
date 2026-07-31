@@ -83,10 +83,37 @@ class TrpgPlugin(Plugin):
             self.api.send_msg(text(out))
             return
 
-        value, detail = parse(expr)
-        expr_label = expr.replace("优势", "优势").replace("劣势", "劣势")
+        # 角色属性/技能名替换为数值
+        resolved, expr_label = self._resolve_character_expr(expr)
+        if resolved is None:
+            return
+
+        value, detail = parse(resolved)
         out = self._format(nickname, expr_label, detail, value, reason)
         self.api.send_msg(text(out))
+
+    def _resolve_character_expr(self, expr: str):
+        """若表达式含角色属性/技能名，替换为数值。返回 (解析后表达式, 显示用原式) 或 (None, None)。"""
+        from plugins.trpg_char.character import resolve_expression_values
+        from plugins.trpg_char.rules import ATTRIBUTES, SKILLS
+
+        names = [n for n in list(ATTRIBUTES) + list(SKILLS) if n in expr]
+        if not names:
+            return expr, expr
+
+        user_id = self.bot_event.user_id
+        if user_id is None:
+            return None, None
+        char = self.dbmanager.character.current(user_id)
+        if not char:
+            self.api.send_msg(text("你还没有角色卡，用 /角色 创建 开始创建吧"))
+            return None, None
+
+        values = resolve_expression_values(char)
+        resolved = expr
+        for name in sorted(values, key=len, reverse=True):
+            resolved = resolved.replace(name, str(values[name]))
+        return resolved, expr
 
     def _handle_coc_check(self, arg: str, nickname: str):
         arg = arg.strip()
@@ -124,8 +151,10 @@ class TrpgPlugin(Plugin):
             detail = f"COC检定 D100={roll}"
             value = roll
         else:
-            value, detail = parse(expr)
-            expr_label = expr.replace("优势", "优势").replace("劣势", "劣势")
+            resolved, expr_label = self._resolve_character_expr(expr)
+            if resolved is None:
+                return
+            value, detail = parse(resolved)
 
         # Group hint
         self.api.send_msg(text("悄悄掷出骰子"))

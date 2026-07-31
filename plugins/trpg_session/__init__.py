@@ -262,10 +262,20 @@ class TrpgSessionPlugin(Plugin):
             md_lines.append("")
 
             img_counter = 0
+            char_cache = {}
             for entry in recording["messages"]:
                 ts = datetime.fromtimestamp(entry["time"]).strftime("%H:%M:%S")
                 uid = entry.get("user_id", "")
                 sender = entry.get("nickname", "未知")
+                # 有角色卡时显示 角色名(昵称)
+                if uid and uid not in char_cache:
+                    try:
+                        char_cache[uid] = self.dbmanager.character.current(uid)
+                    except Exception:
+                        char_cache[uid] = None
+                char = char_cache.get(uid)
+                if char:
+                    sender = f"{char.get('char_name', '')}({sender})"
                 md_lines.append(f"[{ts}] **{_role_prefix(uid)}{sender}**:")
                 for seg in entry.get("message", []):
                     seg_type = seg.get("type", "")

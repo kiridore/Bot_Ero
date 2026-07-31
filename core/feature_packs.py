@@ -21,7 +21,7 @@ FEATURE_PACKS = {
         "plugins": ["who_is_spy"],
     },
     "跑团": {
-        "plugins": ["trpg_dice", "trpg_session"],
+        "plugins": ["trpg_dice", "trpg_session", "trpg_char"],
     },
     "群管理工具": {
         "plugins": ["group_essence", "at_all_reply", "recall_message", "set_group_title"],

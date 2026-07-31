@@ -302,4 +302,28 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     """)
     cur.execute("DROP TABLE IF EXISTS group_chat_topic_messages")
     cur.execute("DROP TABLE IF EXISTS group_chat_topics")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS dnd_characters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            char_name TEXT NOT NULL,
+            race TEXT NOT NULL,
+            class_name TEXT NOT NULL,
+            level INTEGER DEFAULT 1,
+            background TEXT NOT NULL,
+            str_score INTEGER, dex_score INTEGER, con_score INTEGER,
+            int_score INTEGER, wis_score INTEGER, cha_score INTEGER,
+            proficient_skills TEXT,
+            hp INTEGER, ac INTEGER,
+            equipment TEXT,
+            created_at TEXT, updated_at TEXT
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS dnd_current_character (
+            user_id TEXT PRIMARY KEY,
+            character_id INTEGER NOT NULL
+        );
+    """)
     conn.commit()

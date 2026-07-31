@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-07-30 (added who_is_spy)
+> Last updated: 2026-07-31 (added trpg_char)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -12,7 +12,7 @@
 | 需要了解 | 阅读 |
 |---------|------|
 | 项目身份、硬编码常量、所有指令 | [`kb/QUICK_REFERENCE.md`](kb/QUICK_REFERENCE.md) |
-| 39 个插件列表、功能包、数据依赖 | [`kb/PLUGIN_CATALOG.md`](kb/PLUGIN_CATALOG.md) |
+| 41 个插件列表、功能包、数据依赖 | [`kb/PLUGIN_CATALOG.md`](kb/PLUGIN_CATALOG.md) |
 | 打卡流程、抽奖概率、商店价格、称号列表 | [`kb/GAMEPLAY.md`](kb/GAMEPLAY.md) |
 | 开发规范、AI 检查清单、技术债、陷阱 | [`kb/CONVENTIONS.md`](kb/CONVENTIONS.md) |
 | API 速查、部署运维、外部 API | [`kb/OPERATIONS.md`](kb/OPERATIONS.md) |
@@ -56,7 +56,7 @@
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
 │   └── logger.py              ← 日志
-├── plugins/                   ← 39 个已注册插件
+├── plugins/                   ← 41 个已注册插件
 ├── kb/                        ← 知识库子文档
 │   ├── QUICK_REFERENCE.md
 │   ├── PLUGIN_CATALOG.md

@@ -30,10 +30,13 @@ SYSTEM_PLUGINS = frozenset({
 recording_lock = Lock()
 recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime, "messages": list, "participants": dict}
 last_completed: dict[int, dict] = {}           # group_id → {"start": datetime, "end": datetime, "messages": list, "participants": dict}
-RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session"})
+RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session", "trpg_char"})
 
 # 跑团角色：group_id → {user_id → "dm"|"ob"}
 group_roles: dict[int, dict[str, str]] = {}
+
+# 角色创建引导进度：user_id → {"step": int, "data": dict}
+character_wizards: dict[int, dict] = {}
 
 # 卧底游戏
 game_lock = Lock()
