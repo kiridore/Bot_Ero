@@ -5,7 +5,7 @@ from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
 
-from .dice import parse
+from .dice import parse, _eval_advantage, _eval_disadvantage
 from .rolls import coc_check
 
 
@@ -41,7 +41,7 @@ class TrpgPlugin(Plugin):
             elif raw.startswith(".ra "):
                 self._handle_coc_check(raw[4:], nickname)
             elif raw.startswith(".rc "):
-                self._handle_coc_check(raw[4:], nickname)
+                self._handle_dnd_check(raw[4:], nickname)
             elif raw.startswith(".r"):
                 self._handle_roll(raw, nickname)
         except ValueError as e:
@@ -95,10 +95,11 @@ class TrpgPlugin(Plugin):
     def _resolve_character_expr(self, expr: str):
         """若表达式含角色属性/技能名，替换为数值。返回 (解析后表达式, 显示用原式) 或 (None, None)。"""
         from plugins.trpg_char.character import resolve_expression_values
-        from plugins.trpg_char.rules import ATTRIBUTES, SKILLS
+        from plugins.trpg_char.rules import ATTRIBUTES, SKILLS, SKILL_ALIASES
 
         names = [n for n in list(ATTRIBUTES) + list(SKILLS) if n in expr]
-        if not names:
+        aliases = [a for a in SKILL_ALIASES if a in expr]
+        if not names and not aliases:
             return expr, expr
 
         user_id = self.bot_event.user_id
@@ -113,6 +114,8 @@ class TrpgPlugin(Plugin):
         resolved = expr
         for name in sorted(values, key=len, reverse=True):
             resolved = resolved.replace(name, str(values[name]))
+        for alias in aliases:
+            resolved = resolved.replace(alias, str(values[SKILL_ALIASES[alias]]))
         return resolved, expr
 
     def _handle_coc_check(self, arg: str, nickname: str):
@@ -125,6 +128,67 @@ class TrpgPlugin(Plugin):
 
         roll, grade = coc_check(value)
         out = f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}"
+        self.api.send_msg(text(out))
+
+    def _handle_dnd_check(self, arg: str, nickname: str):
+        """DND d20 检定：.rc [优势|劣势] <属性|表达式> [豁免]"""
+        parts = arg.split()
+        if not parts:
+            self.api.send_msg(text("格式：.rc [优势|劣势] <属性|表达式> [豁免]"))
+            return
+
+        is_save = False
+        if parts[-1] == "豁免":
+            is_save = True
+            parts = parts[:-1]
+
+        mode = "normal"
+        if parts and parts[0] in ("优势", "劣势"):
+            mode = parts[0]
+            parts = parts[1:]
+
+        if not parts:
+            self.api.send_msg(text("格式：.rc [优势|劣势] <属性|表达式> [豁免]"))
+            return
+
+        expr = " ".join(parts)
+        resolved, label = self._resolve_character_expr(expr)
+        if resolved is None:
+            return
+
+        suffix = "豁免" if is_save else "检定"
+        mode_str = {"优势": "(优势)", "劣势": "(劣势)", "normal": ""}[mode]
+        head = f"{nickname}的{label}{suffix}{mode_str}: "
+
+        # 纯数值修正（属性/技能名已替换，如 2、2+3）
+        import re as _re
+        if not _re.search(r"[dbp%#优势劣势]", resolved):
+            mod, _ = parse(resolved)
+            mod_str = f"+{mod}" if mod >= 0 else str(mod)
+            if mode == "优势":
+                adv = _eval_advantage(20)
+                out = f"{head}d20{mod_str}={adv['detail']}{mod_str}={adv['value'] + mod}"
+            elif mode == "劣势":
+                adv = _eval_disadvantage(20)
+                out = f"{head}d20{mod_str}={adv['detail']}{mod_str}={adv['value'] + mod}"
+            else:
+                value, detail = parse("d20")
+                out = f"{head}d20{mod_str}={detail}{mod_str}={value + mod}"
+            self.api.send_msg(text(out))
+            return
+
+        # 复杂表达式：d20 + (表达式)
+        if mode == "normal":
+            value, detail = parse(f"d20+({resolved})")
+            out = f"{head}{detail}={value}"
+        elif mode == "优势":
+            adv = _eval_advantage(20)
+            rest_value, rest_detail = parse(f"({resolved})")
+            out = f"{head}d20优势={adv['detail']} + {rest_detail}={adv['value'] + rest_value}"
+        else:
+            adv = _eval_disadvantage(20)
+            rest_value, rest_detail = parse(f"({resolved})")
+            out = f"{head}d20劣势={adv['detail']} + {rest_detail}={adv['value'] + rest_value}"
         self.api.send_msg(text(out))
 
     def _handle_dark_roll(self, raw: str, nickname: str):

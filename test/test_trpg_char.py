@@ -311,6 +311,43 @@ class TestDiceIntegration(unittest.TestCase):
         out = _sent_text(p)
         self.assertIn("奥术", out)
 
+    def test_rc_attribute_check(self):
+        from plugins.trpg_dice import TrpgPlugin
+        ctx = make_group_message(".rc 力量", user_id=111, nickname="玩家A")
+        p = TrpgPlugin(ctx)
+        p.api = MockApiWrapper(ctx)
+        p.handle()
+        out = _sent_text(p)
+        self.assertIn("力量检定", out)
+        self.assertIn("d20+2", out)
+
+    def test_rc_saving_throw(self):
+        from plugins.trpg_dice import TrpgPlugin
+        ctx = make_group_message(".rc 体质 豁免", user_id=111, nickname="玩家A")
+        p = TrpgPlugin(ctx)
+        p.api = MockApiWrapper(ctx)
+        p.handle()
+        out = _sent_text(p)
+        self.assertIn("体质豁免", out)
+
+    def test_rc_advantage(self):
+        from plugins.trpg_dice import TrpgPlugin
+        ctx = make_group_message(".rc 优势 力量", user_id=111, nickname="玩家A")
+        p = TrpgPlugin(ctx)
+        p.api = MockApiWrapper(ctx)
+        p.handle()
+        out = _sent_text(p)
+        self.assertIn("优势", out)
+
+    def test_rc_skill_alias(self):
+        from plugins.trpg_dice import TrpgPlugin
+        ctx = make_group_message(".rc 侦查", user_id=111, nickname="玩家A")
+        p = TrpgPlugin(ctx)
+        p.api = MockApiWrapper(ctx)
+        p.handle()
+        out = _sent_text(p)
+        self.assertIn("侦查检定", out)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

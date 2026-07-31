@@ -176,14 +176,15 @@ class TestTrpgPluginHandle(unittest.TestCase):
         self.assertIn("COC检定", out)
         self.assertIn("常规成功", out)
 
-    @patch("plugins.trpg_dice.rolls.random.randint", return_value=45)
-    def test_handle_rc(self, _):
-        ctx = make_group_message(".rc 70")
+    @patch("plugins.trpg_dice.dice.random.randint", return_value=13)
+    def test_handle_rc_dnd_check(self, _):
+        ctx = make_group_message(".rc 15")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
         plugin.handle()
         out = _sent_text(plugin)
-        self.assertIn("COC检定", out)
+        self.assertIn("检定", out)
+        self.assertIn("d20+15", out)
 
     def test_handle_invalid_expr(self):
         ctx = make_group_message(".r abc")
