@@ -207,15 +207,22 @@ class TrpgCharPlugin(Plugin):
         if len(args) < 2:
             self.api.send_msg(text(
                 "格式：/角色 编辑 <字段> <值>\n"
-                "可编辑字段：hp ac 力量 敏捷 体质 智力 感知 魅力 等级"
+                "可编辑字段：hp ac 力量 敏捷 体质 智力 感知 魅力 等级 备注\n"
+                "备注可填特性/专长/物品等任意文本（例：/角色 编辑 备注 长弓、治疗药水×2、火球术卷轴）"
             ))
             return
 
         field = args[0]
-        value = args[1]
+        value = " ".join(args[1:])
         attr_map = {"力量": "str_score", "敏捷": "dex_score", "体质": "con_score",
-                    "智力": "int_score", "感知": "wis_score", "魅力": "cha_score"}
+                    "智力": "int_score", "感知": "wis_score", "魅力": "cha_score",
+                    "备注": "notes"}
         db_field = attr_map.get(field, field)
+
+        if db_field == "notes":
+            self.dbmanager.character.update(char["id"], notes=value)
+            self.api.send_msg(text(f"已更新 {field}"))
+            return
 
         if db_field not in ("hp", "ac", "level", "str_score", "dex_score", "con_score",
                             "int_score", "wis_score", "cha_score"):

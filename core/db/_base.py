@@ -326,4 +326,8 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             character_id INTEGER NOT NULL
         );
     """)
+    cur.execute("PRAGMA table_info(dnd_characters)")
+    _char_cols = [row[1] for row in cur.fetchall()]
+    if "notes" not in _char_cols:
+        cur.execute("ALTER TABLE dnd_characters ADD COLUMN notes TEXT DEFAULT ''")
     conn.commit()

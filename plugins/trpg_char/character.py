@@ -6,7 +6,6 @@ from .rules import (
     ability_modifier,
     class_info,
     race_bonuses,
-    background_skills,
 )
 
 
@@ -72,29 +71,31 @@ def resolve_expression_values(char_data: dict) -> dict:
 
 
 def format_sheet(char_data: dict) -> str:
-    """格式化角色卡文本。"""
+    """格式化角色卡文本（精简视图）。"""
     data = finalize(char_data)
     cls = class_info(data.get("class_name", ""))
-    bg = data.get("background", "")
 
-    lines = [
-        f"【{data['char_name']}】 Lv.{data.get('level', 1)} {data.get('race', '?')} {data.get('class_name', '?')}",
-        f"背景: {bg if bg else '无'}    HP: {data['hp']}    AC: {data['ac']}    HP骰: d{cls.get('hp_die', 8)}",
-        "属性:",
-    ]
+    mods = []
     for attr in ATTRIBUTES:
         key = _attr_key(attr)
         mod = ability_modifier(data[key])
         mod_str = f"+{mod}" if mod >= 0 else str(mod)
-        lines.append(f"  {attr} {data[key]} ({mod_str})")
+        mods.append(f"{attr}{mod_str}")
+    attr_line = "  ".join(mods)
+
+    lines = [
+        f"【{data['char_name']}】 Lv.{data.get('level', 1)} {data.get('race', '?')} {data.get('class_name', '?')}",
+        f"HP: {data['hp']}    AC: {data['ac']}    HP骰: d{cls.get('hp_die', 8)}",
+        f"属性: {attr_line}",
+    ]
 
     proficient = data.get("proficient_skills", [])
     if proficient:
         lines.append(f"熟练技能: {', '.join(proficient)}")
 
-    equipment = data.get("equipment", [])
-    if equipment:
-        lines.append(f"装备: {', '.join(equipment)}")
+    notes = data.get("notes", "")
+    if notes:
+        lines.append(f"备注: {notes}")
 
     return "\n".join(lines)
 

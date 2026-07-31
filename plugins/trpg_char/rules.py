@@ -1,4 +1,5 @@
-# DND 5E PHB 核心规则数据（种族/职业/背景/技能）
+# DND 5E 核心规则数据（种族/职业/技能）
+# 仅保留骰子系统依赖的数值化数据；特性/物品/剧情等自由内容由角色卡备注字段管理
 
 ATTRIBUTES = ["力量", "敏捷", "体质", "智力", "感知", "魅力"]
 
@@ -44,46 +45,20 @@ RACES = {
     "侏儒": {"智力": 2},
 }
 
-# 职业：HP骰面数、可熟练技能数、初始装备
+# 职业：仅 HP 骰面数与可熟练技能数（其余为自由内容）
 CLASSES = {
-    "野蛮人": {"hp_die": 12, "skill_count": 2,
-              "equipment": ["巨斧", "手斧×2", "探索者装备包", "标枪×4"]},
-    "吟游诗人": {"hp_die": 8, "skill_count": 3,
-                "equipment": ["细剑", "匕首", "乐器", "冒险者装备包"]},
-    "牧师": {"hp_die": 8, "skill_count": 2,
-            "equipment": ["钉头锤", "盾牌", "圣徽", "牧师装备包"]},
-    "德鲁伊": {"hp_die": 8, "skill_count": 2,
-              "equipment": ["木杖", "皮甲", "探索者装备包"]},
-    "战士": {"hp_die": 10, "skill_count": 2,
-            "equipment": ["链甲", "盾牌", "长剑", "标枪×2", "探索者装备包"]},
-    "武僧": {"hp_die": 8, "skill_count": 2,
-            "equipment": ["短剑×2", "探索者装备包", "短弓"]},
-    "圣武士": {"hp_die": 10, "skill_count": 2,
-              "equipment": ["长剑", "盾牌", "圣徽", "贵族装备包"]},
-    "游侠": {"hp_die": 10, "skill_count": 3,
-            "equipment": ["长剑×2", "箭袋+箭×20", "皮甲", "探索者装备包"]},
-    "游荡者": {"hp_die": 8, "skill_count": 4,
-              "equipment": ["短剑×2", "皮甲", "盗贼工具", "探索者装备包"]},
-    "术士": {"hp_die": 8, "skill_count": 2,
-            "equipment": ["轻型弩", "弩矢×20", "法术法器", "探索者装备包"]},
-    "邪术师": {"hp_die": 8, "skill_count": 2,
-              "equipment": ["轻型弩", "弩矢×20", "法术法器", "学者装备包"]},
-    "法师": {"hp_die": 6, "skill_count": 2,
-            "equipment": ["木杖", "法术书", "匕首", "学者装备包"]},
-}
-
-# 背景：两个技能熟练
-BACKGROUNDS = {
-    "侍僧": ["洞悉", "宗教"],
-    "罪犯": ["欺瞒", "隐秘"],
-    "艺人": ["杂技", "表演"],
-    "民间英雄": ["驯兽", "生存"],
-    "贵族": ["历史", "游说"],
-    "流浪儿": ["巧手", "隐秘"],
-    "贤者": ["奥术", "历史"],
-    "水手": ["运动", "洞察"],
-    "士兵": ["运动", "威吓"],
-    "苦工": ["运动", "生存"],
+    "野蛮人": {"hp_die": 12, "skill_count": 2},
+    "吟游诗人": {"hp_die": 8, "skill_count": 3},
+    "牧师": {"hp_die": 8, "skill_count": 2},
+    "德鲁伊": {"hp_die": 8, "skill_count": 2},
+    "战士": {"hp_die": 10, "skill_count": 2},
+    "武僧": {"hp_die": 8, "skill_count": 2},
+    "圣武士": {"hp_die": 10, "skill_count": 2},
+    "游侠": {"hp_die": 10, "skill_count": 3},
+    "游荡者": {"hp_die": 8, "skill_count": 4},
+    "术士": {"hp_die": 8, "skill_count": 2},
+    "邪术师": {"hp_die": 8, "skill_count": 2},
+    "法师": {"hp_die": 6, "skill_count": 2},
 }
 
 # 标准购点成本：属性值 → 花费点数
@@ -108,7 +83,3 @@ def race_bonuses(race: str) -> dict:
 
 def class_info(class_name: str) -> dict:
     return CLASSES.get(class_name, {})
-
-
-def background_skills(background: str) -> list:
-    return BACKGROUNDS.get(background, [])

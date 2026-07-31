@@ -14,8 +14,8 @@ class CharacterManager:
             INSERT INTO dnd_characters (
                 user_id, char_name, race, class_name, level, background,
                 str_score, dex_score, con_score, int_score, wis_score, cha_score,
-                proficient_skills, hp, ac, equipment, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                proficient_skills, hp, ac, equipment, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             str(user_id),
             char_data["char_name"],
@@ -29,6 +29,7 @@ class CharacterManager:
             json.dumps(char_data.get("proficient_skills", []), ensure_ascii=False),
             int(char_data.get("hp", 0)), int(char_data.get("ac", 10)),
             json.dumps(char_data.get("equipment", []), ensure_ascii=False),
+            char_data.get("notes", ""),
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ))
@@ -45,7 +46,7 @@ class CharacterManager:
         self.cur.execute("""
             SELECT id, user_id, char_name, race, class_name, level, background,
                    str_score, dex_score, con_score, int_score, wis_score, cha_score,
-                   proficient_skills, hp, ac, equipment, created_at, updated_at
+                   proficient_skills, hp, ac, equipment, notes, created_at, updated_at
             FROM dnd_characters WHERE id = ?
         """, (int(char_id),))
         row = self.cur.fetchone()
@@ -53,10 +54,11 @@ class CharacterManager:
             return None
         cols = ["id", "user_id", "char_name", "race", "class_name", "level", "background",
                 "str_score", "dex_score", "con_score", "int_score", "wis_score", "cha_score",
-                "proficient_skills", "hp", "ac", "equipment", "created_at", "updated_at"]
+                "proficient_skills", "hp", "ac", "equipment", "notes", "created_at", "updated_at"]
         data = dict(zip(cols, row))
         data["proficient_skills"] = json.loads(data["proficient_skills"] or "[]")
         data["equipment"] = json.loads(data["equipment"] or "[]")
+        data["notes"] = data.get("notes") or ""
         return data
 
     def list_by_user(self, user_id) -> list[dict]:
@@ -75,7 +77,7 @@ class CharacterManager:
     def update(self, char_id, **fields) -> bool:
         allowed = {"char_name", "race", "class_name", "level", "background",
                    "str_score", "dex_score", "con_score", "int_score", "wis_score", "cha_score",
-                   "hp", "ac"}
+                   "hp", "ac", "notes"}
         sets, values = [], []
         for k, v in fields.items():
             if k in allowed:

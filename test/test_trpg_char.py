@@ -33,9 +33,6 @@ class TestRulesData(unittest.TestCase):
     def test_classes_count(self):
         self.assertEqual(len(rules.CLASSES), 12)
 
-    def test_backgrounds_count(self):
-        self.assertEqual(len(rules.BACKGROUNDS), 10)
-
     def test_skills_count(self):
         self.assertEqual(len(rules.SKILLS), 18)
 
@@ -99,7 +96,7 @@ class TestWizard(unittest.TestCase):
 
     def test_full_flow_point_buy(self):
         done, data = self._run_flow(
-            ["精灵", "法师", "1", "15 14 13 12 10 8", "奥术 历史", "贤者", "艾伦"]
+            ["1", "15 14 13 12 10 8", "奥术 历史", "艾伦 精灵 法师"]
         )
         self.assertTrue(done)
         self.assertIsNotNone(data)
@@ -108,18 +105,19 @@ class TestWizard(unittest.TestCase):
         self.assertEqual(data["class_name"], "法师")
         self.assertEqual(data["proficient_skills"], ["奥术", "历史"])
 
-    def test_full_flow_standard_array(self):
+    def test_full_flow_standard_array_skip_skills(self):
         done, data = self._run_flow(
-            ["人类", "战士", "3", "15 14 13 12 10 8", "运动", "士兵", "铁牛"]
+            ["3", "15 14 13 12 10 8", "跳过", "铁牛 人类 战士"]
         )
         self.assertTrue(done)
         self.assertEqual(data["char_name"], "铁牛")
+        self.assertEqual(data["proficient_skills"], [])
 
     def test_full_flow_roll(self):
         import unittest.mock as mock
         with mock.patch("plugins.trpg_char.wizard._roll_scores", return_value=[15, 14, 13, 12, 10, 8]):
             done, data = self._run_flow(
-                ["矮人", "牧师", "2", "15 14 13 12 10 8", "宗教", "侍僧", "铜须"]
+                ["2", "15 14 13 12 10 8", "宗教", "铜须 矮人 牧师"]
             )
         self.assertTrue(done)
         self.assertEqual(data["char_name"], "铜须")
@@ -132,32 +130,18 @@ class TestWizard(unittest.TestCase):
 
     def test_point_buy_over_budget(self):
         state = wiz.start()
-        wiz.handle_reply(state, "人类")
-        wiz.handle_reply(state, "战士")
         wiz.handle_reply(state, "1")
         m, done, data = wiz.handle_reply(state, "15 15 15 15 15 15")
         self.assertFalse(done)
         self.assertIn("预算", m)
 
-    def test_invalid_race(self):
-        state = wiz.start()
-        m, done, data = wiz.handle_reply(state, "兽人")
-        self.assertFalse(done)
-        self.assertIn("无效", m)
-
-    def test_background_adds_skills(self):
-        state = wiz.start()
-        wiz.handle_reply(state, "人类")
-        wiz.handle_reply(state, "游荡者")
-        wiz.handle_reply(state, "1")
-        wiz.handle_reply(state, "15 14 13 12 10 8")
-        wiz.handle_reply(state, "巧手 隐秘")
-        m, _, _ = wiz.handle_reply(state, "罪犯")
-        # 罪犯背景技能 欺瞒+隐秘，隐秘已在
-        done, data = False, None
-        m2, done, data = wiz.handle_reply(state, "阴影")
+    def test_custom_race_class_free_text(self):
+        done, data = self._run_flow(
+            ["1", "15 14 13 12 10 8", "跳过", "神秘人 天界裔 自创职业"]
+        )
         self.assertTrue(done)
-        self.assertIn("欺瞒", data["proficient_skills"])
+        self.assertEqual(data["race"], "天界裔")
+        self.assertEqual(data["class_name"], "自创职业")
 
 
 class TestTrpgCharPlugin(unittest.TestCase):
@@ -180,7 +164,7 @@ class TestTrpgCharPlugin(unittest.TestCase):
         p = TrpgCharPlugin(ctx)
         p.api = MockApiWrapper(ctx)
         p.handle()
-        for s in ["精灵", "法师", "1", "15 14 13 12 10 8", "奥术 历史", "贤者", "艾伦"]:
+        for s in ["1", "15 14 13 12 10 8", "奥术 历史", "艾伦 精灵 法师"]:
             ctx = make_group_message(s, user_id=user_id, nickname=nickname)
             p = TrpgCharPlugin(ctx)
             p.api = MockApiWrapper(ctx)
@@ -280,7 +264,7 @@ class TestDiceIntegration(unittest.TestCase):
         p = TrpgCharPlugin(ctx)
         p.api = MockApiWrapper(ctx)
         p.handle()
-        for s in ["精灵", "法师", "1", "15 14 13 12 10 8", "奥术 历史", "贤者", "艾伦"]:
+        for s in ["1", "15 14 13 12 10 8", "奥术 历史", "艾伦 精灵 法师"]:
             ctx = make_group_message(s, user_id=111, nickname="玩家A")
             p = TrpgCharPlugin(ctx)
             p.api = MockApiWrapper(ctx)
