@@ -34,6 +34,18 @@ def finalize(char_data: dict) -> dict:
     out["hp"] = hp_die + con_mod if char_data.get("hp") in (None, 0) else int(char_data["hp"])
     out["ac"] = 10 + dex_mod if char_data.get("ac") in (None, 0) else int(char_data["ac"])
 
+    level = int(char_data.get("level", 1))
+    out["prof_bonus"] = 2 + (level - 1) // 4
+
+    saving_profs = set(char_data.get("saving_profs", []) or [])
+    save_mods = {}
+    for attr in ATTRIBUTES:
+        mod = ability_modifier(scores[_attr_key(attr)])
+        if attr in saving_profs:
+            mod += out["prof_bonus"]
+        save_mods[attr] = mod
+    out["save_mods"] = save_mods
+
     # 技能加值
     proficient = set(char_data.get("proficient_skills", []) or [])
     skill_mods = {}
@@ -44,6 +56,12 @@ def finalize(char_data: dict) -> dict:
             mod += 2
         skill_mods[skill] = mod
     out["skill_mods"] = skill_mods
+
+    wis_mod = ability_modifier(scores["wis_score"])
+    perception_bonus = 2 if "察觉" in proficient else 0
+    out["passive_perception"] = 10 + wis_mod + perception_bonus
+    out["initiative"] = dex_mod
+    out["hit_dice"] = f"{level}d{hp_die}"
 
     return out
 
@@ -88,6 +106,12 @@ def format_sheet(char_data: dict) -> str:
         f"HP: {data['hp']}    AC: {data['ac']}    HP骰: d{cls.get('hp_die', 8)}",
         f"属性: {attr_line}",
     ]
+
+    prof_bonus = data.get("prof_bonus", 0)
+    init = data.get("initiative", 0)
+    passive = data.get("passive_perception", 10)
+    hit_dice = data.get("hit_dice", "1d8")
+    lines.append(f"熟练加值: +{prof_bonus}    先攻: {init}    被动感知: {passive}    生命骰: {hit_dice}")
 
     proficient = data.get("proficient_skills", [])
     if proficient:
