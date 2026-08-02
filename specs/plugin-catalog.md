@@ -27,7 +27,7 @@
 | `immortal_lottery.py` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
 | `dice.py` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
 | `trpg_dice/` | `TrpgPlugin` | `trpg_dice` | 正则前缀匹配 | `.r` `.rc` `.rh` | 跑团骰子系统：DND5E 万能骰点、d20 检定、暗骰、角色属性引用（规则系统可切换） |
-| `trpg_char/` | `TrpgCharPlugin` | `trpg_char` | CommandPlugin + 引导期间全匹配 | `/角色 创建/查看/编辑/切换/列表/删除` | DND5E 角色卡：分步创建、管理、与骰子/记录联动 |
+| `trpg_char/` | `TrpgCharPlugin` | `trpg_char` | CommandPlugin 前缀匹配 | `/角色 查看/切换/列表/删除`（创建/编辑/放弃引导至网页端） | DND5E 角色卡：查看/管理（存储层 `core/character_store` JSON 文件），与骰子/记录联动 |
 | `trpg_session/` | `TrpgSessionPlugin` | `trpg_session` | CommandPlugin + 录制期间全匹配 | `/跑团记录 开始/强制开始/结束/导出/列表/#N` `.dm` `.ob` | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
 | `divination.py` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
 | `title.py` | `TitlePlugin` | `title` | CommandPlugin | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |

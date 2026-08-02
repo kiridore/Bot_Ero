@@ -9,16 +9,33 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from plugins.trpg_char import wizard as wiz
 from plugins.trpg_char import character as char_logic
 from plugins.trpg_char import rules
 from plugins.trpg_char import TrpgCharPlugin
-from test.helper import MockApiWrapper, make_group_message
+from test.helper import MockApiWrapper, make_group_message, make_private_message
+
+
+def _base_data(char_id=1, **overrides):
+    data = {
+        "id": char_id,
+        "user_id": "111",
+        "char_name": "艾伦",
+        "race": "精灵",
+        "class_name": "法师",
+        "level": 1,
+        "background": "贤者",
+        "str_score": 15, "dex_score": 14, "con_score": 13,
+        "int_score": 12, "wis_score": 10, "cha_score": 8,
+        "proficient_skills": [], "equipment": [], "hp": 0, "ac": 0, "notes": "",
+    }
+    data.update(overrides)
+    return data
 
 
 def _sent_text(plugin) -> str:
@@ -84,169 +101,88 @@ class TestCharacterCalc(unittest.TestCase):
         self.assertEqual(values["运动"], 5)
 
 
-class TestWizard(unittest.TestCase):
-    def _run_flow(self, replies):
-        state = wiz.start()
-        done, data = False, None
-        for r in replies:
-            m, done, data = wiz.handle_reply(state, r)
-            if done:
-                break
-        return done, data
-
-    def test_full_flow_point_buy(self):
-        done, data = self._run_flow(
-            ["1", "15 14 13 12 10 8", "奥术 历史", "艾伦 精灵 法师"]
-        )
-        self.assertTrue(done)
-        self.assertIsNotNone(data)
-        self.assertEqual(data["char_name"], "艾伦")
-        self.assertEqual(data["race"], "精灵")
-        self.assertEqual(data["class_name"], "法师")
-        self.assertEqual(data["proficient_skills"], ["奥术", "历史"])
-
-    def test_full_flow_standard_array_skip_skills(self):
-        done, data = self._run_flow(
-            ["3", "15 14 13 12 10 8", "跳过", "铁牛 人类 战士"]
-        )
-        self.assertTrue(done)
-        self.assertEqual(data["char_name"], "铁牛")
-        self.assertEqual(data["proficient_skills"], [])
-
-    def test_full_flow_roll(self):
-        import unittest.mock as mock
-        with mock.patch("plugins.trpg_char.wizard._roll_scores", return_value=[15, 14, 13, 12, 10, 8]):
-            done, data = self._run_flow(
-                ["2", "15 14 13 12 10 8", "宗教", "铜须 矮人 牧师"]
-            )
-        self.assertTrue(done)
-        self.assertEqual(data["char_name"], "铜须")
-
-    def test_abandon(self):
-        state = wiz.start()
-        m, done, data = wiz.handle_reply(state, "退出")
-        self.assertTrue(done)
-        self.assertIsNone(data)
-
-    def test_point_buy_over_budget(self):
-        state = wiz.start()
-        wiz.handle_reply(state, "1")
-        m, done, data = wiz.handle_reply(state, "15 15 15 15 15 15")
-        self.assertFalse(done)
-        self.assertIn("预算", m)
-
-    def test_custom_race_class_free_text(self):
-        done, data = self._run_flow(
-            ["1", "15 14 13 12 10 8", "跳过", "神秘人 天界裔 自创职业"]
-        )
-        self.assertTrue(done)
-        self.assertEqual(data["race"], "天界裔")
-        self.assertEqual(data["class_name"], "自创职业")
-
-
 class TestTrpgCharPlugin(unittest.TestCase):
-    def setUp(self):
-        for f in ["data.db", "data.db-wal", "data.db-shm"]:
-            if os.path.exists(f):
-                os.remove(f)
-        from core import context as runtime_context
-        runtime_context.character_wizards.clear()
-
-    def tearDown(self):
-        for f in ["data.db", "data.db-wal", "data.db-shm"]:
-            if os.path.exists(f):
-                os.remove(f)
-        from core import context as runtime_context
-        runtime_context.character_wizards.clear()
-
-    def _create_char(self, user_id=111, nickname="玩家A"):
-        ctx = make_group_message("/角色 创建", user_id=user_id, nickname=nickname)
+    def _plugin(self, msg: str, **kw):
+        ctx = make_private_message(msg, **kw)
         p = TrpgCharPlugin(ctx)
         p.api = MockApiWrapper(ctx)
-        p.handle()
-        for s in ["1", "15 14 13 12 10 8", "奥术 历史", "艾伦 精灵 法师"]:
-            ctx = make_group_message(s, user_id=user_id, nickname=nickname)
-            p = TrpgCharPlugin(ctx)
-            p.api = MockApiWrapper(ctx)
-            p.handle()
+        return p
 
     def test_match_command(self):
         ctx = make_group_message("/角色")
         self.assertTrue(TrpgCharPlugin(ctx).match("message"))
+        ctx2 = make_group_message("随便什么")
+        self.assertFalse(TrpgCharPlugin(ctx2).match("message"))
 
-    def test_match_during_wizard(self):
-        ctx = make_group_message("/角色 创建", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
-        p.handle()
-        ctx2 = make_group_message("随便什么", user_id=111)
-        self.assertTrue(TrpgCharPlugin(ctx2).match("message"))
+    def test_view_own_current(self):
+        p = self._plugin("/角色 查看")
+        with patch("core.character_store.get_current", return_value=_base_data()):
+            p.handle()
+        self.assertIn("【艾伦】", _sent_text(p))
 
-    def test_create_and_view(self):
-        self._create_char()
-        ctx = make_group_message("/角色", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
-        p.handle()
+    def test_view_without_char(self):
+        p = self._plugin("/角色 查看")
+        with patch("core.character_store.get_current", return_value=None):
+            p.handle()
         out = _sent_text(p)
-        self.assertIn("艾伦", out)
-        self.assertIn("法师", out)
+        self.assertIn("还没有角色卡", out)
+        self.assertIn("/profile/trpg", out)
 
-    def test_create_while_wizard_active(self):
-        ctx = make_group_message("/角色 创建", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
+    def test_create_redirects_to_web(self):
+        p = self._plugin("/角色 创建")
         p.handle()
-        p2 = TrpgCharPlugin(ctx)
-        p2.api = MockApiWrapper(ctx)
-        p2.handle()
-        self.assertIn("已有进行中", _sent_text(p2))
+        self.assertIn("/profile/trpg", _sent_text(p))
 
-    def test_view_no_character(self):
-        ctx = make_group_message("/角色", user_id=999)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
+    def test_edit_redirects_to_web(self):
+        p = self._plugin("/角色 编辑 hp 10")
         p.handle()
-        self.assertIn("还没有角色卡", _sent_text(p))
+        self.assertIn("/profile/trpg", _sent_text(p))
 
-    def test_list_and_switch(self):
-        self._create_char()
-        ctx = make_group_message("/角色 列表", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
+    def test_abandon_redirects_to_web(self):
+        p = self._plugin("/角色 放弃")
         p.handle()
+        self.assertIn("/profile/trpg", _sent_text(p))
+
+    def test_list(self):
+        p = self._plugin("/角色 列表")
+        with patch("core.character_store.list_chars", return_value=[_base_data()]), \
+                patch("core.character_store.get_current", return_value=_base_data()):
+            p.handle()
         out = _sent_text(p)
         self.assertIn("#1", out)
         self.assertIn("艾伦", out)
+        self.assertIn("当前", out)
 
-    def test_edit_hp(self):
-        self._create_char()
-        ctx = make_group_message("/角色 编辑 hp 10", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
-        p.handle()
-        self.assertIn("已更新", _sent_text(p))
+    def test_switch(self):
+        p = self._plugin("/角色 切换 1")
+        with patch("core.character_store.set_current"), \
+                patch("core.character_store.get_char", return_value=_base_data()):
+            p.handle()
+        self.assertIn("切换为 艾伦", _sent_text(p))
 
-    def test_edit_invalid_field(self):
-        self._create_char()
-        ctx = make_group_message("/角色 编辑 法力 10", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
-        p.handle()
-        self.assertIn("无法编辑", _sent_text(p))
+    def test_switch_missing(self):
+        p = self._plugin("/角色 切换 99")
+        with patch("core.character_store.set_current", side_effect=ValueError("角色不存在")):
+            p.handle()
+        self.assertIn("角色不存在", _sent_text(p))
 
-    def test_delete_character(self):
-        self._create_char()
-        ctx = make_group_message("/角色 删除 1", user_id=111)
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
+    def test_switch_bad_format(self):
+        p = self._plugin("/角色 切换 abc")
         p.handle()
-        self.assertIn("已删除", _sent_text(p))
-        ctx2 = make_group_message("/角色", user_id=111)
-        p2 = TrpgCharPlugin(ctx2)
-        p2.api = MockApiWrapper(ctx2)
-        p2.handle()
-        self.assertIn("还没有角色卡", _sent_text(p2))
+        self.assertIn("格式", _sent_text(p))
+
+    def test_delete(self):
+        p = self._plugin("/角色 删除 1")
+        with patch("core.character_store.get_char", return_value=_base_data()), \
+                patch("core.character_store.delete_char"):
+            p.handle()
+        self.assertIn("已删除角色 艾伦", _sent_text(p))
+
+    def test_delete_missing(self):
+        p = self._plugin("/角色 删除 99")
+        with patch("core.character_store.get_char", return_value=None):
+            p.handle()
+        self.assertIn("角色不存在", _sent_text(p))
 
 
 class TestDiceIntegration(unittest.TestCase):
@@ -254,28 +190,15 @@ class TestDiceIntegration(unittest.TestCase):
         for f in ["data.db", "data.db-wal", "data.db-shm"]:
             if os.path.exists(f):
                 os.remove(f)
-        from core import context as runtime_context
-        runtime_context.character_wizards.clear()
-        # 直接创建角色
-        from plugins.trpg_char import character as char_logic
-        from test.helper import MockApiWrapper, make_group_message
-        from plugins.trpg_char import TrpgCharPlugin
-        ctx = make_group_message("/角色 创建", user_id=111, nickname="玩家A")
-        p = TrpgCharPlugin(ctx)
-        p.api = MockApiWrapper(ctx)
-        p.handle()
-        for s in ["1", "15 14 13 12 10 8", "奥术 历史", "艾伦 精灵 法师"]:
-            ctx = make_group_message(s, user_id=111, nickname="玩家A")
-            p = TrpgCharPlugin(ctx)
-            p.api = MockApiWrapper(ctx)
-            p.handle()
+        # 直接写入 DB（角色创建已迁移至网页端）
+        from core.database_manager import DbManager
+        dm = DbManager()
+        dm.character.create(111, _base_data())
 
     def tearDown(self):
         for f in ["data.db", "data.db-wal", "data.db-shm"]:
             if os.path.exists(f):
                 os.remove(f)
-        from core import context as runtime_context
-        runtime_context.character_wizards.clear()
 
     def test_roll_with_attribute(self):
         from plugins.trpg_dice import TrpgPlugin

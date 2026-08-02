@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-07-31 (added trpg_char)
+> Last updated: 2026-08-02 (trpg_char 精简：QQ 端仅查看/列表/切换/删除，创建编辑移至网页端)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
