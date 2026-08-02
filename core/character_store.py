@@ -4,16 +4,26 @@
     server_data/trpg_chars/<user_id>/meta.json        # {"current_id": 3, "order": [1,2,3]}
     server_data/trpg_chars/<user_id>/<char_id>.json   # 单个角色完整数据（任意嵌套 dict）
 
-所有写入均为原子写（tmp + os.replace），跨进程并发安全。
+所有写入均为原子写（tmp + os.replace），防止出现写了一半的文件；
+同一进程内对同一用户加锁（threading.Lock），防止并发读改写丢失更新；
+跨进程并发未加锁——写频率可忽略，属可接受风险。
 """
 
 from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
 
 CHARS_ROOT = Path(os.environ.get("BOTERO_TRPG_CHARS_ROOT", "server_data/trpg_chars"))
+
+_LOCKS: dict[str, threading.Lock] = {}
+
+
+def _lock_for(user_id) -> threading.Lock:
+    # ponytail: 每用户一锁，随用户数增长；群规模机器人可接受，量级上升再换全局锁或文件锁
+    return _LOCKS.setdefault(str(user_id), threading.Lock())
 
 
 def _validate_user_id(user_id) -> str:
@@ -97,14 +107,18 @@ def get_current(user_id) -> dict | None:
 
 def create_char(user_id, data: dict) -> int:
     uid = _validate_user_id(user_id)
-    meta = _load_meta(uid)
-    next_id = max(meta["order"], default=0) + 1
-    meta["order"].append(next_id)
-    if meta["current_id"] is None:
-        meta["current_id"] = next_id
-    _write_json(_char_path(uid, next_id), data)
-    _save_meta(uid, meta)
-    return next_id
+    with _lock_for(uid):
+        meta = _load_meta(uid)
+        next_id = max(meta["order"], default=0) + 1
+        # meta.json 丢失/损坏时 id 会回退，跳过磁盘上已存在的文件避免覆盖
+        while _char_path(uid, next_id).is_file():
+            next_id += 1
+        meta["order"].append(next_id)
+        if meta["current_id"] is None:
+            meta["current_id"] = next_id
+        _write_json(_char_path(uid, next_id), data)
+        _save_meta(uid, meta)
+        return next_id
 
 
 def update_char(user_id, char_id, data: dict) -> None:
@@ -117,17 +131,18 @@ def update_char(user_id, char_id, data: dict) -> None:
 def delete_char(user_id, char_id) -> None:
     uid = _validate_user_id(user_id)
     cid = _validate_char_id(char_id)
-    path = _char_path(uid, cid)
-    if path.is_file():
-        path.unlink()
-    meta = _load_meta(uid)
-    if cid in meta["order"]:
-        meta["order"].remove(cid)
-    if meta["current_id"] == cid:
-        meta["current_id"] = meta["order"][0] if meta["order"] else None
-        if meta["current_id"] is None:
-            meta.pop("current_id", None)
-    _save_meta(uid, meta)
+    with _lock_for(uid):
+        path = _char_path(uid, cid)
+        if path.is_file():
+            path.unlink()
+        meta = _load_meta(uid)
+        if cid in meta["order"]:
+            meta["order"].remove(cid)
+        if meta["current_id"] == cid:
+            meta["current_id"] = meta["order"][0] if meta["order"] else None
+            if meta["current_id"] is None:
+                meta.pop("current_id", None)
+        _save_meta(uid, meta)
 
 
 def set_current(user_id, char_id) -> None:
@@ -135,6 +150,7 @@ def set_current(user_id, char_id) -> None:
     cid = _validate_char_id(char_id)
     if not _char_path(uid, cid).is_file():
         raise ValueError("角色不存在")
-    meta = _load_meta(uid)
-    meta["current_id"] = cid
-    _save_meta(uid, meta)
+    with _lock_for(uid):
+        meta = _load_meta(uid)
+        meta["current_id"] = cid
+        _save_meta(uid, meta)

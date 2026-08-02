@@ -97,6 +97,18 @@ class CharacterStoreTest(unittest.TestCase):
         leftovers = list((store.CHARS_ROOT / "123").glob("*.tmp"))
         self.assertEqual(leftovers, [])
 
+    def test_update_missing_char_raises(self):
+        with self.assertRaises(ValueError):
+            store.update_char("123", "999", _base_data())
+
+    def test_create_after_meta_loss_does_not_overwrite(self):
+        c1 = store.create_char("123", _base_data())
+        (store.CHARS_ROOT / "123" / "meta.json").unlink()
+        c2 = store.create_char("123", _base_data())
+        self.assertNotEqual(c2, c1)
+        self.assertIsNotNone(store.get_char("123", c1))
+        self.assertIsNotNone(store.get_char("123", c2))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
