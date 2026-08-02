@@ -121,6 +121,9 @@ class CharacterIn(BaseModel):
     class_name: str
     level: int = 1
     background: str = ""
+    player_name: str = ""
+    alignment: str = ""
+    xp: int = 0
     str_score: int
     dex_score: int
     con_score: int
@@ -128,9 +131,23 @@ class CharacterIn(BaseModel):
     wis_score: int
     cha_score: int
     proficient_skills: list[str] = []
+    saving_profs: list[str] = []
     hp: int = 0
     ac: int = 0
-    equipment: list = []
+    current_hp: int = 0
+    temp_hp: int = 0
+    speed: int = 30
+    death_saves_success: int = 0
+    death_saves_fail: int = 0
+    inspiration: bool = False
+    equipment: list[str] = []
+    other_proficiencies: str = ""
+    attacks: list[str] = []
+    features: str = ""
+    personality_traits: str = ""
+    ideals: str = ""
+    bonds: str = ""
+    flaws: str = ""
     notes: str = ""
 
 
@@ -154,15 +171,38 @@ class CharOut(BaseModel):
     ac: int
     skill_mods: dict
     scores: dict
+    prof_bonus: int
+    save_mods: dict
+    passive_perception: int
+    initiative: int
+    hit_dice: str
     proficient_skills: list[str]
     notes: str
     background: str
+    player_name: str
+    alignment: str
+    xp: int
     str_score: int
     dex_score: int
     con_score: int
     int_score: int
     wis_score: int
     cha_score: int
+    saving_profs: list[str]
+    current_hp: int
+    temp_hp: int
+    speed: int
+    death_saves_success: int
+    death_saves_fail: int
+    inspiration: bool
+    equipment: list[str]
+    other_proficiencies: str
+    attacks: list[str]
+    features: str
+    personality_traits: str
+    ideals: str
+    bonds: str
+    flaws: str
 
 
 def _char_to_out(data: dict) -> CharOut:
@@ -182,15 +222,38 @@ def _char_to_out(data: dict) -> CharOut:
         ac=finalized["ac"],
         skill_mods=finalized.get("skill_mods", {}),
         scores=finalized.get("scores", {}),
+        prof_bonus=finalized.get("prof_bonus", 2),
+        save_mods=finalized.get("save_mods", {}),
+        passive_perception=finalized.get("passive_perception", 10),
+        initiative=finalized.get("initiative", 0),
+        hit_dice=finalized.get("hit_dice", "1d8"),
         proficient_skills=finalized.get("proficient_skills", []),
         notes=finalized.get("notes", ""),
         background=data.get("background", ""),
+        player_name=data.get("player_name", ""),
+        alignment=data.get("alignment", ""),
+        xp=int(data.get("xp", 0)),
         str_score=base_scores["str_score"],
         dex_score=base_scores["dex_score"],
         con_score=base_scores["con_score"],
         int_score=base_scores["int_score"],
         wis_score=base_scores["wis_score"],
         cha_score=base_scores["cha_score"],
+        saving_profs=data.get("saving_profs", []) or [],
+        current_hp=int(data.get("current_hp", 0)),
+        temp_hp=int(data.get("temp_hp", 0)),
+        speed=int(data.get("speed", 30)),
+        death_saves_success=int(data.get("death_saves_success", 0)),
+        death_saves_fail=int(data.get("death_saves_fail", 0)),
+        inspiration=bool(data.get("inspiration", False)),
+        equipment=data.get("equipment", []) or [],
+        other_proficiencies=data.get("other_proficiencies", ""),
+        attacks=data.get("attacks", []) or [],
+        features=data.get("features", ""),
+        personality_traits=data.get("personality_traits", ""),
+        ideals=data.get("ideals", ""),
+        bonds=data.get("bonds", ""),
+        flaws=data.get("flaws", ""),
     )
 
 
