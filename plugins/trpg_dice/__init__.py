@@ -4,6 +4,7 @@ from core.base import Plugin
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
+from core import character_store as store
 import core.context as runtime_context
 
 from .dice import parse, _eval_advantage, _eval_disadvantage
@@ -106,9 +107,9 @@ class TrpgPlugin(Plugin):
         user_id = self.bot_event.user_id
         if user_id is None:
             return None, None
-        char = self.dbmanager.character.current(user_id)
+        char = store.get_current(user_id)
         if not char:
-            self.api.send_msg(text("你还没有角色卡，用 /角色 创建 开始创建吧"))
+            self.api.send_msg(text("你还没有角色卡，请到网页端创建：\nhttp://127.0.0.1:8765/profile/trpg"))
             return None, None
 
         values = resolve_expression_values(char)

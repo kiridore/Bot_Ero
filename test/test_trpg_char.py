@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -187,18 +186,11 @@ class TestTrpgCharPlugin(unittest.TestCase):
 
 class TestDiceIntegration(unittest.TestCase):
     def setUp(self):
-        for f in ["data.db", "data.db-wal", "data.db-shm"]:
-            if os.path.exists(f):
-                os.remove(f)
-        # 直接写入 DB（角色创建已迁移至网页端）
-        from core.database_manager import DbManager
-        dm = DbManager()
-        dm.character.create(111, _base_data())
+        self._store_patch = patch("core.character_store.get_current", return_value=_base_data())
+        self._store_patch.start()
 
     def tearDown(self):
-        for f in ["data.db", "data.db-wal", "data.db-shm"]:
-            if os.path.exists(f):
-                os.remove(f)
+        self._store_patch.stop()
 
     def test_roll_with_attribute(self):
         from plugins.trpg_dice import TrpgPlugin

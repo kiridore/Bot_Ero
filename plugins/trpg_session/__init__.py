@@ -8,6 +8,7 @@ from core.base import Plugin, BOT_QQ
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin, download_image
+from core import character_store as store
 import core.context as runtime_context
 
 
@@ -269,10 +270,7 @@ class TrpgSessionPlugin(Plugin):
                 sender = entry.get("nickname", "未知")
                 # 有角色卡时显示 角色名(昵称)
                 if uid and uid not in char_cache:
-                    try:
-                        char_cache[uid] = self.dbmanager.character.current(uid)
-                    except Exception:
-                        char_cache[uid] = None
+                    char_cache[uid] = store.get_current(uid)
                 char = char_cache.get(uid)
                 if char:
                     sender = f"{char.get('char_name', '')}({sender})"
