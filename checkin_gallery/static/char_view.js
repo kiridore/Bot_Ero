@@ -61,6 +61,11 @@ function renderView(char, rules) {
   meta.textContent = `Lv.${char.level} ${char.race} ${char.class_name} · HP ${char.hp} · AC ${char.ac}`;
   charViewMain.appendChild(meta);
 
+  const meta2 = document.createElement("p");
+  meta2.className = "muted";
+  meta2.textContent = `熟练加值 +${char.prof_bonus} · 先攻 ${fmtMod(char.initiative)} · 被动感知 ${char.passive_perception} · 生命骰 ${char.hit_dice}`;
+  charViewMain.appendChild(meta2);
+
   const attrSec = document.createElement("section");
   attrSec.className = "settings-section";
   attrSec.innerHTML = `<div class="section-head"><h2>属性</h2></div>`;
@@ -91,6 +96,66 @@ function renderView(char, rules) {
   }
   skillSec.appendChild(skillTable);
   charViewMain.appendChild(skillSec);
+
+  const saveSec = document.createElement("section");
+  saveSec.className = "settings-section";
+  saveSec.innerHTML = `<div class="section-head"><h2>豁免</h2></div>`;
+  const saveTable = document.createElement("table");
+  saveTable.className = "trpg-table";
+  for (const attr of rules.attributes) {
+    const mod = char.save_mods[attr];
+    const prof = (char.saving_profs || []).includes(attr);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<th>${attr}</th><td>${prof ? "熟练" : ""}</td><td>${mod !== undefined ? fmtMod(mod) : ""}</td>`;
+    saveTable.appendChild(tr);
+  }
+  saveSec.appendChild(saveTable);
+  charViewMain.appendChild(saveSec);
+
+  const combatSec = document.createElement("section");
+  combatSec.className = "settings-section";
+  combatSec.innerHTML = `<div class="section-head"><h2>战斗</h2></div>`;
+  const combatTable = document.createElement("table");
+  combatTable.className = "trpg-table";
+  combatTable.innerHTML = `
+    <tr><th>HP</th><td>${char.hp}</td><th>当前 HP</th><td>${char.current_hp || 0}</td>
+        <th>临时 HP</th><td>${char.temp_hp || 0}</td></tr>
+    <tr><th>AC</th><td>${char.ac}</td><th>速度</th><td>${char.speed || 30}</td>
+        <th>激励</th><td>${char.inspiration ? "✓" : "—"}</td></tr>
+    <tr><th>死亡豁免</th><td colspan="5">成功 ${char.death_saves_success || 0} / 失败 ${char.death_saves_fail || 0}</td></tr>`;
+  combatSec.appendChild(combatTable);
+  charViewMain.appendChild(combatSec);
+
+  if ((char.equipment || []).length || char.other_proficiencies || (char.attacks || []).length || char.features) {
+    const resSec = document.createElement("section");
+    resSec.className = "settings-section";
+    resSec.innerHTML = `<div class="section-head"><h2>资源</h2></div>`;
+    const resList = document.createElement("div");
+    resList.style.whiteSpace = "pre-wrap";
+    const parts = [];
+    if ((char.equipment || []).length) parts.push("【装备与钱币】\n" + char.equipment.join("\n"));
+    if (char.other_proficiencies) parts.push("【其他熟练项和语言】\n" + char.other_proficiencies);
+    if ((char.attacks || []).length) parts.push("【攻击与法术】\n" + char.attacks.join("\n"));
+    if (char.features) parts.push("【特性与特质】\n" + char.features);
+    resList.textContent = parts.join("\n\n");
+    resSec.appendChild(resList);
+    charViewMain.appendChild(resSec);
+  }
+
+  const bgFields = [
+    ["个人特点", char.personality_traits], ["理想", char.ideals],
+    ["牵绊", char.bonds], ["缺点", char.flaws],
+  ].filter(([, v]) => v);
+  if (bgFields.length) {
+    const bgSec = document.createElement("section");
+    bgSec.className = "settings-section";
+    bgSec.innerHTML = `<div class="section-head"><h2>背景</h2></div>`;
+    const bgDiv = document.createElement("div");
+    bgDiv.style.whiteSpace = "pre-wrap";
+    bgDiv.textContent = bgFields.map(([k, v]) => `【${k}】\n${v}`).join("\n\n");
+    bgSec.appendChild(bgDiv);
+    charViewMain.appendChild(bgSec);
+  }
 
   if (char.notes) {
     const noteSec = document.createElement("section");
