@@ -1,6 +1,7 @@
 const settingsMain = document.getElementById("settingsMain");
 
 let settingsData = null;
+let userSettingsData = { privacy: {} };
 let searchQuery = "";
 
 function escapeHtml(s) {
@@ -180,6 +181,31 @@ function renderUnlockedList() {
 function renderPage() {
   settingsMain.innerHTML = "";
 
+  const privacySec = document.createElement("section");
+  privacySec.className = "settings-section";
+  privacySec.innerHTML = `
+    <div class="section-head"><h2>隐私设置</h2></div>
+    <label class="privacy-row">
+      <span>允许他人查看我的角色卡</span>
+      <input type="checkbox" id="charPublicToggle" ${userSettingsData.privacy.char_public === false ? "" : "checked"} />
+    </label>
+    <p class="preview-hint">关闭后，其他用户无法在网页端查看你的角色卡（跑团车卡页）。</p>
+  `;
+  settingsMain.appendChild(privacySec);
+
+  document.getElementById("charPublicToggle").addEventListener("change", async (e) => {
+    try {
+      userSettingsData = await apiFetch("/api/me/settings", {
+        method: "PUT",
+        body: JSON.stringify({ privacy: { char_public: e.target.checked } }),
+      });
+      showToast(e.target.checked ? "已允许他人查看角色卡" : "已隐藏角色卡");
+    } catch (err) {
+      e.target.checked = !e.target.checked;
+      showToast(err.message, true);
+    }
+  });
+
   const preview = document.createElement("section");
   preview.className = "settings-preview";
   preview.innerHTML = `
@@ -236,7 +262,12 @@ async function loadSettings() {
   if (!requireAuth()) return;
   settingsMain.innerHTML = "<p class='loading-msg'>加载中…</p>";
   try {
-    settingsData = await apiFetch("/api/me/titles/settings");
+    const [titleData, userSettings] = await Promise.all([
+      apiFetch("/api/me/titles/settings"),
+      apiFetch("/api/me/settings"),
+    ]);
+    settingsData = titleData;
+    userSettingsData = userSettings;
     renderPage();
   } catch (err) {
     settingsMain.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message)}</p>`;

@@ -1042,3 +1042,16 @@
 .trpg-editor .settings-section {
   margin-bottom: 16px;
 }
+
+/* 设置页隐私开关 */
+.privacy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 14px;
+}
+.privacy-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
