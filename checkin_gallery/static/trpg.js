@@ -96,8 +96,21 @@ function computeSheet(data) {
     if ((data.proficient_skills || []).includes(skill)) mod += 2;
     skillMods[skill] = mod;
   }
+  const profBonus = 2 + Math.floor((Number(data.level || 1) - 1) / 4);
+  const savingProfs = data.saving_profs || [];
+  const saveMods = {};
+  for (const attr of rules.attributes) {
+    let m = abilityMod(scores[attrKey(attr)]);
+    if (savingProfs.includes(attr)) m += profBonus;
+    saveMods[attr] = m;
+  }
+  const wisMod = abilityMod(scores.wis_score);
+  const passivePerception = 10 + wisMod + ((data.proficient_skills || []).includes("察觉") ? 2 : 0);
   return {
-    scores, skillMods,
+    scores, skillMods, saveMods, profBonus,
+    passivePerception,
+    initiative: abilityMod(scores.dex_score),
+    hitDice: `${data.level || 1}d${hpDie}`,
     hp: Number(data.hp) || hpDie + conMod,
     ac: Number(data.ac) || 10 + dexMod,
     hpDie,
@@ -118,8 +131,14 @@ function renderList() {
   newBtn.addEventListener("click", () => {
     editing = {
       char_name: "", race: "人类", class_name: "战士", level: 1, background: "",
+      player_name: "", alignment: "", xp: 0,
       str_score: 10, dex_score: 10, con_score: 10, int_score: 10, wis_score: 10, cha_score: 10,
-      proficient_skills: [], hp: 0, ac: 0, equipment: [], notes: "",
+      proficient_skills: [], saving_profs: [],
+      hp: 0, ac: 0, current_hp: 0, temp_hp: 0, speed: 30,
+      death_saves_success: 0, death_saves_fail: 0, inspiration: false,
+      equipment: [], other_proficiencies: "", attacks: [], features: "",
+      personality_traits: "", ideals: "", bonds: "", flaws: "",
+      notes: "",
     };
     renderEditor();
   });
@@ -218,6 +237,10 @@ function renderEditor() {
         <tr><th>职业</th><td><input type="text" data-f="class_name" list="classList"></td>
             <th>等级</th><td><input type="number" data-f="level" min="1" max="20"></td></tr>
         <tr><th>背景</th><td colspan="3"><input type="text" data-f="background"></td></tr>
+        <tr><th>玩家名</th><td><input type="text" data-f="player_name"></td>
+            <th>阵营</th><td><input type="text" data-f="alignment" placeholder="如：守序善良"></td></tr>
+        <tr><th>经验值</th><td><input type="number" data-f="xp" min="0"></td>
+            <th>熟练加值</th><td id="profBonusCell"></td></tr>
         <tr><th>备注</th><td colspan="3"><textarea data-f="notes" rows="3"></textarea></td></tr>
       </table>
       <datalist id="raceList"></datalist>
@@ -235,11 +258,41 @@ function renderEditor() {
     </section>
 
     <section class="settings-section">
-      <div class="section-head"><h2>战斗 <span class="muted">（未填时按规则自动计算）</span></h2></div>
+      <div class="section-head"><h2>战斗 <span class="muted">（未填 HP/AC 时按规则自动计算）</span></h2></div>
       <table class="trpg-table">
         <tr><th>HP</th><td><input type="number" data-f="hp" min="0"></td>
-            <th>AC</th><td><input type="number" data-f="ac" min="0"></td></tr>
-        <tr><th>建议 HP</th><td colspan="3" id="hpHint"></td></tr>
+            <th>AC</th><td><input type="number" data-f="ac" min="0"></td>
+            <th>先攻</th><td id="initiativeCell"></td></tr>
+        <tr><th>当前 HP</th><td><input type="number" data-f="current_hp" min="0"></td>
+            <th>临时 HP</th><td><input type="number" data-f="temp_hp" min="0"></td>
+            <th>速度</th><td><input type="number" data-f="speed" min="0"></td></tr>
+        <tr><th>生命骰</th><td id="hitDiceCell"></td>
+            <th>被动感知</th><td id="passiveCell"></td>
+            <th>激励</th><td><input type="checkbox" data-f="inspiration" style="width:auto;height:auto;"></td></tr>
+        <tr><th>死亡豁免成功</th><td><input type="number" data-f="death_saves_success" min="0" max="3"></td>
+            <th>死亡豁免失败</th><td><input type="number" data-f="death_saves_fail" min="0" max="3"></td>
+            <th colspan="2"></th></tr>
+        <tr><th>建议 HP</th><td colspan="5" id="hpHint"></td></tr>
+      </table>
+    </section>
+
+    <section class="settings-section">
+      <div class="section-head"><h2>资源 <span class="muted">（装备/攻击/特性，每行一条）</span></h2></div>
+      <table class="trpg-table">
+        <tr><th>装备与钱币</th><td colspan="3"><textarea data-f="equipment" rows="3" placeholder="每行一条，如：长剑、皮甲、50gp"></textarea></td></tr>
+        <tr><th>其他熟练项和语言</th><td colspan="3"><textarea data-f="other_proficiencies" rows="2" placeholder="每行一条，如：通用语、精灵语、铁匠工具"></textarea></td></tr>
+        <tr><th>攻击与法术</th><td colspan="3"><textarea data-f="attacks" rows="3" placeholder="格式：名称|攻击加值|伤害&#10;如：长剑|+5|1d8 挥砍"></textarea></td></tr>
+        <tr><th>特性与特质</th><td colspan="3"><textarea data-f="features" rows="3"></textarea></td></tr>
+      </table>
+    </section>
+
+    <section class="settings-section">
+      <div class="section-head"><h2>背景 <span class="muted">（角色四要素）</span></h2></div>
+      <table class="trpg-table">
+        <tr><th>个人特点</th><td colspan="3"><textarea data-f="personality_traits" rows="2"></textarea></td></tr>
+        <tr><th>理想</th><td colspan="3"><textarea data-f="ideals" rows="2"></textarea></td></tr>
+        <tr><th>牵绊</th><td colspan="3"><textarea data-f="bonds" rows="2"></textarea></td></tr>
+        <tr><th>缺点</th><td colspan="3"><textarea data-f="flaws" rows="2"></textarea></td></tr>
       </table>
     </section>
 
@@ -263,8 +316,11 @@ function renderEditor() {
   }
 
   form.querySelectorAll("[data-f]").forEach((el) => {
-    el.value = editing[el.dataset.f] ?? "";
+    const key = el.dataset.f;
+    el.value = Array.isArray(editing[key]) ? editing[key].join("\n") : (editing[key] ?? "");
   });
+  const inspEl = form.querySelector('[data-f="inspiration"]');
+  if (inspEl) inspEl.checked = Boolean(editing.inspiration);
 
   const attrTable = document.getElementById("attrTable");
   const skillTable = document.getElementById("skillTable");
@@ -292,6 +348,19 @@ function renderEditor() {
       const bonus = (rules.races[data.race] || {})[attr] || 0;
       tdMod.textContent = `加值 ${abilityMod(calc.scores[key]) >= 0 ? "+" : ""}${abilityMod(calc.scores[key])}${bonus ? `（种族+${bonus}）` : ""}`;
       tr.appendChild(tdMod);
+      const tdSave = document.createElement("td");
+      const saveCb = document.createElement("input");
+      saveCb.type = "checkbox";
+      saveCb.checked = (data.saving_profs || []).includes(attr);
+      saveCb.dataset.saveprof = attr;
+      saveCb.title = "豁免熟练";
+      tdSave.appendChild(saveCb);
+      tr.appendChild(tdSave);
+      const tdSaveMod = document.createElement("td");
+      const saveMod = calc.saveMods[attr];
+      tdSaveMod.textContent = `豁免 ${saveMod >= 0 ? "+" : ""}${saveMod}`;
+      tdSaveMod.className = "muted";
+      tr.appendChild(tdSaveMod);
       attrTable.appendChild(tr);
     }
     skillTable.innerHTML = "";
@@ -314,19 +383,29 @@ function renderEditor() {
     const suggestedHp = calc.hpDie + abilityMod(calc.scores.con_score);
     const suggestedAc = 10 + abilityMod(calc.scores.dex_score);
     hpHint.textContent = `职业 HP 骰 d${calc.hpDie} + 体质加值 = ${suggestedHp}；敏捷加值 AC = ${suggestedAc}（可在上方手动覆盖）`;
+    document.getElementById("profBonusCell").textContent = `+${calc.profBonus}`;
+    document.getElementById("initiativeCell").textContent = `${calc.initiative >= 0 ? "+" : ""}${calc.initiative}`;
+    document.getElementById("hitDiceCell").textContent = calc.hitDice;
+    document.getElementById("passiveCell").textContent = calc.passivePerception;
   }
 
   function readForm() {
     const data = { ...editing };
+    const NUM_KEYS = new Set(["level", "hp", "ac", "xp", "current_hp", "temp_hp", "speed", "death_saves_success", "death_saves_fail"]);
+    const LIST_KEYS = new Set(["equipment", "attacks"]);
     form.querySelectorAll("[data-f]").forEach((el) => {
       const key = el.dataset.f;
-      if (key === "level" || key === "hp" || key === "ac") data[key] = Number(el.value) || 0;
+      if (key === "inspiration") return; // checkbox 单独处理
+      if (NUM_KEYS.has(key)) data[key] = Number(el.value) || 0;
+      else if (LIST_KEYS.has(key)) data[key] = el.value.split("\n").map((s) => s.trim()).filter(Boolean);
       else data[key] = el.value;
     });
+    data.inspiration = Boolean(form.querySelector('[data-f="inspiration"]').checked);
     form.querySelectorAll("[data-attr]").forEach((el) => {
       data[el.dataset.attr] = Number(el.value) || 8;
     });
     data.proficient_skills = [...form.querySelectorAll("[data-skill]:checked")].map((el) => el.dataset.skill);
+    data.saving_profs = [...form.querySelectorAll("[data-saveprof]:checked")].map((el) => el.dataset.saveprof);
     return data;
   }
 
