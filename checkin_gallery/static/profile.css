@@ -1011,3 +1011,34 @@
 .guestbook-load-more.hidden {
   display: none;
 }
+
+.muted {
+  color: var(--muted);
+}
+
+/* 跑团车卡编辑器 */
+.trpg-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.trpg-table th,
+.trpg-table td {
+  border: 1px solid var(--border, #ddd);
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 14px;
+}
+.trpg-table input[type="text"],
+.trpg-table input[type="number"],
+.trpg-table textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.trpg-editor .settings-section {
+  margin-bottom: 16px;
+}
