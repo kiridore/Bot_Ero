@@ -109,7 +109,8 @@ class TrpgPlugin(Plugin):
             return None, None
         char = store.get_current(user_id)
         if not char:
-            self.api.send_msg(text("你还没有角色卡，请到网页端创建：\nhttp://127.0.0.1:8765/profile/trpg"))
+            from plugins.trpg_char import WEB_TRPG_URL
+            self.api.send_msg(text("你还没有角色卡，请到网页端创建：\n" + WEB_TRPG_URL))
             return None, None
 
         values = resolve_expression_values(char)

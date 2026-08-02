@@ -35,7 +35,7 @@ Web 应用（`checkin_gallery/`）是独立的 FastAPI 进程，与机器人主�
 |----------|--------|------|
 | `BOTERO_DB_PATH` | `data.db` | 数据库路径 |
 | `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
-| `BOTERO_GALLERY_HOST` | `127.0.0.1` | 绑定地址 |
+| `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
 | `BOTERO_GALLERY_PORT` | `8765` | 监听端口 |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |

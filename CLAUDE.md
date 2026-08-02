@@ -14,7 +14,7 @@ BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机�
 # 启动机器人主程序
 python main.py
 
-# 启动打卡画廊 Web 应用（默认 http://127.0.0.1:8765）
+# 启动打卡画廊 Web 应用（默认 http://0.0.0.0:8765，局域网可访问）
 python -m checkin_gallery
 
 # 自定义端口

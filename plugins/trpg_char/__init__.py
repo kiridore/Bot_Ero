@@ -1,3 +1,5 @@
+import os
+
 from core.base import Plugin
 from core.cq import text
 from core.logger import logger
@@ -6,7 +8,7 @@ from core.utils import register_plugin
 from core import character_store as store
 from . import character as char_logic
 
-WEB_TRPG_URL = "http://127.0.0.1:8765/profile/trpg"
+WEB_TRPG_URL = os.environ.get("BOTERO_WEB_URL", "http://127.0.0.1:8765") + "/profile/trpg"
 
 
 @register_plugin
@@ -89,6 +91,8 @@ class TrpgCharPlugin(Plugin):
             self.api.send_msg(text("角色不存在"))
             return
         char = store.get_char(user_id, char_id)
+        if not char:
+            return
         self.api.send_msg(text(f"已将当前角色切换为 {char['char_name']}"))
 
     def _handle_delete(self, args: list):
