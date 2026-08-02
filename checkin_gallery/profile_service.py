@@ -13,7 +13,7 @@ from core.database_manager import DbManager
 
 from checkin_gallery.onebot_client import resolve_avatar_url, resolve_display_name
 
-_TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title.py"
+_TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title" / "defs.py"
 
 
 def _load_title_defs() -> dict:
