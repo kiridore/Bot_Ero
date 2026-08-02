@@ -156,9 +156,19 @@ class CharOut(BaseModel):
     scores: dict
     proficient_skills: list[str]
     notes: str
+    background: str
+    str_score: int
+    dex_score: int
+    con_score: int
+    int_score: int
+    wis_score: int
+    cha_score: int
 
 
 def _char_to_out(data: dict) -> CharOut:
+    base_scores = {k: data.get(k, 8) for k in (
+        "str_score", "dex_score", "con_score", "int_score", "wis_score", "cha_score"
+    )}
     finalized = trpg_char.finalize(data)
     return CharOut(
         id=data["id"],
@@ -174,6 +184,13 @@ def _char_to_out(data: dict) -> CharOut:
         scores=finalized.get("scores", {}),
         proficient_skills=finalized.get("proficient_skills", []),
         notes=finalized.get("notes", ""),
+        background=data.get("background", ""),
+        str_score=base_scores["str_score"],
+        dex_score=base_scores["dex_score"],
+        con_score=base_scores["con_score"],
+        int_score=base_scores["int_score"],
+        wis_score=base_scores["wis_score"],
+        cha_score=base_scores["cha_score"],
     )
 
 
