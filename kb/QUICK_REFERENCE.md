@@ -47,10 +47,20 @@
   record_images/<user_id>/                  ← 打卡图片缓存（按用户分目录）
   personal_records/                         ← 生成档案图片
   thumb_cache/                              ← Web 端缩略图
+  trpg_chars/<user_id>/                     ← 角色卡 JSON：meta.json（current_id/order）+ <char_id>.json
+  user_settings/<user_id>.json              ← 个人设置 JSON（文件不存在 = 全默认）
 
 /app/llonebot/server_data/                  ← OneBot API 调用中使用的路径
 /var/lib/docker/volumes/onebot_qq_volume/   ← Docker 卷（裸机部署时不用）
 ```
+
+## 跑团角色卡与个人设置（JSON 存储）
+
+- 角色卡**不再存 SQLite**，改存 `server_data/trpg_chars/<user_id>/`（`meta.json` 记录 `current_id`/`order`，`<char_id>.json` 为单个角色数据）；根目录可用 `BOTERO_TRPG_CHARS_ROOT` 覆盖
+- 个人设置存 `server_data/user_settings/<user_id>.json`；根目录可用 `BOTERO_USER_SETTINGS_ROOT` 覆盖
+- 已约定设置键：`privacy.char_public`（bool，缺省 True）= 是否允许他人查看我的角色卡（网页端 `/profile/settings` 开关，QQ 查看他人卡需已公开）
+- 存储层：`core/character_store.py`、`core/user_settings.py`（原子写 tmp+os.replace，每用户进程内锁；bot 与 web 双进程共用）
+- 网页车卡：`/profile/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）
 
 ## 完整指令表
 

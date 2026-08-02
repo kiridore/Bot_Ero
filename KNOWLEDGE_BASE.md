@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-02 (trpg_char 精简：QQ 端仅查看/列表/切换/删除，创建编辑移至网页端)
+> Last updated: 2026-08-02 (trpg_char 精简 + 角色卡/个人设置迁移 JSON 存储 + 网页车卡端)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -53,6 +53,9 @@
 │   ├── event.py               ← Event 包装器
 │   ├── database_manager.py    ← DbManager
 │   ├── db/                    ← 各业务模块数据库管理层
+│   ├── character_store.py     ← 角色卡 JSON 存储（server_data/trpg_chars/）
+│   ├── user_settings.py       ← 个人设置 JSON 存储（server_data/user_settings/）
+│   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
 │   └── logger.py              ← 日志

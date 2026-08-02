@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-06-29
+> 最后更新: 2026-08-02 (add 跑团车卡)
 
 ---
 
@@ -47,6 +47,8 @@ Web 应用（`checkin_gallery/`）是独立的 FastAPI 进程，与机器人主�
 | `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | HMAC 盐值（生产环境必须改） |
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 单次打卡最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` (10MB) | 单张图片最大字节 |
+| `BOTERO_TRPG_CHARS_ROOT` | `server_data/trpg_chars` | 跑团角色卡 JSON 存储根目录 |
+| `BOTERO_USER_SETTINGS_ROOT` | `server_data/user_settings` | 个人设置 JSON 存储根目录 |
 
 ---
 
@@ -122,6 +124,21 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/guestbook` | 必须 | 发表留言 |
 | `POST` | `/api/guestbook/{id}/like` | 必须 | 点赞 |
 
+### 跑团车卡
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/me/characters` | 必须 | 我的角色列表（含 current_id） |
+| `POST` | `/api/me/characters` | 必须 | 创建角色（服务端计算 hp/ac） |
+| `GET` | `/api/me/characters/{char_id}` | 必须 | 我的角色详情 |
+| `PUT` | `/api/me/characters/{char_id}` | 必须 | 更新角色 |
+| `DELETE` | `/api/me/characters/{char_id}` | 必须 | 删除角色 |
+| `POST` | `/api/me/characters/{char_id}/activate` | 必须 | 设为当前角色 |
+| `GET` | `/api/characters/{user_id}/{char_id}` | 必须 | 查看他人角色（他人未公开 → 403） |
+| `GET` | `/api/trpg/rules` | 否 | DND5E 规则数据（属性/技能/种族/职业/购点） |
+| `GET` | `/api/me/settings` | 必须 | 我的个人设置 |
+| `PUT` | `/api/me/settings` | 必须 | 更新个人设置（深合并） |
+
 ### 媒体
 
 | 方法 | 路径 | 认证 | 说明 |
@@ -139,7 +156,26 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/profile/checkin` | 网页打卡 |
 | `GET` | `/profile/shop` | 积分商店 |
 | `GET` | `/profile/alarms` | 闹钟管理 |
+| `GET` | `/profile/trpg` | 跑团车卡管理（创建/编辑，Excel 式分区编辑器） |
+| `GET` | `/trpg/char/{user_id}/{char_id}` | 角色卡只读查看页 |
 | `GET` | `/guestbook` | 留言簿 |
+
+---
+
+## Constraint: 跑团车卡
+
+角色卡与个人设置**不再存 SQLite**，改存 JSON 文件（bot 与 web 双进程共用 `core/character_store.py` / `core/user_settings.py`，写路径均为原子写 tmp + os.replace）：
+
+```
+server_data/trpg_chars/<user_id>/meta.json        # {"current_id": 3, "order": [1,2,3]}
+server_data/trpg_chars/<user_id>/<char_id>.json   # 单个角色完整数据（任意嵌套 dict）
+server_data/user_settings/<user_id>.json          # 个人设置（文件不存在 = 全默认值）
+```
+
+- 根目录可用 `BOTERO_TRPG_CHARS_ROOT` / `BOTERO_USER_SETTINGS_ROOT` 环境变量覆盖（默认见上文配置表）
+- **隐私开关:** `privacy.char_public`（bool，缺省 `True`）。`GET /api/characters/{user_id}/{char_id}` 仅本人或对方已公开时可访问，否则返回 403
+- 设置经 `GET/PUT /api/me/settings` 读写，`PUT` 深合并，不覆盖未传字段
+- 角色创建/更新由 `core/trpg/character.py` 的 `finalize()` 计算派生值（hp/ac），非法数据返回 400
 
 ---
 
@@ -208,8 +244,10 @@ checkin_gallery/static/
   settings.html + settings.js             ← 称号设置页
   checkin.html + checkin.js               ← 网页打卡页
   shop.html + shop.js                     ← 商店页
-  alarms.html + alarms.js                 ← 闹钟管理页
-  guestbook.html + guestbook.js           ← 留言簿页
+  alarms.html + alarms.js               ← 闹钟管理页
+  guestbook.html + guestbook.js         ← 留言簿页
+  trpg.html + trpg.js                   ← 跑团车卡管理页
+  char_view.html + char_view.js         ← 角色卡只读查看页
 ```
 
 - 原生 JavaScript，无框架
