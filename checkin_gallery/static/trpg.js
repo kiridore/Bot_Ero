@@ -404,8 +404,14 @@ function renderEditor() {
     form.querySelectorAll("[data-attr]").forEach((el) => {
       data[el.dataset.attr] = Number(el.value) || 8;
     });
-    data.proficient_skills = [...form.querySelectorAll("[data-skill]:checked")].map((el) => el.dataset.skill);
-    data.saving_profs = [...form.querySelectorAll("[data-saveprof]:checked")].map((el) => el.dataset.saveprof);
+    const saveCbs = form.querySelectorAll("[data-saveprof]");
+    data.saving_profs = saveCbs.length
+      ? [...form.querySelectorAll("[data-saveprof]:checked")].map((el) => el.dataset.saveprof)
+      : (editing.saving_profs || []);
+    const skillCbs = form.querySelectorAll("[data-skill]");
+    data.proficient_skills = skillCbs.length
+      ? [...form.querySelectorAll("[data-skill]:checked")].map((el) => el.dataset.skill)
+      : (editing.proficient_skills || []);
     return data;
   }
 
