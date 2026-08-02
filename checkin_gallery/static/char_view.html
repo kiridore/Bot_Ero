@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>角色卡 · 打卡图库</title>
+  <link rel="stylesheet" href="/static/gallery.css" />
+  <link rel="stylesheet" href="/static/profile.css" />
+</head>
+<body>
+  <header class="toolbar profile-toolbar">
+    <a href="javascript:history.back()" class="back-link">← 返回</a>
+    <nav class="profile-nav">
+      <a href="/profile">主页</a>
+      <a href="/profile/checkin">打卡</a>
+      <a href="/profile/shop">商店</a>
+      <a href="/profile/alarms">闹钟</a>
+      <a href="/profile/trpg">跑团</a>
+      <a href="/guestbook">留言簿</a>
+      <a href="/profile/settings">设置</a>
+    </nav>
+    <div class="auth-area" id="authArea"></div>
+  </header>
+
+  <main class="profile-main" id="charViewMain">
+    <p class="loading-msg">加载中…</p>
+  </main>
+
+  <script src="/static/auth.js"></script>
+  <script src="/static/char_view.js"></script>
+</body>
+</html>
