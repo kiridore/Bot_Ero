@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-02 (trpg_char 精简 + 角色卡/个人设置迁移 JSON 存储 + 网页车卡端)
+> Last updated: 2026-08-03 (5E 主卡面字段与派生口径同步至 specs/kb)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。

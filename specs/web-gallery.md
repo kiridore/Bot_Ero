@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-02 (add 跑团车卡)
+> 最后更新: 2026-08-03 (跑团车卡 5E 主卡面字段与派生口径)
 
 ---
 
@@ -175,7 +175,31 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 - 根目录可用 `BOTERO_TRPG_CHARS_ROOT` / `BOTERO_USER_SETTINGS_ROOT` 环境变量覆盖（默认见上文配置表）
 - **隐私开关:** `privacy.char_public`（bool，缺省 `True`）。`GET /api/characters/{user_id}/{char_id}` 仅本人或对方已公开时可访问，否则返回 403
 - 设置经 `GET/PUT /api/me/settings` 读写，`PUT` 深合并，不覆盖未传字段
-- 角色创建/更新由 `core/trpg/character.py` 的 `finalize()` 计算派生值（hp/ac），非法数据返回 400
+- 角色创建/更新由 `core/trpg/character.py` 的 `finalize()` 计算派生值，非法数据返回 400
+
+### 角色卡字段清单（5E 主卡面）
+
+基础：`char_name` / `race` / `class_name` / `level` / `background` / 六维属性 `*_score` / `proficient_skills` / `hp` / `ac` / `notes`。5E 主卡面扩展：
+
+| 分区 | 键（类型） |
+|------|-----------|
+| 身份 | `player_name` (str)、`alignment` (str)、`xp` (int) |
+| 属性豁免 | `saving_profs` (list[str]，6 属性名) |
+| 战斗 | `current_hp` (int)、`temp_hp` (int)、`speed` (int，缺省 30)、`death_saves_success` (int)、`death_saves_fail` (int)、`inspiration` (bool) |
+| 资源 | `equipment` (list[str]，每行一条)、`other_proficiencies` (str)、`attacks` (list[str]，格式 `名称|加值|伤害`，如 `长剑|+5|1d8 挥砍`)、`features` (str) |
+| 背景四要素 | `personality_traits` / `ideals` / `bonds` / `flaws`（均 str） |
+
+### 派生计算口径（不入盘，由 `finalize()` 计算）
+
+以下字段**不写入角色卡 JSON**，每次读取时由 `core/trpg/character.py:finalize()` 计算：
+
+- `scores` = 基础属性 + 种族加值（`str_score` 等六键覆盖写回）；`hp`/`ac` 例外：已有非零值则保留，否则按 `hp=职业骰+体质加值`、`ac=10+敏捷加值` 计算并**写回存储**
+- `prof_bonus` = `2 + (level-1)//4`
+- `save_mods`（6 属性名→值）= 属性加值 +（该属性 ∈ `saving_profs` ? `prof_bonus` : 0）
+- `skill_mods`（技能名→值）= 属性加值 +（技能 ∈ `proficient_skills` ? 2 : 0）
+- `passive_perception` = `10 + 感知加值 + (察觉 ∈ proficient_skills ? 2 : 0)`
+- `initiative` = 敏捷加值
+- `hit_dice` = `{level}d{职业骰}`
 
 ---
 

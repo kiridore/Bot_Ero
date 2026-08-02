@@ -62,6 +62,12 @@
 - 存储层：`core/character_store.py`、`core/user_settings.py`（原子写 tmp+os.replace，每用户进程内锁；bot 与 web 双进程共用）
 - 网页车卡：`/profile/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）
 
+### 角色卡 JSON 键（5E 主卡面）
+
+- 基础：`char_name`/`race`/`class_name`/`level`/`background`/`*_score` 六属性/`proficient_skills`/`hp`/`ac`/`notes`
+- 身份：`player_name`/`alignment`/`xp`；豁免：`saving_profs`（list[str] 属性名）；战斗：`current_hp`/`temp_hp`/`speed`/`death_saves_success`/`death_saves_fail`/`inspiration`（bool）；资源：`equipment`（list[str]）/`other_proficiencies`/`attacks`（list[str]，`名称|加值|伤害`）/`features`；背景：`personality_traits`/`ideals`/`bonds`/`flaws`
+- **派生不入盘**，由 `core/trpg/character.py:finalize()` 计算：`scores`（基础+种族）、`prof_bonus=2+(level-1)//4`、`save_mods`=属性加值+（豁免熟练?熟练加值:0）、`skill_mods`=属性加值+（技能熟练?2:0）、`passive_perception=10+感知加值+(察觉熟练?2:0)`、`initiative`=敏捷加值、`hit_dice={level}d{职业骰}`；仅 `hp`/`ac` 非零时保留否则计算并写回
+
 ## 完整指令表
 
 | 指令 | 作用 | 权限 |
