@@ -4,7 +4,7 @@
 import sys
 import random
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -47,8 +47,8 @@ class TestRelayChain(unittest.TestCase):
         assigns = relay_assignments(users, rng=random.Random(1))
         self.assertEqual([a[2] for a in assigns], [1, 2, 3])   # seq 连续
         self.assertEqual({a[0] for a in assigns}, set(users))
-        self.assertEqual(assigns[0][1], users[users.index(assigns[0][0]) + 1]
-                         if assigns[0][1] is not None else None)
+        for a, b in zip(assigns, assigns[1:]):
+            self.assertEqual(a[1], b[0])                        # 链连续性
         self.assertIsNone(assigns[-1][1])                       # 末位无下家
 
 
