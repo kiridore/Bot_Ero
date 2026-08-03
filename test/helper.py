@@ -35,6 +35,8 @@ class MockApiWrapper:
 
     def call_api(self, action: str, params: dict) -> dict:
         self.api_calls.append((action, params))
+        if action in ("send_msg", "send_group_msg", "send_private_msg"):
+            self.sent_messages.append((action, params["message"]))
         return {}
 
 
