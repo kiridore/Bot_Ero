@@ -135,7 +135,7 @@ class ActivityPlugin(Plugin):
                 _finish_activity(self.api, self.dbmanager, act)
         else:
             self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
-            if all(m["status"] == "done" for m in members):
+            if all(m["status"] in ("done", "left") for m in members):
                 _finish_activity(self.api, self.dbmanager, act)
             else:
                 self._forward_work(act, members, member)

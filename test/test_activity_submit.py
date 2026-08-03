@@ -144,6 +144,17 @@ class TestSubmit(unittest.TestCase):
         self.assertIsNotNone(c["received_at"])          # 链已顺延到 C
         self.assertEqual(self.db.activity.get_activity(aid)["status"], "running")
 
+    def test_match_leave_then_finishes(self):
+        """匹配环中有人退出后，全员提交仍应结束并归档（all(done) 排除 left）。"""
+        aid = _setup_activity(self.db, "match")
+        self._group_leave(200).handle()                 # B 退出 → A.next 改为 C
+        self._submit(100, "给C的礼物").handle()
+        self._submit(300, "给A的礼物").handle()
+        act = self.db.activity.get_activity(aid)
+        self.assertEqual(act["status"], "finished")
+        d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
+        self.assertTrue(os.path.isfile(f"{d}/match.md"))
+
 
 if __name__ == "__main__":
     unittest.main()
