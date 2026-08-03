@@ -3,10 +3,20 @@ import json
 from .rules import (
     ATTRIBUTES,
     SKILLS,
+    XP_THRESHOLDS,
     ability_modifier,
     class_info,
     race_bonuses,
 )
+
+
+def level_from_xp(xp: int) -> int:
+    """由经验值反推等级（1-20）。"""
+    level = 1
+    for i, threshold in enumerate(XP_THRESHOLDS, start=1):
+        if xp >= threshold:
+            level = i
+    return level
 
 
 def finalize(char_data: dict) -> dict:
@@ -34,7 +44,9 @@ def finalize(char_data: dict) -> dict:
     out["hp"] = hp_die + con_mod if char_data.get("hp") in (None, 0) else int(char_data["hp"])
     out["ac"] = 10 + dex_mod if char_data.get("ac") in (None, 0) else int(char_data["ac"])
 
-    level = int(char_data.get("level", 1))
+    xp = int(char_data.get("xp", 0))
+    level = level_from_xp(xp) if xp > 0 else int(char_data.get("level", 1))
+    out["level"] = level
     out["prof_bonus"] = 2 + (level - 1) // 4
 
     saving_profs = set(char_data.get("saving_profs", []) or [])

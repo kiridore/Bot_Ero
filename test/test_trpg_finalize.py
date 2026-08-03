@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.trpg.character import finalize
+from core.trpg.rules import XP_THRESHOLDS
 
 
 def _base(**kw) -> dict:
@@ -81,6 +82,36 @@ class TestDerived(unittest.TestCase):
         data = finalize(_base())
         for key in ("prof_bonus", "save_mods", "passive_perception", "initiative", "hit_dice"):
             self.assertIn(key, data)
+
+
+class TestLevelFromXp(unittest.TestCase):
+    def test_thresholds_table(self):
+        self.assertEqual(len(XP_THRESHOLDS), 20)
+        self.assertEqual(XP_THRESHOLDS[0], 0)
+        self.assertEqual(XP_THRESHOLDS[19], 355000)
+
+    def test_level_boundaries(self):
+        from core.trpg.character import level_from_xp
+        self.assertEqual(level_from_xp(0), 1)
+        self.assertEqual(level_from_xp(299), 1)
+        self.assertEqual(level_from_xp(300), 2)
+        self.assertEqual(level_from_xp(6500), 5)
+        self.assertEqual(level_from_xp(100000), 12)
+        self.assertEqual(level_from_xp(355000), 20)
+        self.assertEqual(level_from_xp(999999), 20)
+
+    def test_finalize_level_derived_from_xp(self):
+        data = finalize(_base(xp=6500, level=1))
+        self.assertEqual(data["level"], 5)
+        self.assertEqual(data["prof_bonus"], 3)
+
+    def test_finalize_level_fallback_to_stored(self):
+        data = finalize(_base(xp=0, level=7))
+        self.assertEqual(data["level"], 7)
+
+    def test_finalize_xp_zero_level_one(self):
+        data = finalize(_base(xp=0, level=1))
+        self.assertEqual(data["level"], 1)
 
 
 if __name__ == "__main__":
