@@ -172,6 +172,37 @@ class TestCommands(unittest.TestCase):
         self.assertIsNone(act["description"])
         self.assertEqual(act["hours_per_user"], 48.0)
 
+    def test_create_relay_with_deadlines(self):
+        """新语法：报名截止 + 活动截止 + 限时 关键字。"""
+        p = self._run("/活动 创建 接龙 端午 自由创作 报名截止 2026-08-10 20:00 截止 2026-08-20 20:00 限时 2天")
+        p.handle()
+        self.assertIn("报名截止", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["description"], "自由创作")
+        self.assertEqual(act["signup_deadline"], "2026-08-10 20:00:00")
+        self.assertEqual(act["deadline"], "2026-08-20 20:00:00")
+        self.assertEqual(act["hours_per_user"], 48.0)
+
+    def test_create_match_with_signup_deadline(self):
+        p = self._run("/活动 创建 匹配 中秋 圆桌礼物 报名截止 2026-08-10 20:00 截止 2026-09-15 20:00")
+        p.handle()
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["description"], "圆桌礼物")
+        self.assertEqual(act["signup_deadline"], "2026-08-10 20:00:00")
+        self.assertEqual(act["deadline"], "2026-09-15 20:00:00")
+
+    def test_create_param_duplicate(self):
+        p = self._run("/活动 创建 接龙 t 限时 2天 限时 3天")
+        p.handle()
+        self.assertIn("重复", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_active_activity(GID))
+
+    def test_create_param_bad_time(self):
+        p = self._run("/活动 创建 接龙 t 报名截止 后天")
+        p.handle()
+        self.assertIn("时间格式错误", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_active_activity(GID))
+
 
 if __name__ == "__main__":
     unittest.main()

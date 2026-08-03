@@ -273,7 +273,8 @@ with _connect() as conn:
 | `description` | TEXT | | 活动描述（可选；旧列名 `theme` 已迁移） |
 | `status` | TEXT | NOT NULL DEFAULT `'open'` | `open`（报名）/ `running`（进行中）/ `finished`（已结束）/ `cancelled`（已取消） |
 | `created_by` | TEXT | NOT NULL | 创建人 QQ 号（TEXT 类型） |
-| `deadline` | TEXT | | 匹配活动截止时间 `YYYY-MM-DD HH:MM:SS` |
+| `signup_deadline` | TEXT | | 报名截止时间 `YYYY-MM-DD HH:MM:SS`（到点自动开始；人数不足则取消） |
+| `deadline` | TEXT | | 活动截止时间 `YYYY-MM-DD HH:MM:SS`（到点强制结束归档；匹配必填，接龙可选） |
 | `hours_per_user` | REAL | | 接龙每人限时（小时，默认 48） |
 | `created_at` | TEXT | NOT NULL | 创建时间 |
 | `finished_at` | TEXT | | 结束时间 |

@@ -40,6 +40,81 @@ def format_duration(hours: float) -> str:
     return f"{hours:g} 小时"
 
 
+_CREATE_KEYS = ("限时", "报名截止", "截止")
+
+
+def _parse_create_params(tokens: list[str], kind: str) -> dict | str:
+    """解析创建指令参数：返回 {'hours','deadline','signup_deadline','description'} 或错误消息。
+
+    新语法（关键字）：<描述> 限时 <时限> 报名截止 <时间> 截止 <时间>
+    旧语法兼容：无关键字时，接龙尾部识别时限、匹配尾部识别截止。
+    """
+    hours = 48.0
+    deadline = None
+    signup_deadline = None
+    desc_tokens = list(tokens)
+    if not any(t in _CREATE_KEYS for t in tokens):
+        if kind == "relay" and tokens:
+            h = _parse_duration(tokens[-1])
+            if h is not None:
+                hours = h
+                desc_tokens = tokens[:-1]
+        elif kind == "match":
+            for window in (2, 1):
+                if len(tokens) >= window:
+                    d = _parse_deadline(" ".join(tokens[-window:]))
+                    if d:
+                        deadline = d
+                        desc_tokens = tokens[:-window]
+                        break
+    first_key = next((i for i, t in enumerate(desc_tokens) if t in _CREATE_KEYS), None)
+    if first_key is None:
+        return {
+            "hours": hours, "deadline": deadline,
+            "signup_deadline": signup_deadline,
+            "description": " ".join(desc_tokens).strip() or None,
+        }
+    description = " ".join(desc_tokens[:first_key]).strip() or None
+    i = first_key
+    seen = set()
+    while i < len(desc_tokens):
+        t = desc_tokens[i]
+        if t in seen:
+            return f"参数「{t}」重复"
+        seen.add(t)
+        if t == "限时":
+            if i + 1 >= len(desc_tokens):
+                return "限时缺少参数，示例：限时 48小时"
+            h = _parse_duration(desc_tokens[i + 1])
+            if h is None:
+                return "限时格式错误，示例：48小时 / 2天"
+            hours = h
+            i += 2
+            continue
+        key = "signup_deadline" if t == "报名截止" else "deadline"
+        d = None
+        consumed = 0
+        for window in (2, 1):
+            if i + 1 + window <= len(desc_tokens):
+                cand = _parse_deadline(" ".join(desc_tokens[i + 1:i + 1 + window]))
+                if cand:
+                    d = cand
+                    consumed = 1 + window
+                    break
+        if d is None:
+            return f"{t} 时间格式错误，示例：2026-09-15 20:00"
+        if key == "signup_deadline":
+            signup_deadline = d
+        else:
+            deadline = d
+        i += consumed
+    return {
+        "hours": hours, "deadline": deadline,
+        "signup_deadline": signup_deadline,
+        "description": description,
+    }
+
+
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -251,57 +326,43 @@ class ActivityPlugin(Plugin):
             return
         kind = args[0]
         rest = args[1:]
+        if not rest:
+            usage = ("用法：/活动 创建 接龙 <标题> [描述] [参数]\n"
+                     "参数：限时 <时限> / 报名截止 <时间> / 截止 <时间>，如：\n"
+                     "/活动 创建 接龙 端午 大家自由创作 报名截止 2026-08-10 20:00 截止 2026-08-20 20:00 限时 2天")
+            self.api.send_msg(text(usage))
+            return
+        title = rest[0]
+        params = _parse_create_params(rest[1:], "relay" if kind == "接龙" else "match")
+        if isinstance(params, str):
+            self.api.send_msg(text(params))
+            return
         if kind == "接龙":
-            if not rest:
-                self.api.send_msg(text("用法：/活动 创建 接龙 <标题> [描述] [每人时限]（如 48小时 / 2天）"))
-                return
-            title = rest[0]
-            hours = 48.0
-            desc_tokens = rest[1:]
-            if len(rest) > 1:
-                parsed = _parse_duration(rest[-1])
-                if parsed is not None:
-                    hours = parsed
-                    desc_tokens = rest[1:-1]
-            description = " ".join(desc_tokens).strip() or None
             aid = self.dbmanager.activity.create_activity(
-                gid, "relay", title, description, uid, hours_per_user=hours)
+                gid, "relay", title, params["description"], uid,
+                hours_per_user=params["hours"],
+                deadline=params["deadline"], signup_deadline=params["signup_deadline"])
             lines = [
                 f"接龙活动「{title}」已创建（#{aid}）",
-                f"每人限时 {format_duration(hours)}",
+                f"每人限时 {format_duration(params['hours'])}",
             ]
-            if description:
-                lines.append(f"描述：{description}")
-            lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
-            self.api.send_msg(text("\n".join(lines)))
         else:
-            if len(rest) < 2:
-                self.api.send_msg(text("用法：/活动 创建 匹配 <标题> [描述] <截止 YYYY-MM-DD HH:MM>"))
+            if not params["deadline"]:
+                self.api.send_msg(text("匹配活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
                 return
-            title = rest[0]
-            deadline = None
-            desc_tokens = rest[1:]
-            for window in (2, 1):
-                if len(desc_tokens) >= window:
-                    candidate = _parse_deadline(" ".join(desc_tokens[-window:]))
-                    if candidate:
-                        deadline = candidate
-                        desc_tokens = desc_tokens[:-window]
-                        break
-            if not deadline:
-                self.api.send_msg(text("截止时间格式错误，示例：2026-09-15 20:00"))
-                return
-            description = " ".join(desc_tokens).strip() or None
             aid = self.dbmanager.activity.create_activity(
-                gid, "match", title, description, uid, deadline=deadline)
+                gid, "match", title, params["description"], uid,
+                deadline=params["deadline"], signup_deadline=params["signup_deadline"])
             lines = [
                 f"匹配活动「{title}」已创建（#{aid}）",
-                f"截止时间 {deadline}",
+                f"截止时间 {params['deadline']}",
             ]
-            if description:
-                lines.append(f"描述：{description}")
-            lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
-            self.api.send_msg(text("\n".join(lines)))
+        if params["description"]:
+            lines.append(f"描述：{params['description']}")
+        if params["signup_deadline"]:
+            lines.append(f"报名截止：{params['signup_deadline']}（到点自动开始）")
+        lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
+        self.api.send_msg(text("\n".join(lines)))
 
     def _handle_join(self, gid: int, uid: str):
         act = self.dbmanager.activity.get_active_activity(gid)
@@ -367,41 +428,9 @@ class ActivityPlugin(Plugin):
         if str(act["created_by"]) != uid and not self.super_user():
             self.api.send_msg(text("只有创建人才能开始活动"))
             return
-        members = self.dbmanager.activity.get_members(act["id"])
-        users = [m["user_id"] for m in members]
-        nick_map = {m["user_id"]: m["nickname"] for m in members}
-        if act["type"] == "relay":
-            if not users:
-                self.api.send_msg(text("接龙活动至少需要 1 人"))
-                return
-            assigns = relay_assignments(users)
-        else:
-            if len(users) < 2:
-                self.api.send_msg(text("匹配活动至少需要 2 人"))
-                return
-            ring = build_ring(users)
-            assigns = [(u, n, i + 1) for i, (u, n) in enumerate(ring)]
-        self.dbmanager.activity.set_ring(act["id"], assigns)
-        self.dbmanager.activity.update_activity(act["id"], status="running")
-        now = _now()
-        if act["type"] == "relay":
-            first = assigns[0]
-            self.dbmanager.activity.update_member(act["id"], first[0], received_at=now)
-            self._send_private(
-                int(first[0]),
-                text(f"接龙活动「{act['title']}」开始！你是第 1 棒。\n"
-                     f"请创作并私聊发送 /提交 附上作品，限时 {format_duration(act['hours_per_user'])}。"),
-            )
-            self._announce_group(gid, f"接龙活动「{act['title']}」开始，{nick_map[first[0]]} 先来！")
-        else:
-            for uid_, next_uid, _seq in assigns:
-                self._send_private(
-                    int(uid_),
-                    text(f"匹配活动「{act['title']}」开始！\n"
-                         f"你的下家是：{nick_map[next_uid]}\n"
-                         f"请为 TA 创作并私聊发送 /提交 附上作品，截止 {act['deadline']}。"),
-                )
-            self._announce_group(gid, f"匹配活动「{act['title']}」开始，请查看私聊！")
+        err = _start_activity(self.api, self.dbmanager, act)
+        if err:
+            self.api.send_msg(text(err))
 
     def _handle_status(self, gid: int):
         act = self.dbmanager.activity.get_active_activity(gid)
@@ -502,6 +531,48 @@ def _finish_activity(api, db, act: dict):
     _announce_group(api, act["group_id"], f"活动「{act['title']}」结束，已归档！")
 
 
+def _start_activity(api, db, act: dict) -> str | None:
+    """开始活动：校验人数、生成链/环、置 running、私聊通知。返回错误消息或 None。
+
+    供手动 /活动 开始 与心跳报名截止自动开始共用。
+    """
+    members = db.activity.get_members(act["id"])
+    users = [m["user_id"] for m in members]
+    nick_map = {m["user_id"]: m["nickname"] for m in members}
+    if act["type"] == "relay":
+        if not users:
+            return "接龙活动至少需要 1 人"
+        assigns = relay_assignments(users)
+    else:
+        if len(users) < 2:
+            return "匹配活动至少需要 2 人"
+        ring = build_ring(users)
+        assigns = [(u, n, i + 1) for i, (u, n) in enumerate(ring)]
+    db.activity.set_ring(act["id"], assigns)
+    db.activity.update_activity(act["id"], status="running")
+    now = _now()
+    if act["type"] == "relay":
+        first = assigns[0]
+        db.activity.update_member(act["id"], first[0], received_at=now)
+        _send_private(
+            api, int(first[0]),
+            text(f"接龙活动「{act['title']}」开始！你是第 1 棒。\n"
+                 f"请创作并私聊发送 /提交 附上作品，限时 {format_duration(act['hours_per_user'])}。"),
+        )
+        _announce_group(api, act["group_id"],
+                        f"接龙活动「{act['title']}」开始，{nick_map[first[0]]} 先来！")
+    else:
+        for uid_, next_uid, _seq in assigns:
+            _send_private(
+                api, int(uid_),
+                text(f"匹配活动「{act['title']}」开始！\n"
+                     f"你的下家是：{nick_map[next_uid]}\n"
+                     f"请为 TA 创作并私聊发送 /提交 附上作品，截止 {act['deadline']}。"),
+            )
+        _announce_group(api, act["group_id"], f"匹配活动「{act['title']}」开始，请查看私聊！")
+    return None
+
+
 @register_plugin
 class ActivityTimerPlugin(Plugin):
     name = "activity_timer"
@@ -531,6 +602,19 @@ class ActivityTimerPlugin(Plugin):
     def _scan(self):
         from .logic import is_timeout, current_turn
         now = datetime.now()
+        # 报名截止到点 → 自动开始（人数不足则取消）
+        for act in self.dbmanager.activity.get_active_activities():
+            if act["status"] != "open" or not act.get("signup_deadline"):
+                continue
+            try:
+                due = datetime.strptime(act["signup_deadline"], "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                continue
+            if now >= due:
+                err = _start_activity(self.api, self.dbmanager, act)
+                if err:
+                    self.dbmanager.activity.update_activity(act["id"], status="cancelled")
+                    self._announce_group(act["group_id"], f"报名截止，{err}，活动已取消")
         for act in self.dbmanager.activity.get_running_activities():
             members = self.dbmanager.activity.get_members(act["id"])
             if act["type"] == "relay":
@@ -542,15 +626,14 @@ class ActivityTimerPlugin(Plugin):
                     members = self.dbmanager.activity.get_members(act["id"])
                     if not _relay_advance(self.api, self.dbmanager, act, members, cur["seq"]):
                         _finish_activity(self.api, self.dbmanager, act)
-            else:
-                deadline = act.get("deadline")
-                try:
-                    due = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
-                except (ValueError, TypeError):
-                    continue
-                if now >= due:
-                    for m in members:
-                        if m["status"] == "pending":
-                            self.dbmanager.activity.update_member(
-                                act["id"], m["user_id"], status="missed")
-                    _finish_activity(self.api, self.dbmanager, act)
+            deadline = act.get("deadline")
+            try:
+                due = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                continue
+            if now >= due:
+                for m in members:
+                    if m["status"] == "pending":
+                        self.dbmanager.activity.update_member(
+                            act["id"], m["user_id"], status="missed")
+                _finish_activity(self.api, self.dbmanager, act)

@@ -23,12 +23,14 @@ class ActivityManager:
 
     # ── activities ──
     def create_activity(self, group_id, type_, title, description, created_by,
-                        hours_per_user=None, deadline=None) -> int:
+                        hours_per_user=None, deadline=None,
+                        signup_deadline=None) -> int:
         self.cur.execute(
             "INSERT INTO activities (group_id, type, title, description, status, created_by,"
-            " deadline, hours_per_user, created_at) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?)",
-            (int(group_id), type_, title, description, str(created_by), deadline,
-             hours_per_user, _now()),
+            " signup_deadline, deadline, hours_per_user, created_at)"
+            " VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)",
+            (int(group_id), type_, title, description, str(created_by),
+             signup_deadline, deadline, hours_per_user, _now()),
         )
         self.conn.commit()
         return self.cur.lastrowid
@@ -41,6 +43,12 @@ class ActivityManager:
             "SELECT * FROM activities WHERE group_id = ? AND status IN ('open', 'running')"
             " ORDER BY id DESC LIMIT 1",
             (int(group_id),),
+        )
+
+    def get_active_activities(self) -> list[dict]:
+        return self._rows(
+            "SELECT * FROM activities WHERE status IN ('open', 'running')"
+            " ORDER BY id ASC"
         )
 
     def get_running_activities(self) -> list[dict]:

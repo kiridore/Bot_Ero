@@ -95,6 +95,43 @@ class TestTimer(unittest.TestCase):
         self.assertEqual(self.db.activity.get_member(aid, "100")["status"], "missed")
         self.assertEqual(self.db.activity.get_member(aid, "200")["status"], "missed")
 
+    def test_relay_deadline_finishes(self):
+        """接龙全局活动截止到点 → 未完成者 missed + 结束归档。"""
+        aid = _setup(self.db, "relay")
+        self.db.activity.update_activity(aid, deadline="2000-01-01 00:00:00")
+        self._plugin().handle()
+        act = self.db.activity.get_activity(aid)
+        self.assertEqual(act["status"], "finished")
+        self.assertEqual(self.db.activity.get_member(aid, "100")["status"], "missed")
+
+    def test_signup_deadline_auto_start(self):
+        """报名截止到点 → 自动开始（running + 生成顺序）。"""
+        aid = _setup(self.db, "relay")
+        self.db.activity.update_activity(aid, status="open",
+                                         signup_deadline="2000-01-01 00:00:00")
+        self._plugin().handle()
+        act = self.db.activity.get_activity(aid)
+        self.assertEqual(act["status"], "running")
+        members = self.db.activity.get_members(aid)
+        self.assertEqual([m["seq"] for m in members], [1, 2])
+        self.assertTrue(any(m["received_at"] for m in members), "第一棒应开始计时")
+
+    def test_signup_deadline_insufficient_cancels(self):
+        """报名截止到点但人数不足（match <2）→ cancelled。"""
+        aid = self.db.activity.create_activity(GID, "match", "t", None, "1",
+                                               deadline="2026-09-15 20:00:00",
+                                               signup_deadline="2000-01-01 00:00:00")
+        self.db.activity.add_member(aid, "100", "A")
+        self._plugin().handle()
+        self.assertEqual(self.db.activity.get_activity(aid)["status"], "cancelled")
+
+    def test_signup_deadline_future_no_start(self):
+        aid = _setup(self.db, "relay")
+        future = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        self.db.activity.update_activity(aid, status="open", signup_deadline=future)
+        self._plugin().handle()
+        self.assertEqual(self.db.activity.get_activity(aid)["status"], "open")
+
 
 if __name__ == "__main__":
     unittest.main()

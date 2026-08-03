@@ -311,7 +311,8 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             description TEXT,                  -- 活动描述（可选）
             status TEXT NOT NULL DEFAULT 'open',  -- open | running | finished | cancelled
             created_by TEXT NOT NULL,
-            deadline TEXT,                     -- match: 'YYYY-MM-DD HH:MM:SS'
+            signup_deadline TEXT,                -- 报名截止时间（到点自动开始）
+            deadline TEXT,                       -- 活动截止时间（到点强制结束归档）
             hours_per_user REAL,               -- relay: 每人时限小时
             created_at TEXT NOT NULL,
             finished_at TEXT
@@ -321,6 +322,10 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     _act_cols = [row[1] for row in cur.fetchall()]
     if "theme" in _act_cols and "description" not in _act_cols:
         cur.execute("ALTER TABLE activities RENAME COLUMN theme TO description")
+    if _act_cols and "signup_deadline" not in _act_cols:
+        cur.execute("ALTER TABLE activities ADD COLUMN signup_deadline TEXT")
+        cur.execute("PRAGMA table_info(activities)")
+        _act_cols = [row[1] for row in cur.fetchall()]
     cur.execute("""
         CREATE TABLE IF NOT EXISTS activity_members (
             activity_id INTEGER NOT NULL,

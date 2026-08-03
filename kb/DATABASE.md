@@ -287,7 +287,8 @@ CREATE TABLE activities (
     description TEXT,                -- 活动描述（可选；旧列名 theme 已迁移）
     status TEXT NOT NULL DEFAULT 'open',  -- open | running | finished | cancelled
     created_by TEXT NOT NULL,          -- 创建人 QQ 号（TEXT）
-    deadline TEXT,                     -- match: 'YYYY-MM-DD HH:MM:SS'
+    signup_deadline TEXT,            -- 报名截止（到点自动开始；人数不足则取消）
+    deadline TEXT,                   -- 活动截止（到点强制结束归档；匹配必填，接龙可选）
     hours_per_user REAL,               -- relay: 每人时限小时（默认 48）
     created_at TEXT NOT NULL,
     finished_at TEXT
