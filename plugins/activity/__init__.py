@@ -464,3 +464,57 @@ def _finish_activity(api, db, act: dict):
     members = db.activity.get_members(act["id"])
     archive_mod.archive_activity(fresh, members)
     _announce_group(api, act["group_id"], f"活动「{act['title']}」结束，已归档！")
+
+
+@register_plugin
+class ActivityTimerPlugin(Plugin):
+    name = "activity_timer"
+    description = "活动计时：接龙超时跳过、匹配截止结束"
+
+    _last_scan = {}
+
+    def match(self, event_type="meta") -> bool:
+        if event_type != "meta":
+            return False
+        now = datetime.now()
+        last = self._last_scan.get(type(self).__name__, 0)
+        if now.timestamp() - last < 60:
+            return False
+        self._last_scan[type(self).__name__] = now.timestamp()
+        return True
+
+    def handle(self):
+        try:
+            self._scan()
+        except Exception:
+            logger.exception("ActivityTimer 处理异常")
+
+    def _announce_group(self, group_id: int, text_body: str):
+        _announce_group(self.api, group_id, text_body)
+
+    def _scan(self):
+        from .logic import is_timeout, current_turn
+        now = datetime.now()
+        for act in self.dbmanager.activity.get_running_activities():
+            members = self.dbmanager.activity.get_members(act["id"])
+            if act["type"] == "relay":
+                cur = current_turn(members)
+                if cur and is_timeout(cur.get("received_at"), now, act.get("hours_per_user") or 0):
+                    self.dbmanager.activity.update_member(
+                        act["id"], cur["user_id"], status="skipped")
+                    self._announce_group(act["group_id"], f"{cur['nickname']} 超时未完成，跳过")
+                    members = self.dbmanager.activity.get_members(act["id"])
+                    if not _relay_advance(self.api, self.dbmanager, act, members, cur["seq"]):
+                        _finish_activity(self.api, self.dbmanager, act)
+            else:
+                deadline = act.get("deadline")
+                try:
+                    due = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
+                except (ValueError, TypeError):
+                    continue
+                if now >= due:
+                    for m in members:
+                        if m["status"] == "pending":
+                            self.dbmanager.activity.update_member(
+                                act["id"], m["user_id"], status="missed")
+                    _finish_activity(self.api, self.dbmanager, act)
