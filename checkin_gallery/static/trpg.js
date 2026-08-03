@@ -131,7 +131,7 @@ function renderList() {
   newBtn.addEventListener("click", () => {
     editing = {
       char_name: "", race: "人类", class_name: "战士", level: 1, background: "",
-      player_name: "", alignment: "", xp: 0,
+      alignment: "绝对中立", xp: 0,
       str_score: 10, dex_score: 10, con_score: 10, int_score: 10, wis_score: 10, cha_score: 10,
       proficient_skills: [], saving_profs: [],
       hp: 0, ac: 0, current_hp: 0, temp_hp: 0, speed: 30,
@@ -228,23 +228,39 @@ function renderEditor() {
 
   const form = document.createElement("div");
   form.className = "trpg-editor";
+  let pointBuyMode = false;
   form.innerHTML = `
     <section class="settings-section">
       <div class="section-head"><h2>基本信息</h2></div>
       <table class="trpg-table">
         <tr><th>角色名</th><td><input type="text" data-f="char_name" maxlength="30"></td>
-            <th>种族</th><td><input type="text" data-f="race" list="raceList"></td></tr>
-        <tr><th>职业</th><td><input type="text" data-f="class_name" list="classList"></td>
-            <th>等级</th><td><input type="number" data-f="level" min="1" max="20"></td></tr>
-        <tr><th>背景</th><td colspan="3"><input type="text" data-f="background"></td></tr>
-        <tr><th>玩家名</th><td><input type="text" data-f="player_name"></td>
-            <th>阵营</th><td><input type="text" data-f="alignment" placeholder="如：守序善良"></td></tr>
-        <tr><th>经验值</th><td><input type="number" data-f="xp" min="0"></td>
+            <th>种族</th><td><select data-f="race"></select></td></tr>
+        <tr><th>职业</th><td><select data-f="class_name"></select></td>
+            <th>背景</th><td><input type="text" data-f="background"></td></tr>
+        <tr><th>阵营</th><td>
+            <select data-f="alignment_law">
+              <option value="守序">守序</option><option value="中立">中立</option><option value="混乱">混乱</option>
+            </select>
+            <select data-f="alignment_moral">
+              <option value="善良">善良</option><option value="中立">中立</option><option value="邪恶">邪恶</option>
+            </select>
+            <input type="text" data-f="alignment_custom" placeholder="自定义阵营（非九宫格）" style="display:none;">
+          </td>
+            <th>经验值</th><td><input type="number" data-f="xp" min="0"></td></tr>
+        <tr><th>等级</th><td id="levelCell"></td>
             <th>熟练加值</th><td id="profBonusCell"></td></tr>
         <tr><th>备注</th><td colspan="3"><textarea data-f="notes" rows="3"></textarea></td></tr>
       </table>
-      <datalist id="raceList"></datalist>
-      <datalist id="classList"></datalist>
+    </section>
+
+    <section class="settings-section">
+      <div class="section-head"><h2>属性生成</h2></div>
+      <div class="row-actions">
+        <button type="button" class="btn-sm" id="genPointBuy">购点法（27点）</button>
+        <button type="button" class="btn-sm" id="genRoll">4d6k3 掷骰</button>
+        <button type="button" class="btn-sm" id="genArray">标准数组</button>
+        <span class="muted" id="pointBuyHint"></span>
+      </div>
     </section>
 
     <section class="settings-section">
@@ -302,23 +318,51 @@ function renderEditor() {
   `;
   trpgMain.appendChild(form);
 
-  const raceList = document.getElementById("raceList");
+  const raceSelect = form.querySelector('[data-f="race"]');
   for (const r of Object.keys(rules.races)) {
     const opt = document.createElement("option");
     opt.value = r;
-    raceList.appendChild(opt);
+    opt.textContent = r;
+    raceSelect.appendChild(opt);
   }
-  const classList = document.getElementById("classList");
+  const classSelect = form.querySelector('[data-f="class_name"]');
   for (const c of Object.keys(rules.classes)) {
     const opt = document.createElement("option");
     opt.value = c;
-    classList.appendChild(opt);
+    opt.textContent = c;
+    classSelect.appendChild(opt);
+  }
+  // 旧角色自定义文本兼容：不在官方清单时追加临时选项
+  for (const [sel, key] of [[raceSelect, "race"], [classSelect, "class_name"]]) {
+    if (editing[key] && ![...sel.options].some((o) => o.value === editing[key])) {
+      const opt = document.createElement("option");
+      opt.value = editing[key];
+      opt.textContent = `${editing[key]}（自定义）`;
+      sel.appendChild(opt);
+    }
   }
 
   form.querySelectorAll("[data-f]").forEach((el) => {
     const key = el.dataset.f;
+    if (key === "inspiration" || key === "alignment_law" || key === "alignment_moral" || key === "alignment_custom") return;
     el.value = Array.isArray(editing[key]) ? editing[key].join("\n") : (editing[key] ?? "");
   });
+
+  const lawSel = form.querySelector('[data-f="alignment_law"]');
+  const moralSel = form.querySelector('[data-f="alignment_moral"]');
+  const customSel = form.querySelector('[data-f="alignment_custom"]');
+  const AL = ["守序善良", "守序中立", "守序邪恶", "中立善良", "绝对中立", "中立邪恶", "混乱善良", "混乱中立", "混乱邪恶"];
+  if (AL.includes(editing.alignment)) {
+    if (editing.alignment === "绝对中立") { lawSel.value = "中立"; moralSel.value = "中立"; }
+    else {
+      lawSel.value = editing.alignment.startsWith("守序") ? "守序" : editing.alignment.startsWith("混乱") ? "混乱" : "中立";
+      moralSel.value = editing.alignment.endsWith("善良") ? "善良" : editing.alignment.endsWith("邪恶") ? "邪恶" : "中立";
+    }
+    customSel.style.display = "none";
+  } else if (editing.alignment) {
+    customSel.style.display = "";
+    customSel.value = editing.alignment;
+  }
   const inspEl = form.querySelector('[data-f="inspiration"]');
   if (inspEl) inspEl.checked = Boolean(editing.inspiration);
 
@@ -337,8 +381,8 @@ function renderEditor() {
       const tdScore = document.createElement("td");
       const input = document.createElement("input");
       input.type = "number";
-      input.min = 1;
-      input.max = 30;
+      input.min = pointBuyMode ? 8 : 1;
+      input.max = pointBuyMode ? 15 : 30;
       input.value = data[key] ?? 8;
       input.dataset.attr = key;
       tdScore.appendChild(input);
@@ -387,20 +431,67 @@ function renderEditor() {
     document.getElementById("initiativeCell").textContent = `${calc.initiative >= 0 ? "+" : ""}${calc.initiative}`;
     document.getElementById("hitDiceCell").textContent = calc.hitDice;
     document.getElementById("passiveCell").textContent = calc.passivePerception;
+    const pointCost = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
+    let spent = 0;
+    form.querySelectorAll("[data-attr]").forEach((el) => {
+      const v = Number(el.value) || 8;
+      if (pointCost[v] !== undefined) spent += pointCost[v];
+    });
+    const hint = document.getElementById("pointBuyHint");
+    hint.textContent = `购点已用 ${spent}/27`;
+    const xpVal = Number(data.xp) || 0;
+    const level = xpVal > 0 ? levelFromXp(xpVal, rules.xp_thresholds) : (data.level || 1);
+    document.getElementById("levelCell").textContent = `Lv.${level}`;
   }
+
+  function rollScores() {
+    const scores = [];
+    for (let i = 0; i < 6; i++) {
+      const rolls = [];
+      for (let j = 0; j < 4; j++) rolls.push(1 + Math.floor(Math.random() * 6));
+      rolls.sort((a, b) => b - a);
+      scores.push(rolls[0] + rolls[1] + rolls[2]);
+    }
+    return scores;
+  }
+  const arrayScores = [15, 14, 13, 12, 10, 8];
+
+  form.querySelector("#genRoll").addEventListener("click", () => {
+    const vals = rollScores();
+    form.querySelectorAll("[data-attr]").forEach((el, i) => { el.value = vals[i]; });
+    refresh();
+  });
+  form.querySelector("#genArray").addEventListener("click", () => {
+    form.querySelectorAll("[data-attr]").forEach((el, i) => { el.value = arrayScores[i]; });
+    refresh();
+  });
+  form.querySelector("#genPointBuy").addEventListener("click", () => {
+    pointBuyMode = true;
+    form.querySelectorAll("[data-attr]").forEach((el) => { el.min = 8; el.max = 15; });
+    showToast("购点模式：属性值 8-15，总花费不超过 27 点");
+    refresh();
+  });
 
   function readForm() {
     const data = { ...editing };
-    const NUM_KEYS = new Set(["level", "hp", "ac", "xp", "current_hp", "temp_hp", "speed", "death_saves_success", "death_saves_fail"]);
+    const NUM_KEYS = new Set(["hp", "ac", "xp", "current_hp", "temp_hp", "speed", "death_saves_success", "death_saves_fail"]);
     const LIST_KEYS = new Set(["equipment", "attacks"]);
     form.querySelectorAll("[data-f]").forEach((el) => {
       const key = el.dataset.f;
-      if (key === "inspiration") return; // checkbox 单独处理
+      if (key === "inspiration" || key === "alignment_law" || key === "alignment_moral" || key === "alignment_custom") return;
       if (NUM_KEYS.has(key)) data[key] = Number(el.value) || 0;
       else if (LIST_KEYS.has(key)) data[key] = el.value.split("\n").map((s) => s.trim()).filter(Boolean);
       else data[key] = el.value;
     });
     data.inspiration = Boolean(form.querySelector('[data-f="inspiration"]').checked);
+    // 阵营：双下拉组合，或自定义文本
+    const law = form.querySelector('[data-f="alignment_law"]').value;
+    const moral = form.querySelector('[data-f="alignment_moral"]').value;
+    const custom = form.querySelector('[data-f="alignment_custom"]').value.trim();
+    if (custom) data.alignment = custom;
+    else data.alignment = law === "中立" && moral === "中立" ? "绝对中立" : law + moral;
+    // level 不手动编辑，但保留旧值提交——供后端做旧角色 xp 迁移（level>1 且 xp=0 → xp=阈值下限）
+    data.level = editing.level ?? 1;
     form.querySelectorAll("[data-attr]").forEach((el) => {
       data[el.dataset.attr] = Number(el.value) || 8;
     });
@@ -447,6 +538,12 @@ async function loadList() {
   } catch (err) {
     trpgMain.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message)}</p>`;
   }
+}
+
+function levelFromXp(xp, thresholds) {
+  let level = 1;
+  thresholds.forEach((t, i) => { if (xp >= t) level = i + 1; });
+  return level;
 }
 
 async function init() {
