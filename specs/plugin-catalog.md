@@ -69,7 +69,7 @@
 | `monitor.py` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
 | `update.py` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop.py` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
-| `group_manager.py` | `GroupManagerPlugin` | `group_manager` | CommandPlugin | `/插件 <name\|列表> [off] [群号]` `/功能包 <name\|列表> [off] [群号]` | 管理插件/功能包：列表、启用、禁用（超级用户） |
+| `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件 <name\|列表> [off] [群号]` `/功能包 <name\|列表> [off] [群号]` | `super_user()` | 管理插件/功能包：列表、启用、禁用（超级用户） |
 
 ---
 
