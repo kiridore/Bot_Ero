@@ -81,6 +81,111 @@ class ActivityPlugin(Plugin):
         except Exception:
             logger.exception("Activity 处理异常")
 
+    # ── 私聊提交 ──────────────────────────────────
+
+    def _handle_submit(self, args: list[str]):
+        uid = str(self.bot_event.user_id)
+        if self.bot_event.user_id is None:
+            return
+        act = None
+        if args and args[0].isdigit():
+            act = self.dbmanager.activity.get_running_activity_for_user_and_id(
+                uid, int(args[0]))
+            if not act:
+                self.api.send_msg(text("活动编号无效"))
+                return
+        else:
+            acts = self.dbmanager.activity.get_running_activities_for_user(uid)
+            if len(acts) == 1:
+                act = acts[0]
+            elif len(acts) > 1:
+                ids = "、".join(str(a["id"]) for a in acts)
+                self.api.send_msg(text(f"你参与了多个活动，请使用 /提交 <活动id>（{ids}）"))
+                return
+        if not act:
+            self.api.send_msg(text("你不在任何进行中的活动中"))
+            return
+        member = self.dbmanager.activity.get_member(act["id"], uid)
+        if not member or member["status"] != "pending":
+            self.api.send_msg(text("你已提交过作品或不在活动中"))
+            return
+        if act["type"] == "relay":
+            cur = current_turn(self.dbmanager.activity.get_members(act["id"]))
+            if not cur or cur["user_id"] != uid:
+                self.api.send_msg(text("还没轮到你提交"))
+                return
+        content, image_files = self._extract_submission()
+        if not content and not image_files:
+            self.api.send_msg(text("请随 /提交 附上作品（文字或图片）"))
+            return
+        saved = self._download_images(act["id"], member["seq"], image_files)
+        if len(saved) != len(image_files):
+            self.api.send_msg(text("作品图片下载失败，请重试"))
+            return
+        now = _now()
+        self.dbmanager.activity.update_member(
+            act["id"], uid, status="done", content=content or None,
+            images=json.dumps(saved) if saved else None, submitted_at=now)
+        self.api.send_msg(text("提交成功！"))
+        members = self.dbmanager.activity.get_members(act["id"])
+        if act["type"] == "relay":
+            self._announce_group(act["group_id"],
+                                 f"第 {member['seq']} 棒 {member['nickname']} 完成接力")
+            if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
+                _finish_activity(self.api, self.dbmanager, act)
+        else:
+            self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
+            if all(m["status"] == "done" for m in members):
+                _finish_activity(self.api, self.dbmanager, act)
+            else:
+                self._forward_work(act, members, member)
+
+    def _extract_submission(self) -> tuple[str, list[str]]:
+        """从消息段提取正文与图片文件（命令文本之后的部分为正文）。"""
+        text_parts, images = [], []
+        for seg in self.bot_event.message:
+            if seg.get("type") == "image":
+                images.append(seg.get("data", {}).get("file", ""))
+            elif seg.get("type") == "text":
+                text_parts.append(seg.get("data", {}).get("text", "").strip())
+        body = " ".join(text_parts).strip()
+        if body.startswith("/提交"):
+            body = body[len("/提交"):].strip()
+        sp = body.split(" ", 1)
+        if len(sp) == 2 and sp[0].isdigit():
+            body = sp[1].strip()
+        return body, [f for f in images if f]
+
+    def _download_images(self, activity_id: int, seq: int, image_files: list[str]) -> list[str]:
+        from core.utils import download_image
+        saved = []
+        for n, f in enumerate(image_files, 1):
+            ext = os.path.splitext(f)[1] or ".jpg"
+            local = archive_mod.image_path(activity_id, seq, n, ext)
+            url = self.api.get_image_url(f)
+            if not url:
+                return []
+            ok, _ = download_image(url, local)
+            if not ok:
+                return []
+            saved.append(os.path.basename(local))
+        return saved
+
+    def _forward_work(self, act: dict, members: list[dict], member: dict):
+        """match：把 member 的作品匿名转发给其下家。"""
+        recipient = self.dbmanager.activity.get_member(act["id"], member["next_user_id"])
+        if not recipient or recipient["status"] != "pending":
+            return
+        fresh = next((m for m in members if m["user_id"] == member["user_id"]), member)
+        self._send_private(
+            int(member["next_user_id"]),
+            text(f"你收到了一份作品（活动「{act['title']}」）："),
+            *self._work_segments(fresh),
+        )
+
+    def _work_segments(self, member: dict) -> list[dict]:
+        return _work_segments(member)
+
     # ── 群聊指令路由 ──────────────────────────────────
 
     def _route_group_command(self, args: list[str]):
@@ -299,3 +404,63 @@ class ActivityPlugin(Plugin):
             self.api.send_msg(text(f"活动「{act['title']}」已取消"))
         else:
             _finish_activity(self.api, self.dbmanager, act)
+
+
+# ── 模块级流转辅助（Task 5） ──
+
+def _work_segments(member: dict) -> list[dict]:
+    segs = []
+    if member.get("content"):
+        segs.append(text(member["content"]))
+    try:
+        names = json.loads(member["images"]) if member.get("images") else []
+    except (TypeError, ValueError):
+        names = []
+    for name in names:
+        segs.append({"type": "image", "data": {"file": name}})
+    return segs
+
+
+def _relay_advance(api, db, act: dict, members: list[dict], from_seq: int) -> bool:
+    """把作品顺延给 from_seq 之后第一个 pending 成员。返回 False 表示链已走完。"""
+    from .logic import next_pending, last_done
+    target = next_pending(members, from_seq)
+    if not target:
+        return False
+    prev = last_done(members, target["seq"])
+    if prev and (prev["content"] or prev.get("images")):
+        _send_private(
+            api, int(target["user_id"]),
+            text(f"接力作品（活动「{act['title']}」）："),
+            *_work_segments(prev),
+        )
+    db.activity.update_member(act["id"], target["user_id"], received_at=_now())
+    _announce_group(
+        api, act["group_id"],
+        f"轮到 {target['nickname']} 接力！请于 {act['hours_per_user']:g} 小时内完成，私聊 /提交 作品。",
+    )
+    return True
+
+
+def _match_reconnect(api, db, act: dict, left_uid: str, members: list[dict]):
+    """匹配环闭合：left_uid 的前驱 next 改为其后继（Y→X→D 退出 X 后变 Y→D）。"""
+    pred = next((m for m in members if m["next_user_id"] == left_uid), None)
+    if not pred:
+        return
+    left = next((m for m in members if m["user_id"] == left_uid), None)
+    new_next = left["next_user_id"] if left else None
+    db.activity.update_member(act["id"], pred["user_id"], next_user_id=new_next)
+    if pred["status"] == "pending":
+        _send_private(
+            api, int(pred["user_id"]),
+            text("你的下家已退出，请继续创作，活动截止时间不变。"),
+        )
+
+
+def _finish_activity(api, db, act: dict):
+    now = _now()
+    db.activity.update_activity(act["id"], status="finished", finished_at=now)
+    fresh = db.activity.get_activity(act["id"])
+    members = db.activity.get_members(act["id"])
+    archive_mod.archive_activity(fresh, members)
+    _announce_group(api, act["group_id"], f"活动「{act['title']}」结束，已归档！")
