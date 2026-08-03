@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-03 (新增活动归档页 /archive 与接口)
+> 最后更新: 2026-08-03 (活动页三区块：我的活动/进行中/归档，新增 /api/me/activities)
 
 ---
 
@@ -147,11 +147,12 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/thumb/{user_id}/{filename}` | 否 | 缩略图 |
 | `GET` | `/media/{user_id}/{filename}` | 否 | 原图 |
 
-### 活动归档
+### 活动
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| `GET` | `/api/activities` | 否 | 已结束活动列表（含成员数/提交数） |
+| `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后 |
+| `GET` | `/api/me/activities` | 是 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
 | `GET` | `/api/activities/{id}` | 否 | 活动详情（成员、作品文字与图片 URL），不存在返回 404 |
 | `GET` | `/archive/{id}/media/{filename}` | 否 | 活动作品图片（限制在 `ACTIVITY_ROOT` 内，防路径遍历） |
 
@@ -168,7 +169,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/profile/trpg` | 跑团车卡管理（创建/编辑，Excel 式分区编辑器） |
 | `GET` | `/trpg/char/{user_id}/{char_id}` | 角色卡只读查看页 |
 | `GET` | `/guestbook` | 留言簿 |
-| `GET` | `/archive` | 活动归档页 |
+| `GET` | `/archive` | 活动页（profile 风格导航；三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档） |
 
 ---
 

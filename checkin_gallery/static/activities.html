@@ -1,17 +1,79 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>活动归档 - 小埃同学</title>
-<link rel="stylesheet" href="/static/gallery.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>活动 · 打卡图库</title>
+  <link rel="stylesheet" href="/static/gallery.css" />
+  <link rel="stylesheet" href="/static/profile.css" />
+  <style>
+    .activity-section { margin-bottom: 28px; }
+    .activity-section h2 { font-size: 17px; margin: 0 0 12px; color: var(--text); }
+    .activity-card {
+      background: var(--card-bg, #23272f);
+      border: 1px solid var(--border, #333a45);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .activity-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .activity-card-head h2 { margin: 0; font-size: 16px; }
+    .activity-progress { margin-left: auto; color: var(--text-dim, #9aa3b2); font-size: 13px; }
+    .activity-desc { color: var(--text-dim, #9aa3b2); font-size: 13px; margin: 6px 0; }
+    .activity-todo { color: #e5a050; font-size: 13px; margin-top: 6px; }
+    .status-badge {
+      font-size: 12px; padding: 1px 8px; border-radius: 999px; white-space: nowrap;
+    }
+    .badge-open { background: #2e5d3f; color: #9be6b4; }
+    .badge-running { background: #2c4a63; color: #8ec9f0; }
+    .badge-done { background: #3a3f4b; color: #b9c2d0; }
+    .badge-cancelled { background: #4a3a3a; color: #d9a0a0; }
+    .member-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .member-chip {
+      background: #2a2f3a; border-radius: 999px; padding: 2px 10px;
+      font-size: 12px; color: #c9d2df;
+    }
+    .member-chip.member-me { background: #3d6b4f; color: #eafff0; }
+    .work-block { margin: 14px 0; }
+    .work-block h3 { font-size: 14px; margin: 0 0 6px; }
+    .work-content { white-space: pre-wrap; margin: 6px 0; }
+    .work-img { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
+    .muted { color: var(--text-dim, #9aa3b2); font-size: 13px; }
+  </style>
 </head>
 <body>
-<nav><a href="/">图库</a> <a href="/profile">个人主页</a> <span>活动归档</span></nav>
-<main>
-  <h1>活动归档</h1>
-  <div id="activity-list"></div>
-  <div id="activity-detail" hidden></div>
-</main>
-<script src="/static/activities.js"></script>
+  <header class="toolbar profile-toolbar">
+    <a href="/" class="back-link">← 图库</a>
+    <nav class="profile-nav">
+      <a href="/profile">主页</a>
+      <a href="/profile/checkin">打卡</a>
+      <a href="/profile/shop">商店</a>
+      <a href="/profile/alarms">闹钟</a>
+      <a href="/profile/trpg">跑团</a>
+      <a href="/archive" class="active">活动</a>
+      <a href="/guestbook">留言簿</a>
+      <a href="/profile/settings">设置</a>
+    </nav>
+    <div class="auth-area" id="authArea"></div>
+  </header>
+
+  <main class="profile-main" id="activityMain">
+    <section class="activity-section" id="mySection">
+      <h2>我参加的活动</h2>
+      <div id="myActivities"><p class="loading-msg">加载中…</p></div>
+    </section>
+    <section class="activity-section" id="activeSection">
+      <h2>进行中的活动</h2>
+      <div id="activeActivities"><p class="loading-msg">加载中…</p></div>
+    </section>
+    <section class="activity-section" id="archiveSection">
+      <h2>活动归档</h2>
+      <div id="archiveActivities"><p class="loading-msg">加载中…</p></div>
+      <div id="archiveDetail" hidden></div>
+    </section>
+  </main>
+
+  <script src="/static/auth.js"></script>
+  <script src="/static/activities.js"></script>
 </body>
 </html>

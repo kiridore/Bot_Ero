@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from checkin_gallery import config
-from checkin_gallery.activity_service import get_activity, list_activities
+from checkin_gallery.activity_service import get_activity, get_my_activities, list_activities
 from checkin_gallery.auth import verify_login_key
 from checkin_gallery.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
@@ -748,6 +748,11 @@ def guestbook_page():
 @app.get("/api/activities")
 def api_activities():
     return {"items": list_activities()}
+
+
+@app.get("/api/me/activities")
+def api_my_activities(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return {"items": get_my_activities(user_id)}
 
 
 @app.get("/api/activities/{activity_id}")
