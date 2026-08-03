@@ -17,6 +17,9 @@ TRPG_CHARS_ROOT = _path_from_env(
 USER_SETTINGS_ROOT = _path_from_env(
     "BOTERO_USER_SETTINGS_ROOT", PROJECT_ROOT / "server_data" / "user_settings"
 )
+ACTIVITY_ROOT = _path_from_env(
+    "BOTERO_ACTIVITY_ROOT", PROJECT_ROOT / "server_data" / "activity_archive"
+)
 HOST = os.environ.get("BOTERO_GALLERY_HOST", "0.0.0.0")
 PORT = int(os.environ.get("BOTERO_GALLERY_PORT", "8765"))
 PAGE_SIZE_DEFAULT = 40

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from checkin_gallery import config
+from checkin_gallery.activity_service import get_activity, list_activities
 from checkin_gallery.auth import verify_login_key
 from checkin_gallery.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
@@ -741,6 +742,49 @@ def guestbook_page():
     page = STATIC_DIR / "guestbook.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少留言簿页")
+    return FileResponse(page)
+
+
+@app.get("/api/activities")
+def api_activities():
+    return {"items": list_activities()}
+
+
+@app.get("/api/activities/{activity_id}")
+def api_activity_detail(activity_id: int):
+    act = get_activity(activity_id)
+    if not act:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    for m in act["members"]:
+        m["images"] = [
+            f"/archive/{activity_id}/media/{name}" for name in m.get("images", [])
+        ]
+    return act
+
+
+def _assert_under_activity_root(path: Path) -> None:
+    try:
+        path.resolve().relative_to(config.ACTIVITY_ROOT.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="禁止访问") from exc
+
+
+@app.get("/archive/{activity_id}/media/{filename}")
+def serve_activity_media(activity_id: int, filename: str):
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="非法路径")
+    path = config.ACTIVITY_ROOT / str(activity_id) / "imgs" / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="图片不存在")
+    _assert_under_activity_root(path)
+    return FileResponse(path)
+
+
+@app.get("/archive")
+def archive_page():
+    page = STATIC_DIR / "activities.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少活动归档页")
     return FileResponse(page)
 
 
