@@ -88,7 +88,7 @@ class ActivityManager:
 
     def get_members(self, activity_id) -> list[dict]:
         return self._rows(
-            "SELECT * FROM activity_members WHERE activity_id = ? ORDER BY seq ASC",
+            "SELECT * FROM activity_members WHERE activity_id = ? ORDER BY seq ASC, rowid ASC",
             (int(activity_id),),
         )
 

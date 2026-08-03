@@ -233,5 +233,29 @@ class TestCommands(unittest.TestCase):
         self.assertNotIn("提醒", self._group_announce_texts(p))
 
 
+    def test_status_open_shows_signup_order(self):
+        """报名期显示报名序号而非 seq（seq 开始时才生成）。"""
+        self._run("/活动 创建 匹配 中秋 2026-09-15 20:00").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 加入", user_id=234567).handle()
+        p = self._run("/活动 状态")
+        p.handle()
+        text = _sent_text(p)
+        self.assertIn("报名中", text)
+        self.assertIn("1. 测试用户", text)
+        self.assertIn("2. 测试用户", text)
+        self.assertNotIn("0.", text)
+
+    def test_status_running_shows_seq(self):
+        """开始后显示链/环序。"""
+        self._run("/活动 创建 接龙 t").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 加入", user_id=234567).handle()
+        self._run("/活动 开始", user_id=123456).handle()
+        p = self._run("/活动 状态")
+        p.handle()
+        self.assertNotIn("报名中", _sent_text(p))
+
+
 if __name__ == "__main__":
     unittest.main()

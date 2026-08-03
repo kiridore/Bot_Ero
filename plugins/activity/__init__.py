@@ -441,19 +441,28 @@ class ActivityPlugin(Plugin):
         lines = [f"「{act['title']}」（{'匹配下家' if act['type'] == 'match' else '接龙'} #{act['id']}）"]
         if act.get("description"):
             lines.append(f"描述：{act['description']}")
-        status_map = {"done": "✓", "skipped": "跳过", "missed": "未交", "left": "退出", "pending": "…"}
-        for m in members:
-            lines.append(f"  {m['seq']}. {m['nickname']} {status_map.get(m['status'], m['status'])}")
-        if act["type"] == "relay":
-            cur = current_turn(members)
-            if cur:
-                lines.append(f"当前轮到：{cur['nickname']}")
-            else:
-                lines.append("接龙已完成")
+        if act["status"] == "open":
+            lines.append(f"状态：报名中（{len(members)} 人已报名）")
+            if act.get("signup_deadline"):
+                lines.append(f"报名截止：{act['signup_deadline']}")
+            if act.get("deadline"):
+                lines.append(f"截止：{act['deadline']}")
+            for i, m in enumerate(members, 1):
+                lines.append(f"  {i}. {m['nickname']}")
         else:
-            done = sum(1 for m in members if m["status"] == "done")
-            lines.append(f"进度：{done}/{len(members)}")
-            lines.append(f"截止：{act['deadline']}")
+            status_map = {"done": "✓", "skipped": "跳过", "missed": "未交", "left": "退出", "pending": "…"}
+            for m in members:
+                lines.append(f"  {m['seq']}. {m['nickname']} {status_map.get(m['status'], m['status'])}")
+            if act["type"] == "relay":
+                cur = current_turn(members)
+                if cur:
+                    lines.append(f"当前轮到：{cur['nickname']}")
+                else:
+                    lines.append("接龙已完成")
+            else:
+                done = sum(1 for m in members if m["status"] == "done")
+                lines.append(f"进度：{done}/{len(members)}")
+                lines.append(f"截止：{act['deadline']}")
         self.api.send_msg(text("\n".join(lines)))
 
     def _handle_end(self, gid: int, uid: str):
