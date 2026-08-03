@@ -112,6 +112,32 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(act["created_by"], "234567")
         self.assertIn("转移", _sent_text(p))
 
+    def test_create_relay_days(self):
+        """时限支持天单位：2天 = 48 小时。"""
+        p = self._run("/活动 创建 接龙 中秋接龙 2天")
+        p.handle()
+        self.assertIn("2 天", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["hours_per_user"], 48.0)
+
+    def test_create_relay_bad_duration(self):
+        p = self._run("/活动 创建 接龙 t 三天")
+        p.handle()
+        self.assertIn("时限", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_active_activity(GID))
+
+    def test_parse_duration(self):
+        from plugins.activity import _parse_duration
+        self.assertEqual(_parse_duration("48"), 48.0)
+        self.assertEqual(_parse_duration("48小时"), 48.0)
+        self.assertEqual(_parse_duration("2天"), 48.0)
+        self.assertEqual(_parse_duration("1.5天"), 36.0)
+        self.assertEqual(_parse_duration("2d"), 48.0)
+        self.assertEqual(_parse_duration(" 3 天 "), 72.0)
+        self.assertIsNone(_parse_duration("abc"))
+        self.assertIsNone(_parse_duration("0小时"))
+        self.assertIsNone(_parse_duration("-2天"))
+
 
 if __name__ == "__main__":
     unittest.main()

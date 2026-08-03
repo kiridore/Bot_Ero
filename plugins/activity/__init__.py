@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime
 
 from core.base import Plugin
@@ -19,6 +20,24 @@ def _parse_deadline(raw: str) -> str | None:
         except ValueError:
             continue
     return None
+
+
+def _parse_duration(raw: str) -> float | None:
+    """解析接龙每人时限：'48'/'48小时'/'2天'（也接受 h/d）→ 小时数；非法返回 None。"""
+    m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*(小时|天|h|d)?\s*", raw)
+    if not m:
+        return None
+    hours = float(m.group(1))
+    if m.group(2) in ("天", "d"):
+        hours *= 24
+    return hours if hours > 0 else None
+
+
+def format_duration(hours: float) -> str:
+    """48 → '2 天'；36 → '36 小时'。"""
+    if hours % 24 == 0:
+        return f"{int(hours // 24)} 天"
+    return f"{hours:g} 小时"
 
 
 def _now() -> str:
@@ -214,7 +233,7 @@ class ActivityPlugin(Plugin):
     def _show_usage(self):
         self.api.send_msg(text(
             "活动指令：\n"
-            "/活动 创建 接龙 <标题> [每人小时数]\n"
+            "/活动 创建 接龙 <标题> [每人时限]（如 48小时 / 2天）\n"
             "/活动 创建 匹配 <标题> <截止 YYYY-MM-DD HH:MM>\n"
             "/活动 加入 / 退出\n"
             "/活动 开始（创建人）\n"
@@ -234,23 +253,20 @@ class ActivityPlugin(Plugin):
         rest = args[1:]
         if kind == "接龙":
             if not rest:
-                self.api.send_msg(text("用法：/活动 创建 接龙 <标题> [每人小时数]"))
+                self.api.send_msg(text("用法：/活动 创建 接龙 <标题> [每人时限]（如 48小时 / 2天）"))
                 return
             title = rest[0]
             hours = 48.0
             if len(rest) > 1:
-                try:
-                    hours = float(rest[1])
-                    if hours <= 0:
-                        raise ValueError
-                except ValueError:
-                    self.api.send_msg(text("每人小时数必须为正数"))
+                hours = _parse_duration(rest[1])
+                if hours is None:
+                    self.api.send_msg(text("每人时限格式错误，示例：48小时 / 2天 / 36"))
                     return
             aid = self.dbmanager.activity.create_activity(
                 gid, "relay", title, None, uid, hours_per_user=hours)
             self.api.send_msg(text(
                 f"接龙活动「{title}」已创建（#{aid}）\n"
-                f"每人限时 {hours:g} 小时\n"
+                f"每人限时 {format_duration(hours)}\n"
                 f"回复 /活动 加入 报名，报名完成后由创建人 /活动 开始"
             ))
         else:
@@ -357,7 +373,7 @@ class ActivityPlugin(Plugin):
             self._send_private(
                 int(first[0]),
                 text(f"接龙活动「{act['title']}」开始！你是第 1 棒。\n"
-                     f"请创作并私聊发送 /提交 附上作品，限时 {act['hours_per_user']:g} 小时。"),
+                     f"请创作并私聊发送 /提交 附上作品，限时 {format_duration(act['hours_per_user'])}。"),
             )
             self._announce_group(gid, f"接龙活动「{act['title']}」开始，{nick_map[first[0]]} 先来！")
         else:
@@ -438,7 +454,7 @@ def _relay_advance(api, db, act: dict, members: list[dict], from_seq: int) -> bo
     db.activity.update_member(act["id"], target["user_id"], received_at=_now())
     _announce_group(
         api, act["group_id"],
-        f"轮到 {target['nickname']} 接力！请于 {act['hours_per_user']:g} 小时内完成，私聊 /提交 作品。",
+        f"轮到 {target['nickname']} 接力！请于 {format_duration(act['hours_per_user'])} 内完成，私聊 /提交 作品。",
     )
     return True
 
