@@ -302,5 +302,35 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     """)
     cur.execute("DROP TABLE IF EXISTS group_chat_topic_messages")
     cur.execute("DROP TABLE IF EXISTS group_chat_topics")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            type TEXT NOT NULL,                -- 'relay' | 'match'
+            title TEXT NOT NULL,
+            theme TEXT,
+            status TEXT NOT NULL DEFAULT 'open',  -- open | running | finished | cancelled
+            created_by TEXT NOT NULL,
+            deadline TEXT,                     -- match: 'YYYY-MM-DD HH:MM:SS'
+            hours_per_user REAL,               -- relay: 每人时限小时
+            created_at TEXT NOT NULL,
+            finished_at TEXT
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS activity_members (
+            activity_id INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
+            nickname TEXT NOT NULL,
+            seq INTEGER NOT NULL DEFAULT 0,    -- relay 链序 / match 环序
+            next_user_id TEXT,                 -- match: 下家
+            status TEXT NOT NULL DEFAULT 'pending', -- pending|done|skipped|missed|left
+            received_at TEXT,                  -- relay: 作品转交时刻（第一棒=开始通知时刻）
+            submitted_at TEXT,
+            content TEXT,
+            images TEXT,                       -- JSON 数组
+            PRIMARY KEY (activity_id, user_id)
+        );
+    """)
 
     conn.commit()

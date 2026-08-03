@@ -10,6 +10,7 @@ from core.db.titles import TitlesManager
 from core.db.alarm import AlarmManager
 from core.db.immortal import ImmortalManager
 from core.db.quest import QuestManager
+from core.db.activity import ActivityManager
 
 
 class DbManager:
@@ -28,6 +29,7 @@ class DbManager:
         self.alarm = AlarmManager(self.conn)
         self.immortal = ImmortalManager(self.conn)
         self.quest = QuestManager(self.conn)
+        self.activity = ActivityManager(self.conn)
 
     def __del__(self):
         self.conn.commit()
