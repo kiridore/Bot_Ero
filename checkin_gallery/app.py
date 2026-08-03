@@ -485,7 +485,7 @@ def api_create_character(
 ):
     data = body.model_dump()
     if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
-        data["xp"] = trpg_rules.XP_THRESHOLDS[int(data["level"]) - 1]
+        data["xp"] = trpg_rules.XP_THRESHOLDS[min(int(data["level"]) - 1, len(trpg_rules.XP_THRESHOLDS) - 1)]
     finalized = trpg_char.finalize(data)
     data["hp"] = finalized["hp"]
     data["ac"] = finalized["ac"]
@@ -517,7 +517,7 @@ def api_update_character(
         raise HTTPException(status_code=404, detail="角色不存在")
     data = body.model_dump()
     if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
-        data["xp"] = trpg_rules.XP_THRESHOLDS[int(data["level"]) - 1]
+        data["xp"] = trpg_rules.XP_THRESHOLDS[min(int(data["level"]) - 1, len(trpg_rules.XP_THRESHOLDS) - 1)]
     finalized = trpg_char.finalize(data)
     data["hp"] = finalized["hp"]
     data["ac"] = finalized["ac"]

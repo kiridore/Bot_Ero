@@ -372,6 +372,8 @@ function renderEditor() {
 
   function refresh() {
     const data = readForm();
+    const xpVal = Number(data.xp) || 0;
+    if (xpVal > 0) data.level = levelFromXp(xpVal, rules.xp_thresholds);
     const calc = computeSheet(data);
     attrTable.innerHTML = "";
     for (const attr of rules.attributes) {
@@ -439,9 +441,7 @@ function renderEditor() {
     });
     const hint = document.getElementById("pointBuyHint");
     hint.textContent = `购点已用 ${spent}/27`;
-    const xpVal = Number(data.xp) || 0;
-    const level = xpVal > 0 ? levelFromXp(xpVal, rules.xp_thresholds) : (data.level || 1);
-    document.getElementById("levelCell").textContent = `Lv.${level}`;
+    document.getElementById("levelCell").textContent = `Lv.${data.level || 1}`;
   }
 
   function rollScores() {
