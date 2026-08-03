@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-03 (5E 主卡面字段与派生口径同步至 specs/kb)
+> Last updated: 2026-08-03 (阵营九宫格/属性生成三方式/经验等级派生同步至 specs/kb)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。

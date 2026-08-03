@@ -176,6 +176,11 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 - **隐私开关:** `privacy.char_public`（bool，缺省 `True`）。`GET /api/characters/{user_id}/{char_id}` 仅本人或对方已公开时可访问，否则返回 403
 - 设置经 `GET/PUT /api/me/settings` 读写，`PUT` 深合并，不覆盖未传字段
 - 角色创建/更新由 `core/trpg/character.py` 的 `finalize()` 计算派生值，非法数据返回 400
+- `level` 不入盘编辑，由 `xp` 派生：`xp>0` 时按 `XP_THRESHOLDS`（`core/trpg/rules.py:72`，20 级阈值表，索引 0=1 级）反推，`xp<=0` 时回退原 `level` 字段
+- **旧数据迁移**：提交（创建/更新）时若 `xp<=0 且 level>1`，自动回填 `xp = XP_THRESHOLDS[level-1]`（阈值下限）
+- `race`/`class_name` 仅可选官方清单（`/api/trpg/rules` 的 `races`/`classes` 键，编辑器为 select）；旧数据自定义文本读侧兼容——编辑时追加「（自定义）」临时选项，服务端对未知种族/职业按无属性加值/HP 骰 8 处理（`race_bonuses()`/`class_info()` 返回空）
+- 属性生成三方式（编辑器按钮，结果直接写入 `*_score`，服务端不区分来源）：**购点法**（属性值 8-15，总额 27 点，成本表 `POINT_BUY_COST`）、**4d6k3 掷骰**（掷 4 取 3）、**标准数组** `[15,14,13,12,10,8]`
+- `/api/trpg/rules` 额外返回 `xp_thresholds`（经验阈值表）与 `alignments`（九宫格双轴：`{law:[守序,中立,混乱], moral:[善良,中立,邪恶]}`）
 
 ### 角色卡字段清单（5E 主卡面）
 
@@ -183,7 +188,7 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 
 | 分区 | 键（类型） |
 |------|-----------|
-| 身份 | `player_name` (str)、`alignment` (str)、`xp` (int) |
+| 身份 | `alignment` (str，九宫格组合：守序/中立/混乱 × 善良/中立/邪恶，中立×中立=`绝对中立`，存组合字符串如「守序善良」；非九宫格自定义文本仍可写入)、`xp` (int，等级派生源) |
 | 属性豁免 | `saving_profs` (list[str]，6 属性名) |
 | 战斗 | `current_hp` (int)、`temp_hp` (int)、`speed` (int，缺省 30)、`death_saves_success` (int)、`death_saves_fail` (int)、`inspiration` (bool) |
 | 资源 | `equipment` (list[str]，每行一条)、`other_proficiencies` (str)、`attacks` (list[str]，格式 `名称|加值|伤害`，如 `长剑|+5|1d8 挥砍`)、`features` (str) |
@@ -194,6 +199,7 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 以下字段**不写入角色卡 JSON**，每次读取时由 `core/trpg/character.py:finalize()` 计算：
 
 - `scores` = 基础属性 + 种族加值（`str_score` 等六键覆盖写回）；`hp`/`ac` 例外：已有非零值则保留，否则按 `hp=职业骰+体质加值`、`ac=10+敏捷加值` 计算并**写回存储**
+- `level` = `xp>0 ? level_from_xp(xp) : 原 level`（`level_from_xp` 按 `XP_THRESHOLDS` 反推，见 `core/trpg/character.py:13`）
 - `prof_bonus` = `2 + (level-1)//4`
 - `save_mods`（6 属性名→值）= 属性加值 +（该属性 ∈ `saving_profs` ? `prof_bonus` : 0）
 - `skill_mods`（技能名→值）= 属性加值 +（技能 ∈ `proficient_skills` ? 2 : 0）

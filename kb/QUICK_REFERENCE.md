@@ -64,9 +64,10 @@
 
 ### 角色卡 JSON 键（5E 主卡面）
 
-- 基础：`char_name`/`race`/`class_name`/`level`/`background`/`*_score` 六属性/`proficient_skills`/`hp`/`ac`/`notes`
-- 身份：`player_name`/`alignment`/`xp`；豁免：`saving_profs`（list[str] 属性名）；战斗：`current_hp`/`temp_hp`/`speed`/`death_saves_success`/`death_saves_fail`/`inspiration`（bool）；资源：`equipment`（list[str]）/`other_proficiencies`/`attacks`（list[str]，`名称|加值|伤害`）/`features`；背景：`personality_traits`/`ideals`/`bonds`/`flaws`
-- **派生不入盘**，由 `core/trpg/character.py:finalize()` 计算：`scores`（基础+种族）、`prof_bonus=2+(level-1)//4`、`save_mods`=属性加值+（豁免熟练?熟练加值:0）、`skill_mods`=属性加值+（技能熟练?2:0）、`passive_perception=10+感知加值+(察觉熟练?2:0)`、`initiative`=敏捷加值、`hit_dice={level}d{职业骰}`；仅 `hp`/`ac` 非零时保留否则计算并写回
+- 基础：`char_name`/`race`/`class_name`/`background`/`*_score` 六属性/`proficient_skills`/`hp`/`ac`/`notes`；`race`/`class_name` 限官方清单（`/api/trpg/rules` 的 `races`/`classes`），旧自定义文本仅编辑时追加「（自定义）」选项读侧兼容
+- 身份：`alignment`（九宫格组合字符串：守序/中立/混乱 × 善良/中立/邪恶，中立×中立=`绝对中立`，非九宫格可写自定义文本）/`xp`（等级派生源，`level` 由 xp 反推、不入盘编辑）；豁免：`saving_profs`（list[str] 属性名）；战斗：`current_hp`/`temp_hp`/`speed`/`death_saves_success`/`death_saves_fail`/`inspiration`（bool）；资源：`equipment`（list[str]）/`other_proficiencies`/`attacks`（list[str]，`名称|加值|伤害`）/`features`；背景：`personality_traits`/`ideals`/`bonds`/`flaws`
+- **派生不入盘**，由 `core/trpg/character.py:finalize()` 计算：`level`（`xp>0` 按 `XP_THRESHOLDS` 20 级阈值表反推，`xp<=0` 回退原 level）、`scores`（基础+种族）、`prof_bonus=2+(level-1)//4`、`save_mods`=属性加值+（豁免熟练?熟练加值:0）、`skill_mods`=属性加值+（技能熟练?2:0）、`passive_perception=10+感知加值+(察觉熟练?2:0)`、`initiative`=敏捷加值、`hit_dice={level}d{职业骰}`；仅 `hp`/`ac` 非零时保留否则计算并写回
+- 规则接口 `/api/trpg/rules` 另返回 `xp_thresholds`（经验阈值表）与 `alignments`（九宫格双轴）；旧数据提交（创建/更新）时 `xp<=0 且 level>1` 自动迁移 `xp=阈值下限`；属性生成三方式：购点法（27 点、属性 8-15）、4d6k3 掷骰、标准数组 `[15,14,13,12,10,8]`
 
 ## 完整指令表
 
