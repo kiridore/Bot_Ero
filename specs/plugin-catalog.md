@@ -2,9 +2,9 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-02 (trpg_char 角色命令精简至查看/列表/切换/删除)
+> 最后更新: 2026-08-03 (新增活动系统 activity/activity_timer 插件)
 
-全部 39 个已注册插件的完整目录。新增插件时必须在此添加条目。
+全部 43 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
 ---
 
@@ -42,6 +42,7 @@
 | `ff_news.py` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
 | `weekly_quest.py` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
 | `who_is_spy/` | `WhoIsSpyPlugin` | `who_is_spy` | 自定义 match: COMMANDS + 私聊游戏阶段 | `/创建游戏 <类型> [人数]` `/开始 <房间号>` `/加入 <房间号>` `/离开` `/退出` `/状态 [房间号]` `/放弃 <房间号>` | 谁是卧底：群聊创建房间，私聊匿名游戏进行 |
+| `activity/` | `ActivityPlugin` | `activity` | 自定义 match | `/活动 创建 接龙\|匹配 …` `/活动 加入/退出/开始/状态/结束`（群聊）`/提交 [活动id]`（私聊） | 群活动：接龙（每人限时）与匹配下家（圆桌单环、匿名转发），全员完成/截止自动归档 |
 
 ## 通知/请求处理插件
 
@@ -58,6 +59,7 @@
 | `redeem_shop.py` | `ShopWeeklyRotationPlugin` | `shop_weekly_rotation` | TimedHeartbeatPlugin | 每周一 08:00 | 刷新商店货架 |
 | `startup_changelog.py` | `StartupChangelogPlugin` | `startup_changelog` | Plugin (手动 meta) | 启动时一次 | 发送开机问候 |
 | `weekly_quest.py` | `WeeklyQuestResetPlugin` | `weekly_quest_reset` | TimedHeartbeatPlugin | 每周一 08:00 | 清理过期任务进度 |
+| `activity/` | `ActivityTimerPlugin` | `activity_timer` | Plugin (手动 meta) | 每 60 秒 | 活动计时：接龙超时跳过、匹配截止结束 |
 
 ## 管理/超级用户插件
 
@@ -67,6 +69,7 @@
 | `monitor.py` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
 | `update.py` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop.py` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
+| `group_manager.py` | `GroupManagerPlugin` | `group_manager` | CommandPlugin | `/插件 <name\|列表> [off] [群号]` `/功能包 <name\|列表> [off] [群号]` | 管理插件/功能包：列表、启用、禁用（超级用户） |
 
 ---
 

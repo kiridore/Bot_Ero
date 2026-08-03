@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-03 (跑团车卡 5E 主卡面字段与派生口径)
+> 最后更新: 2026-08-03 (新增活动归档页 /archive 与接口)
 
 ---
 
@@ -49,6 +49,7 @@ Web 应用（`checkin_gallery/`）是独立的 FastAPI 进程，与机器人主�
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` (10MB) | 单张图片最大字节 |
 | `BOTERO_TRPG_CHARS_ROOT` | `server_data/trpg_chars` | 跑团角色卡 JSON 存储根目录 |
 | `BOTERO_USER_SETTINGS_ROOT` | `server_data/user_settings` | 个人设置 JSON 存储根目录 |
+| `BOTERO_ACTIVITY_ROOT` | `server_data/activity_archive` | 活动归档根目录（`<活动id>/` 子目录） |
 
 ---
 
@@ -146,6 +147,14 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/thumb/{user_id}/{filename}` | 否 | 缩略图 |
 | `GET` | `/media/{user_id}/{filename}` | 否 | 原图 |
 
+### 活动归档
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/activities` | 否 | 已结束活动列表（含成员数/提交数） |
+| `GET` | `/api/activities/{id}` | 否 | 活动详情（成员、作品文字与图片 URL），不存在返回 404 |
+| `GET` | `/archive/{id}/media/{filename}` | 否 | 活动作品图片（限制在 `ACTIVITY_ROOT` 内，防路径遍历） |
+
 ### 页面
 
 | 方法 | 路径 | 说明 |
@@ -159,6 +168,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/profile/trpg` | 跑团车卡管理（创建/编辑，Excel 式分区编辑器） |
 | `GET` | `/trpg/char/{user_id}/{char_id}` | 角色卡只读查看页 |
 | `GET` | `/guestbook` | 留言簿 |
+| `GET` | `/archive` | 活动归档页 |
 
 ---
 
@@ -221,6 +231,7 @@ app.py            ← FastAPI 路由（只做请求/响应转换）
   ├── alarm_service.py      ← 闹钟 CRUD
   ├── guestbook_service.py  ← 留言簿逻辑
   ├── title_settings.py     ← 称号装备管理
+  ├── activity_service.py   ← 活动归档读取（bot 写盘，web 只读）
   └── repository.py         ← 数据库访问层
 ```
 
@@ -278,6 +289,7 @@ checkin_gallery/static/
   guestbook.html + guestbook.js         ← 留言簿页
   trpg.html + trpg.js                   ← 跑团车卡管理页
   char_view.html + char_view.js         ← 角色卡只读查看页
+  activities.html + activities.js       ← 活动归档页
 ```
 
 - 原生 JavaScript，无框架

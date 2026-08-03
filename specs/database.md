@@ -2,7 +2,7 @@
 
 > 关联规范: [conventions.md](conventions.md) | [plugins.md](plugins.md) | [web-gallery.md](web-gallery.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-07-24
+> 最后更新: 2026-08-03 (新增活动系统 activities/activity_members 表)
 
 ---
 
@@ -261,6 +261,42 @@ with _connect() as conn:
 | `period_key` | TEXT | PRIMARY KEY (with group_id) | 期数标识 |
 | `issue_code` | TEXT | UNIQUE | 期号编码（如 `XR-2506-AB3F`） |
 
+### 活动
+
+#### `activities`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 活动 ID |
+| `group_id` | INTEGER | NOT NULL | 群号 |
+| `type` | TEXT | NOT NULL | 活动类型：`relay`（接龙）/ `match`（匹配） |
+| `title` | TEXT | NOT NULL | 活动标题 |
+| `theme` | TEXT | | 主题（当前未使用，恒 NULL） |
+| `status` | TEXT | NOT NULL DEFAULT `'open'` | `open`（报名）/ `running`（进行中）/ `finished`（已结束）/ `cancelled`（已取消） |
+| `created_by` | TEXT | NOT NULL | 创建人 QQ 号（TEXT 类型） |
+| `deadline` | TEXT | | 匹配活动截止时间 `YYYY-MM-DD HH:MM:SS` |
+| `hours_per_user` | REAL | | 接龙每人限时（小时，默认 48） |
+| `created_at` | TEXT | NOT NULL | 创建时间 |
+| `finished_at` | TEXT | | 结束时间 |
+
+- 同一群同时只有一个进行中活动（`get_active_activity` 查 `status IN ('open','running')` 取最新）
+- 数据管理在 `core/db/activity.py`（`ActivityManager`），DDL 见 `core/db/_base.py`
+
+#### `activity_members`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `activity_id` | INTEGER | PRIMARY KEY (with user_id) | 活动 ID |
+| `user_id` | TEXT | PRIMARY KEY (with activity_id) | 成员 QQ 号（TEXT 类型） |
+| `nickname` | TEXT | NOT NULL | 入群名片/昵称（创建时记录） |
+| `seq` | INTEGER | NOT NULL DEFAULT 0 | 接龙链序 / 匹配环序（1 起） |
+| `next_user_id` | TEXT | | 匹配：下家 QQ 号（匿名转发目标） |
+| `status` | TEXT | NOT NULL DEFAULT `'pending'` | `pending`（待提交）/ `done`（已提交）/ `skipped`（超时跳过）/ `missed`（截止未交）/ `left`（退出） |
+| `received_at` | TEXT | | 接龙：作品转交时刻（第一棒=开始通知时刻） |
+| `submitted_at` | TEXT | | 提交时间 |
+| `content` | TEXT | | 作品文字内容 |
+| `images` | TEXT | | 作品图片文件名 JSON 数组（`imgs/img_<seq>_<n><ext>`） |
+
+- 结束/取消时归档到 `server_data/activity_archive/<id>/`（meta.json + markdown + imgs/），Web 端 `/archive` 只读展示
+
 ---
 
 ## Constraint: 迁移模式 (CRITICAL)
@@ -370,6 +406,8 @@ if column in ALLOWED_COLUMNS:
 | `shop_user_buffs` | **INTEGER** |
 | `guestbook_*` | **INTEGER** |
 | `immortal_lottery_bets` | **INTEGER** |
+| `activities.created_by` | **TEXT** |
+| `activity_members.user_id` | **TEXT** |
 
 跨表查询时的处理：
 ```python

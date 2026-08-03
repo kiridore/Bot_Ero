@@ -276,6 +276,44 @@ CREATE TABLE group_plugin_config (
 
 ---
 
+## 活动
+
+```sql
+CREATE TABLE activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    type TEXT NOT NULL,                -- 'relay' | 'match'
+    title TEXT NOT NULL,
+    theme TEXT,
+    status TEXT NOT NULL DEFAULT 'open',  -- open | running | finished | cancelled
+    created_by TEXT NOT NULL,          -- 创建人 QQ 号（TEXT）
+    deadline TEXT,                     -- match: 'YYYY-MM-DD HH:MM:SS'
+    hours_per_user REAL,               -- relay: 每人时限小时（默认 48）
+    created_at TEXT NOT NULL,
+    finished_at TEXT
+);
+
+CREATE TABLE activity_members (
+    activity_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,             -- QQ 号（TEXT）
+    nickname TEXT NOT NULL,            -- 入群名片/昵称
+    seq INTEGER NOT NULL DEFAULT 0,    -- relay 链序 / match 环序
+    next_user_id TEXT,                 -- match: 下家（匿名转发目标）
+    status TEXT NOT NULL DEFAULT 'pending', -- pending|done|skipped|missed|left
+    received_at TEXT,                  -- relay: 作品转交时刻（第一棒=开始通知时刻）
+    submitted_at TEXT,
+    content TEXT,                      -- 作品文字
+    images TEXT,                       -- 作品图片文件名 JSON 数组
+    PRIMARY KEY (activity_id, user_id)
+);
+```
+
+- 数据管理在 `core/db/activity.py`（`ActivityManager`），DDL 在 `core/db/_base.py`
+- 结束/取消时归档到 `server_data/activity_archive/<id>/`（meta.json + markdown + imgs/），Web 端 `/archive` 只读展示
+- **user_id 为 TEXT**（与 `user_assets` 一致，例外于"新表统一 INTEGER"约定）
+
+---
+
 ## 重要约束
 
 - **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER。

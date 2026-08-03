@@ -1,6 +1,6 @@
 # 插件目录与功能包
 
-> 全部 41 个已注册插件、功能包定义、数据依赖
+> 全部 43 个已注册插件、功能包定义、数据依赖
 
 ---
 
@@ -38,32 +38,34 @@
 | 28 | `weekly_quest` | `weekly_quest.py` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
 | 29 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团记录` + 录制期间全匹配 | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
 | 30 | `who_is_spy` | `who_is_spy/` | 自定义 match: `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` + 私聊游戏阶段输入 | 谁是卧底：群聊创建房间，私聊匿名发言+投票 |
+| 31 | `activity` | `activity/` | 自定义 match: 群聊 `/活动` + 私聊 `/提交` | 群活动：接龙（每人限时）与匹配下家（圆桌单环、匿名转发），结束自动归档 |
 
 ## 通知/请求处理
 
 | # | 插件名 | 文件 | 触发 | 功能 |
 |---|--------|------|------|------|
-| 31 | `auto_friend` | `auto_friend.py` | `request_type == "friend"` | 自动同意好友请求 |
-| 32 | `welcome` | `welcome.py` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
+| 32 | `auto_friend` | `auto_friend.py` | `request_type == "friend"` | 自动同意好友请求 |
+| 33 | `welcome` | `welcome.py` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
 
 ## 定时/心跳
 
 | # | 插件名 | 文件 | 计划 | 功能 |
 |---|--------|------|------|------|
-| 33 | `backup` | `backup.py` | 每天 08:00 | 自动备份打卡图片到本地 |
-| 34 | `shop_weekly_rotation` | `redeem_shop.py` | 每周一 08:00 | 刷新商店货架 |
-| 35 | `startup_changelog` | `startup_changelog.py` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
-| 36 | `weekly_quest_reset` | `weekly_quest.py` | 每周一 08:00 | 清理过期任务进度 |
+| 34 | `backup` | `backup.py` | 每天 08:00 | 自动备份打卡图片到本地 |
+| 35 | `shop_weekly_rotation` | `redeem_shop.py` | 每周一 08:00 | 刷新商店货架 |
+| 36 | `startup_changelog` | `startup_changelog.py` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
+| 37 | `weekly_quest_reset` | `weekly_quest.py` | 每周一 08:00 | 清理过期任务进度 |
+| 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配截止结束 |
 
 ## 管理/超级用户
 
 | # | 插件名 | 文件 | 触发 | 权限 | 功能 |
 |---|--------|------|------|------|------|
-| 37 | `grant_points_all` | `grant_points_all.py` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
-| 38 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
-| 39 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
-| 40 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
-| 41 | `group_manager` | `group_manager.py` | CommandPlugin `/群插件列表`/`/启用插件`/`/禁用插件`/`/全局插件列表`/`/全局启用`/`/全局禁用` | super_user() | 管理各群插件启用状态 |
+| 39 | `grant_points_all` | `grant_points_all.py` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
+| 40 | `monitor` | `monitor.py` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
+| 41 | `update` | `update.py` | `/更新` | super_user() | git pull + os.execv 重启 |
+| 42 | `shop_manual_refresh` | `redeem_shop.py` | `/刷新商店` | admin_user() | 手动刷新商店 |
+| 43 | `group_manager` | `group_manager.py` | CommandPlugin `/群插件列表`/`/启用插件`/`/禁用插件`/`/全局插件列表`/`/全局启用`/`/全局禁用` | super_user() | 管理各群插件启用状态 |
 
 ## 功能包
 
