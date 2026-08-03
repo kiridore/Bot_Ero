@@ -135,10 +135,9 @@ class ActivityPlugin(Plugin):
                 _finish_activity(self.api, self.dbmanager, act)
         else:
             self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
+            self._forward_work(act, members, member)
             if all(m["status"] in ("done", "left") for m in members):
                 _finish_activity(self.api, self.dbmanager, act)
-            else:
-                self._forward_work(act, members, member)
 
     def _extract_submission(self) -> tuple[str, list[str]]:
         """从消息段提取正文与图片文件（命令文本之后的部分为正文）。"""
@@ -172,9 +171,11 @@ class ActivityPlugin(Plugin):
         return saved
 
     def _forward_work(self, act: dict, members: list[dict], member: dict):
-        """match：把 member 的作品匿名转发给其下家。"""
+        """match：把 member 的作品转发给其下家（收件人已完成也照送）。"""
         recipient = self.dbmanager.activity.get_member(act["id"], member["next_user_id"])
-        if not recipient or recipient["status"] != "pending":
+        if not recipient or recipient["status"] == "left":
+            return
+        if recipient["user_id"] == member["user_id"]:
             return
         fresh = next((m for m in members if m["user_id"] == member["user_id"]), member)
         self._send_private(

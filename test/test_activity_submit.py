@@ -133,6 +133,19 @@ class TestSubmit(unittest.TestCase):
         d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
         self.assertTrue(os.path.isfile(f"{d}/match.md"))
 
+    def test_match_last_work_delivered(self):
+        """环 A→B→C→A 全员提交后，最后提交者 C 的作品必须送达 A（收件人已 done 也照送）。"""
+        aid = _setup_activity(self.db, "match")
+        p = None
+        for uid, content in ((100, "一"), (200, "二"), (300, "三")):
+            p = self._submit(uid, content)
+            p.handle()
+        fwd = [c for a, c in p.api.api_calls if a == "send_private_msg"]
+        to_a = [c for c in fwd if c["user_id"] == 100]
+        self.assertTrue(to_a, "C 的作品应私聊送达 A")
+        texts = "".join(s["data"]["text"] for s in to_a[0]["message"] if s["type"] == "text")
+        self.assertIn("三", texts)
+
     def test_leave_running_relay_advances(self):
         """进行中退出（轮到 B 时）：B 标记 left 且链顺延给 C（Task 4 死分支修复验证）。"""
         aid = _setup_activity(self.db, "relay")
