@@ -202,18 +202,19 @@ class ActivityPlugin(Plugin):
 
     def _handle_leave_running(self, act: dict, member: dict):
         """进行中退出：接龙摘链（仅当轮到 TA 时顺延），匹配闭合环。"""
+        members = self.dbmanager.activity.get_members(act["id"])
+        cur = current_turn(members)
         self.dbmanager.activity.update_member(act["id"], member["user_id"], status="left")
         members = self.dbmanager.activity.get_members(act["id"])
         self._announce_group(act["group_id"], f"{member['nickname']} 已退出活动")
         if act["type"] == "relay":
-            cur = current_turn(members)
             if cur and cur["user_id"] == member["user_id"]:
                 if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
                     _finish_activity(self.api, self.dbmanager, act)
         else:
             _match_reconnect(self.api, self.dbmanager, act, member["user_id"], members)
             fresh = self.dbmanager.activity.get_members(act["id"])
-            if all(m["status"] == "done" for m in fresh):
+            if all(m["status"] in ("done", "left") for m in fresh):
                 _finish_activity(self.api, self.dbmanager, act)
 
     def _handle_start(self, gid: int, uid: str):
