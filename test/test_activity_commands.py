@@ -120,11 +120,14 @@ class TestCommands(unittest.TestCase):
         act = self.db.activity.get_active_activity(GID)
         self.assertEqual(act["hours_per_user"], 48.0)
 
-    def test_create_relay_bad_duration(self):
+    def test_create_relay_bad_duration_falls_back_to_desc(self):
+        """无法解析为时限的尾 token 宽容为描述（描述无引号，无法区分）。"""
         p = self._run("/活动 创建 接龙 t 三天")
         p.handle()
-        self.assertIn("时限", _sent_text(p))
-        self.assertIsNone(self.db.activity.get_active_activity(GID))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertIsNotNone(act)
+        self.assertEqual(act["description"], "三天")
+        self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_parse_duration(self):
         from plugins.activity import _parse_duration
@@ -137,6 +140,37 @@ class TestCommands(unittest.TestCase):
         self.assertIsNone(_parse_duration("abc"))
         self.assertIsNone(_parse_duration("0小时"))
         self.assertIsNone(_parse_duration("-2天"))
+
+    def test_create_relay_with_description(self):
+        p = self._run("/活动 创建 接龙 端午 围绕粽子自由创作 2天")
+        p.handle()
+        self.assertIn("围绕粽子自由创作", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["title"], "端午")
+        self.assertEqual(act["description"], "围绕粽子自由创作")
+        self.assertEqual(act["hours_per_user"], 48.0)
+
+    def test_create_relay_description_multiword(self):
+        p = self._run("/活动 创建 接龙 t 这是 一段 描述 48小时")
+        p.handle()
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["description"], "这是 一段 描述")
+        self.assertEqual(act["hours_per_user"], 48.0)
+
+    def test_create_match_with_description(self):
+        p = self._run("/活动 创建 匹配 中秋 圆桌交换礼物 2026-09-15 20:00")
+        p.handle()
+        self.assertIn("圆桌交换礼物", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["description"], "圆桌交换礼物")
+        self.assertEqual(act["deadline"], "2026-09-15 20:00:00")
+
+    def test_create_relay_no_description_compat(self):
+        p = self._run("/活动 创建 接龙 t 2天")
+        p.handle()
+        act = self.db.activity.get_active_activity(GID)
+        self.assertIsNone(act["description"])
+        self.assertEqual(act["hours_per_user"], 48.0)
 
 
 if __name__ == "__main__":

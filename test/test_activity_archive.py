@@ -33,7 +33,7 @@ class TestArchive(unittest.TestCase):
             shutil.rmtree(TEST_ROOT)
 
     def test_archive_relay(self):
-        act = {"id": 1, "type": "relay", "title": "端午接龙", "theme": "粽子",
+        act = {"id": 1, "type": "relay", "title": "端午接龙", "description": "粽子",
                "group_id": 296470819, "created_at": "2026-09-01 00:00:00",
                "finished_at": "2026-09-03 00:00:00", "status": "finished"}
         members = [
@@ -57,7 +57,7 @@ class TestArchive(unittest.TestCase):
         self.assertEqual(meta["members"][1]["nickname"], "B")
 
     def test_archive_match_marks_missed(self):
-        act = {"id": 2, "type": "match", "title": "中秋", "theme": None,
+        act = {"id": 2, "type": "match", "title": "中秋", "description": None,
                "group_id": 1, "created_at": "2026-09-01 00:00:00",
                "finished_at": "2026-09-10 00:00:00", "status": "finished"}
         members = [

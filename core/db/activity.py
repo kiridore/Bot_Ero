@@ -22,12 +22,12 @@ class ActivityManager:
         return dict(r) if r else None
 
     # ── activities ──
-    def create_activity(self, group_id, type_, title, theme, created_by,
+    def create_activity(self, group_id, type_, title, description, created_by,
                         hours_per_user=None, deadline=None) -> int:
         self.cur.execute(
-            "INSERT INTO activities (group_id, type, title, theme, status, created_by,"
+            "INSERT INTO activities (group_id, type, title, description, status, created_by,"
             " deadline, hours_per_user, created_at) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?)",
-            (int(group_id), type_, title, theme, str(created_by), deadline,
+            (int(group_id), type_, title, description, str(created_by), deadline,
              hours_per_user, _now()),
         )
         self.conn.commit()

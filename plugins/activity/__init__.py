@@ -244,7 +244,7 @@ class ActivityPlugin(Plugin):
         gid = self.bot_event.group_id
         uid = str(self.bot_event.user_id)
         if not args or args[0] not in ("接龙", "匹配"):
-            self.api.send_msg(text("用法：/活动 创建 接龙|匹配 <标题> [参数]"))
+            self.api.send_msg(text("用法：/活动 创建 接龙|匹配 <标题> [描述] [参数]"))
             return
         if self.dbmanager.activity.get_active_activity(gid):
             self.api.send_msg(text("本群已有进行中的活动"))
@@ -253,38 +253,55 @@ class ActivityPlugin(Plugin):
         rest = args[1:]
         if kind == "接龙":
             if not rest:
-                self.api.send_msg(text("用法：/活动 创建 接龙 <标题> [每人时限]（如 48小时 / 2天）"))
+                self.api.send_msg(text("用法：/活动 创建 接龙 <标题> [描述] [每人时限]（如 48小时 / 2天）"))
                 return
             title = rest[0]
             hours = 48.0
+            desc_tokens = rest[1:]
             if len(rest) > 1:
-                hours = _parse_duration(rest[1])
-                if hours is None:
-                    self.api.send_msg(text("每人时限格式错误，示例：48小时 / 2天 / 36"))
-                    return
+                parsed = _parse_duration(rest[-1])
+                if parsed is not None:
+                    hours = parsed
+                    desc_tokens = rest[1:-1]
+            description = " ".join(desc_tokens).strip() or None
             aid = self.dbmanager.activity.create_activity(
-                gid, "relay", title, None, uid, hours_per_user=hours)
-            self.api.send_msg(text(
-                f"接龙活动「{title}」已创建（#{aid}）\n"
-                f"每人限时 {format_duration(hours)}\n"
-                f"回复 /活动 加入 报名，报名完成后由创建人 /活动 开始"
-            ))
+                gid, "relay", title, description, uid, hours_per_user=hours)
+            lines = [
+                f"接龙活动「{title}」已创建（#{aid}）",
+                f"每人限时 {format_duration(hours)}",
+            ]
+            if description:
+                lines.append(f"描述：{description}")
+            lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
+            self.api.send_msg(text("\n".join(lines)))
         else:
             if len(rest) < 2:
-                self.api.send_msg(text("用法：/活动 创建 匹配 <标题> <截止 YYYY-MM-DD HH:MM>"))
+                self.api.send_msg(text("用法：/活动 创建 匹配 <标题> [描述] <截止 YYYY-MM-DD HH:MM>"))
                 return
             title = rest[0]
-            deadline = _parse_deadline(" ".join(rest[1:]))
+            deadline = None
+            desc_tokens = rest[1:]
+            for window in (2, 1):
+                if len(desc_tokens) >= window:
+                    candidate = _parse_deadline(" ".join(desc_tokens[-window:]))
+                    if candidate:
+                        deadline = candidate
+                        desc_tokens = desc_tokens[:-window]
+                        break
             if not deadline:
                 self.api.send_msg(text("截止时间格式错误，示例：2026-09-15 20:00"))
                 return
+            description = " ".join(desc_tokens).strip() or None
             aid = self.dbmanager.activity.create_activity(
-                gid, "match", title, None, uid, deadline=deadline)
-            self.api.send_msg(text(
-                f"匹配活动「{title}」已创建（#{aid}）\n"
-                f"截止时间 {deadline}\n"
-                f"回复 /活动 加入 报名，报名完成后由创建人 /活动 开始"
-            ))
+                gid, "match", title, description, uid, deadline=deadline)
+            lines = [
+                f"匹配活动「{title}」已创建（#{aid}）",
+                f"截止时间 {deadline}",
+            ]
+            if description:
+                lines.append(f"描述：{description}")
+            lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
+            self.api.send_msg(text("\n".join(lines)))
 
     def _handle_join(self, gid: int, uid: str):
         act = self.dbmanager.activity.get_active_activity(gid)
@@ -393,6 +410,8 @@ class ActivityPlugin(Plugin):
             return
         members = self.dbmanager.activity.get_members(act["id"])
         lines = [f"「{act['title']}」（{'匹配下家' if act['type'] == 'match' else '接龙'} #{act['id']}）"]
+        if act.get("description"):
+            lines.append(f"描述：{act['description']}")
         status_map = {"done": "✓", "skipped": "跳过", "missed": "未交", "left": "退出", "pending": "…"}
         for m in members:
             lines.append(f"  {m['seq']}. {m['nickname']} {status_map.get(m['status'], m['status'])}")

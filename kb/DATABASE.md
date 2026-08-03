@@ -284,7 +284,7 @@ CREATE TABLE activities (
     group_id INTEGER NOT NULL,
     type TEXT NOT NULL,                -- 'relay' | 'match'
     title TEXT NOT NULL,
-    theme TEXT,
+    description TEXT,                -- 活动描述（可选；旧列名 theme 已迁移）
     status TEXT NOT NULL DEFAULT 'open',  -- open | running | finished | cancelled
     created_by TEXT NOT NULL,          -- 创建人 QQ 号（TEXT）
     deadline TEXT,                     -- match: 'YYYY-MM-DD HH:MM:SS'

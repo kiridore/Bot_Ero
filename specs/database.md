@@ -270,7 +270,7 @@ with _connect() as conn:
 | `group_id` | INTEGER | NOT NULL | 群号 |
 | `type` | TEXT | NOT NULL | 活动类型：`relay`（接龙）/ `match`（匹配） |
 | `title` | TEXT | NOT NULL | 活动标题 |
-| `theme` | TEXT | | 主题（当前未使用，恒 NULL） |
+| `description` | TEXT | | 活动描述（可选；旧列名 `theme` 已迁移） |
 | `status` | TEXT | NOT NULL DEFAULT `'open'` | `open`（报名）/ `running`（进行中）/ `finished`（已结束）/ `cancelled`（已取消） |
 | `created_by` | TEXT | NOT NULL | 创建人 QQ 号（TEXT 类型） |
 | `deadline` | TEXT | | 匹配活动截止时间 `YYYY-MM-DD HH:MM:SS` |

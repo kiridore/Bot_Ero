@@ -308,7 +308,7 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             group_id INTEGER NOT NULL,
             type TEXT NOT NULL,                -- 'relay' | 'match'
             title TEXT NOT NULL,
-            theme TEXT,
+            description TEXT,                  -- 活动描述（可选）
             status TEXT NOT NULL DEFAULT 'open',  -- open | running | finished | cancelled
             created_by TEXT NOT NULL,
             deadline TEXT,                     -- match: 'YYYY-MM-DD HH:MM:SS'
@@ -317,6 +317,10 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             finished_at TEXT
         );
     """)
+    cur.execute("PRAGMA table_info(activities)")
+    _act_cols = [row[1] for row in cur.fetchall()]
+    if "theme" in _act_cols and "description" not in _act_cols:
+        cur.execute("ALTER TABLE activities RENAME COLUMN theme TO description")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS activity_members (
             activity_id INTEGER NOT NULL,

@@ -25,7 +25,7 @@ async function showDetail(id) {
   detailEl.innerHTML = `
     <h2>${escapeHtml(act.title)}</h2>
     <div class="muted">${TYPE_LABEL[act.type]} · ${act.created_at} ~ ${act.finished_at}</div>
-    ${act.theme ? `<p>主题：${escapeHtml(act.theme)}</p>` : ""}
+    ${act.description ? `<p>描述：${escapeHtml(act.description)}</p>` : ""}
     ${act.members.map(m => `
       <section class="work-block">
         <h3>${escapeHtml(m.nickname)}（${escapeHtml(m.user_id)}）· ${STATUS_LABEL[m.status] || escapeHtml(m.status)}</h3>
