@@ -121,7 +121,6 @@ class CharacterIn(BaseModel):
     class_name: str
     level: int = 1
     background: str = ""
-    player_name: str = ""
     alignment: str = ""
     xp: int = 0
     str_score: int
@@ -179,7 +178,6 @@ class CharOut(BaseModel):
     proficient_skills: list[str]
     notes: str
     background: str
-    player_name: str
     alignment: str
     xp: int
     str_score: int
@@ -230,7 +228,6 @@ def _char_to_out(data: dict) -> CharOut:
         proficient_skills=finalized.get("proficient_skills", []),
         notes=finalized.get("notes", ""),
         background=data.get("background", ""),
-        player_name=data.get("player_name", ""),
         alignment=data.get("alignment", ""),
         xp=int(data.get("xp", 0)),
         str_score=base_scores["str_score"],
@@ -487,6 +484,8 @@ def api_create_character(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     data = body.model_dump()
+    if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
+        data["xp"] = trpg_rules.XP_THRESHOLDS[int(data["level"]) - 1]
     finalized = trpg_char.finalize(data)
     data["hp"] = finalized["hp"]
     data["ac"] = finalized["ac"]
@@ -517,6 +516,8 @@ def api_update_character(
     if not char_store.get_char(user_id, char_id):
         raise HTTPException(status_code=404, detail="角色不存在")
     data = body.model_dump()
+    if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
+        data["xp"] = trpg_rules.XP_THRESHOLDS[int(data["level"]) - 1]
     finalized = trpg_char.finalize(data)
     data["hp"] = finalized["hp"]
     data["ac"] = finalized["ac"]
@@ -581,6 +582,11 @@ def api_trpg_rules():
         "point_buy_cost": trpg_rules.POINT_BUY_COST,
         "point_buy_budget": trpg_rules.POINT_BUY_BUDGET,
         "standard_array": trpg_rules.STANDARD_ARRAY,
+        "xp_thresholds": trpg_rules.XP_THRESHOLDS,
+        "alignments": {
+            "law": ["守序", "中立", "混乱"],
+            "moral": ["善良", "中立", "邪恶"],
+        },
     }
 
 
