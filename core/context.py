@@ -86,10 +86,6 @@ def migrate_group_plugin_config():
             PRIMARY KEY (group_id, plugin_name)
         )
     """)
-    cur = conn.execute("SELECT COUNT(*) FROM group_plugin_config")
-    if cur.fetchone()[0] > 0:
-        conn.close()
-        return
     rows = [(DEFAULT_GROUP_ID, plugin_key(cls)) for cls in plugin_registry
             if plugin_key(cls) not in SYSTEM_PLUGINS]
     if rows:
