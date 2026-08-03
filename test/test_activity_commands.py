@@ -5,6 +5,7 @@ import os
 import sys
 import sqlite3
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -202,6 +203,34 @@ class TestCommands(unittest.TestCase):
         p.handle()
         self.assertIn("时间格式错误", _sent_text(p))
         self.assertIsNone(self.db.activity.get_active_activity(GID))
+
+    def _group_announce_texts(self, p) -> str:
+        """汇总群公告（call_api send_group_msg）文本，警告走此通道。"""
+        return "".join(
+            seg["data"]["text"]
+            for a, c in p.api.api_calls if a == "send_group_msg"
+            for seg in c["message"] if seg["type"] == "text"
+        )
+
+    def test_start_warns_deadline_conflict(self):
+        """接龙截止早于最晚理论完成时间（2人×2天 > 1天）→ 开始群公告警告。"""
+        d = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 接龙 t 限时 2天 截止 {d}").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 加入", user_id=234567).handle()
+        p = self._run("/活动 开始", user_id=123456)
+        p.handle()
+        self.assertIn("提醒", self._group_announce_texts(p))
+
+    def test_start_no_warn_without_conflict(self):
+        """截止晚于最晚理论完成时间 → 无警告。"""
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 接龙 t 限时 2天 截止 {d}").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 加入", user_id=234567).handle()
+        p = self._run("/活动 开始", user_id=123456)
+        p.handle()
+        self.assertNotIn("提醒", self._group_announce_texts(p))
 
 
 if __name__ == "__main__":

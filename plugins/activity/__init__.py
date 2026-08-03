@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from core.base import Plugin
 from core.cq import text
@@ -522,6 +522,23 @@ def _match_reconnect(api, db, act: dict, left_uid: str, members: list[dict]):
         )
 
 
+def _warn_relay_deadline_conflict(api, act: dict, member_count: int):
+    """接龙全局截止早于最晚理论完成时间（开始 + 人数×限时）时群公告警告。"""
+    try:
+        due = datetime.strptime(act["deadline"], "%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return
+    hours = act.get("hours_per_user") or 0
+    worst_end = datetime.now() + timedelta(hours=hours) * member_count
+    if worst_end > due:
+        _announce_group(
+            api, act["group_id"],
+            f"⚠️ 提醒：截止 {act['deadline']} 早于最晚理论完成时间"
+            f" {worst_end.strftime('%Y-%m-%d %H:%M:%S')}（{member_count} 人 × 每人"
+            f" {format_duration(hours)}），到点未完成的接力将直接截断归档。",
+        )
+
+
 def _finish_activity(api, db, act: dict):
     now = _now()
     db.activity.update_activity(act["id"], status="finished", finished_at=now)
@@ -552,6 +569,8 @@ def _start_activity(api, db, act: dict) -> str | None:
     db.activity.update_activity(act["id"], status="running")
     now = _now()
     if act["type"] == "relay":
+        if act.get("deadline"):
+            _warn_relay_deadline_conflict(api, act, len(users))
         first = assigns[0]
         db.activity.update_member(act["id"], first[0], received_at=now)
         _send_private(
