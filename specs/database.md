@@ -278,6 +278,7 @@ with _connect() as conn:
 | `hours_per_user` | REAL | | 接龙每人限时（小时，默认 48） |
 | `created_at` | TEXT | NOT NULL | 创建时间 |
 | `finished_at` | TEXT | | 结束时间 |
+| `pre_deadline_notified` | INTEGER | NOT NULL DEFAULT `0` | 截止前 24h 进度提醒是否已发送 |
 
 - 同一群同时只有一个进行中活动（`get_active_activity` 查 `status IN ('open','running')` 取最新）
 - 数据管理在 `core/db/activity.py`（`ActivityManager`），DDL 见 `core/db/_base.py`

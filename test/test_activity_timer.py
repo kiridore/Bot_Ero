@@ -132,6 +132,41 @@ class TestTimer(unittest.TestCase):
         self._plugin().handle()
         self.assertEqual(self.db.activity.get_activity(aid)["status"], "open")
 
+    def _announce_texts(self, p) -> str:
+        return "".join(
+            seg["data"]["text"]
+            for a, c in p.api.api_calls if a == "send_group_msg"
+            for seg in c["message"] if seg["type"] == "text"
+        )
+
+    def test_pre_deadline_notify_once(self):
+        """截止前 24h 内 → 公告进度+未提交名单，且只提醒一次。"""
+        aid = _setup(self.db, "match")
+        soon = (datetime.now() + timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
+        self.db.activity.update_activity(aid, deadline=soon)
+        self.db.activity.update_member(aid, "100", status="done",
+                                       submitted_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        p = self._plugin()
+        p.handle()
+        text = self._announce_texts(p)
+        self.assertIn("距截止还有", text)
+        self.assertIn("1/2", text)          # 进度
+        self.assertIn("B", text)            # 未提交名单
+        self.assertEqual(self.db.activity.get_activity(aid)["pre_deadline_notified"], 1)
+        # 再次扫描不重复提醒
+        p2 = self._plugin()
+        p2.handle()
+        self.assertNotIn("距截止还有", self._announce_texts(p2))
+
+    def test_pre_deadline_no_notify_when_far(self):
+        aid = _setup(self.db, "match")
+        far = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
+        self.db.activity.update_activity(aid, deadline=far)
+        p = self._plugin()
+        p.handle()
+        self.assertNotIn("距截止还有", self._announce_texts(p))
+        self.assertEqual(self.db.activity.get_activity(aid)["pre_deadline_notified"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

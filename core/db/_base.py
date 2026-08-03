@@ -315,7 +315,8 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             deadline TEXT,                       -- 活动截止时间（到点强制结束归档）
             hours_per_user REAL,               -- relay: 每人时限小时
             created_at TEXT NOT NULL,
-            finished_at TEXT
+            finished_at TEXT,
+            pre_deadline_notified INTEGER NOT NULL DEFAULT 0  -- 截止前24h进度提醒已发
         );
     """)
     cur.execute("PRAGMA table_info(activities)")
@@ -326,6 +327,11 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         cur.execute("ALTER TABLE activities ADD COLUMN signup_deadline TEXT")
         cur.execute("PRAGMA table_info(activities)")
         _act_cols = [row[1] for row in cur.fetchall()]
+    if _act_cols and "pre_deadline_notified" not in _act_cols:
+        cur.execute(
+            "ALTER TABLE activities ADD COLUMN pre_deadline_notified"
+            " INTEGER NOT NULL DEFAULT 0"
+        )
     cur.execute("""
         CREATE TABLE IF NOT EXISTS activity_members (
             activity_id INTEGER NOT NULL,

@@ -291,7 +291,8 @@ CREATE TABLE activities (
     deadline TEXT,                   -- 活动截止（到点强制结束归档；匹配必填，接龙可选）
     hours_per_user REAL,               -- relay: 每人时限小时（默认 48）
     created_at TEXT NOT NULL,
-    finished_at TEXT
+    finished_at TEXT,
+    pre_deadline_notified INTEGER NOT NULL DEFAULT 0,  -- 截止前24h进度提醒已发
 );
 
 CREATE TABLE activity_members (

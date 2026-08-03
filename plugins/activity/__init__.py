@@ -659,6 +659,21 @@ class ActivityTimerPlugin(Plugin):
                 due = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
             except (ValueError, TypeError):
                 continue
+            remaining = due - now
+            if timedelta(0) < remaining <= timedelta(hours=24) and not act.get("pre_deadline_notified"):
+                pending = [m["nickname"] for m in members if m["status"] == "pending"]
+                done = sum(1 for m in members if m["status"] == "done")
+                hours_left = remaining.total_seconds() / 3600
+                lines = [
+                    f"活动「{act['title']}」距截止还有 {hours_left:g} 小时！",
+                    f"当前进度：{done}/{len(members)}",
+                ]
+                if pending:
+                    lines.append("尚未提交：" + "、".join(pending))
+                lines.append("请尽快私聊机器人 /提交 作品")
+                self._announce_group(act["group_id"], "\n".join(lines))
+                self.dbmanager.activity.update_activity(
+                    act["id"], pre_deadline_notified=1)
             if now >= due:
                 for m in members:
                     if m["status"] == "pending":
