@@ -245,7 +245,6 @@ class ActivityPlugin(Plugin):
                 _finish_activity(self.api, self.dbmanager, act)
         else:
             self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
-            self._forward_work(act, members, member)
             if all(m["status"] in ("done", "left") for m in members):
                 _finish_activity(self.api, self.dbmanager, act)
 
@@ -279,20 +278,6 @@ class ActivityPlugin(Plugin):
                 return []
             saved.append(os.path.basename(local))
         return saved
-
-    def _forward_work(self, act: dict, members: list[dict], member: dict):
-        """match：把 member 的作品转发给其下家（收件人已完成也照送）。"""
-        recipient = self.dbmanager.activity.get_member(act["id"], member["next_user_id"])
-        if not recipient or recipient["status"] == "left":
-            return
-        if recipient["user_id"] == member["user_id"]:
-            return
-        fresh = next((m for m in members if m["user_id"] == member["user_id"]), member)
-        self._send_private(
-            int(member["next_user_id"]),
-            text(f"你收到了一份作品（活动「{act['title']}」）："),
-            *self._work_segments(fresh),
-        )
 
     def _work_segments(self, member: dict) -> list[dict]:
         return _work_segments(member)
