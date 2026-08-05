@@ -131,12 +131,12 @@
   cursor: pointer;
 }
 
-.heatmap-cell.level-0 { background: var(--rule); }
-.heatmap-cell.level-1 { background: #c9d5c2; }
-.heatmap-cell.level-2 { background: #9db598; }
-.heatmap-cell.level-3 { background: #6f9474; }
-.heatmap-cell.level-4 { background: #3f5347; }
-.heatmap-cell.level--1 { background: #d8c9a8; }
+.heatmap-cell.level-0 { background: #e9e1cd; }
+.heatmap-cell.level-1 { background: #dde6d8; }
+.heatmap-cell.level-2 { background: #b9ccb3; }
+.heatmap-cell.level-3 { background: #8fae8a; }
+.heatmap-cell.level-4 { background: #64866a; }
+.heatmap-cell.level--1 { background: #d4b97f; }
 .heatmap-cell:hover { outline: 1px solid var(--accent); }
 
 .heatmap-legend {
