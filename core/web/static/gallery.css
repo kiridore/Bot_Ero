@@ -189,10 +189,6 @@ body {
   background: rgba(44, 42, 36, 0.45);
 }
 
-.login-dialog form {
-  padding: 1.25rem;
-}
-
 .login-dialog h2 {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;

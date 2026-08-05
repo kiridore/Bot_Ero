@@ -62,7 +62,7 @@
 │   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
-│   ├── web/static/            ← Web 子应用共享静态（auth.js/gallery.css/profile.css）
+│   ├── web/static/            ← Web 子应用共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 见 core/web/static/gallery.css，与 homepage/style.css 数值同步）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 43 个已注册插件
 ├── kb/                        ← 知识库子文档
