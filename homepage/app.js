@@ -12,7 +12,7 @@ function statusClass(entry, ok) {
 
 function cardHTML(entry) {
   const badge = entry.badge ? `<span class="badge">${escapeHTML(entry.badge)}</span>` : "";
-  const span = entry.span ? ` span-${entry.span}` : "";
+  const span = Number.isInteger(+entry.span) ? ` span-${+entry.span}` : "";
   const links = (entry.links || []).map((l) =>
     l.copy
       ? `<button type="button" class="card-link copy-btn" data-copy="${escapeHTML(l.copy)}">${escapeHTML(l.label)}</button>`

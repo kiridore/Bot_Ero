@@ -69,6 +69,7 @@
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
 ├── checkin_gallery/           ← Web 图库（独立进程）
+├── homepage/                  ← 导航主页（纯静态，Caddy 托管；entries/quotes/notices 三个 JSON 配置）
 └── test/                      ← 临时测试脚本
 ```
 
