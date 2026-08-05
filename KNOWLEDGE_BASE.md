@@ -73,12 +73,12 @@
 │   ├── OPERATIONS.md
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
-├── gallery/                   ← 图库子应用（8765，gallery.littlero.com）
-├── guestbook/                 ← 留言簿子应用（8766，guestbook.littlero.com）
-├── profile/                   ← 个人中心子应用（8767，profile.littlero.com）
-├── trpg/                      ← 跑团子应用（8768，trpg.littlero.com）
-├── alarms/                    ← 闹钟子应用（8769，alarms.littlero.com）
-├── activities/                ← 活动归档子应用（8770，activities.littlero.com）
+├── gallery/                   ← 图库子应用（8765，gallery.littlero.tech）
+├── guestbook/                 ← 留言簿子应用（8766，guestbook.littlero.tech）
+├── profile/                   ← 个人中心子应用（8767，profile.littlero.tech）
+├── trpg/                      ← 跑团子应用（8768，trpg.littlero.tech）
+├── alarms/                    ← 闹钟子应用（8769，alarms.littlero.tech）
+├── activities/                ← 活动归档子应用（8770，activities.littlero.tech）
 ├── homepage/                  ← 导航主页（纯静态，Caddy 托管；entries/quotes/notices 三个 JSON 配置）
 └── test/                      ← 临时测试脚本
 ```

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含 6 个独立的 **FastAPI Web 子应用**（`gallery/`、`guestbook/`、`profile/`、`trpg/`、`alarms/`、`activities/`），共享 `core/` 层，由 `homepage/` 导航主页聚合入口，Caddy 反代各子域名（`*.littlero.com`）。
+此外包含 6 个独立的 **FastAPI Web 子应用**（`gallery/`、`guestbook/`、`profile/`、`trpg/`、`alarms/`、`activities/`），共享 `core/` 层，由 `homepage/` 导航主页聚合入口，Caddy 反代各子域名（`*.littlero.tech`）。
 
 ## 运行命令
 
@@ -74,7 +74,7 @@ OneBot 服务端 ──WebSocket──> main.py
 
 ### Web 子应用（`gallery/` 等 6 个）
 
-按功能域拆分的 6 个独立 FastAPI 进程，各自独立端口（8765-8770），Caddy 反代子域名（`*.littlero.com`），`homepage/entries.json` 聚合导航。共享 `core/` 层，统一骨架：
+按功能域拆分的 6 个独立 FastAPI 进程，各自独立端口（8765-8770），Caddy 反代子域名（`*.littlero.tech`），`homepage/entries.json` 聚合导航。共享 `core/` 层，统一骨架：
 
 - 每应用含 `app.py`（FastAPI 路由 + FileResponse 页面路由）、`__main__.py`（uvicorn 启动）、`static/`（本域前端）
 - 认证助手 `get_current_user_id` / `get_optional_user_id`；`/api/auth/login` + `/api/auth/me`

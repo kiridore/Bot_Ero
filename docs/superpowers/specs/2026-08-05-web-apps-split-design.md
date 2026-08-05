@@ -18,12 +18,12 @@
 ### 2.1 拓扑
 
 ```
-                        ┌─ gallery.littlero.com ─────→ gallery/   (端口 8765, 保留现域名)
-                        ├─ profile.littlero.com ────→ profile/   (8767)
-                        ├─ trpg.littlero.com ───────→ trpg/      (8768)
- 用户 → 导航主页(homepage) ├─ guestbook.littlero.com → guestbook/ (8766, 试点)
- (Caddy 静态托管)         ├─ alarms.littlero.com ───→ alarms/    (8769)
-                        └─ activities.littlero.com → activities/ (8770)
+                        ┌─ gallery.littlero.tech ─────→ gallery/   (端口 8765, 保留现域名)
+                        ├─ profile.littlero.tech ────→ profile/   (8767)
+                        ├─ trpg.littlero.tech ───────→ trpg/      (8768)
+ 用户 → 导航主页(homepage) ├─ guestbook.littlero.tech → guestbook/ (8766, 试点)
+ (Caddy 静态托管)         ├─ alarms.littlero.tech ───→ alarms/    (8769)
+                        └─ activities.littlero.tech → activities/ (8770)
 ```
 
 旧路径（`/profile/*`、`/guestbook`、`/archive*`、`/trpg/*`）**不做重定向，直接失效**。
@@ -57,12 +57,12 @@ plugins/    ← bot（不变）
 
 | 子应用 | 子域名 | 端口 | 内容 |
 |---|---|---|---|
-| 图库 | gallery.littlero.com（保留现域名） | 8765 | 瀑布流、/thumb /media、/api/checkins /api/users、认证路由 |
-| 个人中心 | profile.littlero.com | 8767 | 个人主页、打卡、商店、称号设置、隐私设置 |
-| 跑团 | trpg.littlero.com | 8768 | 车卡 CRUD、角色查看、规则 |
-| 留言簿 | guestbook.littlero.com | 8766 | 留言列表/发布/点赞（试点） |
-| 闹钟 | alarms.littlero.com | 8769 | 闹钟 CRUD |
-| 活动 | activities.littlero.com | 8770 | 活动归档列表/详情/媒体 |
+| 图库 | gallery.littlero.tech（保留现域名） | 8765 | 瀑布流、/thumb /media、/api/checkins /api/users、认证路由 |
+| 个人中心 | profile.littlero.tech | 8767 | 个人主页、打卡、商店、称号设置、隐私设置 |
+| 跑团 | trpg.littlero.tech | 8768 | 车卡 CRUD、角色查看、规则 |
+| 留言簿 | guestbook.littlero.tech | 8766 | 留言列表/发布/点赞（试点） |
+| 闹钟 | alarms.littlero.tech | 8769 | 闹钟 CRUD |
+| 活动 | activities.littlero.tech | 8770 | 活动归档列表/详情/媒体 |
 
 ## 3. 共享层设计（core/ 增改）
 
@@ -118,7 +118,7 @@ plugins/    ← bot（不变）
 ### 4.3 Caddy 示例（VPS 侧，入文档）
 
 ```
-guestbook.littlero.com {
+guestbook.littlero.tech {
     reverse_proxy 127.0.0.1:8766
 }
 ```
@@ -129,7 +129,7 @@ guestbook.littlero.com {
 
 ### 4.5 试点验证清单
 
-1. `guestbook.littlero.com` 可浏览/发布/点赞留言
+1. `guestbook.littlero.tech` 可浏览/发布/点赞留言
 2. 同一把图库密钥在新域名可登录
 3. `grep -r guestbook checkin_gallery/` 无残留引用
 4. 机器人进程不受影响（`python main.py` 正常，plugins 用 DbManager 无感知）
@@ -179,12 +179,12 @@ WantedBy=multi-user.target
 Caddy 各子域：
 
 ```
-gallery.littlero.com    { reverse_proxy 127.0.0.1:8765 }
-profile.littlero.com    { reverse_proxy 127.0.0.1:8767 }
-trpg.littlero.com       { reverse_proxy 127.0.0.1:8768 }
-guestbook.littlero.com  { reverse_proxy 127.0.0.1:8766 }
-alarms.littlero.com     { reverse_proxy 127.0.0.1:8769 }
-activities.littlero.com { reverse_proxy 127.0.0.1:8770 }
+gallery.littlero.tech    { reverse_proxy 127.0.0.1:8765 }
+profile.littlero.tech    { reverse_proxy 127.0.0.1:8767 }
+trpg.littlero.tech       { reverse_proxy 127.0.0.1:8768 }
+guestbook.littlero.tech  { reverse_proxy 127.0.0.1:8766 }
+alarms.littlero.tech     { reverse_proxy 127.0.0.1:8769 }
+activities.littlero.tech { reverse_proxy 127.0.0.1:8770 }
 ```
 
 域名解析：需在 DNS 添加各子域 A 记录（域名侧操作，文档注明；实施在 VPS/Caddy 配置文件）。

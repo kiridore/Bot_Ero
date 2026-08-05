@@ -2,14 +2,14 @@
   {
     "name": "打卡图库",
     "desc": "每日打卡记录与图片画廊",
-    "url": "https://gallery.littlero.com",
+    "url": "https://gallery.littlero.tech",
     "badge": "本店招牌",
     "span": 2
   },
   {
     "name": "狼人杀",
     "desc": "谁是卧底与狼人杀桌游网页",
-    "url": "https://werewolf.littlero.com"
+    "url": "https://werewolf.littlero.tech"
   },
   {
     "name": "MC 服务器",
@@ -28,27 +28,27 @@
   {
     "name": "留言簿",
     "desc": "群友留言与点赞",
-    "url": "https://guestbook.littlero.com"
+    "url": "https://guestbook.littlero.tech"
   },
   {
     "name": "闹钟",
     "desc": "个人与群闹钟管理",
-    "url": "https://alarms.littlero.com"
+    "url": "https://alarms.littlero.tech"
   },
   {
     "name": "跑团",
     "desc": "DND 车卡与角色查看",
-    "url": "https://trpg.littlero.com"
+    "url": "https://trpg.littlero.tech"
   },
   {
     "name": "活动",
     "desc": "接龙与匹配活动的作品归档",
-    "url": "https://activities.littlero.com"
+    "url": "https://activities.littlero.tech"
   },
   {
     "name": "个人中心",
     "desc": "个人主页、打卡、商店与称号设置",
-    "url": "https://profile.littlero.com",
+    "url": "https://profile.littlero.tech",
     "span": 2
   }
 ]

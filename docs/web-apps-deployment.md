@@ -8,46 +8,46 @@
 
 | 子域 | 记录类型 | 说明 |
 |------|---------|------|
-| `gallery.littlero.com` | A | 已有记录，无需改动 |
-| `guestbook.littlero.com` | A | 新增 |
-| `profile.littlero.com` | A | 新增 |
-| `trpg.littlero.com` | A | 新增 |
-| `alarms.littlero.com` | A | 新增 |
-| `activities.littlero.com` | A | 新增 |
+| `gallery.littlero.tech` | A | 已有记录，无需改动 |
+| `guestbook.littlero.tech` | A | 新增 |
+| `profile.littlero.tech` | A | 新增 |
+| `trpg.littlero.tech` | A | 新增 |
+| `alarms.littlero.tech` | A | 新增 |
+| `activities.littlero.tech` | A | 新增 |
 
 若其他服务（狼人杀、MC 地图等）也部署在同机，照此模式追加 `@` 子域即可。
 
 ## 2. Caddyfile
 
-现成配置文件：`scripts/Caddyfile`（仓库内，部署路径 `/home/dore/onebot/Bot_Ero`）。导航主页为根域 `littlero.com` 静态托管，6 个子域反代到对应本地端口：
+现成配置文件：`scripts/Caddyfile`（仓库内，部署路径 `/home/dore/onebot/Bot_Ero`）。导航主页为根域 `littlero.tech` 静态托管，6 个子域反代到对应本地端口：
 
 ```caddyfile
-littlero.com {
+littlero.tech {
 	root * /home/dore/onebot/Bot_Ero/homepage
 	file_server
 }
 
-gallery.littlero.com {
+gallery.littlero.tech {
 	reverse_proxy 127.0.0.1:8765
 }
 
-guestbook.littlero.com {
+guestbook.littlero.tech {
 	reverse_proxy 127.0.0.1:8766
 }
 
-profile.littlero.com {
+profile.littlero.tech {
 	reverse_proxy 127.0.0.1:8767
 }
 
-trpg.littlero.com {
+trpg.littlero.tech {
 	reverse_proxy 127.0.0.1:8768
 }
 
-alarms.littlero.com {
+alarms.littlero.tech {
 	reverse_proxy 127.0.0.1:8769
 }
 
-activities.littlero.com {
+activities.littlero.tech {
 	reverse_proxy 127.0.0.1:8770
 }
 ```
@@ -131,7 +131,7 @@ systemctl enable --now botero-gallery botero-guestbook botero-profile botero-trp
 | `BOTERO_ACTIVITY_ROOT` | `<仓库>/server_data/activity_archive` | 活动存档目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 子应用监听地址 |
 | `BOTERO_GALLERY_PORT` | `8765` | 子应用监听端口（每服务按上表设置） |
-| `BOTERO_GALLERY_URL` | `https://gallery.littlero.com` | 个人中心等子应用引用图库媒体/缩略图的基地址 |
+| `BOTERO_GALLERY_URL` | `https://gallery.littlero.tech` | 个人中心等子应用引用图库媒体/缩略图的基地址 |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP 地址，用于拉取 QQ 昵称 |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 访问令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号 |
@@ -154,7 +154,7 @@ systemctl enable --now botero-gallery botero-guestbook botero-profile botero-trp
 2. 更新代码：`git pull` 后重启受影响服务；
 3. 启动：`./scripts/botero-services.sh start`（首次部署先逐个 `enable --now` 设为开机自启，再一键 start）；
 4. 验证：依次访问 6 个子域根路径，均应返回 HTTP 200：
-   `curl -s -o /dev/null -w "%{http_code}\n" https://gallery.littlero.com`（每个子域一次）。
+   `curl -s -o /dev/null -w "%{http_code}\n" https://gallery.littlero.tech`（每个子域一次）。
 
 ## 7. 已知限制
 

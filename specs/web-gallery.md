@@ -8,23 +8,23 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **6 个独立 FastAPI 子应用**，各自独立端口，Caddy 反代子域名（`*.littlero.com`），由 `homepage/` 导航主页（纯静态，`entries.json` 配置卡片）聚合入口。
+Web 端按功能域拆分为 **6 个独立 FastAPI 子应用**，各自独立端口，Caddy 反代子域名（`*.littlero.tech`），由 `homepage/` 导航主页（纯静态，`entries.json` 配置卡片）聚合入口。
 
 | 子应用 | 模块 | 端口 | 域名 | 职责 |
 |--------|------|------|------|------|
-| 图库 | `gallery` | 8765 | gallery.littlero.com | 打卡图库瀑布流 + /thumb /media + 打卡数据 API |
-| 留言簿 | `guestbook` | 8766 | guestbook.littlero.com | 留言列表/发表/点赞 |
-| 个人中心 | `profile` | 8767 | profile.littlero.com | 个人主页/打卡/商店/称号/设置 5 域聚合 |
-| 跑团 | `trpg` | 8768 | trpg.littlero.com | 车卡创建/编辑/查看 |
-| 闹钟 | `alarms` | 8769 | alarms.littlero.com | 闹钟 CRUD |
-| 活动 | `activities` | 8770 | activities.littlero.com | 活动归档/详情 |
+| 图库 | `gallery` | 8765 | gallery.littlero.tech | 打卡图库瀑布流 + /thumb /media + 打卡数据 API |
+| 留言簿 | `guestbook` | 8766 | guestbook.littlero.tech | 留言列表/发表/点赞 |
+| 个人中心 | `profile` | 8767 | profile.littlero.tech | 个人主页/打卡/商店/称号/设置 5 域聚合 |
+| 跑团 | `trpg` | 8768 | trpg.littlero.tech | 车卡创建/编辑/查看 |
+| 闹钟 | `alarms` | 8769 | alarms.littlero.tech | 闹钟 CRUD |
+| 活动 | `activities` | 8770 | activities.littlero.tech | 活动归档/详情 |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  6 × FastAPI 子应用 (8765-8770)           │
 │  ws://127.0.0.1:3001 │     │  gallery guestbook profile trpg           │
 │                      │     │  alarms activities                        │
-└────────┬────────────┘     │        │  └─ Caddy 反代 *.littlero.com     │
+└────────┬────────────┘     │        │  └─ Caddy 反代 *.littlero.tech     │
          │                  │        └── homepage/ (静态导航主页)         │
          └──────────┬───────┘
                     │
@@ -88,7 +88,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 | `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
 | `BOTERO_GALLERY_PORT` | `8765` | 图库监听端口（其余子应用端口为各 `__main__.py` 默认值：8766-8770） |
-| `BOTERO_GALLERY_URL` | `https://gallery.littlero.com` | 图库域基地址（个人中心等子应用跨域引用图库媒体/缩略图） |
+| `BOTERO_GALLERY_URL` | `https://gallery.littlero.tech` | 图库域基地址（个人中心等子应用跨域引用图库媒体/缩略图） |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号（昵称查询） |

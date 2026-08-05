@@ -28,7 +28,7 @@ function makeEl(tag) {
 
 let bodyEl = makeEl("body");
 const els = {};
-global.location = { hostname: "gallery.littlero.com", protocol: "https:" };
+global.location = { hostname: "gallery.littlero.tech", protocol: "https:" };
 global.window = {};
 global.document = {
   createElement: (t) => makeEl(t),

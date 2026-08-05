@@ -562,7 +562,7 @@ git mv checkin_gallery/static/guestbook.js guestbook/static/guestbook.js
   {
     "name": "留言簿",
     "desc": "群友留言与点赞",
-    "url": "https://guestbook.littlero.com"
+    "url": "https://guestbook.littlero.tech"
   }
 ```
 
@@ -606,7 +606,7 @@ git commit -m "feat(网页): 留言簿拆分为独立子应用（试点）"
 - [ ] **Step 1: 创建部署文档**
 
 内容（完整写出）：
-1. **DNS**：6 个子域 A 记录指向 VPS（gallery 保留现有记录）：`gallery.littlero.com`（已有）、`profile`、`trpg`、`guestbook`、`alarms`、`activities`（均为 `littlero.com` 子域，`@` 后缀示例照此模式）
+1. **DNS**：6 个子域 A 记录指向 VPS（gallery 保留现有记录）：`gallery.littlero.tech`（已有）、`profile`、`trpg`、`guestbook`、`alarms`、`activities`（均为 `littlero.tech` 子域，`@` 后缀示例照此模式）
 2. **Caddyfile**：6 段 `reverse_proxy 127.0.0.1:<port>`（端口：gallery 8765 / guestbook 8766 / profile 8767 / trpg 8768 / alarms 8769 / activities 8770）。注明旧路径不重定向、直接失效
 3. **systemd**：每个子应用一个 unit，示例给 `guestbook.service` 完整内容（WorkingDirectory=仓库路径、Environment 注入 `BOTERO_DB_PATH`/`BOTERO_AUTH_SALT`/`BOTERO_GALLERY_PORT=8766` 等、`ExecStart=/usr/bin/python3 -m guestbook`、Restart=always），其余 5 个按端口/模块名类推（列表注明：profile→`-m profile` 8767，trpg→`-m trpg` 8768，alarms→`-m alarms` 8769，activities→`-m activities` 8770，gallery→`-m checkin_gallery` 8765 保留原名直到 Task 12 改名）
 4. **环境变量清单**：全部 `BOTERO_*` 变量名与用途（从 core/config.py 列出）
@@ -680,7 +680,7 @@ git mv checkin_gallery/static/alarms.js alarms/static/alarms.js
   {
     "name": "闹钟",
     "desc": "个人与群闹钟管理",
-    "url": "https://alarms.littlero.com"
+    "url": "https://alarms.littlero.tech"
   }
 ```
 
@@ -762,7 +762,7 @@ git mv checkin_gallery/static/char_view.js trpg/static/char_view.js
   {
     "name": "跑团",
     "desc": "DND 车卡与角色查看",
-    "url": "https://trpg.littlero.com"
+    "url": "https://trpg.littlero.tech"
   }
 ```
 
@@ -825,7 +825,7 @@ git mv checkin_gallery/static/activities_detail.js activities/static/activities_
 3. `GET /api/activities/{activity_id}`（758-767）：`get_activity` 判 None → 404；`members` 的 `images` 字段映射 `f"/archive/{activity_id}/media/{name}"`（逐字保留）
 4. `GET /archive/{activity_id}/media/{filename}`（777-785）：路径守卫 `_assert_under_activity_root` 与 `_resolve_and_guard` 逻辑从现 app.py 逐字搬入（依赖 `core.config.ACTIVITY_ROOT`）
 5. 页面路由：`GET /` → activities.html；`GET /{activity_id}` → activities_detail.html（对照现 `/archive/{id}`，**路径改为 `/{activity_id}`**，activities.js 里跳转链接同步改）
-6. `GET /archive` → activities.html（可选保留，导航主页用 `https://activities.littlero.com/`，无需要可不加）
+6. `GET /archive` → activities.html（可选保留，导航主页用 `https://activities.littlero.tech/`，无需要可不加）
 
 `activities/__main__.py`：模块名 `activities.app`，port 8770。
 
@@ -843,7 +843,7 @@ git mv checkin_gallery/static/activities_detail.js activities/static/activities_
   {
     "name": "活动",
     "desc": "接龙与匹配活动的作品归档",
-    "url": "https://activities.littlero.com"
+    "url": "https://activities.littlero.tech"
   }
 ```
 
@@ -943,7 +943,7 @@ git mv checkin_gallery/static/gallery.css profile/static/gallery.css
   {
     "name": "个人中心",
     "desc": "个人主页、打卡、商店与称号设置",
-    "url": "https://profile.littlero.com",
+    "url": "https://profile.littlero.tech",
     "span": 2
   }
 ```
@@ -1040,7 +1040,7 @@ Expected: 三个 200；plugins OK。
 
 - [ ] **Step 7: 导航主页图库卡片确认**
 
-`homepage/entries.json` 打卡图库卡片 `url` 应为 `https://gallery.littlero.com`（如为占位域名则更新）。
+`homepage/entries.json` 打卡图库卡片 `url` 应为 `https://gallery.littlero.tech`（如为占位域名则更新）。
 
 - [ ] **Step 8: 提交**
 

@@ -1,5 +1,5 @@
 // 模拟浏览器环境验证 auth.js 的跨子域 cookie 逻辑
-let fakeHost = "gallery.littlero.com";
+let fakeHost = "gallery.littlero.tech";
 let fakeProto = "https:";
 let cookieStore = {};
 
@@ -35,8 +35,8 @@ const fs = require("fs");
 global.window = {};
 eval(fs.readFileSync("core/web/static/auth.js", "utf8"));
 
-// 1. cookieDomain: 生产子域 → .littlero.com
-assertEq(cookieDomain(), ".littlero.com", "子域 domain");
+// 1. cookieDomain: 生产子域 → .littlero.tech
+assertEq(cookieDomain(), ".littlero.tech", "子域 domain");
 // 2. cookieDomain: IP → 空
 fakeHost = "192.168.1.5";
 assertEq(cookieDomain(), "", "IP 无 domain");
@@ -44,12 +44,12 @@ assertEq(cookieDomain(), "", "IP 无 domain");
 fakeHost = "localhost";
 assertEq(cookieDomain(), "", "localhost 无 domain");
 // 4. 登录种 cookie
-fakeHost = "gallery.littlero.com";
+fakeHost = "gallery.littlero.tech";
 window.GalleryAuth.save({ user_id: "123", token: "abc:def" });
 assertEq(readCookie("botero_key"), "abc:def", "cookie 写入");
 // 5. 模拟另一子域（同 cookie store）→ load 从 cookie 恢复
 localStorage.removeItem("botero_gallery_session");
-fakeHost = "profile.littlero.com";
+fakeHost = "profile.littlero.tech";
 const s = window.GalleryAuth.load();
 assertEq(s.token, "abc:def", "跨子域 cookie 恢复");
 assertEq(window.GalleryAuth.isLoggedIn(), true, "跨子域已登录");
