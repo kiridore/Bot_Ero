@@ -3,21 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>个人主页 · 打卡图库</title>
+  <title>个人主页</title>
   <link rel="stylesheet" href="/shared/gallery.css" />
   <link rel="stylesheet" href="/shared/profile.css" />
 </head>
 <body>
   <header class="toolbar profile-toolbar">
-    <a href="/" class="back-link">← 图库</a>
     <nav class="profile-nav">
-      <a href="/profile" class="active">主页</a>
-      <a href="/profile/checkin">打卡</a>
-      <a href="/profile/shop">商店</a>
-      <a href="/profile/settings">设置</a>
+      <a href="/" class="active">主页</a>
+      <a href="/checkin">打卡</a>
+      <a href="/shop">商店</a>
+      <a href="/settings">设置</a>
     </nav>
     <div class="auth-area" id="authArea"></div>
   </header>
+
+  <dialog id="loginDialog" class="login-dialog">
+    <form method="dialog" id="loginForm">
+      <h2>个人中心登录</h2>
+      <p class="login-hint">请向机器人私聊发送 <code>/图库密钥</code> 获取密钥</p>
+      <input type="password" id="loginKey" placeholder="粘贴登录密钥" autocomplete="off" required />
+      <p class="login-error hidden" id="loginError"></p>
+      <div class="login-actions">
+        <button type="button" id="loginCancel">取消</button>
+        <button type="submit" class="primary">登录</button>
+      </div>
+    </form>
+  </dialog>
 
   <main class="profile-main" id="profileMain">
     <p class="loading-msg">加载中…</p>

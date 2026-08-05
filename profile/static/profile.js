@@ -6,6 +6,11 @@ const dayDialogClose = document.getElementById("dayDialogClose");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxClose = document.getElementById("lightboxClose");
+const loginDialog = document.getElementById("loginDialog");
+const loginForm = document.getElementById("loginForm");
+const loginKey = document.getElementById("loginKey");
+const loginError = document.getElementById("loginError");
+const loginCancel = document.getElementById("loginCancel");
 
 let profileData = null;
 let titleFilter = "all";
@@ -14,22 +19,37 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function openLoginDialog() {
+  loginError.classList.add("hidden");
+  loginDialog.showModal();
+}
+
 function requireAuth() {
   if (!GalleryAuth.isLoggedIn()) {
-    window.location.href = "/";
+    profileMain.innerHTML = "<p class='empty-hint center'>请先登录</p>";
+    openLoginDialog();
     return false;
   }
   return true;
 }
 
 function renderAuthChip() {
-  const session = GalleryAuth.load();
   const area = document.getElementById("authArea");
-  if (!session) return;
+  if (!area) return;
   area.innerHTML = "";
+  const session = GalleryAuth.load();
+  if (!session || !session.token) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-login";
+    btn.textContent = "登录";
+    btn.addEventListener("click", openLoginDialog);
+    area.appendChild(btn);
+    return;
+  }
   const link = document.createElement("a");
   link.className = "user-chip";
-  link.href = "/profile";
+  link.href = "/";
   const img = document.createElement("img");
   img.src = session.avatar_url || "";
   img.alt = session.display_name;
@@ -214,7 +234,7 @@ async function loadProfile(year) {
   const res = await fetch(url, { headers: GalleryAuth.headers() });
   if (!res.ok) {
     GalleryAuth.clear();
-    window.location.href = "/";
+    requireAuth();
     return;
   }
   renderProfile(await res.json());
@@ -232,9 +252,23 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-if (requireAuth()) {
-  GalleryAuth.refreshMe().finally(() => {
+loginCancel.addEventListener("click", () => loginDialog.close());
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.classList.add("hidden");
+  try {
+    await GalleryAuth.login(loginKey.value);
+    loginDialog.close();
+    loginKey.value = "";
     renderAuthChip();
     loadProfile();
-  });
-}
+  } catch (err) {
+    loginError.textContent = err.message || "登录失败";
+    loginError.classList.remove("hidden");
+  }
+});
+
+GalleryAuth.refreshMe().finally(() => {
+  renderAuthChip();
+  if (requireAuth()) loadProfile();
+});

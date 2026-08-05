@@ -11,7 +11,7 @@ from pathlib import Path
 from core.database_manager import DbManager
 from core.utils import add_user_point, get_monday_to_monday
 
-from checkin_gallery import config
+from core import config
 
 _TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title.py"
 

@@ -194,15 +194,8 @@ function renderAuthArea() {
   const session = GalleryAuth.load();
   authArea.innerHTML = "";
   if (session && session.token) {
-    const checkinLink = document.createElement("a");
-    checkinLink.className = "btn-checkin";
-    checkinLink.href = "/profile/checkin";
-    checkinLink.textContent = "打卡";
-    authArea.appendChild(checkinLink);
-
-    const link = document.createElement("a");
-    link.className = "user-chip";
-    link.href = "/profile";
+    const chip = document.createElement("div");
+    chip.className = "user-chip";
     const img = document.createElement("img");
     img.alt = session.display_name || session.user_id;
     img.src = session.avatar_url || "";
@@ -211,9 +204,9 @@ function renderAuthArea() {
     };
     const textWrap = document.createElement("span");
     textWrap.innerHTML = `<strong>${escapeHtml(session.display_name || session.user_id)}</strong><br><span class="uid">${session.user_id}</span>`;
-    link.appendChild(img);
-    link.appendChild(textWrap);
-    authArea.appendChild(link);
+    chip.appendChild(img);
+    chip.appendChild(textWrap);
+    authArea.appendChild(chip);
   } else {
     const btn = document.createElement("button");
     btn.type = "button";

@@ -44,5 +44,11 @@
     "name": "活动",
     "desc": "接龙与匹配活动的作品归档",
     "url": "https://activities.littlero.com"
+  },
+  {
+    "name": "个人中心",
+    "desc": "个人主页、打卡、商店与称号设置",
+    "url": "https://profile.littlero.com",
+    "span": 2
   }
 ]

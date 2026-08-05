@@ -1,25 +1,45 @@
 const shopMain = document.getElementById("shopMain");
+const loginDialog = document.getElementById("loginDialog");
+const loginForm = document.getElementById("loginForm");
+const loginKey = document.getElementById("loginKey");
+const loginError = document.getElementById("loginError");
+const loginCancel = document.getElementById("loginCancel");
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function openLoginDialog() {
+  loginError.classList.add("hidden");
+  loginDialog.showModal();
+}
+
 function requireAuth() {
   if (!GalleryAuth.isLoggedIn()) {
-    window.location.href = "/";
+    shopMain.innerHTML = "<p class='empty-hint center'>请先登录</p>";
+    openLoginDialog();
     return false;
   }
   return true;
 }
 
 function renderAuthChip() {
-  const session = GalleryAuth.load();
   const area = document.getElementById("authArea");
-  if (!session) return;
+  if (!area) return;
   area.innerHTML = "";
+  const session = GalleryAuth.load();
+  if (!session || !session.token) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-login";
+    btn.textContent = "登录";
+    btn.addEventListener("click", openLoginDialog);
+    area.appendChild(btn);
+    return;
+  }
   const link = document.createElement("a");
   link.className = "user-chip";
-  link.href = "/profile";
+  link.href = "/";
   const img = document.createElement("img");
   img.src = session.avatar_url || "";
   img.alt = session.display_name;
@@ -110,7 +130,7 @@ async function loadShop() {
   const res = await fetch("/api/me/shop", { headers: GalleryAuth.headers() });
   if (res.status === 401) {
     GalleryAuth.clear();
-    window.location.href = "/";
+    requireAuth();
     return;
   }
   if (!res.ok) {
@@ -141,9 +161,23 @@ async function redeemItem(productId, btn) {
   }
 }
 
-if (requireAuth()) {
-  GalleryAuth.refreshMe().finally(() => {
+loginCancel.addEventListener("click", () => loginDialog.close());
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.classList.add("hidden");
+  try {
+    await GalleryAuth.login(loginKey.value);
+    loginDialog.close();
+    loginKey.value = "";
     renderAuthChip();
     loadShop();
-  });
-}
+  } catch (err) {
+    loginError.textContent = err.message || "登录失败";
+    loginError.classList.remove("hidden");
+  }
+});
+
+GalleryAuth.refreshMe().finally(() => {
+  renderAuthChip();
+  if (requireAuth()) loadShop();
+});

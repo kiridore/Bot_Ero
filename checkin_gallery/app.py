@@ -1,39 +1,26 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from checkin_gallery import config
-from core.auth import verify_login_key
-from checkin_gallery.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from core.auth import verify_login_key
 from core.onebot_client import resolve_avatar_url, resolve_display_name
-from checkin_gallery.profile_service import build_profile
-from checkin_gallery.shop_service import get_shop, redeem_shop_item
-from checkin_gallery.title_settings import (
-    clear_equipped_titles,
-    equip_title,
-    get_title_settings,
-    set_equipped_titles,
-    unequip_title,
-)
 from checkin_gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
-    fetch_user_settlement_day,
     list_user_ids,
     resolve_image_path,
 )
 from checkin_gallery.thumbnails import ensure_thumbnail
-from core import user_settings as user_settings_mod
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(title="BotEro 打卡图库", version="1.0.0")
-
 
 class CheckinItemOut(BaseModel):
     id: int
@@ -44,7 +31,6 @@ class CheckinItemOut(BaseModel):
     image_url: str
     has_file: bool
 
-
 class CheckinListOut(BaseModel):
     items: list[CheckinItemOut]
     total: int
@@ -52,19 +38,15 @@ class CheckinListOut(BaseModel):
     page_size: int
     has_more: bool
 
-
 class UserOptionOut(BaseModel):
     user_id: str
     display_name: str
 
-
 class UserIdsOut(BaseModel):
     users: list[UserOptionOut]
 
-
 class LoginIn(BaseModel):
     key: str
-
 
 class SessionOut(BaseModel):
     user_id: str
@@ -72,39 +54,16 @@ class SessionOut(BaseModel):
     avatar_url: str
     token: str
 
-
 class DayCheckinsOut(BaseModel):
     date: str
     items: list[CheckinItemOut]
 
 
-class EquippedTitlesIn(BaseModel):
-    title_ids: list[int]
-
-
-class EquipOneIn(BaseModel):
-    title_id: int
-
-
-class ShopRedeemIn(BaseModel):
-    product_id: str
-
-
-class SettingsIn(BaseModel):
-    privacy: dict | None = None
-
-
-class SettingsOut(BaseModel):
-    privacy: dict
-
-
 def _file_slug(content: str) -> str:
     return content.replace("{", "").replace("}", "").replace("-", "")
 
-
 def _media_url(user_id: str, content: str) -> str:
     return f"/media/{user_id}/{_file_slug(content)}"
-
 
 def _thumb_url(user_id: str, content: str) -> str:
     return f"/thumb/{user_id}/{_file_slug(content)}"
@@ -133,14 +92,6 @@ def get_current_user_id(
     return uid
 
 
-def get_optional_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> str | None:
-    if not authorization or not authorization.startswith("Bearer "):
-        return None
-    return verify_login_key(authorization[7:].strip())
-
-
 @app.post("/api/auth/login", response_model=SessionOut)
 def api_login(body: LoginIn):
     uid = verify_login_key(body.key.strip())
@@ -163,122 +114,6 @@ def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
         avatar_url=resolve_avatar_url(user_id),
         token="",
     )
-
-
-@app.get("/api/me/profile")
-def api_my_profile(
-    user_id: Annotated[str, Depends(get_current_user_id)],
-    year: int | None = Query(None, ge=2000, le=2100),
-):
-    return build_profile(user_id, year)
-
-
-@app.get("/api/me/day", response_model=DayCheckinsOut)
-def api_my_day(
-    user_id: Annotated[str, Depends(get_current_user_id)],
-    date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
-):
-    items = fetch_user_settlement_day(user_id, date)
-    name = resolve_display_name(user_id)
-    return DayCheckinsOut(
-        date=date,
-        items=[_checkin_to_out(it, name) for it in items],
-    )
-
-
-def _title_settings_or_400(fn, user_id: str, *args):
-    try:
-        return fn(user_id, *args)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-def _checkin_or_400(fn, *args):
-    try:
-        return fn(*args)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/api/me/checkin/status")
-def api_checkin_status(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return get_checkin_status(user_id)
-
-
-@app.post("/api/me/checkin")
-async def api_checkin_submit(
-    user_id: Annotated[str, Depends(get_current_user_id)],
-    files: list[UploadFile] = File(...),
-):
-    payloads: list[tuple[bytes, str | None]] = []
-    for f in files:
-        data = await f.read()
-        payloads.append((data, f.content_type))
-    names = _checkin_or_400(save_uploaded_images, user_id, payloads)
-    return perform_checkin(user_id, names)
-
-
-@app.get("/api/me/shop")
-def api_shop(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return get_shop(user_id)
-
-
-@app.post("/api/me/shop/redeem")
-def api_shop_redeem(
-    body: ShopRedeemIn,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    return _checkin_or_400(redeem_shop_item, user_id, body.product_id)
-
-
-@app.get("/api/me/titles/settings")
-def api_title_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return get_title_settings(user_id)
-
-
-@app.put("/api/me/titles/equipped")
-def api_set_equipped(
-    body: EquippedTitlesIn,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    return _title_settings_or_400(set_equipped_titles, user_id, body.title_ids)
-
-
-@app.post("/api/me/titles/equip")
-def api_equip_one(
-    body: EquipOneIn,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    return _title_settings_or_400(equip_title, user_id, body.title_id)
-
-
-@app.delete("/api/me/titles/equipped")
-def api_clear_equipped(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return clear_equipped_titles(user_id)
-
-
-@app.delete("/api/me/titles/equip/{title_id}")
-def api_unequip_one(
-    title_id: int,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    return _title_settings_or_400(unequip_title, user_id, title_id)
-
-
-@app.get("/api/me/settings", response_model=SettingsOut)
-def api_my_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
-    settings = user_settings_mod.get_settings(user_id)
-    return SettingsOut(privacy=settings.get("privacy", {}))
-
-
-@app.put("/api/me/settings", response_model=SettingsOut)
-def api_update_settings(
-    body: SettingsIn,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    patch = body.model_dump(exclude_none=True)
-    merged = user_settings_mod.update_settings(user_id, patch)
-    return SettingsOut(privacy=merged.get("privacy", {}))
 
 
 @app.get("/api/users", response_model=UserIdsOut)
@@ -369,38 +204,6 @@ def index():
     if not index_file.is_file():
         raise HTTPException(status_code=500, detail="缺少静态页面")
     return FileResponse(index_file)
-
-
-@app.get("/profile")
-def profile_page():
-    page = STATIC_DIR / "profile.html"
-    if not page.is_file():
-        raise HTTPException(status_code=500, detail="缺少个人主页")
-    return FileResponse(page)
-
-
-@app.get("/profile/settings")
-def profile_settings_page():
-    page = STATIC_DIR / "settings.html"
-    if not page.is_file():
-        raise HTTPException(status_code=500, detail="缺少设置页")
-    return FileResponse(page)
-
-
-@app.get("/profile/checkin")
-def profile_checkin_page():
-    page = STATIC_DIR / "checkin.html"
-    if not page.is_file():
-        raise HTTPException(status_code=500, detail="缺少打卡页")
-    return FileResponse(page)
-
-
-@app.get("/profile/shop")
-def profile_shop_page():
-    page = STATIC_DIR / "shop.html"
-    if not page.is_file():
-        raise HTTPException(status_code=500, detail="缺少商店页")
-    return FileResponse(page)
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
