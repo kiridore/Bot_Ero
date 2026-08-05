@@ -51,7 +51,7 @@ activities.littlero.com {
 
 ## 3. systemd
 
-每个子应用一个 unit。以 `guestbook.service` 为完整示例：
+每个子应用一个 unit，服务名统一带 `botero-` 前缀。以 `botero-guestbook.service` 为完整示例：
 
 ```ini
 [Unit]
@@ -70,24 +70,30 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-其余 5 个按端口/模块名类推（仅改 Description、端口环境变量、ExecStart 模块名）：
+其余 5 个按端口/模块名类推（仅改 unit 文件名、Description、端口环境变量、ExecStart 模块名）：
 
 | 服务 | ExecStart | BOTERO_GALLERY_PORT | 说明 |
 |------|-----------|---------------------|------|
-| `guestbook` | `python3 -m guestbook` | 8766 | 完整示例见上 |
-| `profile` | `python3 -m profile` | 8767 | |
-| `trpg` | `python3 -m trpg` | 8768 | |
-| `alarms` | `python3 -m alarms` | 8769 | |
-| `activities` | `python3 -m activities` | 8770 | |
-| `gallery` | `python3 -m gallery` | 8765 | |
+| `botero-guestbook` | `python3 -m guestbook` | 8766 | 完整示例见上 |
+| `botero-profile` | `python3 -m profile` | 8767 | |
+| `botero-trpg` | `python3 -m trpg` | 8768 | |
+| `botero-alarms` | `python3 -m alarms` | 8769 | |
+| `botero-activities` | `python3 -m activities` | 8770 | |
+| `botero-gallery` | `python3 -m gallery` | 8765 | |
 
 部署步骤：
 
 ```bash
-cp guestbook.service /etc/systemd/system/
+cp botero-guestbook.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now guestbook
+systemctl enable --now botero-guestbook
 ```
+
+> 若 VPS 上已按旧服务名（如 `gallery.service`）部署，迁移改名：
+> ```bash
+> systemctl disable --now gallery guestbook profile trpg alarms activities
+> systemctl enable --now botero-gallery botero-guestbook botero-profile botero-trpg botero-alarms botero-activities
+> ```
 
 ## 4. 环境变量清单
 
@@ -122,7 +128,7 @@ systemctl enable --now guestbook
 
 1. 首次部署：`git clone` 仓库到 VPS（如 `/opt/BotEro`），配置 DNS 与 Caddyfile；
 2. 更新代码：`git pull` 后重启受影响服务；
-3. 启动：`systemctl start gallery guestbook profile trpg alarms activities`（或逐个 `enable --now`）；
+3. 启动：`systemctl start botero-gallery botero-guestbook botero-profile botero-trpg botero-alarms botero-activities`（或逐个 `enable --now`）；
 4. 验证：依次访问 6 个子域根路径，均应返回 HTTP 200：
    `curl -s -o /dev/null -w "%{http_code}\n" https://gallery.littlero.com`（每个子域一次）。
 
