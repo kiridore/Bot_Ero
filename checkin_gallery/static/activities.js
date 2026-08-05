@@ -6,7 +6,6 @@ const MEMBER_STATUS_ICON = { done: "✓", skipped: "跳过", missed: "未交", l
 const myEl = document.getElementById("myActivities");
 const activeEl = document.getElementById("activeActivities");
 const archiveEl = document.getElementById("archiveActivities");
-const detailEl = document.getElementById("archiveDetail");
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -83,7 +82,7 @@ async function loadActiveActivities() {
   const session = GalleryAuth.load();
   const myUid = session && session.user_id;
   activeEl.innerHTML = active.map(a => `
-    <div class="activity-card">
+    <a class="activity-card activity-link" href="/archive/${a.id}">
       <div class="activity-card-head">
         <strong>${escapeHtml(a.title)}</strong>（${TYPE_LABEL[a.type] || a.type}）
         ${statusBadge(a.status)}
@@ -102,7 +101,7 @@ async function loadActiveActivities() {
             ${m.seq}. ${escapeHtml(m.nickname)} ${MEMBER_STATUS_ICON[m.status] || ""}${m.user_id === myUid ? "（我）" : ""}
           </span>`).join("")}
       </div>
-    </div>`).join("");
+    </a>`).join("");
 }
 
 async function loadArchiveActivities() {
@@ -110,43 +109,14 @@ async function loadArchiveActivities() {
   const { items } = await res.json();
   const archived = items.filter(a => a.status === "finished");
   archiveEl.innerHTML = archived.length ? archived.map(a => `
-    <div class="activity-card" onclick="showDetail(${a.id})">
+    <a class="activity-card activity-link" href="/archive/${a.id}">
       <div class="activity-card-head">
         <strong>${escapeHtml(a.title)}</strong>（${TYPE_LABEL[a.type] || a.type}）
         ${statusBadge(a.status)}
         <span class="activity-progress">${progressText(a)}</span>
       </div>
       <div class="muted">${a.created_at} ~ ${a.finished_at}</div>
-    </div>`).join("") : "<p class=\"muted\">暂无归档活动</p>";
-}
-
-async function showDetail(id) {
-  const res = await fetch(`/api/activities/${id}`);
-  const act = await res.json();
-  detailEl.hidden = false;
-  archiveEl.style.display = "none";
-  detailEl.innerHTML = `
-    <div class="activity-card">
-      <div class="activity-card-head">
-        <h2>${escapeHtml(act.title)}</h2>
-        <span>${TYPE_LABEL[act.type] || act.type} · ${STATUS_LABEL[act.status] || act.status}</span>
-      </div>
-      <div class="muted">${act.created_at} ~ ${act.finished_at}</div>
-      ${act.description ? `<div class="activity-desc">${escapeHtml(act.description)}</div>` : ""}
-      ${act.members.map(m => `
-        <section class="work-block">
-          <h3>${escapeHtml(m.nickname)}（${m.user_id}）· ${MEMBER_STATUS_LABEL[m.status] || m.status}</h3>
-          ${m.submitted_at ? `<div class="muted">${m.submitted_at}</div>` : ""}
-          ${m.content ? `<p class="work-content">${escapeHtml(m.content).replace(/\n/g, "<br>")}</p>` : ""}
-          ${m.images.map(u => `<img class="work-img" src="${u}">`).join("")}
-        </section>`).join("")}
-    </div>
-    <button onclick="closeDetail()">返回列表</button>`;
-}
-
-function closeDetail() {
-  detailEl.hidden = true;
-  archiveEl.style.display = "";
+    </a>`).join("") : "<p class=\"muted\">暂无归档活动</p>";
 }
 
 renderAuthChip();

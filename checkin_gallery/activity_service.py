@@ -57,8 +57,9 @@ def get_activity(activity_id: int) -> dict | None:
         return None
     act = rows[0]
     act["members"] = _rows(
-        "SELECT user_id, nickname, seq, status, submitted_at, content, images"
-        " FROM activity_members WHERE activity_id = ? ORDER BY seq ASC",
+        "SELECT user_id, nickname, seq, next_user_id, status, received_at,"
+        " submitted_at, content, images"
+        " FROM activity_members WHERE activity_id = ? ORDER BY seq ASC, rowid ASC",
         (activity_id,),
     )
     for m in act["members"]:

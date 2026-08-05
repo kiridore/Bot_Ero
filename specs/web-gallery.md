@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-03 (活动页三区块：我的活动/进行中/归档，新增 /api/me/activities)
+> 最后更新: 2026-08-03 (活动详情页 /archive/{id}：轮次/剩余时间/下家展示，列表条目跳转)
 
 ---
 
@@ -153,7 +153,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后 |
 | `GET` | `/api/me/activities` | 是 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
-| `GET` | `/api/activities/{id}` | 否 | 活动详情（成员、作品文字与图片 URL），不存在返回 404 |
+| `GET` | `/api/activities/{id}` | 否 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL），不存在返回 404 |
 | `GET` | `/archive/{id}/media/{filename}` | 否 | 活动作品图片（限制在 `ACTIVITY_ROOT` 内，防路径遍历） |
 
 ### 页面
@@ -169,7 +169,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/profile/trpg` | 跑团车卡管理（创建/编辑，Excel 式分区编辑器） |
 | `GET` | `/trpg/char/{user_id}/{char_id}` | 角色卡只读查看页 |
 | `GET` | `/guestbook` | 留言簿 |
-| `GET` | `/archive` | 活动页（profile 风格导航；三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档） |
+| `GET` | `/archive` | 活动页（profile 风格导航；三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档；条目点击跳转详情页） |
+| `GET` | `/archive/{id}` | 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 
 ---
 

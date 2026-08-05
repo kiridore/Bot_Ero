@@ -16,6 +16,11 @@
       padding: 12px 14px;
       margin-bottom: 10px;
     }
+    .activity-card.activity-link {
+      display: block; text-decoration: none; color: inherit;
+      transition: border-color 0.15s;
+    }
+    .activity-card.activity-link:hover { border-color: var(--accent, #6bc48a); }
     .activity-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .activity-card-head h2 { margin: 0; font-size: 16px; }
     .activity-progress { margin-left: auto; color: var(--text-dim, #9aa3b2); font-size: 13px; }
@@ -69,7 +74,6 @@
     <section class="activity-section" id="archiveSection">
       <h2>活动归档</h2>
       <div id="archiveActivities"><p class="loading-msg">加载中…</p></div>
-      <div id="archiveDetail" hidden></div>
     </section>
   </main>
 

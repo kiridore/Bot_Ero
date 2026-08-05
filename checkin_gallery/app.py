@@ -793,6 +793,16 @@ def archive_page():
     return FileResponse(page)
 
 
+@app.get("/archive/{activity_id}")
+def activity_detail_page(activity_id: int):
+    if get_activity(activity_id) is None:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    page = STATIC_DIR / "activities_detail.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少活动详情页")
+    return FileResponse(page)
+
+
 @app.get("/profile/trpg")
 def profile_trpg_page():
     page = STATIC_DIR / "trpg.html"
