@@ -7,7 +7,7 @@ from typing import Callable
 
 from core.database_manager import DbManager
 
-from checkin_gallery.profile_service import TITLE_DEFS
+from core.title_defs import TITLE_DEFS
 
 TITLE_PRICE_BY_RARITY = {
     "common": 3,

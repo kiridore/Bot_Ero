@@ -7,7 +7,7 @@ from pathlib import Path
 
 from core.database_manager import DbManager
 
-from checkin_gallery.profile_service import TITLE_DEFS
+from core.title_defs import TITLE_DEFS
 
 MAX_EQUIPPED = 3
 _TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title.py"

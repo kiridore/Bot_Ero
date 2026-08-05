@@ -5,27 +5,12 @@ from __future__ import annotations
 import calendar
 import datetime as dt
 
-import importlib.util
-from pathlib import Path
-
 from core import utils as core_utils
 from core.database_manager import DbManager
 
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 
-_TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title" / "defs.py"
-
-
-def _load_title_defs() -> dict:
-    spec = importlib.util.spec_from_file_location("botero_title_defs", _TITLE_MODULE_PATH)
-    if spec is None or spec.loader is None:
-        return {}
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return getattr(mod, "TITLE_DEFS", {})
-
-
-TITLE_DEFS = _load_title_defs()
+from core.title_defs import TITLE_DEFS
 from checkin_gallery.repository import fetch_user_year_rows
 
 
