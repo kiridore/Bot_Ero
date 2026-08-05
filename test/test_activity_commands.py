@@ -204,6 +204,30 @@ class TestCommands(unittest.TestCase):
         self.assertIn("时间格式错误", _sent_text(p))
         self.assertIsNone(self.db.activity.get_active_activity(GID))
 
+    def test_create_past_deadline_rejected(self):
+        """截止时间早于当前时间 → 创建被拒。"""
+        p = self._run("/活动 创建 接龙 t 截止 2000-01-01 00:00")
+        p.handle()
+        self.assertIn("晚于当前时间", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_active_activity(GID))
+
+    def test_create_past_signup_deadline_rejected(self):
+        p = self._run("/活动 创建 匹配 中秋 报名截止 2000-01-01 00:00 截止 2026-12-31 20:00")
+        p.handle()
+        self.assertIn("晚于当前时间", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_active_activity(GID))
+
+    def test_start_past_deadline_rejected(self):
+        """创建后截止时间已过（模拟时间流逝）→ 开始被拒。"""
+        self._run("/活动 创建 接龙 t 截止 2099-01-01 00:00").handle()
+        act = self.db.activity.get_active_activity(GID)
+        self.db.activity.update_activity(act["id"], deadline="2000-01-01 00:00:00")
+        self._run("/活动 加入", user_id=123456).handle()
+        p = self._run("/活动 开始", user_id=123456)
+        p.handle()
+        self.assertIn("无法开始", _sent_text(p))
+        self.assertEqual(self.db.activity.get_active_activity(GID)["status"], "open")
+
     def _group_announce_texts(self, p) -> str:
         """汇总群公告（call_api send_group_msg）文本，警告走此通道。"""
         return "".join(

@@ -69,6 +69,9 @@ def _parse_create_params(tokens: list[str], kind: str) -> dict | str:
                         break
     first_key = next((i for i, t in enumerate(desc_tokens) if t in _CREATE_KEYS), None)
     if first_key is None:
+        err = _check_deadlines_future(deadline, signup_deadline)
+        if err:
+            return err
         return {
             "hours": hours, "deadline": deadline,
             "signup_deadline": signup_deadline,
@@ -108,11 +111,24 @@ def _parse_create_params(tokens: list[str], kind: str) -> dict | str:
         else:
             deadline = d
         i += consumed
+    err = _check_deadlines_future(deadline, signup_deadline)
+    if err:
+        return err
     return {
         "hours": hours, "deadline": deadline,
         "signup_deadline": signup_deadline,
         "description": description,
     }
+
+
+def _check_deadlines_future(deadline: str | None, signup_deadline: str | None) -> str | None:
+    """截止/报名截止必须晚于当前时间，否则返回错误消息。"""
+    now = _now()
+    if deadline and deadline <= now:
+        return "截止时间必须晚于当前时间"
+    if signup_deadline and signup_deadline <= now:
+        return "报名截止时间必须晚于当前时间"
+    return None
 
 
 def _now() -> str:
@@ -565,6 +581,8 @@ def _start_activity(api, db, act: dict) -> str | None:
     members = db.activity.get_members(act["id"])
     users = [m["user_id"] for m in members]
     nick_map = {m["user_id"]: m["nickname"] for m in members}
+    if act.get("deadline") and act["deadline"] <= _now():
+        return "截止时间已过，无法开始活动"
     if act["type"] == "relay":
         if not users:
             return "接龙活动至少需要 1 人"
