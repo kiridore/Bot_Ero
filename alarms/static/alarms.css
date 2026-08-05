@@ -17,7 +17,7 @@
 
 .alarm-field-label {
   font-size: 0.82rem;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .alarm-fields {
@@ -44,9 +44,9 @@
 .weekday-btn {
   padding: 0.38rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink);
   font: inherit;
   font-size: 0.82rem;
   cursor: pointer;
@@ -55,14 +55,14 @@
 
 .alarm-type-btn:hover,
 .weekday-btn:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--accent);
 }
 
 .alarm-type-btn.active,
 .weekday-btn.active {
-  background: rgba(78, 154, 108, 0.22);
-  border-color: #4e9a6c;
-  color: #d4f5dc;
+  background: rgba(95, 122, 104, 0.22);
+  border-color: var(--accent);
+  color: var(--accent-soft);
 }
 
 .weekday-group {
@@ -82,9 +82,9 @@
   box-sizing: border-box;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink);
   font: inherit;
 }
 
@@ -111,8 +111,8 @@
   gap: 0.75rem;
   padding: 0.85rem 1rem;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
 }
 
 .alarm-item-main {
@@ -123,7 +123,7 @@
 .alarm-meta {
   margin: 0;
   font-size: 0.78rem;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .alarm-content {

@@ -6,7 +6,7 @@
 }
 .trpg-table th,
 .trpg-table td {
-  border: 1px solid var(--border, #ddd);
+  border: 1px solid var(--rule);
   padding: 6px 10px;
   text-align: left;
   font-size: 14px;
@@ -17,7 +17,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--rule);
   border-radius: 4px;
   font-size: 14px;
 }
