@@ -1,13 +1,25 @@
 :root {
   --paper: #f5efe0;
-  --paper-card: #faf6ea;
-  --ink: #2e2a22;
+  --paper-card: #fbf7ec;
+  --ink: #2c2a24;
   --ink-soft: #6b6350;
   --line: #8a7f63;
   --rule: #b8ad8e;
+  --accent: #5f7a68;
+  --accent-soft: #e4e9dd;
+  --accent-ink: #3f5347;
+  --gold: #b49a5e;
   --green: #4a7c4f;
   --red: #b0533f;
   --gray: #a8a294;
+  --shadow-sm: 0 1px 2px rgba(44, 42, 36, 0.08), 0 2px 6px rgba(44, 42, 36, 0.05);
+  --shadow-md: 0 2px 4px rgba(44, 42, 36, 0.08), 0 8px 20px rgba(44, 42, 36, 0.09);
+  --shadow-lg: 0 4px 8px rgba(44, 42, 36, 0.1), 0 16px 32px rgba(44, 42, 36, 0.12);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * { box-sizing: border-box; }
@@ -17,7 +29,11 @@ html { height: 100%; }
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--paper);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(rgba(44, 42, 36, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #f8f3e6 0%, var(--paper) 40%, #f1ead8 100%);
+  background-size: 22px 22px, 100% 100%;
   color: var(--ink);
   font-family: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
   display: flex;
