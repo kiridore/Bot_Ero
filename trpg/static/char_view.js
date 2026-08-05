@@ -1,12 +1,23 @@
 const charViewMain = document.getElementById("charViewMain");
+const loginDialog = document.getElementById("loginDialog");
+const loginForm = document.getElementById("loginForm");
+const loginKey = document.getElementById("loginKey");
+const loginError = document.getElementById("loginError");
+const loginCancel = document.getElementById("loginCancel");
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function openLoginDialog() {
+  loginError.classList.add("hidden");
+  if (!loginDialog.open) loginDialog.showModal();
+}
+
 function requireAuth() {
   if (!GalleryAuth.isLoggedIn()) {
-    window.location.href = "/";
+    charViewMain.innerHTML = "<p class='empty-hint center'>请先登录</p>";
+    openLoginDialog();
     return false;
   }
   return true;
@@ -23,7 +34,7 @@ async function apiFetch(path, options = {}) {
   });
   if (res.status === 401) {
     GalleryAuth.clear();
-    window.location.href = "/";
+    openLoginDialog();
     throw new Error("未登录");
   }
   if (res.status === 403) {
@@ -181,5 +192,20 @@ async function init() {
     charViewMain.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message)}</p>`;
   }
 }
+
+loginCancel.addEventListener("click", () => loginDialog.close());
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.classList.add("hidden");
+  try {
+    await GalleryAuth.login(loginKey.value);
+    loginDialog.close();
+    loginKey.value = "";
+    init();
+  } catch (err) {
+    loginError.textContent = err.message || "登录失败";
+    loginError.classList.remove("hidden");
+  }
+});
 
 init();

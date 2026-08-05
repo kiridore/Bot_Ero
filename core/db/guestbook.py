@@ -1,4 +1,4 @@
-"""网页留言簿：匿名展示，登录后可留言与点赞（原 checkin_gallery/guestbook_service 移植）。"""
+"""网页留言簿：匿名展示，登录后可留言与点赞（原单体 Web 应用移植）。"""
 
 from datetime import datetime
 

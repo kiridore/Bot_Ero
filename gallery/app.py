@@ -54,10 +54,6 @@ class SessionOut(BaseModel):
     avatar_url: str
     token: str
 
-class DayCheckinsOut(BaseModel):
-    date: str
-    items: list[CheckinItemOut]
-
 
 def _file_slug(content: str) -> str:
     return content.replace("{", "").replace("}", "").replace("-", "")

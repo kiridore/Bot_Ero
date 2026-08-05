@@ -148,7 +148,7 @@ class ActivityManager:
             (str(user_id), int(activity_id)),
         )
 
-    # ── web 只读查询（原 checkin_gallery/activity_service 移植）──
+    # ── web 只读查询（原单体 Web 应用移植）──
     def list_activities(self) -> list[dict]:
         """全部活动：进行中（open/running）在前且附成员列表，归档/取消在后。"""
         acts = self._rows(

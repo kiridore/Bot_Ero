@@ -1,4 +1,9 @@
 const trpgMain = document.getElementById("trpgMain");
+const loginDialog = document.getElementById("loginDialog");
+const loginForm = document.getElementById("loginForm");
+const loginKey = document.getElementById("loginKey");
+const loginError = document.getElementById("loginError");
+const loginCancel = document.getElementById("loginCancel");
 
 let rules = null;        // /api/trpg/rules 数据
 let chars = [];          // 我的角色列表
@@ -9,22 +14,37 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function openLoginDialog() {
+  loginError.classList.add("hidden");
+  if (!loginDialog.open) loginDialog.showModal();
+}
+
 function requireAuth() {
   if (!GalleryAuth.isLoggedIn()) {
-    window.location.href = "/";
+    trpgMain.innerHTML = "<p class='empty-hint center'>请先登录</p>";
+    openLoginDialog();
     return false;
   }
   return true;
 }
 
 function renderAuthChip() {
-  const session = GalleryAuth.load();
   const area = document.getElementById("authArea");
-  if (!session) return;
+  if (!area) return;
   area.innerHTML = "";
+  const session = GalleryAuth.load();
+  if (!session || !session.token) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-login";
+    btn.textContent = "登录";
+    btn.addEventListener("click", openLoginDialog);
+    area.appendChild(btn);
+    return;
+  }
   const link = document.createElement("a");
   link.className = "user-chip";
-  link.href = "/profile";
+  link.href = "/";
   const img = document.createElement("img");
   img.src = session.avatar_url || "";
   img.alt = session.display_name;
@@ -46,7 +66,7 @@ async function apiFetch(path, options = {}) {
   });
   if (res.status === 401) {
     GalleryAuth.clear();
-    window.location.href = "/";
+    openLoginDialog();
     throw new Error("未登录");
   }
   const data = await res.json().catch(() => ({}));
@@ -559,5 +579,21 @@ async function init() {
     loadList();
   });
 }
+
+loginCancel.addEventListener("click", () => loginDialog.close());
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.classList.add("hidden");
+  try {
+    await GalleryAuth.login(loginKey.value);
+    loginDialog.close();
+    loginKey.value = "";
+    renderAuthChip();
+    init();
+  } catch (err) {
+    loginError.textContent = err.message || "登录失败";
+    loginError.classList.remove("hidden");
+  }
+});
 
 init();

@@ -67,14 +67,6 @@ class SessionOut(BaseModel):
     token: str
 
 
-class SettingsIn(BaseModel):
-    privacy: dict | None = None
-
-
-class SettingsOut(BaseModel):
-    privacy: dict
-
-
 class CharOut(BaseModel):
     id: int
     user_id: str
@@ -327,22 +319,6 @@ def api_trpg_rules():
             "moral": ["善良", "中立", "邪恶"],
         },
     }
-
-
-@app.get("/api/me/settings", response_model=SettingsOut)
-def api_my_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
-    settings = user_settings_mod.get_settings(user_id)
-    return SettingsOut(privacy=settings.get("privacy", {}))
-
-
-@app.put("/api/me/settings", response_model=SettingsOut)
-def api_update_settings(
-    body: SettingsIn,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    patch = body.model_dump(exclude_none=True)
-    merged = user_settings_mod.update_settings(user_id, patch)
-    return SettingsOut(privacy=merged.get("privacy", {}))
 
 
 @app.get("/")
