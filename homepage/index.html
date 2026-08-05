@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>小埃的报纸 · BotEro 服务导航</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="masthead">
+    <p class="masthead-issue">BotEro 服务导航 · 第 1 期</p>
+    <h1 class="masthead-title">小埃中继站</h1>
+    <p class="masthead-date" id="today"></p>
+  </header>
+
+  <section class="quotes-bar" aria-label="板油语录">
+    <h2 class="quotes-title">板油语录</h2>
+    <blockquote id="quote" class="quotes-text"></blockquote>
+  </section>
+
+  <section class="announce-bar" aria-label="公告">
+    <h2 class="quotes-title">公告栏</h2>
+    <ul id="notices" class="announce-list"></ul>
+  </section>
+
+  <main id="entries" class="entries" aria-live="polite"></main>
+
+  <footer class="foot">
+    <p>点击卡片前往对应服务 · 绿点为在线，灰点为离线</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

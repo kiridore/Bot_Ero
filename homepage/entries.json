@@ -1,0 +1,22 @@
+[
+  {
+    "name": "打卡图库",
+    "desc": "每日打卡记录与图片画廊",
+    "url": "https://gallery.example.com",
+    "badge": "本店招牌",
+    "span": 2
+  },
+  {
+    "name": "狼人杀",
+    "desc": "谁是卧底与狼人杀桌游网页",
+    "url": "https://werewolf.littlero.com"
+  },
+  {
+    "name": "MC 服务器",
+    "desc": "Minecraft 生存服务器，IP 见下，地图上可以看大家的建筑",
+    "links": [
+      { "label": "复制服务器 IP", "copy": "mc.example.com:25565" },
+      { "label": "在线地图", "url": "https://map.example.com" }
+    ]
+  }
+]
