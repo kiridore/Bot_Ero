@@ -10,9 +10,9 @@ function statusClass(entry, ok) {
   return "unknown";
 }
 
-function cardHTML(entry) {
+function cardHTML(entry, index) {
   const badge = entry.badge ? `<span class="badge">${escapeHTML(entry.badge)}</span>` : "";
-  const span = Number.isInteger(+entry.span) ? ` span-${+entry.span}` : "";
+  const span = entry.span ? ` span-${entry.span}` : "";
   const links = (entry.links || []).map((l) =>
     l.copy
       ? `<button type="button" class="card-link copy-btn" data-copy="${escapeHTML(l.copy)}">${escapeHTML(l.label)}</button>`
@@ -22,7 +22,7 @@ function cardHTML(entry) {
     ? `<a class="card-main" href="${escapeHTML(entry.url)}">前往 →</a>`
     : "";
   return `
-    <article class="card${span}" id="card-${cssId(entry.name)}">
+    <article class="card${span}" id="card-${cssId(entry.name)}" style="animation-delay:${index * 60}ms">
       <div class="card-head">
         <span class="dot ${statusClass(entry, undefined)}" data-dot></span>
         <h2 class="card-title">${escapeHTML(entry.name)}</h2>
