@@ -3,28 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>角色卡 · 打卡图库</title>
+  <title>跑团车卡 · 打卡图库</title>
   <link rel="stylesheet" href="/shared/gallery.css" />
   <link rel="stylesheet" href="/shared/profile.css" />
+  <link rel="stylesheet" href="/static/trpg.css" />
 </head>
 <body>
   <header class="toolbar profile-toolbar">
-    <a href="javascript:history.back()" class="back-link">← 返回</a>
-    <nav class="profile-nav">
-      <a href="/profile">主页</a>
-      <a href="/profile/checkin">打卡</a>
-      <a href="/profile/shop">商店</a>
-      <a href="/profile/trpg">跑团</a>
-      <a href="/profile/settings">设置</a>
-    </nav>
     <div class="auth-area" id="authArea"></div>
   </header>
 
-  <main class="profile-main" id="charViewMain">
+  <main class="profile-main" id="trpgMain">
     <p class="loading-msg">加载中…</p>
   </main>
 
   <script src="/shared/auth.js"></script>
-  <script src="/static/char_view.js"></script>
+  <script src="/static/trpg.js"></script>
 </body>
 </html>

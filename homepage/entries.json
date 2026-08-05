@@ -34,5 +34,10 @@
     "name": "闹钟",
     "desc": "个人与群闹钟管理",
     "url": "https://alarms.littlero.com"
+  },
+  {
+    "name": "跑团",
+    "desc": "DND 车卡与角色查看",
+    "url": "https://trpg.littlero.com"
   }
 ]

@@ -170,7 +170,7 @@ function renderList() {
     actBtn.type = "button";
     actBtn.className = "btn-sm";
     actBtn.textContent = "查看";
-    actBtn.addEventListener("click", () => { window.location.href = `/trpg/char/${c.user_id}/${c.id}`; });
+    actBtn.addEventListener("click", () => { window.location.href = `/char/${c.user_id}/${c.id}`; });
     actions.appendChild(actBtn);
     const editBtn = document.createElement("button");
     editBtn.type = "button";
