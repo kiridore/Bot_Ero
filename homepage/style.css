@@ -389,9 +389,40 @@ body {
   color: var(--red);
 }
 
+/* —— 键盘焦点可见 —— */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* —— 减弱动效偏好 —— */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card:hover { transform: none; }
+}
+
+@media (max-width: 720px) {
+  .quotes-bar,
+  .announce-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+  .quotes-bar::before { align-self: flex-start; }
+}
+
 @media (max-width: 520px) {
-  .entries { grid-template-columns: 1fr; }
+  .entries { grid-template-columns: 1fr; gap: 1rem; }
   .card.span-2 { grid-column: span 1; }
-  .quotes-bar { flex-direction: column; gap: 0.4rem; }
-  .announce-bar { flex-direction: column; gap: 0.4rem; }
+  .card { border-radius: var(--radius-sm); }
+  .masthead { padding-top: 1.6rem; }
+  .badge { transform: none; }
 }
