@@ -11,23 +11,7 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderAuthChip() {
-  const session = GalleryAuth.load();
-  const area = document.getElementById("authArea");
-  if (!session) return;
-  area.innerHTML = "";
-  const link = document.createElement("a");
-  link.className = "user-chip";
-  link.href = "/";
-  const img = document.createElement("img");
-  img.src = session.avatar_url || "";
-  img.alt = session.display_name;
-  img.onerror = () => { img.style.display = "none"; };
-  const wrap = document.createElement("span");
-  wrap.innerHTML = `<strong>${escapeHtml(session.display_name)}</strong><br><span class="uid">${session.user_id}</span>`;
-  link.append(img, wrap);
-  area.appendChild(link);
-}
+
 
 function formatHours(h) {
   h = Number(h);
@@ -119,7 +103,7 @@ async function loadArchiveActivities() {
     </a>`).join("") : "<p class=\"muted\">暂无归档活动</p>";
 }
 
-renderAuthChip();
+GalleryAuth.renderAuth(document.getElementById("authArea"));
 loadMyActivities();
 loadActiveActivities();
 loadArchiveActivities();

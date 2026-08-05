@@ -66,6 +66,86 @@ const GalleryAuth = {
     return Boolean(this.token());
   },
 
+  _escape(s) {
+    return String(s).replace(/[&<>"']/g, (c) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+  },
+
+  ensureLoginDialog() {
+    let dlg = document.getElementById("loginDialog");
+    if (dlg) return dlg;
+    dlg = document.createElement("dialog");
+    dlg.id = "loginDialog";
+    dlg.className = "login-dialog";
+    dlg.innerHTML =
+      '<form method="dialog" id="loginForm">' +
+      "<h2>登录</h2>" +
+      '<p class="login-hint">请向机器人私聊发送 <code>/图库密钥</code> 获取密钥</p>' +
+      '<input type="password" id="loginKey" placeholder="粘贴登录密钥" autocomplete="off" required />' +
+      '<p class="login-error hidden" id="loginError"></p>' +
+      '<div class="login-actions">' +
+      '<button type="button" id="loginCancel">取消</button>' +
+      '<button type="submit" class="primary">登录</button>' +
+      "</div>" +
+      "</form>";
+    document.body.appendChild(dlg);
+    const form = dlg.querySelector("#loginForm");
+    const input = dlg.querySelector("#loginKey");
+    const errEl = dlg.querySelector("#loginError");
+    dlg.querySelector("#loginCancel").addEventListener("click", () => dlg.close());
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.classList.add("hidden");
+      try {
+        await this.login(input.value);
+        dlg.close();
+        input.value = "";
+        this.renderAuth(document.getElementById("authArea"));
+      } catch (err) {
+        errEl.textContent = err.message || "登录失败";
+        errEl.classList.remove("hidden");
+      }
+    });
+    return dlg;
+  },
+
+  renderAuth(area) {
+    const el = area || document.getElementById("authArea");
+    if (!el) return;
+    el.innerHTML = "";
+    const session = this.load();
+    if (!session || !session.token) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn-login";
+      btn.textContent = "登录";
+      btn.addEventListener("click", () => {
+        if (typeof window.openLoginDialog === "function") {
+          window.openLoginDialog();
+          return;
+        }
+        const dlg = this.ensureLoginDialog();
+        if (dlg && typeof dlg.showModal === "function") dlg.showModal();
+      });
+      el.appendChild(btn);
+      return;
+    }
+    const link = document.createElement("a");
+    link.className = "user-chip";
+    link.href = "/";
+    const img = document.createElement("img");
+    img.src = session.avatar_url || "";
+    img.alt = session.display_name || session.user_id;
+    img.onerror = () => { img.style.display = "none"; };
+    const wrap = document.createElement("span");
+    wrap.innerHTML =
+      `<strong>${this._escape(session.display_name || session.user_id)}</strong>` +
+      `<br><span class="uid">${this._escape(session.user_id)}</span>`;
+    link.append(img, wrap);
+    el.appendChild(link);
+  },
+
   async login(key) {
     const res = await fetch("/api/auth/login", {
       method: "POST",

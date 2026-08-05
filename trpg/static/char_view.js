@@ -209,3 +209,4 @@ loginForm.addEventListener("submit", async (e) => {
 });
 
 init();
+GalleryAuth.renderAuth(document.getElementById("authArea"));
