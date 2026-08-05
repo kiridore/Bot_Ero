@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含一个独立的 **FastAPI Web 应用**（`checkin_gallery/`），提供打卡图片浏览画廊。
+此外包含一个独立的 **FastAPI Web 应用**（`gallery/`），提供打卡图片浏览画廊。
 
 ## 运行命令
 
@@ -15,14 +15,14 @@ BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机�
 python main.py
 
 # 启动打卡画廊 Web 应用（默认 http://0.0.0.0:8765，局域网可访问）
-python -m checkin_gallery
+python -m gallery
 
 # 自定义端口
-python -m checkin_gallery --port 8080 --db /path/to/data.db --images /path/to/record_images
+python -m gallery --port 8080 --db /path/to/data.db --images /path/to/record_images
 ```
 
 - 机器人依赖：`websocket-client`、`requests`、`Pillow`
-- Web 应用依赖：见 `checkin_gallery/requirements.txt`（fastapi、uvicorn、requests、Pillow、python-multipart）
+- Web 应用依赖：见 `gallery/requirements.txt`（fastapi、uvicorn、requests、Pillow、python-multipart）
 - 本项目无 `pyproject.toml` 或 `setup.py`，无测试框架，无 lint 配置
 
 ## 架构
@@ -66,7 +66,7 @@ OneBot 服务端 ──WebSocket──> main.py
 
 **定时任务：** 继承 `TimedHeartbeatPlugin`，设置类属性 `RUN_AT`（"HH:MM"），可选 `RUN_WEEKDAYS` / `RUN_ANNUAL_DATES`，重写 `handle()` 即可。
 
-### Web 应用 (`checkin_gallery/`)
+### Web 应用 (`gallery/`)
 
 FastAPI 应用，独立于机器人主进程运行：
 - `app.py` — FastAPI 实例 + 路由

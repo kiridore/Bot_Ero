@@ -20,7 +20,7 @@ python main.py
 ```bash
 export BOTERO_AUTH_SALT="your-secret-salt"
 export BOTERO_ONEBOT_HTTP="http://..."
-python -m checkin_gallery
+python -m gallery
 ```
 
 ## 备份机制

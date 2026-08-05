@@ -6,17 +6,17 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from checkin_gallery import config
-from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from gallery import config
+from gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from core.auth import verify_login_key
 from core.onebot_client import resolve_avatar_url, resolve_display_name
-from checkin_gallery.repository import (
+from gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
     list_user_ids,
     resolve_image_path,
 )
-from checkin_gallery.thumbnails import ensure_thumbnail
+from gallery.thumbnails import ensure_thumbnail
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 

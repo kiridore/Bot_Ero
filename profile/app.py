@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from checkin_gallery.repository import CheckinImage, fetch_user_settlement_day
+from gallery.repository import CheckinImage, fetch_user_settlement_day
 from core import user_settings as user_settings_mod
 from core.auth import verify_login_key
 from core.config import GALLERY_URL

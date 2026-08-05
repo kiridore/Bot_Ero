@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from checkin_gallery import config
+from gallery import config
 
 
 def _cache_path(source: Path) -> Path:

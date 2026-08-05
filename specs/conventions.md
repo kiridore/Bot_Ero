@@ -51,7 +51,7 @@ def get_monday_to_monday(date=None):
 **同样使用 08:00 偏移的地方:**
 - `utils.day_of_year()` — 热度图日期索引
 - `database_manager.get_user_streaks()` — 连续打卡天数计算
-- `checkin_gallery/dates.py` — Web 端结算日逻辑
+- `gallery/dates.py` — Web 端结算日逻辑
 
 **MUST:** 任何新增的"周"相关功能必须使用此偏移，否则跨周边界会出现不一致。
 
@@ -148,7 +148,7 @@ if TYPE_CHECKING:
 **MUST NOT:**
 - 使用相对导入（`from . import ...` / `from .. import ...`）
 - 从 `plugins` 导入另一个插件的类实例（导入纯函数/数据是可以的）
-- 跨包做循环导入（如 `plugins` ↔ `checkin_gallery` 之间不要互相导入）
+- 跨包做循环导入（如 `plugins` ↔ `gallery` 之间不要互相导入）
 
 ---
 
@@ -190,7 +190,7 @@ def handle(self):
 - **LLM:** `openai`
 - **更新:** `GitPython`
 - **系统监控:** `psutil`（可选，MonitorPlugin 会自动降级）
-- **Web 应用:** 见 `checkin_gallery/requirements.txt`
+- **Web 应用:** 见 `gallery/requirements.txt`
 
 **添加新依赖的流程:**
 1. 在对应的 requirements.txt 中添加

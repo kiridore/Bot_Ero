@@ -79,7 +79,7 @@ WantedBy=multi-user.target
 | `trpg` | `python3 -m trpg` | 8768 | |
 | `alarms` | `python3 -m alarms` | 8769 | |
 | `activities` | `python3 -m activities` | 8770 | |
-| `checkin_gallery` | `python3 -m checkin_gallery` | 8765 | 保留原名；Task 12 图库改名后为 `python3 -m gallery` |
+| `gallery` | `python3 -m gallery` | 8765 | |
 
 部署步骤：
 
@@ -122,7 +122,7 @@ systemctl enable --now guestbook
 
 1. 首次部署：`git clone` 仓库到 VPS（如 `/opt/BotEro`），配置 DNS 与 Caddyfile；
 2. 更新代码：`git pull` 后重启受影响服务；
-3. 启动：`systemctl start guestbook profile trpg alarms activities checkin_gallery`（或逐个 `enable --now`）；
+3. 启动：`systemctl start gallery guestbook profile trpg alarms activities`（或逐个 `enable --now`）；
 4. 验证：依次访问 6 个子域根路径，均应返回 HTTP 200：
    `curl -s -o /dev/null -w "%{http_code}\n" https://gallery.littlero.com`（每个子域一次）。
 

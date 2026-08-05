@@ -8,11 +8,11 @@
 
 ## Constraint: 独立进程架构
 
-Web 应用（`checkin_gallery/`）是独立的 FastAPI 进程，与机器人主进程分开运行。
+Web 应用（`gallery/`）是独立的 FastAPI 进程，与机器人主进程分开运行。
 
 ```
 ┌─────────────────────┐     ┌─────────────────────────┐
-│  main.py (bot)       │     │  checkin_gallery (web)   │
+│  main.py (bot)       │     │  gallery (web)   │
 │  ws://127.0.0.1:3001 │     │  http://127.0.0.1:8765   │
 └────────┬────────────┘     └───────────┬───────────────┘
          │                              │
@@ -23,13 +23,13 @@ Web 应用（`checkin_gallery/`）是独立的 FastAPI 进程，与机器人主�
               └───────────┘
 ```
 
-**启动:** `python -m checkin_gallery [--port PORT] [--db PATH] [--images PATH]`
+**启动:** `python -m gallery [--port PORT] [--db PATH] [--images PATH]`
 
 ---
 
 ## Constraint: 配置
 
-所有配置通过环境变量（`checkin_gallery/config.py`）：
+所有配置通过环境变量（`gallery/config.py`）：
 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
@@ -62,7 +62,7 @@ key = base64(
     + ":" + str(user_id)
 )
 
-# 验证（在 Web 端 checkin_gallery/auth.py）:
+# 验证（core/auth.py 提供 verify_login_key，各子应用共享）:
 user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 ```
 
@@ -280,7 +280,7 @@ with _connect() as conn:
 ## Constraint: 静态前端
 
 ```
-checkin_gallery/static/
+gallery/static/
   index.html + gallery.js + gallery.css  ← 图库主页（瀑布流 + 无限滚动）
   auth.js                                 ← 认证 token 管理
   profile.html + profile.js + profile.css ← 个人档案页

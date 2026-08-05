@@ -3,7 +3,7 @@ import os
 
 import uvicorn
 
-from checkin_gallery.config import DB_PATH, GROUP_ID, HOST, IMAGE_ROOT, ONEBOT_HTTP_URL, PORT
+from gallery.config import DB_PATH, GROUP_ID, HOST, IMAGE_ROOT, ONEBOT_HTTP_URL, PORT
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
     print(f"访问: http://{args.host}:{args.port}/")
 
     uvicorn.run(
-        "checkin_gallery.app:app",
+        "gallery.app:app",
         host=args.host,
         port=args.port,
         reload=False,

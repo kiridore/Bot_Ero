@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from checkin_gallery import config
-from checkin_gallery.config import REMEDY_MARKER
+from gallery import config
+from gallery.config import REMEDY_MARKER
 
 
 @dataclass(frozen=True)
@@ -143,7 +143,7 @@ def fetch_user_settlement_day(
     *,
     only_with_file: bool = True,
 ) -> list[CheckinImage]:
-    from checkin_gallery.dates import settlement_day_range
+    from gallery.dates import settlement_day_range
 
     start, end = settlement_day_range(day_key)
     with _connect() as conn:

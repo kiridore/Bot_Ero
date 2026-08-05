@@ -146,7 +146,7 @@ main.py
 
 core.llm.*            ← LLM 子系统（独立分层，见 llm-subsystem.md）
 core.gen_image.*      ← 图片生成（独立，见 image-generation.md）
-checkin_gallery/*     ← Web 应用（独立进程，见 web-gallery.md）
+gallery/*     ← Web 应用（独立进程，见 web-gallery.md）
 ```
 
 **循环导入:** 目前存在以下循环关系（已知，不轻易打破）:
