@@ -15,13 +15,24 @@
     "name": "MC 服务器",
     "desc": "Minecraft 生存服务器，IP 见下，地图上可以看大家的建筑",
     "links": [
-      { "label": "复制服务器 IP", "copy": "mc.example.com:25565" },
-      { "label": "在线地图", "url": "https://map.example.com" }
+      {
+        "label": "复制服务器 IP",
+        "copy": "mc.example.com:25565"
+      },
+      {
+        "label": "在线地图",
+        "url": "https://map.example.com"
+      }
     ]
   },
   {
     "name": "留言簿",
     "desc": "群友留言与点赞",
     "url": "https://guestbook.littlero.com"
+  },
+  {
+    "name": "闹钟",
+    "desc": "个人与群闹钟管理",
+    "url": "https://alarms.littlero.com"
   }
 ]

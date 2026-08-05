@@ -13,7 +13,6 @@ from checkin_gallery.checkin_service import get_checkin_status, perform_checkin,
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from checkin_gallery.profile_service import build_profile
-from checkin_gallery.alarm_service import cancel_alarm, create_alarm, list_alarms
 from checkin_gallery.shop_service import get_shop, redeem_shop_item
 from checkin_gallery.title_settings import (
     clear_equipped_titles,
@@ -93,22 +92,6 @@ class EquipOneIn(BaseModel):
 
 class ShopRedeemIn(BaseModel):
     product_id: str
-
-
-class AlarmCreateIn(BaseModel):
-    content: str
-    schedule_type: str
-    date: str | None = None
-    time: str | None = None
-    years: int = 0
-    months: int = 0
-    days: int = 0
-    hours: int = 0
-    minutes: int = 0
-    interval_days: int | None = None
-    weekday: int | None = None
-    month: int | None = None
-    day: int | None = None
 
 
 class CharacterIn(BaseModel):
@@ -381,27 +364,6 @@ def api_shop_redeem(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     return _checkin_or_400(redeem_shop_item, user_id, body.product_id)
-
-
-@app.get("/api/me/alarms")
-def api_alarms_list(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return list_alarms(user_id)
-
-
-@app.post("/api/me/alarms")
-def api_alarms_create(
-    body: AlarmCreateIn,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    return _checkin_or_400(create_alarm, user_id, body.model_dump())
-
-
-@app.delete("/api/me/alarms/{alarm_id}")
-def api_alarms_cancel(
-    alarm_id: int,
-    user_id: Annotated[str, Depends(get_current_user_id)],
-):
-    return _checkin_or_400(cancel_alarm, user_id, alarm_id)
 
 
 @app.get("/api/me/titles/settings")
@@ -696,14 +658,6 @@ def profile_shop_page():
     page = STATIC_DIR / "shop.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少商店页")
-    return FileResponse(page)
-
-
-@app.get("/profile/alarms")
-def profile_alarms_page():
-    page = STATIC_DIR / "alarms.html"
-    if not page.is_file():
-        raise HTTPException(status_code=500, detail="缺少闹钟页")
     return FileResponse(page)
 
 
