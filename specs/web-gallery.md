@@ -54,6 +54,8 @@ Web 端按功能域拆分为 **6 个独立 FastAPI 子应用**，各自独立端
 | `core/trpg/` | 跑团规则与角色派生计算 |
 | `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
 
+- Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，与 homepage/style.css 同步），禁止在子应用样式文件引入新的硬编码颜色。
+
 ---
 
 ## Constraint: 子应用统一骨架

@@ -1,3 +1,4 @@
+/* 报纸风主题 token —— 与 core/web/static/gallery.css 的 :root 数值保持同步，改一处必须改另一处 */
 :root {
   --paper: #f5efe0;
   --paper-card: #fbf7ec;
