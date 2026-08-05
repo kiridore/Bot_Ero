@@ -15,8 +15,11 @@ from core.db.activity import ActivityManager
 
 class DbManager:
     def __init__(self):
-        self.conn = sqlite3.connect("data.db")
+        from core.config import DB_PATH
+
+        self.conn = sqlite3.connect(str(DB_PATH))
         self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=5000")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.cur = self.conn.cursor()
         init_schema(self.conn, self.cur)
