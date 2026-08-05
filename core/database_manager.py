@@ -11,6 +11,7 @@ from core.db.alarm import AlarmManager
 from core.db.immortal import ImmortalManager
 from core.db.quest import QuestManager
 from core.db.activity import ActivityManager
+from core.db.guestbook import GuestbookManager
 
 
 class DbManager:
@@ -33,6 +34,7 @@ class DbManager:
         self.immortal = ImmortalManager(self.conn)
         self.quest = QuestManager(self.conn)
         self.activity = ActivityManager(self.conn)
+        self.guestbook = GuestbookManager(self.conn)
 
     def __del__(self):
         self.conn.commit()

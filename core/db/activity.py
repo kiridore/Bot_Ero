@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import datetime
 
@@ -36,7 +37,21 @@ class ActivityManager:
         return self.cur.lastrowid
 
     def get_activity(self, activity_id) -> dict | None:
-        return self._row("SELECT * FROM activities WHERE id = ?", (int(activity_id),))
+        act = self._row("SELECT * FROM activities WHERE id = ?", (int(activity_id),))
+        if act is None:
+            return None
+        act["members"] = self._rows(
+            "SELECT user_id, nickname, seq, next_user_id, status, received_at,"
+            " submitted_at, content, images"
+            " FROM activity_members WHERE activity_id = ? ORDER BY seq ASC, rowid ASC",
+            (int(activity_id),),
+        )
+        for m in act["members"]:
+            try:
+                m["images"] = json.loads(m["images"]) if m.get("images") else []
+            except (TypeError, ValueError):
+                m["images"] = []
+        return act
 
     def get_active_activity(self, group_id) -> dict | None:
         return self._row(
@@ -131,4 +146,38 @@ class ActivityManager:
             "SELECT a.* FROM activities a JOIN activity_members m ON m.activity_id = a.id"
             " WHERE m.user_id = ? AND a.status = 'running' AND a.id = ?",
             (str(user_id), int(activity_id)),
+        )
+
+    # ── web 只读查询（原 checkin_gallery/activity_service 移植）──
+    def list_activities(self) -> list[dict]:
+        """全部活动：进行中（open/running）在前且附成员列表，归档/取消在后。"""
+        acts = self._rows(
+            "SELECT a.id, a.type, a.title, a.description, a.status, a.group_id,"
+            " a.signup_deadline, a.deadline, a.hours_per_user, a.created_at, a.finished_at,"
+            " (SELECT COUNT(*) FROM activity_members m WHERE m.activity_id = a.id) AS member_count,"
+            " (SELECT COUNT(*) FROM activity_members m WHERE m.activity_id = a.id AND m.status = 'done') AS done_count"
+            " FROM activities a"
+            " ORDER BY CASE a.status WHEN 'open' THEN 0 WHEN 'running' THEN 1 ELSE 2 END, a.id DESC"
+        )
+        for act in acts:
+            if act["status"] in ("open", "running"):
+                act["members"] = self._rows(
+                    "SELECT user_id, nickname, seq, status FROM activity_members"
+                    " WHERE activity_id = ? ORDER BY seq ASC",
+                    (act["id"],),
+                )
+        return acts
+
+    def get_my_activities(self, user_id: str) -> list[dict]:
+        """当前用户参加过的全部活动（含自己在其中的状态）。"""
+        return self._rows(
+            "SELECT a.id, a.type, a.title, a.status, a.signup_deadline, a.deadline,"
+            " a.finished_at, m.status AS my_status, m.seq AS my_seq,"
+            " m.submitted_at AS my_submitted_at,"
+            " (SELECT COUNT(*) FROM activity_members mm WHERE mm.activity_id = a.id) AS member_count,"
+            " (SELECT COUNT(*) FROM activity_members mm WHERE mm.activity_id = a.id"
+            "   AND mm.status = 'done') AS done_count"
+            " FROM activities a JOIN activity_members m ON m.activity_id = a.id"
+            " WHERE m.user_id = ? ORDER BY a.id DESC",
+            (str(user_id),),
         )
