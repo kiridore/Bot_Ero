@@ -95,6 +95,17 @@ systemctl enable --now botero-guestbook
 > systemctl enable --now botero-gallery botero-guestbook botero-profile botero-trpg botero-alarms botero-activities
 > ```
 
+### 一键启停脚本
+
+仓库提供 `scripts/botero-services.sh`（Ubuntu，需 root 或 sudo），一键管理全部 6 个服务：
+
+```bash
+./scripts/botero-services.sh start    # 一键启动全部
+./scripts/botero-services.sh stop     # 一键停止
+./scripts/botero-services.sh restart  # 重启
+./scripts/botero-services.sh status   # 查看状态
+```
+
 ## 4. 环境变量清单
 
 全部 `BOTERO_*` 变量（定义于 `core/config.py`，bot 与全部子应用共用）：
@@ -128,7 +139,7 @@ systemctl enable --now botero-guestbook
 
 1. 首次部署：`git clone` 仓库到 VPS（如 `/opt/BotEro`），配置 DNS 与 Caddyfile；
 2. 更新代码：`git pull` 后重启受影响服务；
-3. 启动：`systemctl start botero-gallery botero-guestbook botero-profile botero-trpg botero-alarms botero-activities`（或逐个 `enable --now`）；
+3. 启动：`./scripts/botero-services.sh start`（首次部署先逐个 `enable --now` 设为开机自启，再一键 start）；
 4. 验证：依次访问 6 个子域根路径，均应返回 HTTP 200：
    `curl -s -o /dev/null -w "%{http_code}\n" https://gallery.littlero.com`（每个子域一次）。
 
