@@ -182,32 +182,74 @@ body {
   color: var(--accent);
 }
 
+/* —— 服务目录栏题 —— */
+.section-title {
+  width: min(880px, 100% - 2rem);
+  margin: 1.8rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.45em;
+  text-indent: 0.45em;
+  color: var(--accent-ink);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+}
+
 /* —— 卡片区 —— */
 .entries {
   width: min(880px, 100% - 2rem);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.2rem;
-  padding: 1.6rem 0 2rem;
+  gap: 1.3rem;
+  padding: 1.3rem 0 2rem;
 }
 
 .card.span-2 { grid-column: span 2; }
 
 .card {
+  position: relative;
   background: var(--paper-card);
-  border: 1px solid var(--line);
-  box-shadow: 2px 2px 0 rgba(46, 42, 34, 0.12);
-  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 1.1rem 1.2rem 1.15rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  gap: 0.55rem;
+  transition: box-shadow var(--motion-base) var(--ease),
+              transform var(--motion-base) var(--ease),
+              border-color var(--motion-fast) ease;
+  animation: card-in 0.55s var(--ease) both;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1.2rem;
+  right: 1.2rem;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.card:nth-child(2) { animation-delay: 60ms; }
+.card:nth-child(3) { animation-delay: 120ms; }
+.card:nth-child(4) { animation-delay: 180ms; }
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .card:hover {
-  box-shadow: 4px 4px 0 rgba(46, 42, 34, 0.18);
-  transform: translate(-1px, -1px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
 }
+
+.card:hover::before { opacity: 1; }
 
 .card-head {
   display: flex;
@@ -217,24 +259,29 @@ body {
 
 .card-title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.18rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
+/* —— 角标：印章式 —— */
 .badge {
   margin-left: auto;
-  font-size: 0.68rem;
-  border: 1px solid var(--line);
-  padding: 0.1rem 0.4rem;
-  color: var(--ink-soft);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.14rem 0.55rem;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  transform: rotate(-4deg);
   white-space: nowrap;
 }
 
 .card-desc {
   margin: 0;
   font-size: 0.88rem;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--ink-soft);
 }
 
@@ -246,9 +293,10 @@ body {
   border-bottom: 1px solid var(--rule);
   padding-bottom: 0.15rem;
   align-self: flex-start;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease;
 }
 
-.card-main:hover { border-bottom-color: var(--ink); }
+.card-main:hover { color: var(--accent-ink); border-bottom-color: var(--accent); }
 
 .card-links {
   display: flex;
@@ -262,14 +310,17 @@ body {
   text-decoration: none;
   border-bottom: 1px dotted var(--rule);
   align-self: flex-start;
+  padding: 0.05rem 0.2rem;
+  border-radius: 3px;
+  transition: color var(--motion-fast) ease, background var(--motion-fast) ease;
 }
 
 .card-link.copy-btn {
   background: none;
   border: none;
   border-bottom: 1px dotted var(--rule);
-  border-radius: 0;
-  padding: 0;
+  border-radius: 3px;
+  padding: 0.05rem 0.2rem;
   margin: 0;
   font: inherit;
   font-size: inherit;
@@ -281,7 +332,10 @@ body {
 }
 
 .card-link:hover,
-.card-link.copy-btn:hover { color: var(--ink); }
+.card-link.copy-btn:hover {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
 
 /* —— 状态点 —— */
 .dot {
