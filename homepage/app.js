@@ -127,7 +127,7 @@ function showRandomQuote(quotes) {
     el.textContent = "本栏暂无收录，词条整理中……";
     return;
   }
-  el.textContent = "“" + quotes[Math.floor(Math.random() * quotes.length)] + "”";
+  el.textContent = quotes[Math.floor(Math.random() * quotes.length)];
 }
 
 async function loadNotices() {

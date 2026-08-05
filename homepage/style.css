@@ -109,33 +109,54 @@ body {
 .quotes-bar,
 .announce-bar {
   width: min(880px, 100% - 2rem);
-  border: 1px solid var(--line);
+  border: 1px solid var(--rule);
   border-top: 3px double var(--line);
   background: var(--paper-card);
-  box-shadow: 2px 2px 0 rgba(46, 42, 34, 0.12);
-  padding: 0.7rem 1.1rem;
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1.2rem 0.8rem 1rem;
   display: flex;
   align-items: baseline;
   gap: 0.9rem;
+  animation: bar-in var(--motion-base) var(--ease) both;
+}
+
+@keyframes bar-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .quotes-bar { margin-top: 1.4rem; }
 .announce-bar { margin-top: 0.8rem; }
 
+.quotes-bar::before {
+  content: "“";
+  align-self: flex-start;
+  font-family: Georgia, serif;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
 .quotes-title {
   margin: 0;
   flex-shrink: 0;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   letter-spacing: 0.25em;
   background: var(--ink);
   color: var(--paper);
-  padding: 0.22rem 0.55rem;
+  border-radius: 3px;
+  padding: 0.26rem 0.6rem;
 }
+
+.announce-bar .quotes-title { background: var(--accent-ink); }
 
 .quotes-text {
   margin: 0;
   font-size: 0.95rem;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--ink);
 }
 
@@ -148,9 +169,17 @@ body {
   color: var(--ink);
 }
 
+.announce-list li {
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  transition: background var(--motion-fast) ease;
+}
+
+.announce-list li:hover { background: var(--accent-soft); }
+
 .announce-list li::before {
   content: "§ ";
-  color: var(--ink-soft);
+  color: var(--accent);
 }
 
 /* —— 卡片区 —— */
