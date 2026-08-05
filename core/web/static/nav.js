@@ -1,6 +1,6 @@
 /* 站点导航条：全子应用共享。点击跳转导航主页与各功能子域，当前域高亮。
    部署时修改 NAV_HOME_URL（导航主页地址）与 NAV_ITEMS 中的子域 host。 */
-const NAV_HOME_URL = "https://nav.littlero.com";
+const NAV_HOME_URL = "https://littlero.com";
 const NAV_HOME_LABEL = "小埃中继站";
 const NAV_ITEMS = [
   { label: "图库", host: "gallery.littlero.com" },

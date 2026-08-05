@@ -19,9 +19,14 @@
 
 ## 2. Caddyfile
 
-每段配置一个子域反代到对应本地端口：
+现成配置文件：`scripts/Caddyfile`（仓库内，部署路径 `/home/dore/onebot/Bot_Ero`）。导航主页为根域 `littlero.com` 静态托管，6 个子域反代到对应本地端口：
 
 ```caddyfile
+littlero.com {
+	root * /home/dore/onebot/Bot_Ero/homepage
+	file_server
+}
+
 gallery.littlero.com {
 	reverse_proxy 127.0.0.1:8765
 }
@@ -51,7 +56,7 @@ activities.littlero.com {
 
 ## 3. systemd
 
-每个子应用一个 unit，服务名统一带 `botero-` 前缀。以 `botero-guestbook.service` 为完整示例：
+6 个 unit 模板已入库（`scripts/botero-*.service`），部署路径已配为 `/home/dore/onebot/Bot_Ero`。以 `botero-guestbook.service` 为例：
 
 ```ini
 [Unit]
@@ -59,9 +64,10 @@ Description=BotEro Guestbook
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/BotEro
-Environment=BOTERO_DB_PATH=/opt/BotEro/data.db
-Environment=BOTERO_AUTH_SALT=<与图库一致的盐值>
+WorkingDirectory=/home/dore/onebot/Bot_Ero
+Environment=BOTERO_DB_PATH=/home/dore/onebot/Bot_Ero/data.db
+Environment=BOTERO_AUTH_SALT=CHANGE_ME
+# 换盐时把旧盐加进来，旧密钥仍有效：BOTERO_AUTH_SALT_OLD=旧盐值
 Environment=BOTERO_GALLERY_PORT=8766
 ExecStart=/usr/bin/python3 -m guestbook
 Restart=always
@@ -81,14 +87,20 @@ WantedBy=multi-user.target
 | `botero-activities` | `python3 -m activities` | 8770 | |
 | `botero-gallery` | `python3 -m gallery` | 8765 | |
 
-部署步骤：
+部署步骤（模板已在 `scripts/`，先替换盐值再批量安装）：
 
 ```bash
-cp botero-guestbook.service /etc/systemd/system/
+cd /home/dore/onebot/Bot_Ero/scripts
+sed -i 's/CHANGE_ME/<你的随机盐值>/' botero-*.service   # 所有服务使用同一盐值
+cp botero-*.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now botero-guestbook
+systemctl enable --now botero-gallery botero-guestbook botero-profile botero-trpg botero-alarms botero-activities
 ```
 
+> 生成随机盐：`openssl rand -base64 24`。
+>
+> **换盐无感迁移**：若此前已用旧盐发过密钥，把旧盐值配到每个服务的 `BOTERO_AUTH_SALT_OLD`（逗号分隔可多个），旧密钥继续有效，无需群友重新 `/图库密钥`；之后新发的密钥用新盐。
+>
 > 若 VPS 上已按旧服务名（如 `gallery.service`）部署，迁移改名：
 > ```bash
 > systemctl disable --now gallery guestbook profile trpg alarms activities
@@ -127,7 +139,8 @@ systemctl enable --now botero-guestbook
 | `BOTERO_THUMB_MAX_WIDTH` | `480` | 缩略图最大宽度 |
 | `BOTERO_THUMB_MAX_HEIGHT` | `720` | 缩略图最大高度 |
 | `BOTERO_THUMB_QUALITY` | `82` | 缩略图 JPEG 质量 |
-| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | 登录密钥盐（生产环境必须修改，且各子应用保持一致） |
+| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | 登录密钥盐（生产环境必须修改为随机值，且各子应用保持一致；修改后旧密钥失效） |
+| `BOTERO_AUTH_SALT_OLD` | 空 | 历史盐列表（逗号分隔）。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 网页打卡单次最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
 
@@ -137,7 +150,7 @@ systemctl enable --now botero-guestbook
 
 ## 6. 启动顺序与验证
 
-1. 首次部署：`git clone` 仓库到 VPS（如 `/opt/BotEro`），配置 DNS 与 Caddyfile；
+1. 首次部署：`git clone` 仓库到 VPS（如 `/home/dore/onebot/Bot_Ero`），配置 DNS 与 Caddyfile；
 2. 更新代码：`git pull` 后重启受影响服务；
 3. 启动：`./scripts/botero-services.sh start`（首次部署先逐个 `enable --now` 设为开机自启，再一键 start）；
 4. 验证：依次访问 6 个子域根路径，均应返回 HTTP 200：

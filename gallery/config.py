@@ -3,6 +3,7 @@
 from core.config import *  # noqa: F401,F403
 from core.config import (
     AUTH_SALT,
+    AUTH_SALT_OLD,
     CHECKIN_MAX_BYTES,
     CHECKIN_MAX_IMAGES,
     DB_PATH,

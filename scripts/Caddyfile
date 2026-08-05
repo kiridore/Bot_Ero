@@ -1,0 +1,31 @@
+# BotEro 站点配置：导航主页（根域）静态托管 + 6 个 Web 子应用反代
+# 用法：caddy run --config scripts/Caddyfile 或复制到 /etc/caddy/Caddyfile
+
+littlero.com {
+	root * /home/dore/onebot/Bot_Ero/homepage
+	file_server
+}
+
+gallery.littlero.com {
+	reverse_proxy 127.0.0.1:8765
+}
+
+guestbook.littlero.com {
+	reverse_proxy 127.0.0.1:8766
+}
+
+profile.littlero.com {
+	reverse_proxy 127.0.0.1:8767
+}
+
+trpg.littlero.com {
+	reverse_proxy 127.0.0.1:8768
+}
+
+alarms.littlero.com {
+	reverse_proxy 127.0.0.1:8769
+}
+
+activities.littlero.com {
+	reverse_proxy 127.0.0.1:8770
+}
