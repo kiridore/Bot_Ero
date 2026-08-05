@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from alarms.alarm_service import cancel_alarm, create_alarm, list_alarms
 from core.auth import verify_login_key
+from core.onebot_client import resolve_avatar_url, resolve_display_name
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
@@ -26,6 +27,17 @@ def get_current_user_id(
     if uid is None:
         raise HTTPException(status_code=401, detail="密钥无效")
     return uid
+
+
+class LoginIn(BaseModel):
+    key: str
+
+
+class SessionOut(BaseModel):
+    user_id: str
+    display_name: str
+    avatar_url: str
+    token: str
 
 
 class AlarmCreateIn(BaseModel):
@@ -49,6 +61,30 @@ def _or_400(fn, *args):
         return fn(*args)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/auth/login", response_model=SessionOut)
+def api_login(body: LoginIn):
+    uid = verify_login_key(body.key.strip())
+    if uid is None:
+        raise HTTPException(status_code=401, detail="密钥无效")
+    token = body.key.strip()
+    return SessionOut(
+        user_id=uid,
+        display_name=resolve_display_name(uid),
+        avatar_url=resolve_avatar_url(uid),
+        token=token,
+    )
+
+
+@app.get("/api/auth/me", response_model=SessionOut)
+def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return SessionOut(
+        user_id=user_id,
+        display_name=resolve_display_name(user_id),
+        avatar_url=resolve_avatar_url(user_id),
+        token="",
+    )
 
 
 @app.get("/api/me/alarms")

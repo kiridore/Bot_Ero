@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from core import character_store as char_store
 from core import user_settings as user_settings_mod
 from core.auth import verify_login_key
-from core.onebot_client import resolve_display_name
+from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.trpg import character as trpg_char
 from core.trpg import rules as trpg_rules
 
@@ -53,6 +53,18 @@ class CharacterIn(BaseModel):
     ideals: str = ""
     bonds: str = ""
     flaws: str = ""
+    notes: str = ""
+
+
+class LoginIn(BaseModel):
+    key: str
+
+
+class SessionOut(BaseModel):
+    user_id: str
+    display_name: str
+    avatar_url: str
+    token: str
 
 
 class SettingsIn(BaseModel):
@@ -168,6 +180,30 @@ def get_current_user_id(
     if uid is None:
         raise HTTPException(status_code=401, detail="密钥无效")
     return uid
+
+
+@app.post("/api/auth/login", response_model=SessionOut)
+def api_login(body: LoginIn):
+    uid = verify_login_key(body.key.strip())
+    if uid is None:
+        raise HTTPException(status_code=401, detail="密钥无效")
+    token = body.key.strip()
+    return SessionOut(
+        user_id=uid,
+        display_name=resolve_display_name(uid),
+        avatar_url=resolve_avatar_url(uid),
+        token=token,
+    )
+
+
+@app.get("/api/auth/me", response_model=SessionOut)
+def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return SessionOut(
+        user_id=user_id,
+        display_name=resolve_display_name(user_id),
+        avatar_url=resolve_avatar_url(user_id),
+        token="",
+    )
 
 
 @app.get("/api/me/characters")
