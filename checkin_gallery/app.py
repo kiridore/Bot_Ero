@@ -8,10 +8,10 @@ from pydantic import BaseModel
 
 from checkin_gallery import config
 from checkin_gallery.activity_service import get_activity, get_my_activities, list_activities
-from checkin_gallery.auth import verify_login_key
+from core.auth import verify_login_key
 from checkin_gallery.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from checkin_gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
-from checkin_gallery.onebot_client import resolve_avatar_url, resolve_display_name
+from core.onebot_client import resolve_avatar_url, resolve_display_name
 from checkin_gallery.profile_service import build_profile
 from checkin_gallery.alarm_service import cancel_alarm, create_alarm, list_alarms
 from checkin_gallery.guestbook_service import like_entry, list_entries, post_entry

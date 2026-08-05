@@ -2,13 +2,13 @@ import base64
 import hmac
 import hashlib
 
-from checkin_gallery import config
+from core.config import AUTH_SALT
 
 
 def make_login_key(user_id: int | str) -> str:
     uid = str(int(user_id))
     sig = hmac.new(
-        config.AUTH_SALT.encode("utf-8"),
+        AUTH_SALT.encode("utf-8"),
         uid.encode("utf-8"),
         hashlib.sha256,
     ).digest()[:12]
@@ -27,7 +27,7 @@ def verify_login_key(key: str) -> str | None:
         sig_padded = sig_b64 + "=" * (-len(sig_b64) % 4)
         sig = base64.urlsafe_b64decode(sig_padded.encode("ascii"))
         expected = hmac.new(
-            config.AUTH_SALT.encode("utf-8"),
+            AUTH_SALT.encode("utf-8"),
             uid.encode("utf-8"),
             hashlib.sha256,
         ).digest()[:12]

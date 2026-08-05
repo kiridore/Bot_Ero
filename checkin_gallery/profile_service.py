@@ -11,7 +11,7 @@ from pathlib import Path
 from core import utils as core_utils
 from core.database_manager import DbManager
 
-from checkin_gallery.onebot_client import resolve_avatar_url, resolve_display_name
+from core.onebot_client import resolve_avatar_url, resolve_display_name
 
 _TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title" / "defs.py"
 

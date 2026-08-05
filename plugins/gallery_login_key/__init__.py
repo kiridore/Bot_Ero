@@ -1,7 +1,7 @@
 from core.base import NICKNAME, CommandPlugin
 from core.cq import at, text
 
-from checkin_gallery.auth import make_login_key
+from core.auth import make_login_key
 from core.utils import register_plugin
 
 

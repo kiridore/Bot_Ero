@@ -4,7 +4,7 @@ from functools import lru_cache
 
 import requests
 
-from checkin_gallery import config
+from core.config import GROUP_ID, ONEBOT_HTTP_URL, ONEBOT_TOKEN
 
 
 def _member_display_name(data: dict, user_id: str) -> str:
@@ -18,10 +18,10 @@ def _member_display_name(data: dict, user_id: str) -> str:
 
 
 def _call_onebot(action: str, params: dict) -> dict | None:
-    base = config.ONEBOT_HTTP_URL.rstrip("/")
+    base = ONEBOT_HTTP_URL.rstrip("/")
     headers: dict[str, str] = {"Content-Type": "application/json"}
-    if config.ONEBOT_TOKEN:
-        headers["Authorization"] = f"Bearer {config.ONEBOT_TOKEN}"
+    if ONEBOT_TOKEN:
+        headers["Authorization"] = f"Bearer {ONEBOT_TOKEN}"
 
     for url, body in (
         (f"{base}/{action}", params),
@@ -47,10 +47,10 @@ def resolve_display_name(user_id: str) -> str:
     except ValueError:
         return uid
 
-    if config.GROUP_ID:
+    if GROUP_ID:
         info = _call_onebot(
             "get_group_member_info",
-            {"group_id": config.GROUP_ID, "user_id": qq, "no_cache": False},
+            {"group_id": GROUP_ID, "user_id": qq, "no_cache": False},
         )
         if info:
             return _member_display_name(info, uid)
