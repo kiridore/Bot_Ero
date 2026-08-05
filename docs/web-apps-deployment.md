@@ -102,6 +102,7 @@ systemctl enable --now guestbook
 | `BOTERO_ACTIVITY_ROOT` | `<仓库>/server_data/activity_archive` | 活动存档目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 子应用监听地址 |
 | `BOTERO_GALLERY_PORT` | `8765` | 子应用监听端口（每服务按上表设置） |
+| `BOTERO_GALLERY_URL` | `https://gallery.littlero.com` | 个人中心等子应用引用图库媒体/缩略图的基地址 |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP 地址，用于拉取 QQ 昵称 |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 访问令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号 |

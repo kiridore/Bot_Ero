@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from checkin_gallery.repository import CheckinImage, fetch_user_settlement_day
 from core import user_settings as user_settings_mod
 from core.auth import verify_login_key
+from core.config import GALLERY_URL
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from profile.profile_service import build_profile
@@ -80,11 +81,11 @@ def _file_slug(content: str) -> str:
 
 
 def _media_url(user_id: str, content: str) -> str:
-    return f"/media/{user_id}/{_file_slug(content)}"
+    return f"{GALLERY_URL}/media/{user_id}/{_file_slug(content)}"
 
 
 def _thumb_url(user_id: str, content: str) -> str:
-    return f"/thumb/{user_id}/{_file_slug(content)}"
+    return f"{GALLERY_URL}/thumb/{user_id}/{_file_slug(content)}"
 
 
 def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
