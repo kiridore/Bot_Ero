@@ -644,7 +644,7 @@
   color: var(--accent-ink);
   font-size: 0.95rem;
   font-weight: 600;
-  box-shadow: 0 8px 32px var(--shadow-md);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--accent);
   pointer-events: none;
 }
@@ -661,7 +661,7 @@
   padding: 0;
   max-width: 420px;
   width: calc(100% - 2rem);
-  box-shadow: 0 16px 48px var(--shadow-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .checkin-success-dialog::backdrop {
