@@ -18,5 +18,10 @@
       { "label": "复制服务器 IP", "copy": "mc.example.com:25565" },
       { "label": "在线地图", "url": "https://map.example.com" }
     ]
+  },
+  {
+    "name": "留言簿",
+    "desc": "群友留言与点赞",
+    "url": "https://guestbook.littlero.com"
   }
 ]
