@@ -55,15 +55,17 @@ body {
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1.25rem;
-  background: rgba(15, 17, 21, 0.92);
+  background: rgba(251, 247, 236, 0.94);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid #2a2f3a;
+  border-bottom: 2px solid var(--line);
 }
 
 .toolbar h1 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--ink);
 }
 
 .filters {
@@ -74,53 +76,64 @@ body {
   flex: 1;
 }
 
-.toolbar-link {
+.toolbar-link,
+.btn-login,
+.user-chip {
   font-size: 0.85rem;
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
   padding: 0.35rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid rgba(122, 162, 247, 0.35);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
 }
 
-.toolbar-link:hover {
-  background: rgba(122, 162, 247, 0.12);
+.toolbar-link:hover,
+.btn-login:hover,
+.user-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .filters label {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  color: var(--ink-soft);
   font-size: 0.85rem;
-  color: var(--muted);
 }
 
 .filters select,
-.filters input {
-  background: var(--surface);
-  border: 1px solid #333a47;
-  color: var(--text);
-  border-radius: 6px;
+.filters input,
+.login-dialog input {
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
   padding: 0.35rem 0.5rem;
+  font-family: inherit;
 }
 
-.filters button {
+.filters button,
+.login-actions button.primary {
   background: var(--accent);
-  color: #0f1115;
+  color: var(--paper);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0.4rem 0.9rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
 }
 
-.filters button:hover {
+.filters button:hover,
+.login-actions button.primary:hover {
   filter: brightness(1.08);
 }
 
 .stats {
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .auth-area {
@@ -133,8 +146,8 @@ body {
 
 .btn-checkin {
   border: 1px solid var(--accent);
-  background: rgba(124, 156, 255, 0.12);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
   font-size: 0.85rem;
@@ -149,22 +162,10 @@ body {
 
 .btn-login,
 .user-chip {
-  border: 1px solid #3d4656;
-  background: var(--surface);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.85rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  text-decoration: none;
-}
-
-.btn-login:hover,
-.user-chip:hover {
-  border-color: var(--accent);
 }
 
 .user-chip img {
@@ -176,22 +177,23 @@ body {
 }
 
 .user-chip .uid {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 0.75rem;
 }
 
 .login-dialog {
-  border: 1px solid #3d4656;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--paper-card);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+  padding: 1.4rem;
+  width: min(380px, 90vw);
   max-width: 420px;
-  width: calc(100% - 2rem);
 }
 
 .login-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(44, 42, 36, 0.45);
 }
 
 .login-dialog form {
@@ -200,26 +202,23 @@ body {
 
 .login-dialog h2 {
   margin: 0 0 0.5rem;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  color: var(--ink);
 }
 
 .login-hint {
   margin: 0 0 1rem;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .login-dialog input {
   width: 100%;
-  padding: 0.5rem 0.65rem;
-  border-radius: 6px;
-  border: 1px solid #333a47;
-  background: var(--bg);
-  color: var(--text);
 }
 
 .login-error {
-  color: #f28b82;
+  color: var(--red);
   font-size: 0.8rem;
   margin: 0.5rem 0 0;
 }
@@ -236,19 +235,13 @@ body {
 }
 
 .login-actions button {
-  border-radius: 6px;
-  border: 1px solid #3d4656;
-  background: var(--bg);
-  color: var(--text);
+  font-family: inherit;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
   padding: 0.4rem 0.9rem;
   cursor: pointer;
-}
-
-.login-actions button.primary {
-  background: var(--accent);
-  color: #0f1115;
-  border-color: transparent;
-  font-weight: 600;
 }
 
 main {
@@ -280,8 +273,9 @@ main {
   padding: 0.35rem 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--text);
+  color: var(--ink);
   letter-spacing: 0.02em;
+  border-top: 2px solid var(--rule);
 }
 
 .day-section + .day-section .day-divider {
@@ -293,14 +287,14 @@ main {
   content: "";
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #4a5568 20%, #4a5568 80%, transparent);
+  background: linear-gradient(90deg, transparent, var(--rule) 20%, var(--rule) 80%, transparent);
 }
 
 .day-divider-date {
   flex-shrink: 0;
   padding: 0.25rem 0.85rem;
   border-radius: 999px;
-  background: var(--surface);
+  background: var(--paper-card);
   border: 1px solid #3d4656;
   color: var(--accent);
 }
@@ -313,8 +307,8 @@ main {
 .card {
   break-inside: avoid;
   margin-bottom: var(--gap);
-  background: var(--surface);
-  border-radius: var(--radius);
+  background: var(--paper-card);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   cursor: zoom-in;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -335,18 +329,18 @@ main {
 .card .meta {
   padding: 0.5rem 0.65rem 0.65rem;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   line-height: 1.35;
 }
 
 .card .meta strong {
-  color: var(--text);
+  color: var(--ink);
   font-weight: 500;
 }
 
 .sentinel {
   text-align: center;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 0.85rem;
   padding: 1rem;
 }
@@ -358,7 +352,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(10, 12, 16, 0.88);
   padding: 1rem;
 }
 
@@ -377,7 +371,7 @@ main {
   max-width: 100%;
   max-height: 82vh;
   object-fit: contain;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   transition: opacity 0.2s ease;
 }
 
@@ -389,13 +383,13 @@ main {
   content: "加载原图…";
   display: block;
   margin-top: 0.5rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 0.85rem;
 }
 
 .lightbox figcaption {
   margin-top: 0.75rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 0.9rem;
 }
 
@@ -407,8 +401,8 @@ main {
   height: 2.5rem;
   border: none;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--ink);
+  color: #e8eaed;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
