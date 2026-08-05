@@ -7,7 +7,7 @@ Start with [CLAUDE.md](CLAUDE.md) for project overview, [KNOWLEDGE_BASE.md](KNOW
 - **No build system:** no `pyproject.toml`, no `setup.py`, no venv management. `python main.py` is the only entrypoint.
 - **No test framework, lint, or formatter.** `test/` contains ad-hoc scripts (run with `python test/<name>.py`).
 - `pyrightconfig.json` is gitignored — do not rely on it in CI/automation.
-- Dependencies are documented only: robot depends on `websocket-client`, `requests`, `Pillow`; web app has `gallery/requirements.txt`.
+- Dependencies are documented only: robot depends on `websocket-client`, `requests`, `Pillow`; 6 web sub-apps share `gallery/requirements.txt`.
 - **Git hooks:** run `git config core.hooksPath .githooks` after clone to enable Conventional Commits validation on every commit.
 - **Commit messages MUST be written in Chinese** with Conventional Commits format (e.g. `feat(任务): 新增周常全清称号`).
 

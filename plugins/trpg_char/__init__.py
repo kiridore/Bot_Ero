@@ -8,7 +8,7 @@ from core.utils import register_plugin
 from core import character_store as store
 from . import character as char_logic
 
-WEB_TRPG_URL = os.environ.get("BOTERO_WEB_URL", "http://127.0.0.1:8765") + "/profile/trpg"
+WEB_TRPG_URL = os.environ.get("BOTERO_WEB_URL", "https://trpg.littlero.com")
 
 
 @register_plugin

@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-03 (活动系统：菜单、插件目录、数据库表、Web 归档页同步)
+> Last updated: 2026-08-05 (Web 应用拆分：单进程 → 6 个多子应用 + 共享 core，目录结构与 spec 同步)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -32,7 +32,7 @@
 | [`specs/conventions.md`](specs/conventions.md) | 编码约定、隐式知识、路径、周边界 |
 | [`specs/database.md`](specs/database.md) | 数据库 Schema 概述、迁移规则 |
 | [`specs/onebot-protocol.md`](specs/onebot-protocol.md) | OneBot v11 协议、CQ 消息构造 |
-| [`specs/web-gallery.md`](specs/web-gallery.md) | Web 图库架构、API 路由 |
+| [`specs/web-gallery.md`](specs/web-gallery.md) | Web 多子应用架构（6 子应用 + 共享 core）、API 路由 |
 | [`specs/image-generation.md`](specs/image-generation.md) | 图片生成子系统（热度图/档案卡） |
 | [`specs/llm-subsystem.md`](specs/llm-subsystem.md) | LLM 子系统（已弃用） |
 
@@ -44,20 +44,25 @@
 ./
 ├── KNOWLEDGE_BASE.md         ← 本文件（索引）
 ├── main.py                    ← 启动入口
-├── core/                      ← 核心库
+├── core/                      ← 核心库（bot 与 Web 子应用共享）
 │   ├── base.py                ← Plugin/CommandPlugin/TimedHeartbeatPlugin
 │   ├── context.py             ← 运行时上下文、SYSTEM_PLUGINS、plugin_key
+│   ├── config.py              ← 全部 BOTERO_* 环境变量读取
+│   ├── auth.py                ← make_login_key / verify_login_key（登录密钥）
+│   ├── onebot_client.py       ← resolve_display_name / resolve_avatar_url
+│   ├── title_defs.py          ← TITLE_DEFS 加载
 │   ├── feature_packs.py       ← 功能包定义
 │   ├── api.py                 ← API 封装、Echo 机制
 │   ├── cq.py                  ← CQ 消息段构造器
 │   ├── event.py               ← Event 包装器
-│   ├── database_manager.py    ← DbManager
-│   ├── db/                    ← 各业务模块数据库管理层
+│   ├── database_manager.py    ← DbManager（统一 DB_PATH + WAL + busy_timeout=5000）
+│   ├── db/                    ← 各业务模块数据库管理层（checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook）
 │   ├── character_store.py     ← 角色卡 JSON 存储（server_data/trpg_chars/）
 │   ├── user_settings.py       ← 个人设置 JSON 存储（server_data/user_settings/）
 │   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
+│   ├── web/static/            ← Web 子应用共享静态（auth.js/gallery.css/profile.css）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 43 个已注册插件
 ├── kb/                        ← 知识库子文档
@@ -68,7 +73,12 @@
 │   ├── OPERATIONS.md
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
-├── gallery/                  ← Web 图库（独立进程）
+├── gallery/                   ← 图库子应用（8765，gallery.littlero.com）
+├── guestbook/                 ← 留言簿子应用（8766，guestbook.littlero.com）
+├── profile/                   ← 个人中心子应用（8767，profile.littlero.com）
+├── trpg/                      ← 跑团子应用（8768，trpg.littlero.com）
+├── alarms/                    ← 闹钟子应用（8769，alarms.littlero.com）
+├── activities/                ← 活动归档子应用（8770，activities.littlero.com）
 ├── homepage/                  ← 导航主页（纯静态，Caddy 托管；entries/quotes/notices 三个 JSON 配置）
 └── test/                      ← 临时测试脚本
 ```

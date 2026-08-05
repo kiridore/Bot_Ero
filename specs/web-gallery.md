@@ -1,42 +1,92 @@
-# Spec: 打卡图库 Web 应用
+# Spec: Web 多子应用体系（图库/个人中心/跑团/留言簿/闹钟/活动）
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-03 (活动详情页 /archive/{id}：轮次/剩余时间/下家展示，列表条目跳转)
+> 最后更新: 2026-08-05 (单进程 Web 应用拆分为 6 个独立子应用 + 共享 core；旧路径不重定向)
 
 ---
 
-## Constraint: 独立进程架构
+## Constraint: 应用拓扑
 
-Web 应用（`gallery/`）是独立的 FastAPI 进程，与机器人主进程分开运行。
+Web 端按功能域拆分为 **6 个独立 FastAPI 子应用**，各自独立端口，Caddy 反代子域名（`*.littlero.com`），由 `homepage/` 导航主页（纯静态，`entries.json` 配置卡片）聚合入口。
+
+| 子应用 | 模块 | 端口 | 域名 | 职责 |
+|--------|------|------|------|------|
+| 图库 | `gallery` | 8765 | gallery.littlero.com | 打卡图库瀑布流 + /thumb /media + 打卡数据 API |
+| 留言簿 | `guestbook` | 8766 | guestbook.littlero.com | 留言列表/发表/点赞 |
+| 个人中心 | `profile` | 8767 | profile.littlero.com | 个人主页/打卡/商店/称号/设置 5 域聚合 |
+| 跑团 | `trpg` | 8768 | trpg.littlero.com | 车卡创建/编辑/查看 |
+| 闹钟 | `alarms` | 8769 | alarms.littlero.com | 闹钟 CRUD |
+| 活动 | `activities` | 8770 | activities.littlero.com | 活动归档/详情 |
 
 ```
-┌─────────────────────┐     ┌─────────────────────────┐
-│  main.py (bot)       │     │  gallery (web)   │
-│  ws://127.0.0.1:3001 │     │  http://127.0.0.1:8765   │
-└────────┬────────────┘     └───────────┬───────────────┘
-         │                              │
-         └──────────┬───────────────────┘
+┌─────────────────────┐     ┌──────────────────────────────────────────┐
+│  main.py (bot)       │     │  6 × FastAPI 子应用 (8765-8770)           │
+│  ws://127.0.0.1:3001 │     │  gallery guestbook profile trpg           │
+│                      │     │  alarms activities                        │
+└────────┬────────────┘     │        │  └─ Caddy 反代 *.littlero.com     │
+         │                  │        └── homepage/ (静态导航主页)         │
+         └──────────┬───────┘
                     │
               ┌─────▼─────┐
-              │  data.db   │  (共享 SQLite，web 端对打卡数据只读)
+              │  data.db   │  (共享 SQLite，WAL；子应用经 core 访问)
               └───────────┘
 ```
 
-**启动:** `python -m gallery [--port PORT] [--db PATH] [--images PATH]`
+**启动:** `python -m <子应用> [--port PORT]`（6 个各自 `__main__.py`，端口默认值见上表）。
+
+**MUST NOT:** 旧单体路径（如 `/profile/trpg`、`/guestbook`）不提供重定向，直接失效；子应用之间不互相内链页面路径，跨域引用一律用完整域名（如 `BOTERO_GALLERY_URL`）。
+
+---
+
+## Constraint: 共享层（`core/`）
+
+子应用与 bot 共用同一 `core/` 包，**MUST NOT** 在子应用内复制共享逻辑：
+
+| 模块 | 职责 |
+|------|------|
+| `core/config.py` | 全部 `BOTERO_*` 环境变量读取（bot 与子应用唯一来源）；`gallery/config.py` 为兼容再导出层 |
+| `core/auth.py` | `make_login_key` / `verify_login_key`（HMAC 登录密钥） |
+| `core/onebot_client.py` | `resolve_display_name` / `resolve_avatar_url`（QQ 昵称/头像） |
+| `core/title_defs.py` | `TITLE_DEFS` 加载 |
+| `core/database_manager.py` + `core/db/` | `DbManager` 统一数据库访问（WAL + busy_timeout=5000；checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook 各业务 manager） |
+| `core/character_store.py` / `core/user_settings.py` | 角色卡/个人设置 JSON 存储（原子写 tmp + os.replace） |
+| `core/trpg/` | 跑团规则与角色派生计算 |
+| `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
+
+---
+
+## Constraint: 子应用统一骨架
+
+每个子应用目录：`app.py`（FastAPI 路由 + FileResponse 页面路由）、`__main__.py`（uvicorn 启动）、`static/`（本域前端）。
+
+```python
+# 骨架要点（各子应用一致）
+app.mount("/static", StaticFiles(directory=STATIC_DIR))            # 本域静态
+app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR))     # core/web/static 共享静态
+
+# 认证助手（基于 core.auth.verify_login_key）
+user_id = Depends(get_current_user_id)     # 必须登录，否则 401
+user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合路由）
+```
+
+- **MUST:** 每个子应用都提供 `POST /api/auth/login` 与 `GET /api/auth/me`（见 API 路由）
+- 页面路由用 `FileResponse` 返回 `static/*.html`
+- `profile` 依赖 `gallery.repository`（2 处 import：`CheckinImage`、`fetch_user_settlement_day`）——图库数据层是个人中心的数据来源
 
 ---
 
 ## Constraint: 配置
 
-所有配置通过环境变量（`gallery/config.py`）：
+所有配置通过环境变量读取（`core/config.py`，单一来源）：
 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `BOTERO_DB_PATH` | `data.db` | 数据库路径 |
 | `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
-| `BOTERO_GALLERY_PORT` | `8765` | 监听端口 |
+| `BOTERO_GALLERY_PORT` | `8765` | 图库监听端口（其余子应用端口为各 `__main__.py` 默认值：8766-8770） |
+| `BOTERO_GALLERY_URL` | `https://gallery.littlero.com` | 图库域基地址（个人中心等子应用跨域引用图库媒体/缩略图） |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号（昵称查询） |
@@ -53,79 +103,71 @@ Web 应用（`gallery/`）是独立的 FastAPI 进程，与机器人主进程分
 
 ---
 
-## Constraint: HMAC 认证
+## Constraint: 数据库共享
 
-```python
-# 登录密钥生成（在 QQ 插件中）:
-key = base64(
-    base64(HMAC-SHA256(user_id, salt)[:12]).decode()
-    + ":" + str(user_id)
-)
+所有子应用与 bot 共用同一 SQLite（`BOTERO_DB_PATH`），**MUST** 通过 `core.database_manager.DbManager` 访问：
 
-# 验证（core/auth.py 提供 verify_login_key，各子应用共享）:
-user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
-```
-
-**依赖注入:**
-- `Depends(get_current_user_id)` — 必须登录
-- `Depends(get_optional_user_id)` — 可选登录（公开+登录混合路由）
+- 连接开启 WAL 模式，`busy_timeout=5000`（多进程并发安全）
+- 子应用**只允许**经由 `core/db/*` 业务 manager 读写，不直接裸 SQL（`gallery/repository.py` 是图库只读查询的既有例外）
+- `REMEDY_MARKER = "remedy_checkin"`：查询打卡数据时**必须**排除 `content = "remedy_checkin"` 的记录
 
 ---
 
-## Constraint: API 路由
+## Constraint: HMAC 认证（密钥即 token）
 
-### 认证
+```python
+# 登录密钥生成（core.auth.make_login_key，QQ 插件 gallery_login_key 调用）:
+key = make_login_key(user_id)  # HMAC-SHA256(user_id, AUTH_SALT)[:12] → Base64 载荷
+
+# 验证（core.auth.verify_login_key，各子应用共享）:
+user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
+```
+
+**登录模型:**
+- 密钥即 token：`Authorization: Bearer <key>` 传输，无服务端 session
+- 各子域共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有子应用通用
+- 前端 token 存 localStorage，**按域名隔离**——每个子域首次访问需重新登录（共享 `core/web/static/auth.js` 处理）
+- **依赖注入:** `Depends(get_current_user_id)`（必须登录）/ `Depends(get_optional_user_id)`（可选登录）
+
+---
+
+## Constraint: API 路由（按子应用归属）
+
+### 认证（全部 6 个子应用）
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `POST` | `/api/auth/login` | 否 | 登录，返回 token |
 | `GET` | `/api/auth/me` | 必须 | 当前用户信息 |
 
-### 打卡数据
+### 图库（`gallery`，8765）
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/checkins` | 可选 | 分页打卡图片列表 |
+| `GET` | `/api/users` | 可选 | 所有有打卡记录的用户列表 |
+| `GET` | `/thumb/{user_id}/{filename}` | 否 | 缩略图（缺失时生成，缓存到 `THUMB_CACHE`） |
+| `GET` | `/media/{user_id}/{filename}` | 否 | 原图 |
+
+### 个人中心（`profile`，8767）
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
 | `GET` | `/api/me/day` | 必须 | 某结算日的打卡详情 |
 | `GET` | `/api/me/profile` | 必须 | 用户档案（热度图、称号） |
 | `GET` | `/api/me/checkin/status` | 必须 | 本周打卡状态 |
 | `POST` | `/api/me/checkin` | 必须 | 网页端打卡上传（multipart） |
-| `GET` | `/api/users` | 可选 | 所有有打卡记录的用户列表 |
-
-### 商店
-
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
 | `GET` | `/api/me/shop` | 必须 | 商店货架 |
 | `POST` | `/api/me/shop/redeem` | 必须 | 兑换商品 |
-
-### 闹钟
-
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
-| `GET` | `/api/me/alarms` | 必须 | 闹钟列表 |
-| `POST` | `/api/me/alarms` | 必须 | 创建闹钟 |
-| `DELETE` | `/api/me/alarms/{id}` | 必须 | 取消闹钟 |
-
-### 称号
-
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
 | `GET` | `/api/me/titles/settings` | 必须 | 称号设置 |
 | `PUT` | `/api/me/titles/equipped` | 必须 | 批量设置装备 |
 | `POST` | `/api/me/titles/equip` | 必须 | 装备单个称号 |
 | `DELETE` | `/api/me/titles/equipped` | 必须 | 卸下全部 |
 | `DELETE` | `/api/me/titles/equip/{id}` | 必须 | 卸下单个 |
+| `GET` | `/api/me/settings` | 必须 | 我的个人设置 |
+| `PUT` | `/api/me/settings` | 必须 | 更新个人设置（深合并） |
 
-### 留言簿
-
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
-| `GET` | `/api/guestbook` | 可选 | 留言列表 |
-| `POST` | `/api/guestbook` | 必须 | 发表留言 |
-| `POST` | `/api/guestbook/{id}/like` | 必须 | 点赞 |
-
-### 跑团车卡
+### 跑团（`trpg`，8768）
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
@@ -137,46 +179,48 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/me/characters/{char_id}/activate` | 必须 | 设为当前角色 |
 | `GET` | `/api/characters/{user_id}/{char_id}` | 必须 | 查看他人角色（他人未公开 → 403） |
 | `GET` | `/api/trpg/rules` | 否 | DND5E 规则数据（属性/技能/种族/职业/购点） |
-| `GET` | `/api/me/settings` | 必须 | 我的个人设置 |
-| `PUT` | `/api/me/settings` | 必须 | 更新个人设置（深合并） |
 
-### 媒体
+### 留言簿（`guestbook`，8766）
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| `GET` | `/thumb/{user_id}/{filename}` | 否 | 缩略图 |
-| `GET` | `/media/{user_id}/{filename}` | 否 | 原图 |
+| `GET` | `/api/guestbook` | 可选 | 留言列表 |
+| `POST` | `/api/guestbook` | 必须 | 发表留言 |
+| `POST` | `/api/guestbook/{id}/like` | 必须 | 点赞 |
 
-### 活动
+### 闹钟（`alarms`，8769）
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/me/alarms` | 必须 | 闹钟列表 |
+| `POST` | `/api/me/alarms` | 必须 | 创建闹钟 |
+| `DELETE` | `/api/me/alarms/{id}` | 必须 | 取消闹钟 |
+
+### 活动（`activities`，8770）
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后 |
-| `GET` | `/api/me/activities` | 是 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
+| `GET` | `/api/me/activities` | 必须 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
 | `GET` | `/api/activities/{id}` | 否 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL），不存在返回 404 |
 | `GET` | `/archive/{id}/media/{filename}` | 否 | 活动作品图片（限制在 `ACTIVITY_ROOT` 内，防路径遍历） |
 
-### 页面
+### 页面路由（FileResponse）
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `GET` | `/` | 图库主页 |
-| `GET` | `/profile` | 个人档案 |
-| `GET` | `/profile/settings` | 称号设置 |
-| `GET` | `/profile/checkin` | 网页打卡 |
-| `GET` | `/profile/shop` | 积分商店 |
-| `GET` | `/profile/alarms` | 闹钟管理 |
-| `GET` | `/profile/trpg` | 跑团车卡管理（创建/编辑，Excel 式分区编辑器） |
-| `GET` | `/trpg/char/{user_id}/{char_id}` | 角色卡只读查看页 |
-| `GET` | `/guestbook` | 留言簿 |
-| `GET` | `/archive` | 活动页（profile 风格导航；三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档；条目点击跳转详情页） |
-| `GET` | `/archive/{id}` | 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
+| 子应用 | 路径 |
+|--------|------|
+| `gallery` | `/` 图库主页 |
+| `profile` | `/` 个人主页；`/checkin` 网页打卡；`/shop` 积分商店；`/settings` 称号设置 |
+| `trpg` | `/` 车卡管理；`/char/{user_id}/{char_id}` 角色卡只读查看页 |
+| `guestbook` | `/` 留言簿 |
+| `alarms` | `/` 闹钟管理 |
+| `activities` | `/` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 
 ---
 
 ## Constraint: 跑团车卡
 
-角色卡与个人设置**不再存 SQLite**，改存 JSON 文件（bot 与 web 双进程共用 `core/character_store.py` / `core/user_settings.py`，写路径均为原子写 tmp + os.replace）：
+角色卡与个人设置**不存 SQLite**，改存 JSON 文件（bot 与各子应用共用 `core/character_store.py` / `core/user_settings.py`，写路径均为原子写 tmp + os.replace）：
 
 ```
 server_data/trpg_chars/<user_id>/meta.json        # {"current_id": 3, "order": [1,2,3]}
@@ -223,25 +267,25 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 
 ## Constraint: 服务层模式
 
-每个业务域一个服务模块，与路由处理分离：
+每个业务域的服务模块与路由分离，随子应用归属迁移（不再全部挂在 gallery 下）：
 
 ```
-app.py            ← FastAPI 路由（只做请求/响应转换）
-  ├── checkin_service.py    ← 打卡业务逻辑
-  ├── profile_service.py    ← 档案数据构建
-  ├── shop_service.py       ← 商店兑换
-  ├── alarm_service.py      ← 闹钟 CRUD
-  ├── guestbook_service.py  ← 留言簿逻辑
-  ├── title_settings.py     ← 称号装备管理
-  ├── activity_service.py   ← 活动归档读取（bot 写盘，web 只读）
-  └── repository.py         ← 数据库访问层
+gallery/    repository.py    ← 数据库只读访问层（图库查询）
+            thumbnails.py    ← 缩略图生成/缓存
+            dates.py         ← 结算日计算
+profile/    profile_service.py   ← 档案数据构建
+            checkin_service.py   ← 打卡业务逻辑
+            shop_service.py      ← 商店兑换
+            title_settings.py    ← 称号装备管理
+alarms/     alarm_service.py     ← 闹钟 CRUD
+guestbook/、trpg/、activities/   逻辑已在各自 app.py 或 core/db/ manager
 ```
 
 ---
 
-## Constraint: 仓储层 (`repository.py`)
+## Constraint: 仓储层（`gallery/repository.py`）
 
-独立于 Bot 端 `DbManager` 的数据库访问：
+独立于 Bot 端 `DbManager` 的只读数据库访问：
 
 ```python
 # 上下文管理器模式
@@ -252,7 +296,7 @@ with _connect() as conn:
 # row_factory = sqlite3.Row（返回字典式行）
 ```
 
-**REMEMBER_MARKER:** 查询打卡数据时排除 `content = "remedy_checkin"` 的记录。
+**REMEMBER_MARKER:** 查询打卡数据时排除 `content = "remedy_checkin"` 的记录。`profile` 子应用依赖本模块（`CheckinImage`、`fetch_user_settlement_day`）。
 
 ---
 
@@ -273,27 +317,40 @@ with _connect() as conn:
 ### 认证盐值
 
 - `AUTH_SALT` 默认值为 `"BotEro-Gallery-ChangeMe"`
-- 生产环境必须通过环境变量 `BOTERO_AUTH_SALT` 覆盖
+- 生产环境必须通过环境变量 `BOTERO_AUTH_SALT` 覆盖（所有子应用共享同一盐值）
 
 ---
 
 ## Constraint: 静态前端
 
+共享静态（`core/web/static/`，各子应用以 `/shared` 挂载）：
+
 ```
-gallery/static/
-  index.html + gallery.js + gallery.css  ← 图库主页（瀑布流 + 无限滚动）
-  auth.js                                 ← 认证 token 管理
-  profile.html + profile.js + profile.css ← 个人档案页
-  settings.html + settings.js             ← 称号设置页
-  checkin.html + checkin.js               ← 网页打卡页
-  shop.html + shop.js                     ← 商店页
-  alarms.html + alarms.js               ← 闹钟管理页
-  guestbook.html + guestbook.js         ← 留言簿页
-  trpg.html + trpg.js                   ← 跑团车卡管理页
-  char_view.html + char_view.js         ← 角色卡只读查看页
-  activities.html + activities.js       ← 活动归档页
+core/web/static/
+  auth.js       ← 认证 token 管理（localStorage 按域名隔离）
+  gallery.css   ← 图库样式
+  profile.css   ← 个人中心样式
+```
+
+各子应用本域静态（`<app>/static/`，以 `/static` 挂载）：
+
+```
+gallery/static/   index.html + gallery.js            ← 图库主页（瀑布流 + 无限滚动）
+profile/static/   profile.html/js、checkin.html/js、shop.html/js、settings.html/js
+trpg/static/      trpg.html/js（车卡管理）、char_view.html/js（只读查看）、trpg.css
+guestbook/static/ guestbook.html/js、guestbook.css
+alarms/static/    alarms.html/js、alarms.css
+activities/static/ activities.html/js、activities_detail.html/js
 ```
 
 - 原生 JavaScript，无框架
-- 通过 `StaticFiles` 挂载
 - 认证 token 通过 `Authorization: Bearer <token>` 传递
+- 跨域引用图库媒体用 `BOTERO_GALLERY_URL` 拼完整 URL，不内链其他子应用相对路径
+
+---
+
+## Constraint: 部署
+
+- 完整部署（systemd unit 示例、环境变量注入、Caddy 反代配置）见 [`docs/web-apps-deployment.md`](../docs/web-apps-deployment.md)
+- 6 个子应用各一个进程，`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_AUTH_SALT` / `BOTERO_GALLERY_URL` 等
+
