@@ -339,17 +339,32 @@ body {
 
 /* —— 状态点 —— */
 .dot {
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 0.62rem;
+  height: 0.62rem;
   border-radius: 50%;
   border: 1px solid var(--ink-soft);
   background: var(--gray);
   flex-shrink: 0;
 }
 
-.dot.up { background: var(--green); border-color: var(--green); }
-.dot.down { background: var(--red); border-color: var(--red); }
+.dot.up {
+  background: var(--green);
+  border-color: var(--green);
+  animation: pulse-glow 2.4s var(--ease) infinite;
+}
+
+.dot.down {
+  background: var(--red);
+  border-color: var(--red);
+  opacity: 0.75;
+}
+
 .dot.unknown { background: var(--gray); }
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 124, 79, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(74, 124, 79, 0); }
+}
 
 /* —— 页脚 —— */
 .foot {
@@ -358,6 +373,15 @@ body {
   font-size: 0.8rem;
   color: var(--ink-soft);
   letter-spacing: 0.12em;
+  text-align: center;
+  border-top: 1px solid var(--rule);
+}
+
+.foot-copy {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  color: var(--rule);
 }
 
 .error {
