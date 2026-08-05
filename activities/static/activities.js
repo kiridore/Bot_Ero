@@ -82,7 +82,7 @@ async function loadActiveActivities() {
   const session = GalleryAuth.load();
   const myUid = session && session.user_id;
   activeEl.innerHTML = active.map(a => `
-    <a class="activity-card activity-link" href="/archive/${a.id}">
+    <a class="activity-card activity-link" href="/${a.id}">
       <div class="activity-card-head">
         <strong>${escapeHtml(a.title)}</strong>（${TYPE_LABEL[a.type] || a.type}）
         ${statusBadge(a.status)}
@@ -109,7 +109,7 @@ async function loadArchiveActivities() {
   const { items } = await res.json();
   const archived = items.filter(a => a.status === "finished");
   archiveEl.innerHTML = archived.length ? archived.map(a => `
-    <a class="activity-card activity-link" href="/archive/${a.id}">
+    <a class="activity-card activity-link" href="/${a.id}">
       <div class="activity-card-head">
         <strong>${escapeHtml(a.title)}</strong>（${TYPE_LABEL[a.type] || a.type}）
         ${statusBadge(a.status)}
