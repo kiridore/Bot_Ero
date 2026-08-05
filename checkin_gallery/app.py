@@ -820,3 +820,6 @@ def trpg_char_view_page(user_id: str, char_id: int):
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+_SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
+app.mount("/shared", StaticFiles(directory=_SHARED_STATIC_DIR), name="shared")
