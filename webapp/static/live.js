@@ -1,15 +1,37 @@
-// 小埃直播间：SRS HTTP-FLV 播放（flv.js）+ 状态轮询（/api/live/status，方案 A 数据流探测）
+// 小埃直播间：SRS HTTP-FLV 播放（flv.js）+ 状态轮询（/api/live/status）+ 观众在场（heartbeat/viewers）
 const LIVE_URL = "https://live.littlero.tech/live/livestream.flv";
 const POLL_MS = 10000;
+const HEARTBEAT_MS = 25000;
+const VIEWERS_MS = 15000;
+const CLIENT_ID_KEY = "botero_live_client_id";
 
 const video = document.getElementById("liveVideo");
 const overlay = document.getElementById("liveOverlay");
 const statusText = document.getElementById("liveStatusText");
 const playBtn = document.getElementById("livePlayBtn");
+const viewerCountEl = document.getElementById("viewerCount");
+const viewerListEl = document.getElementById("viewerList");
 
 let player = null;
 let playing = false;
 let online = false;
+
+function clientId() {
+  let id = sessionStorage.getItem(CLIENT_ID_KEY);
+  if (!id) {
+    id = window.crypto && crypto.randomUUID
+      ? crypto.randomUUID()
+      : "c" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    sessionStorage.setItem(CLIENT_ID_KEY, id);
+  }
+  return id;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
 
 function destroyPlayer() {
   if (player) {
@@ -74,8 +96,42 @@ async function refresh() {
   }
 }
 
+// —— 观众在场 ——
+async function sendHeartbeat() {
+  try {
+    await fetch("/api/live/heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
+      body: JSON.stringify({ client_id: clientId() }),
+    });
+  } catch (e) { /* 网络异常静默，下轮重试 */ }
+}
+
+async function refreshViewers() {
+  try {
+    const res = await fetch("/api/live/viewers", { cache: "no-store" });
+    const data = await res.json();
+    const items = data.viewers || [];
+    viewerCountEl.textContent = String(items.length);
+    viewerListEl.innerHTML = items.length
+      ? items
+          .map(
+            (v) =>
+              `<li>${escapeHtml(v.name)}${v.member ? ' <span class="viewer-tag">成员</span>' : ""}</li>`
+          )
+          .join("")
+      : '<li class="muted">暂无观众</li>';
+  } catch (e) { /* 忽略 */ }
+}
+
 playBtn.addEventListener("click", startPlayer);
 
-GalleryAuth.renderAuth(document.getElementById("authArea"));
+GalleryAuth.refreshMe().finally(() => {
+  GalleryAuth.renderAuth(document.getElementById("authArea"));
+  sendHeartbeat();
+  refreshViewers();
+  setInterval(sendHeartbeat, HEARTBEAT_MS);
+  setInterval(refreshViewers, VIEWERS_MS);
+});
 refresh();
 setInterval(refresh, POLL_MS);

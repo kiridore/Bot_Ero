@@ -226,6 +226,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/live/status` | 否 | 直播在线状态（方案 A 数据流探测：读 FLV 流 2s，收到任意字节=在线；未开播时 SRS 挂住连接→超时→离线） |
+| `POST` | `/api/live/heartbeat` | 可选 | 观众心跳（body `{client_id}`；登录态经 Bearer 解析昵称，匿名单记 client_id；进程内存在场表，75s 无心跳过期，同 client 10s 节流） |
+| `GET` | `/api/live/viewers` | 否 | 当前观众列表：已登录按 user_id 去重显示昵称（成员徽标），匿名单个显示（`匿名观众 #xxxx`）；`{"viewers": [...], "count": N}` |
 
 ### 页面路由（FileResponse）
 
@@ -239,7 +241,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `guestbook` | `/guestbook` 留言簿 |
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
-| `live` | `/live` 直播间（flv.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级） |
+| `live` | `/live` 直播间（flv.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 
 ---
 

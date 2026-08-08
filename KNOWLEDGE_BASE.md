@@ -82,7 +82,7 @@
 │   ├── trpg/                  ← 跑团模块（/trpg）
 │   ├── alarms/                ← 闹钟模块（/alarms）
 │   ├── activities/            ← 活动归档模块（/activities）
-│   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 状态探测）
+│   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 探测 + 观众在场 heartbeat/viewers，登录显示昵称）
 │   └── static/                ← 全部模块静态文件（index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等 25 个）
 └── test/                      ← 临时测试脚本
 ```
