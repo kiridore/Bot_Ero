@@ -8,7 +8,7 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` 等前缀路径；根域 `/` 由 webapp 提供导航主页（`webapp/homepage/`，纯静态 + `entries.json` 配置卡片）聚合入口。
+Web 端按功能域拆分为 **7 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` 等前缀路径；根域 `/` 由 webapp 提供导航主页（`webapp/homepage/`，纯静态 + `entries.json` 配置卡片）聚合入口。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -18,12 +18,13 @@ Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`tr
 | 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}`） | 车卡创建/编辑/查看 |
 | 闹钟 | `alarms` | `/alarms` | 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
+| 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
 │  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg       │
-│                      │     │  /alarms /activities（6 个 APIRouter）     │
+│                      │     │  /alarms /activities /live（7 个 APIRouter）     │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (webapp/homepage 导航主页)   │
          └──────────┬───────┘
@@ -101,6 +102,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 | `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
 | `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口（唯一端口） |
+| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测与播放同源；本地联调可覆盖） |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号（昵称查询） |
@@ -219,6 +221,12 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/api/activities/{id}` | 否 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL），不存在返回 404 |
 | `GET` | `/archive/{id}/media/{filename}` | 否 | 活动作品图片（限制在 `ACTIVITY_ROOT` 内，防路径遍历） |
 
+### 直播间（`live` 模块）
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/live/status` | 否 | 直播在线状态（方案 A 数据流探测：读 FLV 流 2s，收到任意字节=在线；未开播时 SRS 挂住连接→超时→离线） |
+
 ### 页面路由（FileResponse）
 
 页面路由在各模块（前缀路径，根域 `/` 为 homepage 导航，不经 webapp）：
@@ -231,6 +239,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `guestbook` | `/guestbook` 留言簿 |
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
+| `live` | `/live` 直播间（flv.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级） |
 
 ---
 
@@ -358,6 +367,7 @@ webapp/static/
   guestbook.html/js、guestbook.css
   alarms.html/js、alarms.css
   activities.html/js、activities_detail.html/js
+  live.html/live.js/flv.min.js                  ← 直播间（flv.js 内置，无外部 CDN 依赖）
 ```
 
 导航主页位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + `entries.json`/`notices.json`/`quotes.json`），由 `webapp/app.py` 在根路径 `/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json` 提供；`entries.json` 为唯一入口维护点。登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走主页 style.css 的报纸风 token）。
@@ -372,4 +382,5 @@ webapp/static/
 
 - 完整部署（systemd unit 示例、环境变量注入、Caddy 反代配置）见 [`docs/web-apps-deployment.md`](../docs/web-apps-deployment.md)
 - 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_GALLERY_PORT` 等；`BOTERO_AUTH_SALT` 经 `scripts/botero.env`（EnvironmentFile）注入；systemd 单 unit `botero-web.service`，Caddy 根域 `littlero.tech` 全部流量反代 8765（主页/分区/API 均由 webapp 路由）；无子域 DNS
+- **直播间上游**：SRS 部署在局域网（如 `10.100.0.2:18080`），公网经子域 `live.littlero.tech`（Caddy 反代 + `Access-Control-Allow-Origin: *`，TLS）暴露 HTTP-FLV；webapp 仅经 `BOTERO_LIVE_FLV_URL` 探测/播放，不直连 SRS
 

@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-09 (Web 应用收敛为单进程 webapp + 单 origin 路径分区：6 模块路由挂根域 /gallery 等路径，导航主页并入 webapp/homepage，删除子域与 Host 分发)
+> Last updated: 2026-08-09 (新增直播间 /live：webapp 第 7 个模块，SRS HTTP-FLV + flv.js，状态探测方案 A)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -82,6 +82,7 @@
 │   ├── trpg/                  ← 跑团模块（/trpg）
 │   ├── alarms/                ← 闹钟模块（/alarms）
 │   ├── activities/            ← 活动归档模块（/activities）
+│   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 状态探测）
 │   └── static/                ← 全部模块静态文件（index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等 25 个）
 └── test/                      ← 临时测试脚本
 ```

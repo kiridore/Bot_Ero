@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 6 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/` 的 APIRouter + 根路径导航主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
+此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 7 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/` 的 APIRouter + 根路径导航主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
 
 ## 运行命令
 
@@ -19,7 +19,7 @@ python -m webapp
 
 # 本地调试：直接按路径访问 http://127.0.0.1:8765/<分区>
 #   /          导航主页   /gallery  /guestbook  /profile(/checkin /shop /settings)
-#   /trpg(/char/...)  /alarms  /activities
+#   /trpg(/char/...)  /alarms  /activities  /live
 python -m webapp --port 8765
 ```
 
@@ -71,7 +71,7 @@ OneBot 服务端 ──WebSocket──> main.py
 
 ### Web 应用（单进程 `webapp`，单一 origin 路径分区）
 
-单进程 FastAPI（端口 8765）注册 6 个模块的 APIRouter + 导航主页，单一根域 `littlero.tech` 按路径分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities`），Caddy 全量反代 8765。共享 `core/` 层：
+单进程 FastAPI（端口 8765）注册 7 个模块的 APIRouter + 导航主页，单一根域 `littlero.tech` 按路径分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live`），Caddy 全量反代 8765。共享 `core/` 层：
 
 - 入口 `webapp/app.py`：认证路由 `/api/auth/login` + `/api/auth/me`（**唯一一份**）、导航主页（`/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json`，文件在 `webapp/homepage/`）、include 6 个模块 router、mount `/static`（`webapp/static/`）+ `/shared`（`core/web/static/`）
 - 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
@@ -80,7 +80,7 @@ OneBot 服务端 ──WebSocket──> main.py
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
-模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）；导航主页 `webapp/homepage/`（`entries.json` 为唯一入口维护点）。
+模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）、`webapp/live/`（直播间：SRS HTTP-FLV + flv.js + `/api/live/status` 状态探测）；导航主页 `webapp/homepage/`（`entries.json` 为唯一入口维护点）。
 
 ### LLM 子系统 (`core/llm/`)
 

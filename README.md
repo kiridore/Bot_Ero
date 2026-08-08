@@ -16,7 +16,7 @@
 | 群管理工具 | 群精华、@全体转发、代撤回、群头衔 |
 | 系统 | 菜单、插件/功能包管理、系统状态、自动更新、自动备份、好友自动同意 |
 
-**Web 应用（单进程 `webapp`）**：导航主页 + 打卡图库、个人中心（主页/打卡/商店/称号/设置）、跑团车卡、留言簿、闹钟、活动归档。
+**Web 应用（单进程 `webapp`）**：导航主页 + 打卡图库、个人中心（主页/打卡/商店/称号/设置）、跑团车卡、留言簿、闹钟、活动归档、直播间（SRS HTTP-FLV）。
 
 ## 快速开始
 
@@ -47,6 +47,7 @@ python -m webapp                               # 默认 http://0.0.0.0:8765
 | `littlero.tech/trpg` | 跑团车卡（`/trpg/char/{uid}/{cid}` 角色查看） |
 | `littlero.tech/alarms` | 闹钟 |
 | `littlero.tech/activities` | 活动归档（`/activities/{id}` 详情） |
+| `littlero.tech/live` | 直播间（SRS HTTP-FLV，flv.js 播放） |
 | `littlero.tech/api/*` | API（`/api/auth/login`、`/api/checkins`、`/api/me/*` 等，全局唯一） |
 | `littlero.tech/static/*` `/shared/*` | 静态资源 |
 | `littlero.tech/thumb/*` `/media/*` `/archive/*` | 打卡图 / 活动作品媒体 |
@@ -61,7 +62,7 @@ OneBot 服务端 ──WebSocket──> main.py ──> 每事件新线程 → p
 
 littlero.tech ──Caddy 反代──> webapp（单进程 FastAPI, 8765）
    ├── / 主页（webapp/homepage/）
-   ├── 6 个功能模块（webapp/gallery|guestbook|profile|trpg|alarms|activities，各含 APIRouter）
+   ├── 7 个功能模块（webapp/gallery|guestbook|profile|trpg|alarms|activities|live，各含 APIRouter）
    └── /api /static /shared /thumb /media /archive（根路径）
 
 core/（共享层）── bot 与 webapp 共用：config / auth / database_manager / onebot_client /
@@ -79,7 +80,7 @@ data.db（SQLite WAL）── bot 与 webapp 两个写者
 ```
 core/        bot 与 web 共享核心（config/auth/db/trpg/character_store/user_settings/web/static…）
 plugins/     43 个已注册插件（每插件一个文件夹）
-webapp/      Web 单进程入口：app.py（认证+主页+router include+mount）、6 功能模块、
+webapp/      Web 单进程入口：app.py（认证+主页+router include+mount）、7 功能模块、
              homepage/（导航主页）、static/（25 个静态文件）、requirements.txt
 scripts/     systemd unit（botero-web.service）、Caddyfile、botero-services.sh
 specs/       权威约束文档（SDD，改代码前必读对应规范）

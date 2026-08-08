@@ -17,6 +17,7 @@ from webapp.profile.app import router as profile_router
 from webapp.trpg.app import router as trpg_router
 from webapp.alarms.app import router as alarms_router
 from webapp.activities.app import router as activities_router
+from webapp.live.app import router as live_router
 
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
 
@@ -95,5 +96,6 @@ app.include_router(profile_router)
 app.include_router(trpg_router)
 app.include_router(alarms_router)
 app.include_router(activities_router)
+app.include_router(live_router)
 app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

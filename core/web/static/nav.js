@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "留言簿", path: "/guestbook" },
   { label: "闹钟", path: "/alarms" },
   { label: "活动", path: "/activities" },
+  { label: "直播", path: "/live" },
 ];
 
 (function () {
