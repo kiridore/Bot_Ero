@@ -4,16 +4,16 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from gallery import config
-from gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from webapp.gallery import config
+from webapp.gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from core.onebot_client import resolve_display_name
-from gallery.repository import (
+from webapp.gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
     list_user_ids,
     resolve_image_path,
 )
-from gallery.thumbnails import ensure_thumbnail
+from webapp.gallery.thumbnails import ensure_thumbnail
 from webapp import STATIC_DIR
 
 router = APIRouter()

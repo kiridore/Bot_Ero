@@ -61,7 +61,7 @@
 - 个人设置存 `server_data/user_settings/<user_id>.json`；根目录可用 `BOTERO_USER_SETTINGS_ROOT` 覆盖
 - 已约定设置键：`privacy.char_public`（bool，缺省 True）= 是否允许他人查看我的角色卡（网页端 `/profile/settings` 开关，QQ 查看他人卡需已公开）
 - 存储层：`core/character_store.py`、`core/user_settings.py`（原子写 tmp+os.replace，每用户进程内锁；bot 与 web 双进程共用）
-- 网页车卡：`/profile/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）
+- 网页车卡：`/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）
 
 ### 角色卡 JSON 键（5E 主卡面）
 

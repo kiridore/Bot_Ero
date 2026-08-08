@@ -51,7 +51,7 @@ def get_monday_to_monday(date=None):
 **同样使用 08:00 偏移的地方:**
 - `utils.day_of_year()` — 热度图日期索引
 - `database_manager.get_user_streaks()` — 连续打卡天数计算
-- `gallery/dates.py` — Web 端结算日逻辑
+- `webapp/gallery/dates.py` — Web 端结算日逻辑
 
 **MUST:** 任何新增的"周"相关功能必须使用此偏移，否则跨周边界会出现不一致。
 
@@ -190,7 +190,7 @@ def handle(self):
 - **LLM:** `openai`
 - **更新:** `GitPython`
 - **系统监控:** `psutil`（可选，MonitorPlugin 会自动降级）
-- **Web 应用:** 见 `gallery/requirements.txt`
+- **Web 应用:** 见 `webapp/requirements.txt`
 
 **添加新依赖的流程:**
 1. 在对应的 requirements.txt 中添加

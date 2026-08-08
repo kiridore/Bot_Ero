@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import importlib.util
 import re
-from pathlib import Path
 from typing import Any
 
 from core.database_manager import DbManager
+from core import config
 
-_GROUP_ALARM_PATH = Path(__file__).resolve().parent.parent / "plugins" / "group_alarm" / "parser.py"
+_GROUP_ALARM_PATH = config.PROJECT_ROOT / "plugins" / "group_alarm" / "parser.py"
 
 _TIME_RE = re.compile(r"^([0-1]?\d|2[0-3]):([0-5]\d)$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")

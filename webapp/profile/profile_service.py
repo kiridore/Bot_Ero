@@ -11,7 +11,7 @@ from core.database_manager import DbManager
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 
 from core.title_defs import TITLE_DEFS
-from gallery.repository import fetch_user_year_rows
+from webapp.gallery.repository import fetch_user_year_rows
 
 
 def _level_from_count(count: int, is_remedy: bool) -> int:

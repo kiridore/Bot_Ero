@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import importlib.util
 import random
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from core.database_manager import DbManager
 from core.utils import add_user_point, get_monday_to_monday
 
 from core import config
+from webapp.profile.title_loader import load_title_module
 
-_TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title.py"
+_TITLE_MODULE_PATH = config.PROJECT_ROOT / "plugins" / "title.py"
 
 _ALLOWED_MIME = {
     "image/jpeg": ".jpg",
@@ -24,11 +23,10 @@ _ALLOWED_MIME = {
 
 
 def _load_title_helpers():
-    spec = importlib.util.spec_from_file_location("botero_title_checkin", _TITLE_MODULE_PATH)
-    if spec is None or spec.loader is None:
+    try:
+        mod = load_title_module()
+    except RuntimeError:
         return None, None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
     return getattr(mod, "evaluate_and_unlock_titles", None), getattr(mod, "get_title_def", None)
 
 

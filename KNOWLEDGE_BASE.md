@@ -76,13 +76,13 @@
 ├── webapp/                    ← Web 单进程入口（8765；认证路由/导航主页/static 合并目录；`python -m webapp`）
 │   ├── app.py                 ← 唯一 FastAPI 入口（include 6 模块 router + mount /static /shared）
 │   ├── homepage/              ← 导航主页（根路径 / 提供；entries/quotes/notices 三个 JSON 配置，entries.json 为唯一入口维护点）
+│   ├── gallery/               ← 图库模块（/gallery；repository/thumbnails/dates）
+│   ├── guestbook/             ← 留言簿模块（/guestbook）
+│   ├── profile/               ← 个人中心模块（/profile）
+│   ├── trpg/                  ← 跑团模块（/trpg）
+│   ├── alarms/                ← 闹钟模块（/alarms）
+│   ├── activities/            ← 活动归档模块（/activities）
 │   └── static/                ← 全部模块静态文件（index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等 25 个）
-├── gallery/                   ← 图库模块（/gallery；repository/thumbnails/dates）
-├── guestbook/                 ← 留言簿模块（/guestbook）
-├── profile/                   ← 个人中心模块（/profile）
-├── trpg/                      ← 跑团模块（/trpg）
-├── alarms/                    ← 闹钟模块（/alarms）
-├── activities/                ← 活动归档模块（/activities）
 └── test/                      ← 临时测试脚本
 ```
 

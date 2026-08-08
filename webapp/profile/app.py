@@ -6,14 +6,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from gallery.repository import CheckinImage, fetch_user_settlement_day
+from webapp.gallery.repository import CheckinImage, fetch_user_settlement_day
 from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.web.auth_deps import get_current_user_id
-from profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
-from profile.profile_service import build_profile
-from profile.shop_service import get_shop, redeem_shop_item
-from profile.title_settings import (
+from webapp.profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
+from webapp.profile.profile_service import build_profile
+from webapp.profile.shop_service import get_shop, redeem_shop_item
+from webapp.profile.title_settings import (
     clear_equipped_titles,
     equip_title,
     get_title_settings,

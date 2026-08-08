@@ -10,7 +10,7 @@
 
 - **数据库文件:** 项目根目录的 `data.db`（SQLite3 单文件）
 - **Bot 端:** 每个 `Plugin` 实例的 `self.dbmanager` 是一个新的 `DbManager()`，内部创建独立的 `sqlite3.Connection`
-- **Web 端:** `gallery/repository.py` 通过 `_connect()` 上下文管理器创建独立连接
+- **Web 端:** `webapp/gallery/repository.py` 通过 `_connect()` 上下文管理器创建独立连接
 - **并发:** sqlite3 自身通过文件锁序列化写操作；多个 DbManager 实例可以同时存在
 - **无连接池、无 ORM、无异步驱动**
 

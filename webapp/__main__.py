@@ -3,7 +3,7 @@ import os
 
 import uvicorn
 
-from gallery.config import DB_PATH, GROUP_ID, HOST, IMAGE_ROOT, ONEBOT_HTTP_URL, PORT
+from webapp.gallery.config import DB_PATH, GROUP_ID, HOST, IMAGE_ROOT, ONEBOT_HTTP_URL, PORT
 
 
 def main():

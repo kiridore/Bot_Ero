@@ -32,7 +32,7 @@ start, end = get_monday_to_monday()
 **同样使用 08:00 偏移的:**
 - `utils.day_of_year()` — 热度图日期索引
 - `database_manager.get_user_streaks()` — 连续打卡天数
-- `gallery/dates.py` — Web 端结算日
+- `webapp/gallery/dates.py` — Web 端结算日
 
 **新增任何"周"相关功能必须使用此函数。**
 

@@ -47,7 +47,7 @@ Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`tr
 
 | 模块 | 职责 |
 |------|------|
-| `core/config.py` | 全部 `BOTERO_*` 环境变量读取（bot 与子应用唯一来源）；`gallery/config.py` 为兼容再导出层 |
+| `core/config.py` | 全部 `BOTERO_*` 环境变量读取（bot 与 Web 唯一来源）；`webapp/gallery/config.py` 为兼容再导出层 |
 | `core/auth.py` | `make_login_key` / `verify_login_key`（HMAC 登录密钥） |
 | `core/web/auth_deps.py` | `get_current_user_id` / `get_optional_user_id`（登录依赖注入，唯一权威副本；feature 模块一律从本模块 import，**MUST NOT** 各自复制） |
 | `core/onebot_client.py` | `resolve_display_name` / `resolve_avatar_url`（QQ 昵称/头像） |
@@ -63,14 +63,14 @@ Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`tr
 
 ## Constraint: 模块统一骨架
 
-每个功能域模块目录：`app.py`（`router = APIRouter()`，业务/页面路由）、`__init__.py`；静态文件全部集中在 `webapp/static/`（25 个文件，文件名全局唯一）。单进程入口 `webapp/app.py` 负责认证路由、导航主页（`webapp/homepage/`，根路径 `/` 与 5 个资源路由）、router include 与静态挂载：
+每个功能域模块目录（位于 `webapp/` 包内）：`app.py`（`router = APIRouter()`，业务/页面路由）、`__init__.py`；静态文件全部集中在 `webapp/static/`（25 个文件，文件名全局唯一）。单进程入口 `webapp/app.py` 负责认证路由、导航主页（`webapp/homepage/`，根路径 `/` 与 5 个资源路由）、router include 与静态挂载：
 
 ```python
 # webapp/app.py（唯一 FastAPI 入口）
 app = FastAPI(title="BotEro Web", version="1.0.0")
 # POST /api/auth/login + GET /api/auth/me（唯一一份）
 # GET / → webapp/homepage/index.html（导航主页，entries/quotes/notices JSON 同根路径）
-app.include_router(gallery_router)       # from gallery.app import router as ...
+app.include_router(gallery_router)       # from webapp.gallery.app import router as ...
 app.include_router(guestbook_router)
 app.include_router(profile_router)
 app.include_router(trpg_router)
@@ -122,7 +122,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 所有子应用与 bot 共用同一 SQLite（`BOTERO_DB_PATH`），**MUST** 通过 `core.database_manager.DbManager` 访问：
 
 - 连接开启 WAL 模式，`busy_timeout=5000`（多进程并发安全）
-- 子应用**只允许**经由 `core/db/*` 业务 manager 读写，不直接裸 SQL（`gallery/repository.py` 是图库只读查询的既有例外）
+- 子应用**只允许**经由 `core/db/*` 业务 manager 读写，不直接裸 SQL（`webapp/gallery/repository.py` 是图库只读查询的既有例外）
 - `REMEDY_MARKER = "remedy_checkin"`：查询打卡数据时**必须**排除 `content = "remedy_checkin"` 的记录
 
 ---
@@ -283,23 +283,23 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 
 ## Constraint: 服务层模式
 
-每个业务域的服务模块与路由分离，随子应用归属迁移（不再全部挂在 gallery 下）：
+每个业务域的服务模块与路由分离，全部位于 `webapp/` 包内：
 
 ```
-gallery/    repository.py    ← 数据库只读访问层（图库查询）
-            thumbnails.py    ← 缩略图生成/缓存
-            dates.py         ← 结算日计算
-profile/    profile_service.py   ← 档案数据构建
-            checkin_service.py   ← 打卡业务逻辑
-            shop_service.py      ← 商店兑换
-            title_settings.py    ← 称号装备管理
-alarms/     alarm_service.py     ← 闹钟 CRUD
-guestbook/、trpg/、activities/   逻辑已在各自 app.py 或 core/db/ manager
+webapp/gallery/    repository.py    ← 数据库只读访问层（图库查询）
+                   thumbnails.py    ← 缩略图生成/缓存
+                   dates.py         ← 结算日计算
+webapp/profile/    profile_service.py   ← 档案数据构建
+                   checkin_service.py   ← 打卡业务逻辑
+                   shop_service.py      ← 商店兑换
+                   title_settings.py    ← 称号装备管理
+webapp/alarms/     alarm_service.py     ← 闹钟 CRUD
+webapp/guestbook/、webapp/trpg/、webapp/activities/   逻辑已在各自 app.py 或 core/db/ manager
 ```
 
 ---
 
-## Constraint: 仓储层（`gallery/repository.py`）
+## Constraint: 仓储层（`webapp/gallery/repository.py`）
 
 独立于 Bot 端 `DbManager` 的只读数据库访问：
 

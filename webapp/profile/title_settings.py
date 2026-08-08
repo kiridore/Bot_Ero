@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import importlib.util
-from pathlib import Path
-
 from core.database_manager import DbManager
 
 from core.title_defs import TITLE_DEFS
+from webapp.profile.title_loader import load_title_module
 
 MAX_EQUIPPED = 3
-_TITLE_MODULE_PATH = Path(__file__).resolve().parent.parent / "plugins" / "title.py"
 
 
 def _evaluate_unlocks(user_id: str) -> None:
-    spec = importlib.util.spec_from_file_location("botero_title_eval", _TITLE_MODULE_PATH)
-    if spec is None or spec.loader is None:
+    try:
+        mod = load_title_module()
+    except RuntimeError:
         return
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
     fn = getattr(mod, "evaluate_and_unlock_titles", None)
     if fn:
         fn(DbManager(), user_id)

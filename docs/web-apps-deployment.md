@@ -15,7 +15,7 @@
 | 活动 | `/activities`（`/activities/{activity_id}`） |
 | API/静态/媒体 | `/api/*` `/static/*` `/shared/*` `/thumb/*` `/media/*` `/archive/*`（根路径，全局唯一） |
 
-根域 `/` 为导航主页（`homepage/`，纯静态）。单 origin 下登录态天然共享（同源 localStorage），页面间跳转均为同源相对路径。
+根域 `/` 为导航主页（`webapp/homepage/`，纯静态）。单 origin 下登录态天然共享（同源 localStorage），页面间跳转均为同源相对路径。
 
 ## 2. DNS
 

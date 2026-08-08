@@ -175,7 +175,7 @@ def truncate_text(draw, text: str, font, max_width: float) -> str:
 
 ### Web 端
 
-`profile/profile_service.py` 的 `build_profile()`：
+`webapp/profile/profile_service.py` 的 `build_profile()`：
 - 调用相同的 `gen_image` 模块
 - 返回图片路径供前端展示
 

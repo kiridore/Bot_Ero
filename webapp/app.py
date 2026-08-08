@@ -11,12 +11,12 @@ from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.web.auth_deps import get_current_user_id
 from webapp import HOME_DIR, STATIC_DIR
 
-from gallery.app import router as gallery_router
-from guestbook.app import router as guestbook_router
-from profile.app import router as profile_router
-from trpg.app import router as trpg_router
-from alarms.app import router as alarms_router
-from activities.app import router as activities_router
+from webapp.gallery.app import router as gallery_router
+from webapp.guestbook.app import router as guestbook_router
+from webapp.profile.app import router as profile_router
+from webapp.trpg.app import router as trpg_router
+from webapp.alarms.app import router as alarms_router
+from webapp.activities.app import router as activities_router
 
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
 
