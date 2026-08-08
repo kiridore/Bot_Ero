@@ -7,9 +7,9 @@ WorkingDirectory=/home/dore/onebot/Bot_Ero
 EnvironmentFile=/home/dore/onebot/Bot_Ero/scripts/botero.env
 Environment=BOTERO_DB_PATH=/home/dore/onebot/Bot_Ero/data.db
 Environment=BOTERO_GALLERY_PORT=8765
-# 直播状态探测直连本机/局域网 SRS（webapp 与 SRS 同机部署时避免公网 hairpin 回环，
+# 直播状态探测直连本机 SRS（webapp 与 SRS 同机部署时避免公网 hairpin 回环，
 # 否则 /api/live/status 会超时误报「未开播」）；异地部署时删除此行改用公网默认值
-Environment=BOTERO_LIVE_FLV_URL=http://10.100.0.2:18080/live/livestream.flv
+Environment=BOTERO_LIVE_FLV_URL=http://127.0.0.1:18080/live/livestream.flv
 ExecStart=/usr/bin/python3 -m webapp
 Restart=always
 

@@ -93,7 +93,7 @@ systemctl enable --now botero-web
 | `BOTERO_ACTIVITY_ROOT` | `<仓库>/server_data/activity_archive` | 活动存档目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | webapp 监听地址 |
 | `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口 |
-| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测用）。webapp 与 SRS 同机/同局域网时建议设为直连地址（如 `http://10.100.0.2:18080/live/livestream.flv`），避免公网 hairpin 回环导致探测超时误报「未开播」；浏览器播放始终走公网地址（live.js 内置，不受此变量影响） |
+| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测用）。webapp 与 SRS 同机时设为 `http://127.0.0.1:18080/live/livestream.flv`（直连本机，避免公网回环探测超时）；浏览器播放始终走公网地址（live.js 内置，不受此变量影响） |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP 地址，用于拉取 QQ 昵称 |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 访问令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号 |
