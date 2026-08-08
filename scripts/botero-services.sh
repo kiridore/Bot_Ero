@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-# BotEro 全部 Web 子应用服务管理脚本（systemd）
+# BotEro Web 服务管理脚本（systemd，单进程承载 6 子域）
 # 用法: ./botero-services.sh {start|stop|restart|status}
 set -euo pipefail
 
 SERVICES=(
-  botero-gallery
-  botero-guestbook
-  botero-profile
-  botero-trpg
-  botero-alarms
-  botero-activities
+  botero-web
 )
 
 usage() {

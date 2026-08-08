@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-05 (Web 应用拆分：单进程 → 6 个多子应用 + 共享 core，目录结构与 spec 同步)
+> Last updated: 2026-08-09 (Web 应用合并：6 个独立子应用 → 单进程 webapp（1 个 uvicorn + 6 个 APIRouter，页面按 Host 分发），目录结构与 spec 同步)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -32,7 +32,7 @@
 | [`specs/conventions.md`](specs/conventions.md) | 编码约定、隐式知识、路径、周边界 |
 | [`specs/database.md`](specs/database.md) | 数据库 Schema 概述、迁移规则 |
 | [`specs/onebot-protocol.md`](specs/onebot-protocol.md) | OneBot v11 协议、CQ 消息构造 |
-| [`specs/web-gallery.md`](specs/web-gallery.md) | Web 多子应用架构（6 子应用 + 共享 core）、API 路由 |
+| [`specs/web-gallery.md`](specs/web-gallery.md) | Web 应用架构（单进程 webapp：6 模块 + 共享 core）、API 路由 |
 | [`specs/image-generation.md`](specs/image-generation.md) | 图片生成子系统（热度图/档案卡） |
 | [`specs/llm-subsystem.md`](specs/llm-subsystem.md) | LLM 子系统（已弃用） |
 
@@ -73,12 +73,15 @@
 │   ├── OPERATIONS.md
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
-├── gallery/                   ← 图库子应用（8765，gallery.littlero.tech）
-├── guestbook/                 ← 留言簿子应用（8766，guestbook.littlero.tech）
-├── profile/                   ← 个人中心子应用（8767，profile.littlero.tech）
-├── trpg/                      ← 跑团子应用（8768，trpg.littlero.tech）
-├── alarms/                    ← 闹钟子应用（8769，alarms.littlero.tech）
-├── activities/                ← 活动归档子应用（8770，activities.littlero.tech）
+├── webapp/                    ← Web 单进程入口（8765；认证路由/Host 分发/static 合并目录；`python -m webapp`）
+│   ├── app.py                 ← 唯一 FastAPI 入口（include 6 模块 router + mount /static /shared）
+│   └── static/                ← 全部模块静态文件（index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等 25 个）
+├── gallery/                   ← 图库模块（gallery.littlero.tech；repository/thumbnails/dates）
+├── guestbook/                 ← 留言簿模块（guestbook.littlero.tech）
+├── profile/                   ← 个人中心模块（profile.littlero.tech）
+├── trpg/                      ← 跑团模块（trpg.littlero.tech）
+├── alarms/                    ← 闹钟模块（alarms.littlero.tech）
+├── activities/                ← 活动归档模块（activities.littlero.tech）
 ├── homepage/                  ← 导航主页（纯静态，Caddy 托管；entries/quotes/notices 三个 JSON 配置）
 └── test/                      ← 临时测试脚本
 ```

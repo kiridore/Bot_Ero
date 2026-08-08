@@ -15,13 +15,15 @@ python main.py
 依赖: `websocket-client` `requests` `Pillow`
 可选: `psutil` (系统监控) `GitPython` (更新) `openai` (LLM，已弃用)
 
-### Web 图库单独部署
+### Web 应用部署
 
 ```bash
 export BOTERO_AUTH_SALT="your-secret-salt"
 export BOTERO_ONEBOT_HTTP="http://..."
-python -m gallery
+python -m webapp
 ```
+
+单进程承载 6 个子域（gallery/guestbook/profile/trpg/alarms/activities），Caddy 统一反代 8765，页面按 Host 分发。完整部署见 `docs/web-apps-deployment.md`。
 
 ## 备份机制
 

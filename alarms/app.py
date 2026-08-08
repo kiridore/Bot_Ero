@@ -1,43 +1,14 @@
 """闹钟子应用：个人与群闹钟管理。"""
 
-from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from alarms.alarm_service import cancel_alarm, create_alarm, list_alarms
-from core.auth import verify_login_key
-from core.onebot_client import resolve_avatar_url, resolve_display_name
+from core.web.auth_deps import get_current_user_id
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
-
-app = FastAPI(title="BotEro 闹钟", version="1.0.0")
-
-
-def get_current_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> str:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未登录")
-    uid = verify_login_key(authorization[7:].strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    return uid
-
-
-class LoginIn(BaseModel):
-    key: str
-
-
-class SessionOut(BaseModel):
-    user_id: str
-    display_name: str
-    avatar_url: str
-    token: str
+router = APIRouter()
 
 
 class AlarmCreateIn(BaseModel):
@@ -63,36 +34,12 @@ def _or_400(fn, *args):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.post("/api/auth/login", response_model=SessionOut)
-def api_login(body: LoginIn):
-    uid = verify_login_key(body.key.strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    token = body.key.strip()
-    return SessionOut(
-        user_id=uid,
-        display_name=resolve_display_name(uid),
-        avatar_url=resolve_avatar_url(uid),
-        token=token,
-    )
-
-
-@app.get("/api/auth/me", response_model=SessionOut)
-def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return SessionOut(
-        user_id=user_id,
-        display_name=resolve_display_name(user_id),
-        avatar_url=resolve_avatar_url(user_id),
-        token="",
-    )
-
-
-@app.get("/api/me/alarms")
+@router.get("/api/me/alarms")
 def api_alarms_list(user_id: Annotated[str, Depends(get_current_user_id)]):
     return list_alarms(user_id)
 
 
-@app.post("/api/me/alarms")
+@router.post("/api/me/alarms")
 def api_alarms_create(
     body: AlarmCreateIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -100,18 +47,9 @@ def api_alarms_create(
     return _or_400(create_alarm, user_id, body.model_dump())
 
 
-@app.delete("/api/me/alarms/{alarm_id}")
+@router.delete("/api/me/alarms/{alarm_id}")
 def api_alarms_cancel(
     alarm_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     return _or_400(cancel_alarm, user_id, alarm_id)
-
-
-@app.get("/")
-def index():
-    return FileResponse(STATIC_DIR / "alarms.html")
-
-
-app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

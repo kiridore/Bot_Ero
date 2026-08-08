@@ -1,14 +1,14 @@
 [Unit]
-Description=BotEro Profile
+Description=BotEro Web (gallery/profile/trpg/guestbook/alarms/activities)
 After=network.target
 
 [Service]
 WorkingDirectory=/home/dore/onebot/Bot_Ero
 Environment=BOTERO_DB_PATH=/home/dore/onebot/Bot_Ero/data.db
-Environment=BOTERO_AUTH_SALT=BotEro-Gallery-ChangeMe
+Environment=BOTERO_AUTH_SALT=CHANGE_ME
 # 换盐时把旧盐加进来，旧密钥仍有效：BOTERO_AUTH_SALT_OLD=旧盐值
-Environment=BOTERO_GALLERY_PORT=8767
-ExecStart=/usr/bin/python3 -m profile
+Environment=BOTERO_GALLERY_PORT=8765
+ExecStart=/usr/bin/python3 -m webapp
 Restart=always
 
 [Install]

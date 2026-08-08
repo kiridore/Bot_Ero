@@ -1,4 +1,4 @@
-# BotEro 站点配置：导航主页（根域）静态托管 + 6 个 Web 子应用反代
+# BotEro 站点配置：导航主页（根域）静态托管 + 6 个子域统一反代单进程 webapp（Host 头透传，按域分发页面）
 # 用法：caddy run --config scripts/Caddyfile 或复制到 /etc/caddy/Caddyfile
 
 littlero.tech {
@@ -11,21 +11,21 @@ gallery.littlero.tech {
 }
 
 guestbook.littlero.tech {
-	reverse_proxy 127.0.0.1:8766
+	reverse_proxy 127.0.0.1:8765
 }
 
 profile.littlero.tech {
-	reverse_proxy 127.0.0.1:8767
+	reverse_proxy 127.0.0.1:8765
 }
 
 trpg.littlero.tech {
-	reverse_proxy 127.0.0.1:8768
+	reverse_proxy 127.0.0.1:8765
 }
 
 alarms.littlero.tech {
-	reverse_proxy 127.0.0.1:8769
+	reverse_proxy 127.0.0.1:8765
 }
 
 activities.littlero.tech {
-	reverse_proxy 127.0.0.1:8770
+	reverse_proxy 127.0.0.1:8765
 }

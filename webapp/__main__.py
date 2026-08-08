@@ -27,7 +27,7 @@ def main():
     print(f"访问: http://{args.host}:{args.port}/")
 
     uvicorn.run(
-        "gallery.app:app",
+        "webapp.app:app",
         host=args.host,
         port=args.port,
         reload=False,

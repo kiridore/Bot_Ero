@@ -1,24 +1,20 @@
 """跑团子应用：DND 车卡与角色查看。"""
 
-from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from core import character_store as char_store
 from core import user_settings as user_settings_mod
-from core.auth import verify_login_key
-from core.onebot_client import resolve_avatar_url, resolve_display_name
+from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
 from core.trpg import rules as trpg_rules
+from core.web.auth_deps import get_current_user_id
+from webapp import STATIC_DIR
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
-
-app = FastAPI(title="BotEro 跑团", version="1.0.0")
+router = APIRouter()
 
 
 class CharacterIn(BaseModel):
@@ -54,17 +50,6 @@ class CharacterIn(BaseModel):
     bonds: str = ""
     flaws: str = ""
     notes: str = ""
-
-
-class LoginIn(BaseModel):
-    key: str
-
-
-class SessionOut(BaseModel):
-    user_id: str
-    display_name: str
-    avatar_url: str
-    token: str
 
 
 class CharOut(BaseModel):
@@ -163,42 +148,7 @@ def _char_to_out(data: dict) -> CharOut:
     )
 
 
-def get_current_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> str:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未登录")
-    uid = verify_login_key(authorization[7:].strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    return uid
-
-
-@app.post("/api/auth/login", response_model=SessionOut)
-def api_login(body: LoginIn):
-    uid = verify_login_key(body.key.strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    token = body.key.strip()
-    return SessionOut(
-        user_id=uid,
-        display_name=resolve_display_name(uid),
-        avatar_url=resolve_avatar_url(uid),
-        token=token,
-    )
-
-
-@app.get("/api/auth/me", response_model=SessionOut)
-def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return SessionOut(
-        user_id=user_id,
-        display_name=resolve_display_name(user_id),
-        avatar_url=resolve_avatar_url(user_id),
-        token="",
-    )
-
-
-@app.get("/api/me/characters")
+@router.get("/api/me/characters")
 def api_my_characters(user_id: Annotated[str, Depends(get_current_user_id)]):
     chars = char_store.list_chars(user_id)
     current = char_store.get_current(user_id)
@@ -209,7 +159,7 @@ def api_my_characters(user_id: Annotated[str, Depends(get_current_user_id)]):
     }
 
 
-@app.post("/api/me/characters", response_model=CharOut)
+@router.post("/api/me/characters", response_model=CharOut)
 def api_create_character(
     body: CharacterIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -227,7 +177,7 @@ def api_create_character(
     return _char_to_out(char_store.get_char(user_id, char_id))
 
 
-@app.get("/api/me/characters/{char_id}", response_model=CharOut)
+@router.get("/api/me/characters/{char_id}", response_model=CharOut)
 def api_get_my_character(
     char_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -238,7 +188,7 @@ def api_get_my_character(
     return _char_to_out(char)
 
 
-@app.put("/api/me/characters/{char_id}", response_model=CharOut)
+@router.put("/api/me/characters/{char_id}", response_model=CharOut)
 def api_update_character(
     char_id: int,
     body: CharacterIn,
@@ -259,7 +209,7 @@ def api_update_character(
     return _char_to_out(char_store.get_char(user_id, char_id))
 
 
-@app.delete("/api/me/characters/{char_id}")
+@router.delete("/api/me/characters/{char_id}")
 def api_delete_character(
     char_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -270,7 +220,7 @@ def api_delete_character(
     return {"ok": True}
 
 
-@app.post("/api/me/characters/{char_id}/activate")
+@router.post("/api/me/characters/{char_id}/activate")
 def api_activate_character(
     char_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -282,7 +232,7 @@ def api_activate_character(
     return {"ok": True}
 
 
-@app.get("/api/characters/{user_id}/{char_id}", response_model=CharOut)
+@router.get("/api/characters/{user_id}/{char_id}", response_model=CharOut)
 def api_view_character(
     user_id: str,
     char_id: int,
@@ -301,7 +251,7 @@ def api_view_character(
     return _char_to_out(char)
 
 
-@app.get("/api/trpg/rules")
+@router.get("/api/trpg/rules")
 def api_trpg_rules():
     return {
         "attributes": trpg_rules.ATTRIBUTES,
@@ -321,18 +271,9 @@ def api_trpg_rules():
     }
 
 
-@app.get("/")
-def index():
-    return FileResponse(STATIC_DIR / "trpg.html")
-
-
-@app.get("/char/{user_id}/{char_id}")
+@router.get("/char/{user_id}/{char_id}")
 def trpg_char_view_page(user_id: str, char_id: int):
     page = STATIC_DIR / "char_view.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少角色卡查看页")
     return FileResponse(page)
-
-
-app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

@@ -1,18 +1,16 @@
 """个人中心子应用：个人主页/打卡/商店/称号/设置 5 域聚合。"""
 
-from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from gallery.repository import CheckinImage, fetch_user_settlement_day
 from core import user_settings as user_settings_mod
-from core.auth import verify_login_key
 from core.config import GALLERY_URL
-from core.onebot_client import resolve_avatar_url, resolve_display_name
+from core.onebot_client import resolve_display_name
+from core.web.auth_deps import get_current_user_id
 from profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from profile.profile_service import build_profile
 from profile.shop_service import get_shop, redeem_shop_item
@@ -23,22 +21,9 @@ from profile.title_settings import (
     set_equipped_titles,
     unequip_title,
 )
+from webapp import STATIC_DIR
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
-
-app = FastAPI(title="BotEro 个人中心", version="1.0.0")
-
-
-class LoginIn(BaseModel):
-    key: str
-
-
-class SessionOut(BaseModel):
-    user_id: str
-    display_name: str
-    avatar_url: str
-    token: str
+router = APIRouter()
 
 
 class CheckinItemOut(BaseModel):
@@ -100,42 +85,7 @@ def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
     )
 
 
-def get_current_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> str:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未登录")
-    uid = verify_login_key(authorization[7:].strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    return uid
-
-
-@app.post("/api/auth/login", response_model=SessionOut)
-def api_login(body: LoginIn):
-    uid = verify_login_key(body.key.strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    token = body.key.strip()
-    return SessionOut(
-        user_id=uid,
-        display_name=resolve_display_name(uid),
-        avatar_url=resolve_avatar_url(uid),
-        token=token,
-    )
-
-
-@app.get("/api/auth/me", response_model=SessionOut)
-def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return SessionOut(
-        user_id=user_id,
-        display_name=resolve_display_name(user_id),
-        avatar_url=resolve_avatar_url(user_id),
-        token="",
-    )
-
-
-@app.get("/api/me/profile")
+@router.get("/api/me/profile")
 def api_my_profile(
     user_id: Annotated[str, Depends(get_current_user_id)],
     year: int | None = Query(None, ge=2000, le=2100),
@@ -143,7 +93,7 @@ def api_my_profile(
     return build_profile(user_id, year)
 
 
-@app.get("/api/me/day", response_model=DayCheckinsOut)
+@router.get("/api/me/day", response_model=DayCheckinsOut)
 def api_my_day(
     user_id: Annotated[str, Depends(get_current_user_id)],
     date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -170,12 +120,12 @@ def _checkin_or_400(fn, *args):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.get("/api/me/checkin/status")
+@router.get("/api/me/checkin/status")
 def api_checkin_status(user_id: Annotated[str, Depends(get_current_user_id)]):
     return get_checkin_status(user_id)
 
 
-@app.post("/api/me/checkin")
+@router.post("/api/me/checkin")
 async def api_checkin_submit(
     user_id: Annotated[str, Depends(get_current_user_id)],
     files: list[UploadFile] = File(...),
@@ -188,12 +138,12 @@ async def api_checkin_submit(
     return perform_checkin(user_id, names)
 
 
-@app.get("/api/me/shop")
+@router.get("/api/me/shop")
 def api_shop(user_id: Annotated[str, Depends(get_current_user_id)]):
     return get_shop(user_id)
 
 
-@app.post("/api/me/shop/redeem")
+@router.post("/api/me/shop/redeem")
 def api_shop_redeem(
     body: ShopRedeemIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -201,12 +151,12 @@ def api_shop_redeem(
     return _checkin_or_400(redeem_shop_item, user_id, body.product_id)
 
 
-@app.get("/api/me/titles/settings")
+@router.get("/api/me/titles/settings")
 def api_title_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
     return get_title_settings(user_id)
 
 
-@app.put("/api/me/titles/equipped")
+@router.put("/api/me/titles/equipped")
 def api_set_equipped(
     body: EquippedTitlesIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -214,7 +164,7 @@ def api_set_equipped(
     return _title_settings_or_400(set_equipped_titles, user_id, body.title_ids)
 
 
-@app.post("/api/me/titles/equip")
+@router.post("/api/me/titles/equip")
 def api_equip_one(
     body: EquipOneIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -222,12 +172,12 @@ def api_equip_one(
     return _title_settings_or_400(equip_title, user_id, body.title_id)
 
 
-@app.delete("/api/me/titles/equipped")
+@router.delete("/api/me/titles/equipped")
 def api_clear_equipped(user_id: Annotated[str, Depends(get_current_user_id)]):
     return clear_equipped_titles(user_id)
 
 
-@app.delete("/api/me/titles/equip/{title_id}")
+@router.delete("/api/me/titles/equip/{title_id}")
 def api_unequip_one(
     title_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -235,13 +185,13 @@ def api_unequip_one(
     return _title_settings_or_400(unequip_title, user_id, title_id)
 
 
-@app.get("/api/me/settings", response_model=SettingsOut)
+@router.get("/api/me/settings", response_model=SettingsOut)
 def api_my_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
     settings = user_settings_mod.get_settings(user_id)
     return SettingsOut(privacy=settings.get("privacy", {}))
 
 
-@app.put("/api/me/settings", response_model=SettingsOut)
+@router.put("/api/me/settings", response_model=SettingsOut)
 def api_update_settings(
     body: SettingsIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -251,15 +201,7 @@ def api_update_settings(
     return SettingsOut(privacy=merged.get("privacy", {}))
 
 
-@app.get("/")
-def index():
-    page = STATIC_DIR / "profile.html"
-    if not page.is_file():
-        raise HTTPException(status_code=500, detail="缺少个人主页")
-    return FileResponse(page)
-
-
-@app.get("/checkin")
+@router.get("/checkin")
 def checkin_page():
     page = STATIC_DIR / "checkin.html"
     if not page.is_file():
@@ -267,7 +209,7 @@ def checkin_page():
     return FileResponse(page)
 
 
-@app.get("/shop")
+@router.get("/shop")
 def shop_page():
     page = STATIC_DIR / "shop.html"
     if not page.is_file():
@@ -275,13 +217,9 @@ def shop_page():
     return FileResponse(page)
 
 
-@app.get("/settings")
+@router.get("/settings")
 def settings_page():
     page = STATIC_DIR / "settings.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少设置页")
     return FileResponse(page)
-
-
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")

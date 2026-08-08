@@ -1,15 +1,12 @@
 from pathlib import Path
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from gallery import config
 from gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
-from core.auth import verify_login_key
-from core.onebot_client import resolve_avatar_url, resolve_display_name
+from core.onebot_client import resolve_display_name
 from gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
@@ -18,9 +15,7 @@ from gallery.repository import (
 )
 from gallery.thumbnails import ensure_thumbnail
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-
-app = FastAPI(title="BotEro 打卡图库", version="1.0.0")
+router = APIRouter()
 
 class CheckinItemOut(BaseModel):
     id: int
@@ -45,15 +40,6 @@ class UserOptionOut(BaseModel):
 class UserIdsOut(BaseModel):
     users: list[UserOptionOut]
 
-class LoginIn(BaseModel):
-    key: str
-
-class SessionOut(BaseModel):
-    user_id: str
-    display_name: str
-    avatar_url: str
-    token: str
-
 
 def _file_slug(content: str) -> str:
     return content.replace("{", "").replace("}", "").replace("-", "")
@@ -77,42 +63,7 @@ def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
     )
 
 
-def get_current_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> str:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未登录")
-    uid = verify_login_key(authorization[7:].strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    return uid
-
-
-@app.post("/api/auth/login", response_model=SessionOut)
-def api_login(body: LoginIn):
-    uid = verify_login_key(body.key.strip())
-    if uid is None:
-        raise HTTPException(status_code=401, detail="密钥无效")
-    token = body.key.strip()
-    return SessionOut(
-        user_id=uid,
-        display_name=resolve_display_name(uid),
-        avatar_url=resolve_avatar_url(uid),
-        token=token,
-    )
-
-
-@app.get("/api/auth/me", response_model=SessionOut)
-def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
-    return SessionOut(
-        user_id=user_id,
-        display_name=resolve_display_name(user_id),
-        avatar_url=resolve_avatar_url(user_id),
-        token="",
-    )
-
-
-@app.get("/api/users", response_model=UserIdsOut)
+@router.get("/api/users", response_model=UserIdsOut)
 def api_users():
     users = [
         UserOptionOut(user_id=uid, display_name=resolve_display_name(uid))
@@ -121,7 +72,7 @@ def api_users():
     return UserIdsOut(users=users)
 
 
-@app.get("/api/checkins", response_model=CheckinListOut)
+@router.get("/api/checkins", response_model=CheckinListOut)
 def api_checkins(
     page: int = Query(1, ge=1),
     page_size: int = Query(PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
@@ -178,7 +129,7 @@ def _resolve_and_guard(user_id: str, filename: str) -> Path:
     return path
 
 
-@app.get("/thumb/{user_id}/{filename}")
+@router.get("/thumb/{user_id}/{filename}")
 def serve_thumb(user_id: str, filename: str):
     source = _resolve_and_guard(user_id, filename)
     try:
@@ -188,21 +139,7 @@ def serve_thumb(user_id: str, filename: str):
     return FileResponse(thumb, media_type="image/jpeg")
 
 
-@app.get("/media/{user_id}/{filename}")
+@router.get("/media/{user_id}/{filename}")
 def serve_media(user_id: str, filename: str):
     path = _resolve_and_guard(user_id, filename)
     return FileResponse(path)
-
-
-@app.get("/")
-def index():
-    index_file = STATIC_DIR / "index.html"
-    if not index_file.is_file():
-        raise HTTPException(status_code=500, detail="缺少静态页面")
-    return FileResponse(index_file)
-
-
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-_SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
-app.mount("/shared", StaticFiles(directory=_SHARED_STATIC_DIR), name="shared")
