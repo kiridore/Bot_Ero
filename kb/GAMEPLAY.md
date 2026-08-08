@@ -35,7 +35,7 @@
 
 ### 打卡消息被撤回 (自动)
 
-`checkin_recall.py` 监听 `notice_type == "group_recall"`，根据 `message_id` 查找并回滚打卡记录和奖励（含任务进度）。
+`checkin_recall/` 监听 `notice_type == "group_recall"`，根据 `message_id` 查找并回滚打卡记录和奖励（含任务进度）。
 
 ### 补卡系统
 

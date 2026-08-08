@@ -10,10 +10,10 @@
 
 ## Constraint: 菜单文本集中管理
 
-`plugins/bot_menu_text.py` 的 `BOT_MENU_TEXT` 是指令文本的**唯一来源**。
+`plugins/menu/bot_menu_text.py` 的 `BOT_MENU_TEXT` 是指令文本的**唯一来源**。
 
 ```python
-from plugins.bot_menu_text import BOT_MENU_TEXT
+from plugins.menu.bot_menu_text import BOT_MENU_TEXT
 ```
 
 - `MenuPlugin`（响应 `/菜单`）读取 `BOT_MENU_TEXT`
@@ -137,7 +137,7 @@ from core.event import Event
 
 # 从插件导入纯数据 — 允许（如 title.py 的标题定义）
 from plugins.title import get_title_def, TITLE_DEFS
-from plugins.bot_menu_text import BOT_MENU_TEXT
+from plugins.menu.bot_menu_text import BOT_MENU_TEXT
 
 # 类型导入 — 使用 TYPE_CHECKING
 from typing import TYPE_CHECKING

@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-03 (新增活动系统 activity/activity_timer 插件)
+> 最后更新: 2026-08-09 (插件目录结构同步：每插件一个文件夹；新增活动系统 activity/activity_timer 插件)
 
 全部 43 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
@@ -12,35 +12,35 @@
 
 | 文件 | 类名 | `name` | 触发方式 | 命令 | 说明 |
 |------|------|--------|---------|------|------|
-| `call.py` | `CallPlugin` | `call` | CommandPlugin | `小埃同学` / `小埃同學` | 召唤 bot，回复 "我在~" |
-| `menu.py` | `MenuPlugin` | `menu` | CommandPlugin | `/菜单` / `/菜單` | 发送 BOT_MENU_TEXT 指令菜单 |
-| `checkin.py` | `CheckinPlugin` | `checkin` | CommandPlugin | `/打卡` + 图片 | 打卡：存储图片、解锁称号、计算满勤奖励 |
-| `checkin_recall.py` | `CheckinRecallPlugin` | `checkin_recall` | notice 事件 | (notice: group_recall) | 打卡消息被撤回时回滚记录和奖励 |
-| `roll_back.py` | `RollbackCheckinPlugin` | `rollback_checkin` | CommandPlugin | `/撤回打卡` | 撤回本周最近一次打卡 |
-| `remedy_checkin.py` | `RemedyCheckinPlugin` | `remedy_checkin` | CommandPlugin | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` | 补卡系统：周补卡(6点)、单日补卡(2点)、管理员超级补卡 |
-| `all_checkin_display.py` | `AllCheckinDisplay` | `all_checkin_display` | CommandPlugin | `/ALL` | 显示全量打卡图（合并转发） |
-| `week_checkin_display.py` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | CommandPlugin | `/本周打卡图` | 显示本周打卡图（私发） |
-| `week_list.py` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |
-| `personal_records.py` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 生成年度打卡热力图档案卡 |
-| `leaderboard.py` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分排行榜 |
-| `lottery.py` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` | 抽卡系统：消耗积分随机获取奖励 |
-| `immortal_lottery.py` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
-| `dice.py` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
+| `call/` | `CallPlugin` | `call` | CommandPlugin | `小埃同学` / `小埃同學` | 召唤 bot，回复 "我在~" |
+| `menu/` | `MenuPlugin` | `menu` | CommandPlugin | `/菜单` / `/菜單` | 发送 BOT_MENU_TEXT 指令菜单 |
+| `checkin/` | `CheckinPlugin` | `checkin` | CommandPlugin | `/打卡` + 图片 | 打卡：存储图片、解锁称号、计算满勤奖励 |
+| `checkin_recall/` | `CheckinRecallPlugin` | `checkin_recall` | notice 事件 | (notice: group_recall) | 打卡消息被撤回时回滚记录和奖励 |
+| `roll_back/` | `RollbackCheckinPlugin` | `rollback_checkin` | CommandPlugin | `/撤回打卡` | 撤回本周最近一次打卡 |
+| `remedy_checkin/` | `RemedyCheckinPlugin` | `remedy_checkin` | CommandPlugin | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` | 补卡系统：周补卡(6点)、单日补卡(2点)、管理员超级补卡 |
+| `all_checkin_display/` | `AllCheckinDisplay` | `all_checkin_display` | CommandPlugin | `/ALL` | 显示全量打卡图（合并转发） |
+| `week_checkin_display/` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | CommandPlugin | `/本周打卡图` | 显示本周打卡图（私发） |
+| `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |
+| `personal_records/` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 生成年度打卡热力图档案卡 |
+| `leaderboard/` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分排行榜 |
+| `lottery/` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` | 抽卡系统：消耗积分随机获取奖励 |
+| `immortal_lottery/` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
+| `dice/` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
 | `trpg_dice/` | `TrpgPlugin` | `trpg_dice` | 正则前缀匹配 | `.r` `.rc` `.rh` | 跑团骰子系统：DND5E 万能骰点、d20 检定、暗骰、角色属性引用（规则系统可切换） |
 | `trpg_char/` | `TrpgCharPlugin` | `trpg_char` | CommandPlugin | `/角色 查看/列表/切换/删除` | DND5E 角色卡：查看(仅自己)/列表/切换/删除；创建与编辑迁移至网页端 `littlero.tech/trpg` |
 | `trpg_session/` | `TrpgSessionPlugin` | `trpg_session` | CommandPlugin + 录制期间全匹配 | `/跑团记录 开始/强制开始/结束/导出/列表/#N` `.dm` `.ob` | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
-| `divination.py` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
-| `title.py` | `TitlePlugin` | `title` | CommandPlugin | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |
-| `redeem_shop.py` | `RedeemShopPlugin` | `redeem_shop` | CommandPlugin | `/商店 [商品id]` | 积分商店：浏览商品、兑换 |
-| `group_alarm.py` | `GroupAlarmPlugin` | `group_alarm` | begin_with + meta | `/闹钟 [参数]` | 闹钟系统：创建、列表、取消，支持循环 |
-| `group_essence.py` | `GroupEssencePlugin` | `manage_group_essence` | reply + 文本匹配 | `/加精` `/群精华` `/精华` `/删除精华` | 回复消息设置/取消群精华 |
-| `at_all_reply.py` | `AtAllReplyPlugin` | `at_all_reply` | reply + 文本匹配 | `/全体成员` | 回复消息并 @全体成员转发 |
-| `recall_message.py` | `RecallMessagePlugin` | `recall_message` | reply + 文本匹配 | `/撤回` | 代用户撤回 bot 自己发送的消息 |
-| `set_group_title.py` | `GroupSpecialTitlePlugin` | `group_special_title` | CommandPlugin | `/群头衔 [文本]` | 设置/取消群头衔 |
-| `random_reference.py` | `RandomReferencePlugin` | `random_reference` | CommandPlugin | `/随机参考` | 随机返回一张 512×512 参考图 |
-| `gallery_login_key.py` | `GalleryLoginKeyPlugin` | `gallery_login_key` | CommandPlugin | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
-| `ff_news.py` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
-| `weekly_quest.py` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
+| `divination/` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
+| `title/` | `TitlePlugin` | `title` | CommandPlugin | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |
+| `redeem_shop/` | `RedeemShopPlugin` | `redeem_shop` | CommandPlugin | `/商店 [商品id]` | 积分商店：浏览商品、兑换 |
+| `group_alarm/` | `GroupAlarmPlugin` | `group_alarm` | begin_with + meta | `/闹钟 [参数]` | 闹钟系统：创建、列表、取消，支持循环 |
+| `group_essence/` | `GroupEssencePlugin` | `manage_group_essence` | reply + 文本匹配 | `/加精` `/群精华` `/精华` `/删除精华` | 回复消息设置/取消群精华 |
+| `at_all_reply/` | `AtAllReplyPlugin` | `at_all_reply` | reply + 文本匹配 | `/全体成员` | 回复消息并 @全体成员转发 |
+| `recall_message/` | `RecallMessagePlugin` | `recall_message` | reply + 文本匹配 | `/撤回` | 代用户撤回 bot 自己发送的消息 |
+| `set_group_title/` | `GroupSpecialTitlePlugin` | `group_special_title` | CommandPlugin | `/群头衔 [文本]` | 设置/取消群头衔 |
+| `random_reference/` | `RandomReferencePlugin` | `random_reference` | CommandPlugin | `/随机参考` | 随机返回一张 512×512 参考图 |
+| `gallery_login_key/` | `GalleryLoginKeyPlugin` | `gallery_login_key` | CommandPlugin | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
+| `ff_news/` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
+| `weekly_quest/` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
 | `who_is_spy/` | `WhoIsSpyPlugin` | `who_is_spy` | 自定义 match: COMMANDS + 私聊游戏阶段 | `/创建游戏 <类型> [人数]` `/开始 <房间号>` `/加入 <房间号>` `/离开` `/退出` `/状态 [房间号]` `/放弃 <房间号>` | 谁是卧底：群聊创建房间，私聊匿名游戏进行 |
 | `activity/` | `ActivityPlugin` | `activity` | 自定义 match | `/活动 创建 接龙\|匹配 …` `/活动 加入/退出/开始/状态/结束`（群聊）`/提交 [活动id]`（私聊） | 群活动：接龙（每人限时、机器人接力转发）与匹配下家（圆桌单环，开始通知下家、作品玩家自提，机器人仅记录归档），全员完成/截止自动归档 |
 
@@ -48,27 +48,27 @@
 
 | 文件 | 类名 | `name` | 触发 | 说明 |
 |------|------|--------|------|------|
-| `auto_friend.py` | `AutoFriendPlugin` | `auto_friend` | `request_type == "friend"` | 自动接受好友请求 |
-| `welcome.py` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息 |
+| `auto_friend/` | `AutoFriendPlugin` | `auto_friend` | `request_type == "friend"` | 自动接受好友请求 |
+| `welcome/` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息 |
 
 ## 定时/心跳插件
 
 | 文件 | 类名 | `name` | 基类 | 计划 | 说明 |
 |------|------|--------|------|------|------|
-| `backup.py` | `BackupPlugin` | `backup` | TimedHeartbeatPlugin | 每天 08:00 | 自动备份打卡图片 |
-| `redeem_shop.py` | `ShopWeeklyRotationPlugin` | `shop_weekly_rotation` | TimedHeartbeatPlugin | 每周一 08:00 | 刷新商店货架 |
-| `startup_changelog.py` | `StartupChangelogPlugin` | `startup_changelog` | Plugin (手动 meta) | 启动时一次 | 发送开机问候 |
-| `weekly_quest.py` | `WeeklyQuestResetPlugin` | `weekly_quest_reset` | TimedHeartbeatPlugin | 每周一 08:00 | 清理过期任务进度 |
+| `backup/` | `BackupPlugin` | `backup` | TimedHeartbeatPlugin | 每天 08:00 | 自动备份打卡图片 |
+| `redeem_shop/` | `ShopWeeklyRotationPlugin` | `shop_weekly_rotation` | TimedHeartbeatPlugin | 每周一 08:00 | 刷新商店货架 |
+| `startup_changelog/` | `StartupChangelogPlugin` | `startup_changelog` | Plugin (手动 meta) | 启动时一次 | 发送开机问候 |
+| `weekly_quest/` | `WeeklyQuestResetPlugin` | `weekly_quest_reset` | TimedHeartbeatPlugin | 每周一 08:00 | 清理过期任务进度 |
 | `activity/` | `ActivityTimerPlugin` | `activity_timer` | Plugin (手动 meta) | 每 60 秒 | 活动计时：接龙超时跳过、匹配截止结束 |
 
 ## 管理/超级用户插件
 
 | 文件 | 类名 | `name` | 触发 | 权限 | 说明 |
 |------|------|--------|------|------|------|
-| `grant_points_all.py` | `GrantPointsAllPlugin` | `grant_points_all` | CommandPlugin + `admin_user()` | `/发金币 <数量>` | 给所有用户统一发积分 |
-| `monitor.py` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
-| `update.py` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
-| `redeem_shop.py` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
+| `grant_points_all/` | `GrantPointsAllPlugin` | `grant_points_all` | CommandPlugin + `admin_user()` | `/发金币 <数量>` | 给所有用户统一发积分 |
+| `monitor/` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
+| `update/` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
+| `redeem_shop/` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
 | `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件 <name\|列表> [off] [群号]` `/功能包 <name\|列表> [off] [群号]` | `super_user()` | 管理插件/功能包：列表、启用、禁用（超级用户） |
 
 ---
@@ -78,20 +78,20 @@
 部分插件之间存在导入依赖（主要是纯数据/函数导入，非业务逻辑依赖）：
 
 ```
-title.py (TITLE_DEFS, get_title_def, evaluate_and_unlock_titles, get_lottery_title_ids)
-  ├── leaderboard.py      (format_title_prefix)
-  ├── checkin.py           (unlock titles on check-in)
-  ├── lottery.py           (lottery title pool)
-  ├── week_list.py         (format_title_prefix)
-  └── redeem_shop.py       (shop title definitions)
+title/ (TITLE_DEFS, get_title_def, evaluate_and_unlock_titles, get_lottery_title_ids)
+  ├── leaderboard/      (format_title_prefix)
+  ├── checkin/           (unlock titles on check-in)
+  ├── lottery/           (lottery title pool)
+  ├── week_list/         (format_title_prefix)
+  └── redeem_shop/       (shop title definitions)
 
 who_is_spy/ (grant_game_titles)
-  └── title.py        (evaluate_and_unlock_titles, get_title_def)
+  └── title/        (evaluate_and_unlock_titles, get_title_def)
 
-bot_menu_text.py (BOT_MENU_TEXT)
-  └── menu.py
+menu/bot_menu_text.py (BOT_MENU_TEXT)
+  └── menu/
 
-core.api.py (_build_title_prefix)
+core/api.py (_build_title_prefix)
   └── plugins.title        (延迟导入: get_title_def)
 ```
 

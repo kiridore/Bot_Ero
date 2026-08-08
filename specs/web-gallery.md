@@ -87,7 +87,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 - **MUST:** 认证路由（`POST /api/auth/login`、`GET /api/auth/me`）只允许存在于 `webapp/app.py`，feature 模块**不得**再定义
 - **MUST:** 每个模块的 `app.py` 导出 `router = APIRouter()`，不得创建 `FastAPI()` 实例、不得 mount 静态目录
 - 页面路由用 `FileResponse` 返回 `webapp/static/*.html`；页面路径带分区前缀（`/gallery` 等），API 保持根路径
-- `profile` 依赖 `gallery.repository`（2 处 import：`CheckinImage`、`fetch_user_settlement_day`）——图库数据层是个人中心的数据来源
+- `profile` 依赖 `webapp.gallery.repository`（2 处 import：`CheckinImage`、`fetch_user_settlement_day`）——图库数据层是个人中心的数据来源
 
 ---
 

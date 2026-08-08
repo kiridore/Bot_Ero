@@ -12,7 +12,7 @@
 - **match() 禁止副作用** — 不发消息、不写数据库
 - **handle() 必须有 try/except** — 否则线程异常静默死掉
 - **周相关必须用 08:00 偏移** — `get_monday_to_monday()`
-- **新增/改名指令必须更新 `bot_menu_text.py`** — 同一 commit
+- **新增/改名指令必须更新 `plugins/menu/bot_menu_text.py`** — 同一 commit
 - **代码变更必须更新对应 spec** — 同一 commit
 - **禁止在插件间导入业务逻辑类** — 导入纯数据/函数允许
 

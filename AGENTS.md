@@ -13,7 +13,7 @@ Start with [CLAUDE.md](CLAUDE.md) for project overview, [KNOWLEDGE_BASE.md](KNOW
 
 ## Plugin auto-import magic
 
-Creating a `.py` file in `plugins/` is sufficient — `plugins/__init__.py` uses `pkgutil.walk_packages` to import every module, which triggers `@register_plugin`. No manual wiring needed. The decorator is at `core/utils.py:83`.
+Creating a plugin package in `plugins/<name>/` (or a bare `.py` file) is sufficient — `plugins/__init__.py` uses `pkgutil.walk_packages` to import every module, which triggers `@register_plugin`. No manual wiring needed. The decorator is at `core/utils.py:83`.
 
 ## Two path constants — one data
 
@@ -40,12 +40,12 @@ Every event spawns a new thread with a **fresh Plugin instance**. Plugin instanc
 ## Hard constraints that agents miss
 
 - **No `async`/`await`** — the system is synchronous, threading-based.
-- **No relative imports** between plugins (exception: `menu.py`'s `from .bot_menu_text` is a known violation, do not replicate).
+- **No relative imports** between plugins (exception: `menu/__init__.py`'s `from .bot_menu_text` is a known violation, do not replicate).
 - **No f-string SQL** — use `?` parameterized queries (`database_manager.py` manages all tables).
 - **`handle()` MUST have try/except** with `logger.exception()` — unhandled exceptions in threads die silently.
 - **`match()` MUST NOT have side effects** (no DB writes, no message sends).
 - **Specs MUST be updated in the same commit** as related code changes (see `specs/README.md` maintenance rules).
-- **New/renamed commands MUST update `plugins/bot_menu_text.py`** in the same commit.
+- **New/renamed commands MUST update `plugins/menu/bot_menu_text.py`** in the same commit.
 - **Touching protocol code** (`core/api.py`, `core/event.py`, `core/cq.py`, or any plugin's OneBot event/message-segment access) **MUST consult the authoritative upstream first** — see `specs/onebot-protocol.md` §权威上游文档; the LLOneBot doc index is mirrored at `specs/llms.txt` (fetch the relevant single page via webfetch before editing).
 
 ## Hardcoded values (no config file)
@@ -76,4 +76,4 @@ Every event spawns a new thread with a **fresh Plugin instance**. Plugin instanc
 - When modifying the economy (lottery odds, shop prices, point rewards)
 - When changing the title system (TITLE_DEFS, condition titles, unlock rules)
 
-**MUST:** Update `KNOWLEDGE_BASE.md` in the same commit as related code changes — alongside `specs/` and `bot_menu_text.py` updates.
+**MUST:** Update `KNOWLEDGE_BASE.md` in the same commit as related code changes — alongside `specs/` and `plugins/menu/bot_menu_text.py` updates.

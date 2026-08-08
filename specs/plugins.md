@@ -2,7 +2,7 @@
 
 > 关联规范: [conventions.md](conventions.md) | [plugin-catalog.md](plugin-catalog.md) | [onebot-protocol.md](onebot-protocol.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-06-29
+> 最后更新: 2026-08-09 (插件目录结构同步：每插件一个文件夹)
 
 ---
 
@@ -441,10 +441,10 @@ class GrantPointsAllPlugin(CommandPlugin):
 
 | # | 反模式 | 正确做法 |
 |---|--------|---------|
-| 1 | 硬编码指令文本到插件中 | 使用 `plugins/bot_menu_text.py` 的 `BOT_MENU_TEXT` |
+| 1 | 硬编码指令文本到插件中 | 使用 `plugins/menu/bot_menu_text.py` 的 `BOT_MENU_TEXT` |
 | 2 | 在 `match()` 中发送消息或写数据库 | `match()` 只做判断，所有副作用在 `handle()` 中 |
 | 3 | 在 `handle()` 中循环调用 `send_msg` 不限制频率 | 合并为转发消息或批处理 |
-| 4 | 从一个插件直接 `import` 另一个插件类 | 插件间通过数据库共享状态，不过 `import title.py` 中的纯数据定义是允许的 |
+| 4 | 从一个插件直接 `import` 另一个插件类 | 插件间通过数据库共享状态，不过 `from plugins.title import TITLE_DEFS` 等纯数据定义是允许的 |
 | 5 | 修改 `core/` 模块来添加功能特定逻辑 | 通过插件实现功能，修改 core 需极高审慎 |
 | 6 | 在 `match()` 中使用 `self.args` | `self.args` 由 `on_command`/`on_command_any` 或 `CommandPlugin` 在匹配成功时设置 |
 | 7 | 假设 `self.bot_event.group_id` 始终存在 | 私聊中 `group_id` 为 None，使用前检查 |

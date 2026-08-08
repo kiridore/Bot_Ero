@@ -119,6 +119,6 @@ OneBot 服务端 ──WebSocket──> main.py
 - **`ApiWrapper.send_msg()` 会自动在 @提及前注入称号前缀**（`_inject_titles_before_at`），无需插件手动处理
 - **打卡周从周一 08:00 到次周一 08:00**（见 `utils.get_monday_to_monday` 的 8 小时偏移）
 - **超级用户**定义在 `base.py` 的 `SUPER_USER` 列表；**默认群号**在 `context.py` 的 `DEFAULT_GROUP_ID`
-- **菜单文本**统一维护在 `plugins/bot_menu_text.py` 的 `BOT_MENU_TEXT`，不要在其他地方硬编码指令说明
+- **菜单文本**统一维护在 `plugins/menu/bot_menu_text.py` 的 `BOT_MENU_TEXT`，不要在其他地方硬编码指令说明
 - 插件中 `_command_kind()` 等私有方法用于提取指令参数，`match()` 只做匹配判断，`handle()` 执行业务逻辑
 - **Commit 消息使用中文描述**，格式遵循 Conventional Commits（如 `feat(任务): 新增周常任务系统`）

@@ -52,7 +52,7 @@
 |---------|------------|
 | 新增插件 | `plugin-catalog.md` |
 | 修改插件行为 | `plugins.md`（若契约变化） |
-| 新增/修改指令 | `bot_menu_text.py` + `plugin-catalog.md` |
+| 新增/修改指令 | `plugins/menu/bot_menu_text.py` + `plugin-catalog.md` |
 | 数据库表/列变更 | `database.md` |
 | 新的编码约定 | `conventions.md` |
 | 修改事件流/架构 | `architecture.md` |

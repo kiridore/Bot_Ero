@@ -169,7 +169,7 @@ main.py: import plugins
 
 **MUST:**
 - `main.py` 必须执行 `import plugins`（否则没有插件被注册）
-- 插件模块必须放在 `plugins/` 目录下（不支持子目录）
+- 每个插件一个文件夹，位于 `plugins/<插件名>/`（`__init__.py` 内含 `@register_plugin` 类；`plugins/__init__.py` 用 `pkgutil.walk_packages` 递归导入全部子模块）
 - `@register_plugin` 是注册的唯一方式
 
 **MUST NOT:**
