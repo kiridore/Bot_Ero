@@ -102,7 +102,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 | `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
 | `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口（唯一端口） |
-| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测与播放同源；本地联调可覆盖） |
+| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测与播放同源；**生产建议指向本机/局域网 SRS 直连地址**，如 `http://10.100.0.2:18080/live/livestream.flv`，避免公网 hairpin 回环导致探测超时） |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号（昵称查询） |
