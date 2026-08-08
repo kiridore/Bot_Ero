@@ -118,12 +118,41 @@ class TestSubmit(unittest.TestCase):
         self.assertIn("提交成功", texts)
         self.assertIn("A 提交了作品", self._group_announce_texts(p))
 
-    def test_duplicate_submit(self):
+    def test_duplicate_submit_overwrites(self):
+        """重复提交覆盖前一版（接龙：已提交成员可随时覆盖自己的提交）。"""
+        aid = _setup_activity(self.db, "relay")
+        p1 = self._submit(100, "第一版")
+        p1.handle()
+        p2 = self._submit(100, "第二版")
+        p2.handle()
+        m = self.db.activity.get_member(aid, "100")
+        self.assertEqual(m["content"], "第二版")        # 覆盖
+        texts = "".join(
+            seg["data"]["text"] for a, mm in p2.api.sent_messages
+            for seg in mm if seg["type"] == "text")
+        self.assertIn("已更新", texts)
+
+    def test_duplicate_submit_match_no_finish_no_announce(self):
+        """匹配覆盖提交：不触发结束、不重复群公告。"""
+        aid = _setup_activity(self.db, "match")
+        self._submit(100, "第一版").handle()
+        p2 = self._submit(100, "第二版")
+        p2.handle()
+        m = self.db.activity.get_member(aid, "100")
+        self.assertEqual(m["content"], "第二版")
+        self.assertEqual(self.db.activity.get_activity(aid)["status"], "running")
+        texts = self._group_announce_texts(p2)
+        self.assertNotIn("提交了作品", texts)             # 更新不重复公告
+
+    def test_duplicate_submit_relay_no_reforward(self):
+        """接龙覆盖提交：不重复转发给下一位。"""
         aid = _setup_activity(self.db, "relay")
         self._submit(100, "第一版").handle()
-        self._submit(100, "第二版").handle()
-        m = self.db.activity.get_member(aid, "100")
-        self.assertEqual(m["content"], "第一版")        # 不覆盖
+        p2 = self._submit(100, "第二版")
+        p2.handle()
+        fwd = [c for a, c in p2.api.api_calls if a == "send_private_msg"]
+        self.assertFalse(fwd, "覆盖提交不应再次转发")
+        self.assertEqual(self.db.activity.get_member(aid, "200")["status"], "pending")
 
     def test_submit_finishes_relay(self):
         aid = _setup_activity(self.db, "relay")

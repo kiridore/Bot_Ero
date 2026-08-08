@@ -216,10 +216,14 @@ class ActivityPlugin(Plugin):
             self.api.send_msg(text("你不在任何进行中的活动中"))
             return
         member = self.dbmanager.activity.get_member(act["id"], uid)
-        if not member or member["status"] != "pending":
-            self.api.send_msg(text("你已提交过作品或不在活动中"))
+        if not member or member["status"] == "left":
+            self.api.send_msg(text("你不在活动中或已退出"))
             return
-        if act["type"] == "relay":
+        if member["status"] == "missed":
+            self.api.send_msg(text("活动已截止，无法提交"))
+            return
+        is_update = member["status"] == "done"
+        if act["type"] == "relay" and not is_update:
             cur = current_turn(self.dbmanager.activity.get_members(act["id"]))
             if not cur or cur["user_id"] != uid:
                 self.api.send_msg(text("还没轮到你提交"))
@@ -236,17 +240,19 @@ class ActivityPlugin(Plugin):
         self.dbmanager.activity.update_member(
             act["id"], uid, status="done", content=content or None,
             images=json.dumps(saved) if saved else None, submitted_at=now)
-        self.api.send_msg(text("提交成功！"))
+        self.api.send_msg(text("提交已更新！" if is_update else "提交成功！"))
         members = self.dbmanager.activity.get_members(act["id"])
         if act["type"] == "relay":
-            self._announce_group(act["group_id"],
-                                 f"第 {member['seq']} 棒 {member['nickname']} 完成接力")
-            if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
-                _finish_activity(self.api, self.dbmanager, act)
+            if not is_update:
+                self._announce_group(act["group_id"],
+                                     f"第 {member['seq']} 棒 {member['nickname']} 完成接力")
+                if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
+                    _finish_activity(self.api, self.dbmanager, act)
         else:
-            self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
-            if all(m["status"] in ("done", "left") for m in members):
-                _finish_activity(self.api, self.dbmanager, act)
+            if not is_update:
+                self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
+                if all(m["status"] in ("done", "left") for m in members):
+                    _finish_activity(self.api, self.dbmanager, act)
 
     def _extract_submission(self) -> tuple[str, list[str]]:
         """从消息段提取正文与图片文件（命令文本之后的部分为正文）。"""
