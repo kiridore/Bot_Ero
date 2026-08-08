@@ -44,9 +44,8 @@ After=network.target
 
 [Service]
 WorkingDirectory=/home/dore/onebot/Bot_Ero
+EnvironmentFile=/home/dore/onebot/Bot_Ero/scripts/botero.env
 Environment=BOTERO_DB_PATH=/home/dore/onebot/Bot_Ero/data.db
-Environment=BOTERO_AUTH_SALT=CHANGE_ME
-# 换盐时把旧盐加进来，旧密钥仍有效：BOTERO_AUTH_SALT_OLD=旧盐值
 Environment=BOTERO_GALLERY_PORT=8765
 ExecStart=/usr/bin/python3 -m webapp
 Restart=always
@@ -55,11 +54,12 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-部署步骤（模板已在 `scripts/`，先替换盐值再安装）：
+> **盐值单一来源**：`BOTERO_AUTH_SALT` 经 `EnvironmentFile` 从 `scripts/botero.env` 注入（bot 的 `main.py` 启动时也加载同一文件）。bot 生成密钥与 webapp 验证密钥**必须使用同一盐值**，改盐只改这一个文件。
+
+部署步骤（模板已在 `scripts/`，确认盐值后安装）：
 
 ```bash
 cd /home/dore/onebot/Bot_Ero/scripts
-sed -i 's/CHANGE_ME/<你的随机盐值>/' botero-web.service
 cp botero-web.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now botero-web
@@ -67,7 +67,7 @@ systemctl enable --now botero-web
 
 > 生成随机盐：`openssl rand -base64 24`。
 >
-> **换盐无感迁移**：若此前已用旧盐发过密钥，把旧盐值配到 `BOTERO_AUTH_SALT_OLD`（逗号分隔可多个），旧密钥继续有效，无需群友重新 `/图库密钥`；之后新发的密钥用新盐。
+> **换盐无感迁移**：若此前已用旧盐发过密钥，把旧盐值追加到 `scripts/botero.env` 的 `BOTERO_AUTH_SALT_OLD`（逗号分隔可多个），旧密钥继续有效，无需群友重新 `/图库密钥`；之后新发的密钥用新盐。
 
 ### 一键启停脚本
 
@@ -100,8 +100,8 @@ systemctl enable --now botero-web
 | `BOTERO_THUMB_MAX_WIDTH` | `480` | 缩略图最大宽度 |
 | `BOTERO_THUMB_MAX_HEIGHT` | `720` | 缩略图最大高度 |
 | `BOTERO_THUMB_QUALITY` | `82` | 缩略图 JPEG 质量 |
-| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | 登录密钥盐（生产环境必须修改为随机值；修改后旧密钥失效） |
-| `BOTERO_AUTH_SALT_OLD` | 空 | 历史盐列表（逗号分隔）。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
+| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | 登录密钥盐。**单一来源 `scripts/botero.env`**：bot（main.py 启动加载）与 webapp（systemd EnvironmentFile）共用，改盐只改该文件；生产建议改为随机值 |
+| `BOTERO_AUTH_SALT_OLD` | 空 | 历史盐列表（逗号分隔，写于 `scripts/botero.env`）。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 网页打卡单次最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
 

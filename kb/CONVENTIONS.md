@@ -73,8 +73,8 @@ logger.exception("...")  # 自动附带 traceback
 
 ## 安全注意
 
-- Web 图库的 `AUTH_SALT` 默认值在 repo 中，生产必须通过环境变量覆盖
-- `AUTH_SALT` 改变会导致所有已发出的登录密钥失效
+- Web 图库登录密钥盐单一来源：`scripts/botero.env`（bot 的 main.py 启动加载，webapp 经 systemd EnvironmentFile；源码默认值与其一致）
+- `AUTH_SALT` 改变会导致所有已发出的登录密钥失效（换盐用 `BOTERO_AUTH_SALT_OLD` 无感迁移）
 - 下载代理 `127.0.0.1:7890` 硬编码，非标准端口
 
 ## 路径陷阱

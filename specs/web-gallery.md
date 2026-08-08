@@ -108,7 +108,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 | `BOTERO_THUMB_MAX_WIDTH` | `480` | 缩略图最大宽度 |
 | `BOTERO_THUMB_MAX_HEIGHT` | `720` | 缩略图最大高度 |
 | `BOTERO_THUMB_QUALITY` | `82` | JPEG 缩略图质量 |
-| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | HMAC 盐值（生产环境必须改） |
+| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | HMAC 盐值（**单一来源 `scripts/botero.env`**，bot 与 webapp 共用；生产建议改随机值） |
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 单次打卡最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` (10MB) | 单张图片最大字节 |
 | `BOTERO_TRPG_CHARS_ROOT` | `server_data/trpg_chars` | 跑团角色卡 JSON 存储根目录 |
@@ -139,7 +139,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 **登录模型:**
 - 密钥即 token：`Authorization: Bearer <key>` 传输，无服务端 session
-- 全站共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有分区通用
+- 全站共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有分区通用；**盐值单一来源为 `scripts/botero.env`**（bot 生成密钥与 webapp 验证密钥共用，改盐只改该文件）
 - 前端 token 存 localStorage（**单 origin 共享**——任一分区登录后其余分区免重复登录；`core/web/static/auth.js` 同时保留根域 cookie 写入，兼容旧缓存）
 - **依赖注入:** `Depends(get_current_user_id)`（必须登录）/ `Depends(get_optional_user_id)`（可选登录），定义在 `core/web/auth_deps.py`
 
@@ -332,8 +332,8 @@ with _connect() as conn:
 
 ### 认证盐值
 
-- `AUTH_SALT` 默认值为 `"BotEro-Gallery-ChangeMe"`
-- 生产环境必须通过环境变量 `BOTERO_AUTH_SALT` 覆盖（所有子应用共享同一盐值）
+- `AUTH_SALT` 默认值为 `"BotEro-Gallery-ChangeMe"`（定义于 `core/config.py`，环境变量 `BOTERO_AUTH_SALT` 驱动）
+- **部署单一来源**：`scripts/botero.env`（bot 的 `main.py` 启动时加载、webapp 经 systemd `EnvironmentFile` 注入），两进程共用同一盐值；改盐只改该文件
 
 ---
 
@@ -371,5 +371,5 @@ webapp/static/
 ## Constraint: 部署
 
 - 完整部署（systemd unit 示例、环境变量注入、Caddy 反代配置）见 [`docs/web-apps-deployment.md`](../docs/web-apps-deployment.md)
-- 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_AUTH_SALT` 等；systemd 单 unit `botero-web.service`，Caddy 根域 `littlero.tech` 全部流量反代 8765（主页/分区/API 均由 webapp 路由）；无子域 DNS
+- 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_GALLERY_PORT` 等；`BOTERO_AUTH_SALT` 经 `scripts/botero.env`（EnvironmentFile）注入；systemd 单 unit `botero-web.service`，Caddy 根域 `littlero.tech` 全部流量反代 8765（主页/分区/API 均由 webapp 路由）；无子域 DNS
 

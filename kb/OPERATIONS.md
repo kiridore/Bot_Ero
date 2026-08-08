@@ -18,10 +18,10 @@ python main.py
 ### Web 应用部署
 
 ```bash
-export BOTERO_AUTH_SALT="your-secret-salt"
-export BOTERO_ONEBOT_HTTP="http://..."
 python -m webapp
 ```
+
+> 登录密钥盐经 `scripts/botero.env` 单一来源注入（bot 的 `main.py` 启动时自动加载该文件；webapp 生产环境经 systemd `EnvironmentFile`）。无需手动 export，改盐只改该文件。
 
 单进程承载导航主页（`/`）与 6 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities`），Caddy 全量反代 8765，单一根域按路径路由。完整部署见 `docs/web-apps-deployment.md`。
 

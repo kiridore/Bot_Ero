@@ -1,6 +1,19 @@
+import os
 import time
 import threading
 import json as json_
+from pathlib import Path
+
+# 统一环境注入：bot 与 webapp 共用 scripts/botero.env（BOTERO_AUTH_SALT 等单一来源）。
+# 必须在导入 core 之前执行（core.config 在 import 时读取环境变量）；进程已有环境变量优先。
+_ENV_FILE = Path(__file__).resolve().parent / "scripts" / "botero.env"
+if _ENV_FILE.is_file():
+    for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _, _value = _line.partition("=")
+        os.environ.setdefault(_key.strip(), _value.strip())
 
 from datetime import datetime
 from core import api
