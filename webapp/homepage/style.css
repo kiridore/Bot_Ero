@@ -423,3 +423,124 @@ button:focus-visible {
   .masthead { padding-top: 1.6rem; }
   .badge { transform: none; }
 }
+
+/* —— 登录（全 webapp 统一 auth.js 渲染；样式与 core/web/static/gallery.css 同步） —— */
+.auth-area {
+  width: min(880px, 100% - 2rem);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-shrink: 0;
+}
+
+.btn-login,
+.user-chip {
+  font-size: 0.85rem;
+  color: var(--accent-ink);
+  text-decoration: none;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-login:hover,
+.user-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.user-chip img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(44, 42, 36, 0.06);
+}
+
+.user-chip .uid {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.login-dialog {
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--paper-card);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+  padding: 1.4rem;
+  width: min(380px, 90vw);
+  max-width: 420px;
+}
+
+.login-dialog::backdrop {
+  background: rgba(44, 42, 36, 0.45);
+}
+
+.login-dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+}
+
+.login-hint {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.login-dialog input {
+  width: 100%;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+}
+
+.login-error {
+  color: var(--red);
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+.login-error.hidden {
+  display: none;
+}
+
+.login-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.login-actions button {
+  font-family: inherit;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.login-actions button.primary {
+  background: var(--accent);
+  color: var(--paper);
+  border: none;
+  font-weight: 600;
+}
+
+.login-actions button.primary:hover {
+  filter: brightness(1.08);
+}

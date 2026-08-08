@@ -169,3 +169,8 @@ async function init() {
 }
 
 init();
+
+// 登录态（与全 webapp 一致：auth.js 统一渲染登录按钮/用户卡片）
+GalleryAuth.refreshMe().finally(() => {
+  GalleryAuth.renderAuth(document.getElementById("authArea"));
+});

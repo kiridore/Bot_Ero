@@ -109,7 +109,7 @@ systemctl enable --now botero-web
 
 ## 6. 导航主页
 
-导航主页文件位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + 三个 JSON），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管。`entries.json` 是主页（入口页）**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述/徽标都在此文件完成，无需改动 `index.html`。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。
+导航主页文件位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + 三个 JSON），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管。`entries.json` 是主页（入口页）**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述/徽标都在此文件完成，无需改动 `index.html`。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。主页右上角提供与全站一致的登录按钮（`auth.js`），单 origin 下任一分区登录后主页即显示用户卡片。
 
 ## 7. 启动顺序与验证
 
