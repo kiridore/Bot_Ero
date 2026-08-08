@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 from gallery.repository import CheckinImage, fetch_user_settlement_day
 from core import user_settings as user_settings_mod
-from core.config import GALLERY_URL
 from core.onebot_client import resolve_display_name
 from core.web.auth_deps import get_current_user_id
 from profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
@@ -66,11 +65,11 @@ def _file_slug(content: str) -> str:
 
 
 def _media_url(user_id: str, content: str) -> str:
-    return f"{GALLERY_URL}/media/{user_id}/{_file_slug(content)}"
+    return f"/media/{user_id}/{_file_slug(content)}"
 
 
 def _thumb_url(user_id: str, content: str) -> str:
-    return f"{GALLERY_URL}/thumb/{user_id}/{_file_slug(content)}"
+    return f"/thumb/{user_id}/{_file_slug(content)}"
 
 
 def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
@@ -201,7 +200,15 @@ def api_update_settings(
     return SettingsOut(privacy=merged.get("privacy", {}))
 
 
-@router.get("/checkin")
+@router.get("/profile")
+def profile_page():
+    page = STATIC_DIR / "profile.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少个人主页")
+    return FileResponse(page)
+
+
+@router.get("/profile/checkin")
 def checkin_page():
     page = STATIC_DIR / "checkin.html"
     if not page.is_file():
@@ -209,7 +216,7 @@ def checkin_page():
     return FileResponse(page)
 
 
-@router.get("/shop")
+@router.get("/profile/shop")
 def shop_page():
     page = STATIC_DIR / "shop.html"
     if not page.is_file():
@@ -217,7 +224,7 @@ def shop_page():
     return FileResponse(page)
 
 
-@router.get("/settings")
+@router.get("/profile/settings")
 def settings_page():
     page = STATIC_DIR / "settings.html"
     if not page.is_file():

@@ -1,60 +1,39 @@
-# 网页子应用部署文档（Caddy + systemd + DNS）
+# 网页应用部署文档（Caddy + systemd + DNS）
 
-本文档是 BotEro 网页端在 VPS 上的部署参考。6 个子域（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`）由**单进程** `webapp` 承载：1 个 uvicorn 进程注册 6 个 APIRouter，页面 `/` 按 Host 头分发，Caddy 统一反代到 8765。
+本文档是 BotEro 网页端在 VPS 上的部署参考。6 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。
 
-## 1. DNS
+## 1. URL 方案
 
-6 个子域 A 记录指向 VPS 公网 IP：
+| 分区 | 路径 |
+|------|------|
+| 导航主页 | `/`（`webapp/homepage/`，纯静态 + entries/quotes/notices JSON） |
+| 图库 | `/gallery` |
+| 留言簿 | `/guestbook` |
+| 个人中心 | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） |
+| 跑团 | `/trpg`（`/trpg/char/{user_id}/{char_id}`） |
+| 闹钟 | `/alarms` |
+| 活动 | `/activities`（`/activities/{activity_id}`） |
+| API/静态/媒体 | `/api/*` `/static/*` `/shared/*` `/thumb/*` `/media/*` `/archive/*`（根路径，全局唯一） |
 
-| 子域 | 记录类型 | 说明 |
-|------|---------|------|
-| `gallery.littlero.tech` | A | 已有记录，无需改动 |
-| `guestbook.littlero.tech` | A | |
-| `profile.littlero.tech` | A | |
-| `trpg.littlero.tech` | A | |
-| `alarms.littlero.tech` | A | |
-| `activities.littlero.tech` | A | |
+根域 `/` 为导航主页（`homepage/`，纯静态）。单 origin 下登录态天然共享（同源 localStorage），页面间跳转均为同源相对路径。
 
-若其他服务（狼人杀、MC 地图等）也部署在同机，照此模式追加 `@` 子域即可。
+## 2. DNS
 
-## 2. Caddyfile
+**仅需 `littlero.tech` 的 A 记录**（已有）。拆分阶段配置的 6 个子域 A 记录（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`）**可以删除**，不再被使用。
 
-现成配置文件：`scripts/Caddyfile`（仓库内，部署路径 `/home/dore/onebot/Bot_Ero`）。导航主页为根域 `littlero.tech` 静态托管，6 个子域**统一反代到单进程 `127.0.0.1:8765`**（Caddy `reverse_proxy` 默认透传原 Host 头，`webapp` 按 Host 分发首页）：
+## 3. Caddyfile
+
+现成配置文件：`scripts/Caddyfile`（仓库内，部署路径 `/home/dore/onebot/Bot_Ero`）。根域**全部流量**（导航主页、各分区页面、API/静态/媒体）统一反代到 `webapp`，由应用自行路由：
 
 ```caddyfile
 littlero.tech {
-	root * /home/dore/onebot/Bot_Ero/homepage
-	file_server
-}
-
-gallery.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-guestbook.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-profile.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-trpg.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-alarms.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-activities.littlero.tech {
 	reverse_proxy 127.0.0.1:8765
 }
 ```
 
-> **注意**：旧路径（如 `/guestbook/`、`/trpg/` 等子路径）**不提供重定向**，直接失效。入口一律走各子域首页。
+> **注意**：旧子域 URL（如 `https://gallery.littlero.tech`）**不做重定向**，直接失效；书签/群链接统一改为 `https://littlero.tech/<分区>`。
 
-## 3. systemd
+## 4. systemd
 
 单 unit 模板已入库（`scripts/botero-web.service`），部署路径已配为 `/home/dore/onebot/Bot_Ero`：
 
@@ -90,18 +69,6 @@ systemctl enable --now botero-web
 >
 > **换盐无感迁移**：若此前已用旧盐发过密钥，把旧盐值配到 `BOTERO_AUTH_SALT_OLD`（逗号分隔可多个），旧密钥继续有效，无需群友重新 `/图库密钥`；之后新发的密钥用新盐。
 
-### 从 6 进程迁移
-
-旧部署是 6 个独立 unit（`botero-gallery`/`botero-guestbook`/`botero-profile`/`botero-trpg`/`botero-alarms`/`botero-activities`）。切换为单进程：
-
-```bash
-systemctl disable --now botero-gallery botero-guestbook botero-profile botero-trpg botero-alarms botero-activities
-systemctl enable --now botero-web
-caddy reload   # 新 Caddyfile（6 子域统一反代 8765）
-```
-
-> 生产盐值直接沿用旧 unit 的 `BOTERO_AUTH_SALT` 环境注入方式，无密钥迁移成本。
-
 ### 一键启停脚本
 
 仓库提供 `scripts/botero-services.sh`（Ubuntu，需 root 或 sudo），管理 `botero-web`：
@@ -113,7 +80,7 @@ caddy reload   # 新 Caddyfile（6 子域统一反代 8765）
 ./scripts/botero-services.sh status   # 查看状态
 ```
 
-## 4. 环境变量清单
+## 5. 环境变量清单
 
 全部 `BOTERO_*` 变量（定义于 `core/config.py`，bot 与 webapp 共用）：
 
@@ -126,7 +93,6 @@ caddy reload   # 新 Caddyfile（6 子域统一反代 8765）
 | `BOTERO_ACTIVITY_ROOT` | `<仓库>/server_data/activity_archive` | 活动存档目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | webapp 监听地址 |
 | `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口 |
-| `BOTERO_GALLERY_URL` | `https://gallery.littlero.tech` | 个人中心等引用图库媒体/缩略图的基地址 |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP 地址，用于拉取 QQ 昵称 |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 访问令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号 |
@@ -139,24 +105,27 @@ caddy reload   # 新 Caddyfile（6 子域统一反代 8765）
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 网页打卡单次最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
 
-## 5. 导航主页
+> 旧变量 `BOTERO_GALLERY_URL`（图库域基地址）已删除：单 origin 后媒体 URL 为同源根相对路径，无需跨域基地址。
 
-`homepage/entries.json` 是主页（入口页）**唯一**的入口维护点：增删子应用入口、改 `url`、改展示名称/描述/徽标都在此文件完成，无需改动 `index.html`。子应用自身入口链接也一律指向对应子域。
+## 6. 导航主页
 
-## 6. 启动顺序与验证
+导航主页文件位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + 三个 JSON），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管。`entries.json` 是主页（入口页）**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述/徽标都在此文件完成，无需改动 `index.html`。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。
+
+## 7. 启动顺序与验证
 
 1. 首次部署：`git clone` 仓库到 VPS（如 `/home/dore/onebot/Bot_Ero`），配置 DNS 与 Caddyfile；
 2. 更新代码：`git pull` 后重启服务；
 3. 启动：`./scripts/botero-services.sh start`（首次部署先 `enable --now botero-web` 设为开机自启）；
-4. 验证：依次访问 6 个子域根路径，均应返回 HTTP 200 且内容为对应页面：
+4. 验证：主页与各分区路径均应返回 HTTP 200：
    ```bash
-   for d in gallery guestbook profile trpg alarms activities; do
-     echo "$d: $(curl -s -o /dev/null -w '%{http_code}' https://$d.littlero.tech)"
+   curl -s -o /dev/null -w "主页: %{http_code}\n" https://littlero.tech/
+   for p in /gallery /guestbook /profile /trpg /alarms /activities; do
+     echo "$p: $(curl -s -o /dev/null -w '%{http_code}' https://littlero.tech$p)"
    done
    ```
    `ps` 中 uvicorn 应只剩 1 个 web 进程。
 
-## 7. 已知限制
+## 8. 已知限制
 
-- **登录态跨域共享**：登录密钥经根域 cookie（`botero_key`，`.littlero.tech`）+ localStorage 双写，6 个子域首次访问任一域登录后其余域免重复登录（共享 `core/web/static/auth.js` 处理）。
+- **单 origin 登录共享**：全部页面同源，登录态存于该 origin 的 localStorage（`auth.js` 同时保留根域 cookie 写入，兼容旧缓存），任一分区登录后其余分区免重复登录。
 - **SQLite 两写者**：`data.db` 仅剩 bot（`main.py`）与 webapp 两个写者，均为 WAL + `busy_timeout=5000`；高并发写场景（如打卡高峰期）仍可能偶发 `database is locked`，出现时重试即可。

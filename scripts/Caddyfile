@@ -1,31 +1,8 @@
-# BotEro 站点配置：导航主页（根域）静态托管 + 6 个子域统一反代单进程 webapp（Host 头透传，按域分发页面）
+# BotEro 站点配置：根域 littlero.tech 全部流量反代单进程 webapp（8765）
 # 用法：caddy run --config scripts/Caddyfile 或复制到 /etc/caddy/Caddyfile
+# webapp 自行路由：/ 导航主页（webapp/homepage/）、/gallery /guestbook /profile(/checkin /shop /settings)
+# /trpg(/char/...) /alarms /activities 各分区页面，/api /static /shared /thumb /media /archive 根路径资源
 
 littlero.tech {
-	root * /home/dore/onebot/Bot_Ero/homepage
-	file_server
-}
-
-gallery.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-guestbook.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-profile.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-trpg.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-alarms.littlero.tech {
-	reverse_proxy 127.0.0.1:8765
-}
-
-activities.littlero.tech {
 	reverse_proxy 127.0.0.1:8765
 }

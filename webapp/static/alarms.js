@@ -66,7 +66,7 @@ function renderAuthChip() {
   }
   const link = document.createElement("a");
   link.className = "user-chip";
-  link.href = "/";
+  link.href = "/alarms";
   const img = document.createElement("img");
   img.src = session.avatar_url || "";
   img.alt = session.display_name;

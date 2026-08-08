@@ -44,7 +44,7 @@ function renderAuthChip() {
   }
   const link = document.createElement("a");
   link.className = "user-chip";
-  link.href = "/";
+  link.href = "/trpg";
   const img = document.createElement("img");
   img.src = session.avatar_url || "";
   img.alt = session.display_name;
@@ -190,7 +190,7 @@ function renderList() {
     actBtn.type = "button";
     actBtn.className = "btn-sm";
     actBtn.textContent = "查看";
-    actBtn.addEventListener("click", () => { window.location.href = `/char/${c.user_id}/${c.id}`; });
+    actBtn.addEventListener("click", () => { window.location.href = `/trpg/char/${c.user_id}/${c.id}`; });
     actions.appendChild(actBtn);
     const editBtn = document.createElement("button");
     editBtn.type = "button";

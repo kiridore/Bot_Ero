@@ -24,8 +24,6 @@ ACTIVITY_ROOT = _path_from_env(
 )
 HOST = os.environ.get("BOTERO_GALLERY_HOST", "0.0.0.0")
 PORT = int(os.environ.get("BOTERO_GALLERY_PORT", "8765"))
-# 图库域基地址，供个人中心等子应用跨域引用图库媒体/缩略图
-GALLERY_URL = os.environ.get("BOTERO_GALLERY_URL", "https://gallery.littlero.tech")
 PAGE_SIZE_DEFAULT = 40
 PAGE_SIZE_MAX = 100
 

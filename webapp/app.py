@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from core.auth import verify_login_key
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.web.auth_deps import get_current_user_id
-from webapp import STATIC_DIR
+from webapp import HOME_DIR, STATIC_DIR
 
 from gallery.app import router as gallery_router
 from guestbook.app import router as guestbook_router
@@ -58,24 +58,35 @@ def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
     )
 
 
-INDEX_PAGES = {
-    "gallery.littlero.tech": "index.html",
-    "guestbook.littlero.tech": "guestbook.html",
-    "profile.littlero.tech": "profile.html",
-    "trpg.littlero.tech": "trpg.html",
-    "alarms.littlero.tech": "alarms.html",
-    "activities.littlero.tech": "activities.html",
-}
-
-
+# 导航主页（webapp/homepage/，根域 / 由 Caddy 反代到本进程）
 @app.get("/")
-def index(request: Request):
-    host = (request.headers.get("host") or "").split(":")[0].lower()
-    page = INDEX_PAGES.get(host, "index.html")
-    index_file = STATIC_DIR / page
-    if not index_file.is_file():
-        raise HTTPException(status_code=500, detail="缺少静态页面")
-    return FileResponse(index_file)
+def home():
+    return FileResponse(HOME_DIR / "index.html")
+
+
+@app.get("/style.css")
+def home_style():
+    return FileResponse(HOME_DIR / "style.css")
+
+
+@app.get("/app.js")
+def home_script():
+    return FileResponse(HOME_DIR / "app.js")
+
+
+@app.get("/entries.json")
+def home_entries():
+    return FileResponse(HOME_DIR / "entries.json")
+
+
+@app.get("/notices.json")
+def home_notices():
+    return FileResponse(HOME_DIR / "notices.json")
+
+
+@app.get("/quotes.json")
+def home_quotes():
+    return FileResponse(HOME_DIR / "quotes.json")
 
 
 app.include_router(gallery_router)

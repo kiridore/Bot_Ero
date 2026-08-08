@@ -41,7 +41,7 @@ function renderAuthArea() {
   if (session && session.token) {
     const link = document.createElement("a");
     link.className = "user-chip";
-    link.href = "/";
+    link.href = "/guestbook";
     const img = document.createElement("img");
     img.src = session.avatar_url || "";
     img.alt = session.display_name || session.user_id;

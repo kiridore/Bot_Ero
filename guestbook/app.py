@@ -3,11 +3,13 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from core.database_manager import DbManager
 from core.web.auth_deps import get_current_user_id, get_optional_user_id
+from webapp import STATIC_DIR
 
 router = APIRouter()
 
@@ -49,3 +51,11 @@ def api_guestbook_like(
 ):
     db = DbManager()
     return _or_400(db.guestbook.like_entry, user_id, entry_id)
+
+
+@router.get("/guestbook")
+def guestbook_page():
+    page = STATIC_DIR / "guestbook.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)

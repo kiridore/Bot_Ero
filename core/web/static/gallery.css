@@ -1,4 +1,4 @@
-/* 报纸风主题（与 homepage/style.css :root 数值同步，改一处必须改另一处） */
+/* 报纸风主题（与 webapp/homepage/style.css :root 数值同步，改一处必须改另一处） */
 :root {
   --paper: #f5efe0;
   --paper-card: #fbf7ec;

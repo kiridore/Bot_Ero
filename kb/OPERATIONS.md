@@ -23,7 +23,7 @@ export BOTERO_ONEBOT_HTTP="http://..."
 python -m webapp
 ```
 
-单进程承载 6 个子域（gallery/guestbook/profile/trpg/alarms/activities），Caddy 统一反代 8765，页面按 Host 分发。完整部署见 `docs/web-apps-deployment.md`。
+单进程承载导航主页（`/`）与 6 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities`），Caddy 全量反代 8765，单一根域按路径路由。完整部署见 `docs/web-apps-deployment.md`。
 
 ## 备份机制
 

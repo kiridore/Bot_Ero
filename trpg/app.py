@@ -271,7 +271,15 @@ def api_trpg_rules():
     }
 
 
-@router.get("/char/{user_id}/{char_id}")
+@router.get("/trpg")
+def trpg_page():
+    page = STATIC_DIR / "trpg.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
+
+
+@router.get("/trpg/char/{user_id}/{char_id}")
 def trpg_char_view_page(user_id: str, char_id: int):
     page = STATIC_DIR / "char_view.html"
     if not page.is_file():

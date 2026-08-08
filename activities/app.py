@@ -57,7 +57,15 @@ def serve_activity_media(activity_id: int, filename: str):
     return FileResponse(path)
 
 
-@router.get("/{activity_id}")
+@router.get("/activities")
+def activities_page():
+    page = STATIC_DIR / "activities.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
+
+
+@router.get("/activities/{activity_id}")
 def activity_detail_page(activity_id: int):
     db = DbManager()
     if db.activity.get_activity(activity_id) is None:

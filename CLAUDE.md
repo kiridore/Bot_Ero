@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 6 个功能域模块 `gallery/`、`guestbook/`、`profile/`、`trpg/`、`alarms/`、`activities/` 的 APIRouter），共享 `core/` 层，由 `homepage/` 导航主页聚合入口，Caddy 反代各子域名（`*.littlero.tech`）到同一 8765 端口。
+此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 6 个功能域模块 `gallery/`、`guestbook/`、`profile/`、`trpg/`、`alarms/`、`activities/` 的 APIRouter + 根路径导航主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
 
 ## 运行命令
 
@@ -14,11 +14,12 @@ BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机�
 # 启动机器人主程序
 python main.py
 
-# 启动 Web 应用（单进程承载 6 子域，默认 8765，Caddy 反代子域名）
+# 启动 Web 应用（单进程承载导航主页 + 6 功能分区，默认 8765，Caddy 全量反代）
 python -m webapp
 
-# 本地调试：/etc/hosts 加 6 条 127.0.0.1 <sub>.littlero.tech，
-# 访问 http://<sub>.littlero.tech:8765 即可按子域分发对应页面
+# 本地调试：直接按路径访问 http://127.0.0.1:8765/<分区>
+#   /          导航主页   /gallery  /guestbook  /profile(/checkin /shop /settings)
+#   /trpg(/char/...)  /alarms  /activities
 python -m webapp --port 8765
 ```
 
@@ -68,18 +69,18 @@ OneBot 服务端 ──WebSocket──> main.py
 
 **定时任务：** 继承 `TimedHeartbeatPlugin`，设置类属性 `RUN_AT`（"HH:MM"），可选 `RUN_WEEKDAYS` / `RUN_ANNUAL_DATES`，重写 `handle()` 即可。
 
-### Web 应用（单进程 `webapp`，6 功能域模块）
+### Web 应用（单进程 `webapp`，单一 origin 路径分区）
 
-单进程 FastAPI（端口 8765）注册 6 个模块的 APIRouter，Caddy 反代子域名（`*.littlero.tech`）统一指向 8765，页面 `/` 按 Host 头分发，`homepage/entries.json` 聚合导航。共享 `core/` 层：
+单进程 FastAPI（端口 8765）注册 6 个模块的 APIRouter + 导航主页，单一根域 `littlero.tech` 按路径分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities`），Caddy 全量反代 8765。共享 `core/` 层：
 
-- 入口 `webapp/app.py`：认证路由 `/api/auth/login` + `/api/auth/me`（**唯一一份**）、Host 分发 `INDEX_PAGES`、include 6 个模块 router、mount `/static`（`webapp/static/`）+ `/shared`（`core/web/static/`）
-- 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
+- 入口 `webapp/app.py`：认证路由 `/api/auth/login` + `/api/auth/me`（**唯一一份**）、导航主页（`/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json`，文件在 `webapp/homepage/`）、include 6 个模块 router、mount `/static`（`webapp/static/`）+ `/shared`（`core/web/static/`）
+- 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
-- 密钥即登录 token（HMAC，`core/auth.py`），各子域共享同一 `BOTERO_AUTH_SALT`；前端 token 存 localStorage + 根域 cookie，子域间共享登录态
+- 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
-模块划分：`gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`guestbook/`（留言簿）、`profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `gallery.repository`）、`trpg/`（车卡）、`alarms/`（闹钟）、`activities/`（活动归档）。
+模块划分：`gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`guestbook/`（留言簿）、`profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `gallery.repository`）、`trpg/`（车卡）、`alarms/`（闹钟）、`activities/`（活动归档）；导航主页 `webapp/homepage/`（`entries.json` 为唯一入口维护点）。
 
 ### LLM 子系统 (`core/llm/`)
 

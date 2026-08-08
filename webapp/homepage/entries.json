@@ -2,7 +2,7 @@
   {
     "name": "打卡图库",
     "desc": "每日打卡记录与图片画廊",
-    "url": "https://gallery.littlero.tech",
+    "url": "/gallery",
     "badge": "本店招牌",
     "span": 2
   },
@@ -28,27 +28,27 @@
   {
     "name": "留言簿",
     "desc": "群友留言与点赞",
-    "url": "https://guestbook.littlero.tech"
+    "url": "/guestbook"
   },
   {
     "name": "闹钟",
     "desc": "个人与群闹钟管理",
-    "url": "https://alarms.littlero.tech"
+    "url": "/alarms"
   },
   {
     "name": "跑团",
     "desc": "DND 车卡与角色查看",
-    "url": "https://trpg.littlero.tech"
+    "url": "/trpg"
   },
   {
     "name": "活动",
     "desc": "接龙与匹配活动的作品归档",
-    "url": "https://activities.littlero.tech"
+    "url": "/activities"
   },
   {
     "name": "个人中心",
     "desc": "个人主页、打卡、商店与称号设置",
-    "url": "https://profile.littlero.tech",
+    "url": "/profile",
     "span": 2
   }
 ]

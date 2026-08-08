@@ -3,10 +3,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from alarms.alarm_service import cancel_alarm, create_alarm, list_alarms
 from core.web.auth_deps import get_current_user_id
+from webapp import STATIC_DIR
 
 router = APIRouter()
 
@@ -53,3 +55,11 @@ def api_alarms_cancel(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     return _or_400(cancel_alarm, user_id, alarm_id)
+
+
+@router.get("/alarms")
+def alarms_page():
+    page = STATIC_DIR / "alarms.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)

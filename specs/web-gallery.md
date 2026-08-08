@@ -2,30 +2,30 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-09 (6 个独立子应用合并为单进程 webapp：1 个 uvicorn + 6 个 APIRouter，页面 `/` 按 Host 分发；子域/DNS/Caddy 结构不变，端口统一 8765)
+> 最后更新: 2026-08-09 (单进程 webapp + 同源路径分区：6 模块路由挂根域 `littlero.tech` 下 `/gallery` 等路径；删除子域、Host 分发与 `BOTERO_GALLERY_URL`)
 
 ---
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include；页面 `/` 按 Host 头分发，Caddy 反代子域名（`*.littlero.tech`），由 `homepage/` 导航主页（纯静态，`entries.json` 配置卡片）聚合入口。
+Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` 等前缀路径；根域 `/` 由 webapp 提供导航主页（`webapp/homepage/`，纯静态 + `entries.json` 配置卡片）聚合入口。
 
-| 模块 | 包 | 域名 | 职责 |
+| 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
-| 图库 | `gallery` | gallery.littlero.tech | 打卡图库瀑布流 + /thumb /media + 打卡数据 API |
-| 留言簿 | `guestbook` | guestbook.littlero.tech | 留言列表/发表/点赞 |
-| 个人中心 | `profile` | profile.littlero.tech | 个人主页/打卡/商店/称号/设置 5 域聚合 |
-| 跑团 | `trpg` | trpg.littlero.tech | 车卡创建/编辑/查看 |
-| 闹钟 | `alarms` | alarms.littlero.tech | 闹钟 CRUD |
-| 活动 | `activities` | activities.littlero.tech | 活动归档/详情 |
+| 图库 | `gallery` | `/gallery` | 打卡图库瀑布流 + /thumb /media + 打卡数据 API |
+| 留言簿 | `guestbook` | `/guestbook` | 留言列表/发表/点赞 |
+| 个人中心 | `profile` | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） | 个人主页/打卡/商店/称号/设置 5 域聚合 |
+| 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}`） | 车卡创建/编辑/查看 |
+| 闹钟 | `alarms` | `/alarms` | 闹钟 CRUD |
+| 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
-│  ws://127.0.0.1:3001 │     │  gallery guestbook profile trpg           │
-│                      │     │  alarms activities（6 个 APIRouter）       │
-└────────┬────────────┘     │        │  └─ Caddy 反代 *.littlero.tech     │
-         │                  │        └── homepage/ (静态导航主页)         │
+│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg       │
+│                      │     │  /alarms /activities（6 个 APIRouter）     │
+└────────┬────────────┘     │        │  └─ Caddy 全量反代              │
+         │                  │        └── / (webapp/homepage 导航主页)   │
          └──────────┬───────┘
                     │
               ┌─────▼─────┐
@@ -35,7 +35,7 @@ Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`tr
 
 **启动:** `python -m webapp [--host HOST] [--port PORT]`（默认端口 8765；`--db`/`--images` 覆盖数据库/图片目录）。
 
-**MUST NOT:** 旧单体路径（如 `/profile/trpg`、`/guestbook`）不提供重定向，直接失效；模块之间不互相内链页面路径，跨域引用一律用完整域名（如 `BOTERO_GALLERY_URL`）。
+**MUST NOT:** 旧子域 URL（`https://gallery.littlero.tech` 等）与旧单体路径不提供重定向，直接失效；模块之间不互相内链页面路径，同源引用一律用根相对路径（`/gallery` 等）。
 
 **MUST NOT:** 给 uvicorn 加 `--workers` 多进程 worker（多 worker 重新引入多进程 SQLite 写竞争）。
 
@@ -57,24 +57,25 @@ Web 端按功能域拆分为 **6 个模块（`gallery`/`guestbook`/`profile`/`tr
 | `core/trpg/` | 跑团规则与角色派生计算 |
 | `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
 
-- Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，与 homepage/style.css 同步），禁止在子应用样式文件引入新的硬编码颜色。
+- Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，与 webapp/homepage/style.css 同步），禁止在子应用样式文件引入新的硬编码颜色。
 
 ---
 
 ## Constraint: 模块统一骨架
 
-每个功能域模块目录：`app.py`（`router = APIRouter()`，业务/页面路由）、`__init__.py`；静态文件全部集中在 `webapp/static/`（25 个文件，文件名全局唯一）。单进程入口 `webapp/app.py` 负责认证路由、Host 分发、router include 与静态挂载：
+每个功能域模块目录：`app.py`（`router = APIRouter()`，业务/页面路由）、`__init__.py`；静态文件全部集中在 `webapp/static/`（25 个文件，文件名全局唯一）。单进程入口 `webapp/app.py` 负责认证路由、导航主页（`webapp/homepage/`，根路径 `/` 与 5 个资源路由）、router include 与静态挂载：
 
 ```python
 # webapp/app.py（唯一 FastAPI 入口）
 app = FastAPI(title="BotEro Web", version="1.0.0")
 # POST /api/auth/login + GET /api/auth/me（唯一一份）
+# GET / → webapp/homepage/index.html（导航主页，entries/quotes/notices JSON 同根路径）
 app.include_router(gallery_router)       # from gallery.app import router as ...
 app.include_router(guestbook_router)
 app.include_router(profile_router)
 app.include_router(trpg_router)
 app.include_router(alarms_router)
-app.include_router(activities_router)    # 最后：/{activity_id:int} 不遮蔽任何已注册路由
+app.include_router(activities_router)    # 最后：/activities/{activity_id:int} 不遮蔽任何已注册路由
 app.mount("/static", StaticFiles(directory=webapp/static))    # 全部模块静态
 app.mount("/shared", StaticFiles(directory=core/web/static))  # 共享静态
 
@@ -85,7 +86,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 
 - **MUST:** 认证路由（`POST /api/auth/login`、`GET /api/auth/me`）只允许存在于 `webapp/app.py`，feature 模块**不得**再定义
 - **MUST:** 每个模块的 `app.py` 导出 `router = APIRouter()`，不得创建 `FastAPI()` 实例、不得 mount 静态目录
-- 页面路由用 `FileResponse` 返回 `webapp/static/*.html`
+- 页面路由用 `FileResponse` 返回 `webapp/static/*.html`；页面路径带分区前缀（`/gallery` 等），API 保持根路径
 - `profile` 依赖 `gallery.repository`（2 处 import：`CheckinImage`、`fetch_user_settlement_day`）——图库数据层是个人中心的数据来源
 
 ---
@@ -100,7 +101,6 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 | `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
 | `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
 | `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口（唯一端口） |
-| `BOTERO_GALLERY_URL` | `https://gallery.littlero.tech` | 图库域基地址（个人中心等子应用跨域引用图库媒体/缩略图） |
 | `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
 | `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |
 | `BOTERO_GROUP_ID` | `296470819` | 默认群号（昵称查询） |
@@ -139,8 +139,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 **登录模型:**
 - 密钥即 token：`Authorization: Bearer <key>` 传输，无服务端 session
-- 各子域共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有模块通用
-- 前端 token 存 localStorage + **根域 cookie**（`botero_key`，`.littlero.tech`），6 个子域共享登录态——任一域登录后其余域免重复登录（共享 `core/web/static/auth.js` 处理）
+- 全站共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有分区通用
+- 前端 token 存 localStorage（**单 origin 共享**——任一分区登录后其余分区免重复登录；`core/web/static/auth.js` 同时保留根域 cookie 写入，兼容旧缓存）
 - **依赖注入:** `Depends(get_current_user_id)`（必须登录）/ `Depends(get_optional_user_id)`（可选登录），定义在 `core/web/auth_deps.py`
 
 ---
@@ -221,16 +221,16 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 ### 页面路由（FileResponse）
 
-`/` 在 `webapp/app.py` 按 Host 头分发（`INDEX_PAGES`：gallery.littlero.tech→index.html、guestbook→guestbook.html、profile→profile.html、trpg→trpg.html、alarms→alarms.html、activities→activities.html；未知 Host 回退图库页）。其余页面路由在各模块：
+页面路由在各模块（前缀路径，根域 `/` 为 homepage 导航，不经 webapp）：
 
 | 模块 | 路径 |
 |--------|------|
-| `gallery` | `/` 图库主页（Host 分发） |
-| `profile` | `/` 个人主页（Host 分发）；`/checkin` 网页打卡；`/shop` 积分商店；`/settings` 称号设置 |
-| `trpg` | `/` 车卡管理（Host 分发）；`/char/{user_id}/{char_id}` 角色卡只读查看页 |
-| `guestbook` | `/` 留言簿（Host 分发） |
-| `alarms` | `/` 闹钟管理（Host 分发） |
-| `activities` | `/` 活动归档（Host 分发，三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
+| `gallery` | `/gallery` 图库主页 |
+| `profile` | `/profile` 个人主页；`/profile/checkin` 网页打卡；`/profile/shop` 积分商店；`/profile/settings` 称号设置 |
+| `trpg` | `/trpg` 车卡管理；`/trpg/char/{user_id}/{char_id}` 角色卡只读查看页 |
+| `guestbook` | `/guestbook` 留言簿 |
+| `alarms` | `/alarms` 闹钟管理 |
+| `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 
 ---
 
@@ -343,7 +343,7 @@ with _connect() as conn:
 
 ```
 core/web/static/
-  auth.js       ← 认证 token 管理（localStorage + 根域 cookie，子域共享登录态）
+  auth.js       ← 认证 token 管理（单 origin localStorage 共享；保留根域 cookie 写入兼容旧缓存）
   gallery.css   ← 图库样式
   profile.css   ← 个人中心样式
 ```
@@ -360,14 +360,16 @@ webapp/static/
   activities.html/js、activities_detail.html/js
 ```
 
+导航主页位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + `entries.json`/`notices.json`/`quotes.json`），由 `webapp/app.py` 在根路径 `/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json` 提供；`entries.json` 为唯一入口维护点。
+
 - 原生 JavaScript，无框架
 - 认证 token 通过 `Authorization: Bearer <token>` 传递
-- 跨域引用图库媒体用 `BOTERO_GALLERY_URL` 拼完整 URL，不内链其他模块相对路径
+- 同源引用一律用根相对路径（如 profile 的媒体 URL 为 `/media/...`、分区间跳转 `/gallery` 等），不内链其他分区绝对路径
 
 ---
 
 ## Constraint: 部署
 
 - 完整部署（systemd unit 示例、环境变量注入、Caddy 反代配置）见 [`docs/web-apps-deployment.md`](../docs/web-apps-deployment.md)
-- 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_AUTH_SALT` / `BOTERO_GALLERY_URL` 等；systemd 单 unit `botero-web.service`，Caddy 6 子域统一反代 127.0.0.1:8765
+- 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_AUTH_SALT` 等；systemd 单 unit `botero-web.service`，Caddy 根域 `littlero.tech` 全部流量反代 8765（主页/分区/API 均由 webapp 路由）；无子域 DNS
 

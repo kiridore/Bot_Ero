@@ -1,14 +1,14 @@
-/* 站点导航条：全子应用共享。点击跳转导航主页与各功能子域，当前域高亮。
-   部署时修改 NAV_HOME_URL（导航主页地址）与 NAV_ITEMS 中的子域 host。 */
+/* 站点导航条：全站共享。点击跳转导航主页与各功能分区（同源路径），当前分区高亮。
+   部署时修改 NAV_HOME_URL（导航主页地址）。 */
 const NAV_HOME_URL = "https://littlero.tech";
 const NAV_HOME_LABEL = "小埃中继站";
 const NAV_ITEMS = [
-  { label: "图库", host: "gallery.littlero.tech" },
-  { label: "个人中心", host: "profile.littlero.tech" },
-  { label: "跑团", host: "trpg.littlero.tech" },
-  { label: "留言簿", host: "guestbook.littlero.tech" },
-  { label: "闹钟", host: "alarms.littlero.tech" },
-  { label: "活动", host: "activities.littlero.tech" },
+  { label: "图库", path: "/gallery" },
+  { label: "个人中心", path: "/profile" },
+  { label: "跑团", path: "/trpg" },
+  { label: "留言簿", path: "/guestbook" },
+  { label: "闹钟", path: "/alarms" },
+  { label: "活动", path: "/activities" },
 ];
 
 (function () {
@@ -54,10 +54,10 @@ const NAV_ITEMS = [
 `;
   document.head.appendChild(style);
 
-  const current = location.hostname;
+  const current = location.pathname;
   const links = NAV_ITEMS.map(
     (it) =>
-      `<a href="https://${it.host}/"${it.host === current ? ' class="active"' : ""}>${it.label}</a>`
+      `<a href="${it.path}"${current.startsWith(it.path) ? ' class="active"' : ""}>${it.label}</a>`
   ).join("");
 
   const nav = document.createElement("nav");

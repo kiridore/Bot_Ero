@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-09 (Web 应用合并：6 个独立子应用 → 单进程 webapp（1 个 uvicorn + 6 个 APIRouter，页面按 Host 分发），目录结构与 spec 同步)
+> Last updated: 2026-08-09 (Web 应用收敛为单进程 webapp + 单 origin 路径分区：6 模块路由挂根域 /gallery 等路径，导航主页并入 webapp/homepage，删除子域与 Host 分发)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -62,7 +62,7 @@
 │   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
-│   ├── web/static/            ← Web 子应用共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 见 core/web/static/gallery.css，与 homepage/style.css 数值同步）
+│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 见 core/web/static/gallery.css，与 webapp/homepage/style.css 数值同步）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 43 个已注册插件
 ├── kb/                        ← 知识库子文档
@@ -73,16 +73,16 @@
 │   ├── OPERATIONS.md
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
-├── webapp/                    ← Web 单进程入口（8765；认证路由/Host 分发/static 合并目录；`python -m webapp`）
+├── webapp/                    ← Web 单进程入口（8765；认证路由/导航主页/static 合并目录；`python -m webapp`）
 │   ├── app.py                 ← 唯一 FastAPI 入口（include 6 模块 router + mount /static /shared）
+│   ├── homepage/              ← 导航主页（根路径 / 提供；entries/quotes/notices 三个 JSON 配置，entries.json 为唯一入口维护点）
 │   └── static/                ← 全部模块静态文件（index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等 25 个）
-├── gallery/                   ← 图库模块（gallery.littlero.tech；repository/thumbnails/dates）
-├── guestbook/                 ← 留言簿模块（guestbook.littlero.tech）
-├── profile/                   ← 个人中心模块（profile.littlero.tech）
-├── trpg/                      ← 跑团模块（trpg.littlero.tech）
-├── alarms/                    ← 闹钟模块（alarms.littlero.tech）
-├── activities/                ← 活动归档模块（activities.littlero.tech）
-├── homepage/                  ← 导航主页（纯静态，Caddy 托管；entries/quotes/notices 三个 JSON 配置）
+├── gallery/                   ← 图库模块（/gallery；repository/thumbnails/dates）
+├── guestbook/                 ← 留言簿模块（/guestbook）
+├── profile/                   ← 个人中心模块（/profile）
+├── trpg/                      ← 跑团模块（/trpg）
+├── alarms/                    ← 闹钟模块（/alarms）
+├── activities/                ← 活动归档模块（/activities）
 └── test/                      ← 临时测试脚本
 ```
 

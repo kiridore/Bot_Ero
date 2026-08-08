@@ -7,7 +7,6 @@ from core.config import (
     CHECKIN_MAX_BYTES,
     CHECKIN_MAX_IMAGES,
     DB_PATH,
-    GALLERY_URL,
     GROUP_ID,
     HOST,
     IMAGE_ROOT,

@@ -14,6 +14,7 @@ from gallery.repository import (
     resolve_image_path,
 )
 from gallery.thumbnails import ensure_thumbnail
+from webapp import STATIC_DIR
 
 router = APIRouter()
 
@@ -143,3 +144,11 @@ def serve_thumb(user_id: str, filename: str):
 def serve_media(user_id: str, filename: str):
     path = _resolve_and_guard(user_id, filename)
     return FileResponse(path)
+
+
+@router.get("/gallery")
+def gallery_page():
+    page = STATIC_DIR / "index.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
