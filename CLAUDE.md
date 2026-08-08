@@ -80,7 +80,7 @@ OneBot 服务端 ──WebSocket──> main.py
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
-模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）、`webapp/live/`（直播间：SRS HTTP-FLV + flv.js + `/api/live/status` 探测 + 观众在场 heartbeat/viewers）；导航主页 `webapp/homepage/`（`entries.json` 为唯一入口维护点）。
+模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）、`webapp/live/`（直播间：SRS HTTP-FLV + mpegts.js + `/api/live/status` 探测 + 观众在场 heartbeat/viewers）；导航主页 `webapp/homepage/`（`entries.json` 为唯一入口维护点）。
 
 ### LLM 子系统 (`core/llm/`)
 

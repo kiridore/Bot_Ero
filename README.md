@@ -47,7 +47,7 @@ python -m webapp                               # 默认 http://0.0.0.0:8765
 | `littlero.tech/trpg` | 跑团车卡（`/trpg/char/{uid}/{cid}` 角色查看） |
 | `littlero.tech/alarms` | 闹钟 |
 | `littlero.tech/activities` | 活动归档（`/activities/{id}` 详情） |
-| `littlero.tech/live` | 直播间（SRS HTTP-FLV，flv.js 播放；观众列表，登录显示昵称） |
+| `littlero.tech/live` | 直播间（SRS HTTP-FLV，mpegts.js 播放；观众列表，登录显示昵称） |
 | `littlero.tech/api/*` | API（`/api/auth/login`、`/api/checkins`、`/api/me/*` 等，全局唯一） |
 | `littlero.tech/static/*` `/shared/*` | 静态资源 |
 | `littlero.tech/thumb/*` `/media/*` `/archive/*` | 打卡图 / 活动作品媒体 |

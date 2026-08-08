@@ -1,4 +1,4 @@
-// 小埃直播间：SRS HTTP-FLV 播放（flv.js）+ 状态轮询（/api/live/status）+ 观众在场（heartbeat/viewers）
+// 小埃直播间：SRS HTTP-FLV 播放（mpegts.js，SRS 官方播放器同款）+ 状态轮询 + 观众在场
 const LIVE_URL = "https://live.littlero.tech/live/livestream.flv";
 const POLL_MS = 10000;
 const HEARTBEAT_MS = 25000;
@@ -45,19 +45,21 @@ function destroyPlayer() {
 
 function startPlayer() {
   if (!online) return;
-  if (!window.flvjs || !flvjs.isSupported()) {
+  if (!window.mpegts || !mpegts.isSupported()) {
     statusText.textContent = "当前浏览器不支持直播播放，建议使用 Chrome / Edge";
     return;
   }
   destroyPlayer();
-  player = flvjs.createPlayer({
-    type: "flv",
-    url: LIVE_URL,
-    isLive: true,
-    hasAudio: true,
-    cors: true,
-  });
-  player.on(flvjs.Events.ERROR, (errType, detail) => {
+  player = mpegts.createPlayer(
+    {
+      type: "flv",
+      url: LIVE_URL,
+      isLive: true,
+      hasAudio: true,
+    },
+    { enableStashBuffer: false, enableWorker: true } // 低延迟直播
+  );
+  player.on(mpegts.Events.ERROR, (errType, detail) => {
     console.warn("直播流错误:", errType, detail);
     playing = false;
     destroyPlayer();

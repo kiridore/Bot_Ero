@@ -241,7 +241,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `guestbook` | `/guestbook` 留言簿 |
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
-| `live` | `/live` 直播间（flv.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
+| `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 
 ---
 
@@ -369,7 +369,7 @@ webapp/static/
   guestbook.html/js、guestbook.css
   alarms.html/js、alarms.css
   activities.html/js、activities_detail.html/js
-  live.html/live.js/flv.min.js                  ← 直播间（flv.js 内置，无外部 CDN 依赖）
+  live.html/live.js/mpegts.min.js             ← 直播间（mpegts.js 1.7.3 内置，与 SRS 官方播放器同款；flv.js 1.6.2 与该 SRS 实例不兼容已弃用）
 ```
 
 导航主页位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + `entries.json`/`notices.json`/`quotes.json`），由 `webapp/app.py` 在根路径 `/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json` 提供；`entries.json` 为唯一入口维护点。登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走主页 style.css 的报纸风 token）。
