@@ -47,6 +47,19 @@ class MockApiWrapper:
         self.call_api("send_private_forward_msg", {"user_id": self.context.user_id, "messages": forward(message)})
         return 0
 
+    def send_forward_nodes(self, nodes: list) -> int:
+        if self.context.group_id is not None:
+            return self.send_group_forward_nodes(nodes)
+        return self.send_private_forward_nodes(nodes)
+
+    def send_group_forward_nodes(self, nodes: list) -> int:
+        self.call_api("send_group_forward_msg", {"group_id": self.context.group_id, "messages": nodes})
+        return 0
+
+    def send_private_forward_nodes(self, nodes: list) -> int:
+        self.call_api("send_private_forward_msg", {"user_id": self.context.user_id, "messages": nodes})
+        return 0
+
     def call_api(self, action: str, params: dict) -> dict:
         self.api_calls.append((action, params))
         if action in ("send_msg", "send_group_msg", "send_private_msg"):

@@ -2,7 +2,7 @@ import random
 from datetime import datetime
 
 from core import utils
-from core.base import CommandPlugin
+from core.base import BOT_QQ, NICKNAME, CommandPlugin
 from core.cq import at, text
 from core.utils import on_quest_trigger, register_plugin
 from plugins.title import get_title_def, evaluate_and_unlock_titles
@@ -207,6 +207,17 @@ class LotteryPlugin(CommandPlugin):
         for extra in outcome["texts"][1:]:
             self.api.send_msg(text(extra))
 
+    def _forward_node(self, text_body: str) -> dict:
+        """合并转发单条子消息节点（OneBot11 格式：user_id/nickname/content）。"""
+        return {
+            "type": "node",
+            "data": {
+                "user_id": int(BOT_QQ),
+                "nickname": NICKNAME,
+                "content": [text(text_body)],
+            },
+        }
+
     def _handle_bulk_draw(self, user_id):
         today = datetime.now().strftime("%Y-%m-%d")
         has_checkin_today = self.dbmanager.checkin.has_on_date(user_id, today)
@@ -223,21 +234,22 @@ class LotteryPlugin(CommandPlugin):
                 )),
             )
             return
-        segments = []
+        nodes = []
         done = 0
         for _ in range(remaining):
             outcome = self._perform_single_draw(user_id, today)
             if not outcome["ok"]:
-                segments.append(text(
+                nodes.append(self._forward_node(
                     "积分不足，停止抽奖（已完成 {} 次，剩余 {} 次未抽）。当前积分：{}".format(
                         done, remaining - done, outcome["points"]
                     )
                 ))
                 break
             done += 1
-            segments.append(text("\n".join(outcome["texts"])))
-        segments.insert(0, text("🎲 一键抽奖完成：共 {} 次".format(done)))
-        self.api.send_forward_msg(segments)
+            # 每次抽奖一条子消息：解锁通知 + 主结果 + 周常通知
+            nodes.append(self._forward_node("\n".join(outcome["texts"])))
+        nodes.insert(0, self._forward_node("🎲 一键抽奖完成：共 {} 次".format(done)))
+        self.api.send_forward_nodes(nodes)
 
     def handle(self):
         if self.bot_event.user_id == None:

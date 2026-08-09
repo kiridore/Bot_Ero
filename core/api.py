@@ -178,6 +178,26 @@ class ApiWrapper:
         ret = self.call_api("send_private_forward_msg", params)
         return 0 if ret.get("status") != "ok" else 1
 
+    def send_forward_nodes(self, nodes: list) -> int:
+        """发送多节点合并转发（每个 node 一条子消息），自动路由群聊/私聊。"""
+        if self.context.group_id != None:
+            return self.send_group_forward_nodes(nodes)
+        else:
+            return self.send_private_forward_nodes(nodes)
+
+    def send_group_forward_nodes(self, nodes: list) -> int:
+        group_id = self.context.group_id
+        if not group_id:
+            group_id = runtime_context.DEFAULT_GROUP_ID
+        params = {"group_id": group_id, "messages": nodes}
+        ret = self.call_api("send_group_forward_msg", params)
+        return 0 if ret.get("status") != "ok" else 1
+
+    def send_private_forward_nodes(self, nodes: list) -> int:
+        params = {"user_id": self.context.user_id, "messages": nodes}
+        ret = self.call_api("send_private_forward_msg", params)
+        return 0 if ret.get("status") != "ok" else 1
+
     def get_group_album_list(self, group_id):
         params = {"group_id": group_id}
         ret = self.call_api("get_group_album_list", params)

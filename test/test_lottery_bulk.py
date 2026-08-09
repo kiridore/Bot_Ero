@@ -47,18 +47,22 @@ def _last_text(plugin):
     )
 
 
-def _forward_text(plugin):
-    """最近一次合并转发的全部文本（header + 每次抽奖段）。"""
+def _forward_nodes(plugin):
+    """最近一次合并转发的节点列表（每个 node 一条子消息）。"""
     for action, params in reversed(plugin.api.api_calls):
         if action in ("send_group_forward_msg", "send_private_forward_msg"):
-            node = params["messages"][0]
-            assert node["type"] == "node"
-            return "".join(
-                seg["data"].get("text", "")
-                for seg in node["data"]["content"]
-                if seg["type"] == "text"
-            )
+            nodes = params["messages"]
+            assert nodes and all(n["type"] == "node" for n in nodes)
+            return nodes
     raise AssertionError("未发送合并转发消息")
+
+
+def _node_text(node):
+    return "".join(
+        seg["data"].get("text", "")
+        for seg in node["data"]["content"]
+        if seg["type"] == "text"
+    )
 
 
 class TestLotteryBulk(unittest.TestCase):
@@ -89,34 +93,41 @@ class TestLotteryBulk(unittest.TestCase):
         return self._run_raw(make_group_message(text_body, user_id=user_id), user_id=user_id)
 
     def test_bulk_draws_all_remaining_no_checkin(self):
-        """未打卡上限 2 次：连抽 2 次，首抽免费、第二次扣 1 积分，合并转发。"""
+        """未打卡上限 2 次：连抽 2 次，首抽免费、第二次扣 1 积分；
+        合并转发为 1 条 header + 每次抽奖各 1 条子消息。"""
         p = self._run("/一键抽奖")
         p.handle()
-        text = _forward_text(p)
-        self.assertIn("一键抽奖完成：共 2 次", text)
-        self.assertEqual(text.count("*摇骰子*"), 2)
+        nodes = _forward_nodes(p)
+        self.assertEqual(len(nodes), 3)  # header + 2 次抽奖
+        self.assertIn("一键抽奖完成：共 2 次", _node_text(nodes[0]))
+        self.assertEqual(sum("*摇骰子*" in _node_text(n) for n in nodes[1:]), 2)
+        for n in nodes:
+            self.assertEqual(n["data"]["user_id"], 3915014383)
+            self.assertEqual(n["data"]["nickname"], "小埃同学")
         self.assertEqual(self.db.lottery.draw_count(123456, self.today), 2)
         self.assertEqual(self.db.lottery.spent(123456), 1)
 
     def test_bulk_draws_with_checkin_five(self):
-        """今日已打卡上限 5 次：连抽 5 次，扣 4 积分。"""
+        """今日已打卡上限 5 次：连抽 5 次，扣 4 积分，5 条抽奖子消息。"""
         self.db.checkin.insert(123456, ["test_img"])
         p = self._run("/一键抽奖")
         p.handle()
-        text = _forward_text(p)
-        self.assertIn("一键抽奖完成：共 5 次", text)
-        self.assertEqual(text.count("*摇骰子*"), 5)
+        nodes = _forward_nodes(p)
+        self.assertEqual(len(nodes), 6)  # header + 5 次抽奖
+        self.assertEqual(sum("*摇骰子*" in _node_text(n) for n in nodes[1:]), 5)
         self.assertEqual(self.db.lottery.draw_count(123456, self.today), 5)
         self.assertEqual(self.db.lottery.spent(123456), 4)
 
     def test_bulk_stops_on_insufficient_points(self):
-        """奖励为 0 时：免费首抽后积分不足，停止并提示。"""
+        """奖励为 0 时：免费首抽后积分不足，停止并提示（独立子消息）。"""
         lottery_module.draw_reward = lambda db, uid: {"type": "points", "value": 0}
         p = self._run("/一键抽奖")
         p.handle()
-        text = _forward_text(p)
-        self.assertIn("一键抽奖完成：共 1 次", text)
-        self.assertIn("积分不足", text)
+        nodes = _forward_nodes(p)
+        self.assertEqual(len(nodes), 3)  # header + 1 次抽奖 + 积分不足提示
+        self.assertIn("一键抽奖完成：共 1 次", _node_text(nodes[0]))
+        self.assertTrue(any("积分不足" in _node_text(n) for n in nodes))
+        self.assertEqual(sum("*摇骰子*" in _node_text(n) for n in nodes), 1)
         self.assertEqual(self.db.lottery.draw_count(123456, self.today), 1)
         self.assertEqual(self.db.lottery.spent(123456), 0)
         self.assertEqual(self.db.points.get(123456), 0)
@@ -131,11 +142,13 @@ class TestLotteryBulk(unittest.TestCase):
         self.assertFalse(any(a == "send_group_forward_msg" for a, _ in p.api.api_calls))
 
     def test_bulk_private_chat_forward(self):
-        """私聊走 send_private_forward_msg。"""
+        """私聊走 send_private_forward_msg，节点结构一致。"""
         raw = make_private_message("/一键抽奖", user_id=123456)
         p = self._run_raw(raw, user_id=123456)
         p.handle()
-        self.assertIn("共 2 次", _forward_text(p))
+        nodes = _forward_nodes(p)
+        self.assertIn("共 2 次", _node_text(nodes[0]))
+        self.assertEqual(len(nodes), 3)
         self.assertTrue(any(a == "send_private_forward_msg" for a, _ in p.api.api_calls))
 
     def test_single_draw_regression(self):

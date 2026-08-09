@@ -227,6 +227,11 @@ def _inject_titles_before_at(self, message):
 | `send_forward_msg` | `(message: list) → int` | 1 成功 / 0 失败 | 合并转发，自动路由 |
 | `send_group_forward_msg` | `(message: list) → int` | 1 成功 / 0 失败 | 群合并转发 |
 | `send_private_forward_msg` | `(message: list) → int` | 1 成功 / 0 失败 | 私聊合并转发 |
+| `send_forward_nodes` | `(nodes: list) → int` | 1 成功 / 0 失败 | 多节点合并转发（每个 node 一条子消息），自动路由 |
+| `send_group_forward_nodes` | `(nodes: list) → int` | 1 成功 / 0 失败 | 群多节点合并转发 |
+| `send_private_forward_nodes` | `(nodes: list) → int` | 1 成功 / 0 失败 | 私聊多节点合并转发 |
+
+> 合并转发两种形态：`send_*_forward_msg` 接收普通消息段列表，内部经 `forward()` 包装为单 node；`send_*_forward_nodes` 直接接收 node 列表（每个 node 含 `user_id`/`nickname`/`content`，OneBot11 格式，对应上游 `send_group_forward_msg` / `send_private_forward_msg` 的 `messages` 数组）。
 
 ### 消息操作
 

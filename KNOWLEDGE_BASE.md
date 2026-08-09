@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-09 (直播间 /live：webapp 第 7 个模块，SRS HTTP-FLV + mpegts.js（SRS 官方播放器同款），状态探测方案 A；新增兑换码插件；新增 /一键抽奖 指令)
+> Last updated: 2026-08-09 (直播间 /live：webapp 第 7 个模块，SRS HTTP-FLV + mpegts.js（SRS 官方播放器同款），状态探测方案 A；新增兑换码插件；新增 /一键抽奖 指令，合并转发按次独立子消息)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
