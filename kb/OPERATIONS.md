@@ -25,6 +25,8 @@ python -m webapp
 
 单进程承载导航主页（`/`）与 7 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live`），Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
 
+> **称号定义变更后需重启 webapp：** `plugins/title/defs.py` 由 `core/title_defs.py` 在**进程导入时快照加载**一次（`TITLE_DEFS: dict = _load()`），网页端个人主页的称号目录（含总数与进度条）读该快照。新增/修改/删除称号后必须 `sudo systemctl restart botero-web`（或 `./scripts/botero-services.sh restart`），否则页面停留在旧称号列表（新解锁的称号也不显示）。
+
 ## 备份机制
 
 - 每天 08:00 自动备份: 下载打卡图片到 `server_data/record_images/<user_id>/`
