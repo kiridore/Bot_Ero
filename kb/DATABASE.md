@@ -251,6 +251,11 @@ CREATE TABLE user_total_message_count (
 );
 ```
 
+**约定:**
+- 读写层：`MessageStatsManager`（`core/db/message_stats.py`，挂载于 `DbManager.message_stats`），按群计数
+- `stat_date` 为 08:00 日界线对齐的自然日（`(now-8h).strftime("%Y-%m-%d")`），与周边界一致
+- 活跃天数 = `COUNT(DISTINCT stat_date)`；`user_total_message_count` 为跨群累计计数器
+
 ## 群插件配置
 
 ```sql

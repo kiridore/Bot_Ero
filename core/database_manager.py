@@ -12,6 +12,7 @@ from core.db.immortal import ImmortalManager
 from core.db.quest import QuestManager
 from core.db.activity import ActivityManager
 from core.db.guestbook import GuestbookManager
+from core.db.message_stats import MessageStatsManager
 
 
 class DbManager:
@@ -35,35 +36,8 @@ class DbManager:
         self.quest = QuestManager(self.conn)
         self.activity = ActivityManager(self.conn)
         self.guestbook = GuestbookManager(self.conn)
+        self.message_stats = MessageStatsManager(self.conn)
 
     def __del__(self):
         self.conn.commit()
         self.conn.close()
-
-    def increment_group_daily_message_count(self, stat_date, group_id, user_id, inc=1):
-        self.cur.execute("""
-            INSERT INTO group_daily_message_stats (stat_date, group_id, user_id, message_count)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(stat_date, group_id, user_id)
-            DO UPDATE SET message_count = message_count + excluded.message_count
-        """, (stat_date, int(group_id), int(user_id), int(inc)))
-        self.conn.commit()
-
-    def increment_user_total_message_count(self, user_id, inc=1):
-        self.cur.execute("""
-            INSERT INTO user_total_message_count (user_id, message_count)
-            VALUES (?, ?)
-            ON CONFLICT(user_id) DO UPDATE SET
-                message_count = message_count + excluded.message_count
-        """, (int(user_id), int(inc)))
-        self.conn.commit()
-
-    def get_group_daily_message_stats(self, stat_date, group_id, limit=50):
-        self.cur.execute("""
-            SELECT user_id, message_count
-            FROM group_daily_message_stats
-            WHERE stat_date = ? AND group_id = ?
-            ORDER BY message_count DESC, user_id ASC
-            LIMIT ?
-        """, (stat_date, int(group_id), int(limit)))
-        return self.cur.fetchall()
