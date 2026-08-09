@@ -17,7 +17,7 @@ class LotteryPlugin(CommandPlugin):
 
     COST = 1
     FREE_DRAW_HINT = "本次抽卡免费（今日首抽）"
-    COMMANDS = ("/抽奖", "/抽獎", "/抽卡", "/抽卡消费", "/抽卡消費")
+    COMMANDS = ("/抽奖", "/抽獎", "/抽卡", "/抽卡消费", "/抽卡消費", "/一键抽奖", "/一鍵抽獎")
 
     def _extract_target_user_id(self, default_user_id):
         for seg in self.bot_event.message:
@@ -27,41 +27,25 @@ class LotteryPlugin(CommandPlugin):
                     return int(qq)
         return int(default_user_id)
 
-    def _send_unlocked_titles_notice(self, user_id, unlocked_ids):
-        if not unlocked_ids:
-            return
+    def _format_unlocked_titles(self, unlocked_ids):
         lines = ["解锁新称号："]
         for tid in unlocked_ids:
             data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown", "description": "无"}
             lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']}) - {data['description']}")
-        self.api.send_msg(at(user_id), text("\n".join(lines)))
+        return "\n".join(lines)
 
-    def handle(self):
-        if self.bot_event.user_id == None:
-            return
-        user_id = self.bot_event.user_id
-        if self.cmd in ("/抽卡消费", "/抽卡消費"):
-            target_user_id = self._extract_target_user_id(user_id)
-            spent = self.dbmanager.lottery.spent(target_user_id)
-            self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))
-            return
-
-        today = datetime.now().strftime("%Y-%m-%d")
-        draw_count = self.dbmanager.lottery.draw_count(user_id, today)
+    def _max_draw(self, user_id, today):
         has_checkin_today = self.dbmanager.checkin.has_on_date(user_id, today)
         extra_shop_draws = self.dbmanager.shop.draw_bonus(user_id, today)
-        max_draw = (5 if has_checkin_today else 2) + extra_shop_draws
-        if draw_count >= max_draw:
-            self.api.send_msg(
-                at(user_id),
-                text("今天抽卡次数已用完（{}/{}）。{}。".format(
-                    draw_count,
-                    max_draw,
-                    "你今天已打卡，可抽5次" if has_checkin_today else "今日未打卡，默认可抽2次",
-                )),
-            )
-            return
+        return (5 if has_checkin_today else 2) + extra_shop_draws
 
+    def _perform_single_draw(self, user_id, today):
+        """执行一次抽奖：费用结算 → 发放奖励 → 称号/周常评估。
+
+        返回 {"ok": True, "texts": [解锁通知?, 主结果, 周常通知?]}（保持原发送顺序）
+        或 {"ok": False, "points": 当前积分}（积分不足，未扣费未抽奖）。
+        """
+        draw_count = self.dbmanager.lottery.draw_count(user_id, today)
         free_daily = draw_count == 0
         points = self.dbmanager.points.get(user_id)
         payment_exempt = False
@@ -71,13 +55,11 @@ class LotteryPlugin(CommandPlugin):
                 if random.random() < 0.3:
                     payment_exempt = True
                 if not payment_exempt and points < self.COST:
-                    self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
-                    return
+                    return {"ok": False, "points": points}
                 self.dbmanager.shop.pop_waiver(user_id)
             else:
                 if points < self.COST:
-                    self.api.send_msg(at(user_id), text("抽奖需要1点积分，你现在只有{}点喵".format(points)))
-                    return
+                    return {"ok": False, "points": points}
             if not payment_exempt:
                 utils.add_user_point(self.dbmanager, user_id, -self.COST)
                 self.dbmanager.lottery.add_spent(user_id, self.COST)
@@ -99,6 +81,14 @@ class LotteryPlugin(CommandPlugin):
         has_hit_ten = profile["has_hit_ten"]
         total_zeros = profile["total_zeros"]
 
+        texts = []
+        if free_daily:
+            free_mid = "{}\n".format(self.FREE_DRAW_HINT)
+        elif payment_exempt:
+            free_mid = "抽奖增强：本次不消耗积分\n"
+        else:
+            free_mid = ""
+
         if result["type"] == "points":
             reward = result["value"]
             utils.add_user_point(self.dbmanager, user_id, reward)
@@ -115,117 +105,150 @@ class LotteryPlugin(CommandPlugin):
                 user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
             )
             unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
-            self._send_unlocked_titles_notice(user_id, unlocked)
+            if unlocked:
+                texts.append(self._format_unlocked_titles(unlocked))
             net = reward - cost_paid
             now_points = self.dbmanager.points.get(user_id)
-            if free_daily:
-                free_mid = "{}\n".format(self.FREE_DRAW_HINT)
-            elif payment_exempt:
-                free_mid = "抽奖增强：本次不消耗积分\n"
-            else:
-                free_mid = ""
             if reward == 0:
-                self.api.send_msg(
-                    at(user_id),
-                    text(
-                        "*摇骰子* 居然什么都没有抽到呢……\n本次净变化：{}积分\n{}当前积分：{}".format(
-                            net, free_mid, now_points
-                        )
-                    ),
+                texts.append(
+                    "*摇骰子* 居然什么都没有抽到呢……\n本次净变化：{}积分\n{}当前积分：{}".format(
+                        net, free_mid, now_points
+                    )
                 )
             else:
-                self.api.send_msg(
-                    at(user_id),
-                    text(
-                        "*摇骰子* 居然抽到了……{}点积分！\n本次净变化：{}积分\n{}当前积分：{}".format(
-                            reward, net, free_mid, now_points
-                        )
-                    ),
+                texts.append(
+                    "*摇骰子* 居然抽到了……{}点积分！\n本次净变化：{}积分\n{}当前积分：{}".format(
+                        reward, net, free_mid, now_points
+                    )
                 )
-            if completed:
-                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
-                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
-            return
-
-        now_points = self.dbmanager.points.get(user_id)
-        if result["type"] == "title_new":
-            zero_streak = 0
-            self.dbmanager.lottery.upsert_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
-            )
-            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
-            self._send_unlocked_titles_notice(user_id, unlocked)
-            title_id = result["value"]
-            title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
-            self.api.send_msg(
-                at(user_id),
-                text("*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n{}\n当前积分：{}".format(title_id, title_data["name"], title_data["rarity"], draw_cost_hint, now_points)),
-            )
-            if completed:
-                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
-                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
-            return
-
-        if result["type"] == "title_duplicate":
-            duplicate_count += 1
-            zero_streak = 0
-            self.dbmanager.lottery.upsert_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
-            )
-            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
-            self._send_unlocked_titles_notice(user_id, unlocked)
-            title_id = result["value"]
-            title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
-            rebate = result.get("rebate", 0)
-            if free_daily:
-                free_mid = "{}\n".format(self.FREE_DRAW_HINT)
-            elif payment_exempt:
-                free_mid = "抽奖增强：本次不消耗积分\n"
-            else:
-                free_mid = ""
-            self.api.send_msg(
-                at(user_id),
-                text(
+        else:
+            now_points = self.dbmanager.points.get(user_id)
+            if result["type"] == "title_new":
+                zero_streak = 0
+                self.dbmanager.lottery.upsert_profile(
+                    user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
+                )
+                unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+                if unlocked:
+                    texts.append(self._format_unlocked_titles(unlocked))
+                title_id = result["value"]
+                title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
+                texts.append(
+                    "*摇骰子* 居然抽到了……解锁称号 [{}] 「{}」 ({})！\n{}\n当前积分：{}".format(
+                        title_id, title_data["name"], title_data["rarity"], draw_cost_hint, now_points
+                    )
+                )
+            elif result["type"] == "title_duplicate":
+                duplicate_count += 1
+                zero_streak = 0
+                self.dbmanager.lottery.upsert_profile(
+                    user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
+                )
+                unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+                if unlocked:
+                    texts.append(self._format_unlocked_titles(unlocked))
+                title_id = result["value"]
+                title_data = get_title_def(title_id) or {"name": "未知称号", "rarity": "unknown"}
+                rebate = result.get("rebate", 0)
+                texts.append(
                     "*摇骰子* 居然抽到了……已拥有称号 [{}] 「{}」 ({})！\n已返还{}积分。\n{}当前积分：{}".format(
                         title_id, title_data["name"], title_data["rarity"], rebate, free_mid, now_points
                     )
-                ),
-            )
-            if completed:
-                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
-                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
-            return
-
-        if result["type"] == "title_none":
-            zero_streak = 0
-            self.dbmanager.lottery.upsert_profile(
-                user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
-            )
-            unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
-            self._send_unlocked_titles_notice(user_id, unlocked)
-            if free_daily:
-                free_mid = "{}\n".format(self.FREE_DRAW_HINT)
-            elif payment_exempt:
-                free_mid = "抽奖增强：本次不消耗积分\n"
-            else:
-                free_mid = ""
-            self.api.send_msg(
-                at(user_id),
-                text(
+                )
+            elif result["type"] == "title_none":
+                zero_streak = 0
+                self.dbmanager.lottery.upsert_profile(
+                    user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros
+                )
+                unlocked = evaluate_and_unlock_titles(self.dbmanager, user_id)
+                if unlocked:
+                    texts.append(self._format_unlocked_titles(unlocked))
+                texts.append(
                     "*摇骰子* 居然抽到了……{}称号位！\n当前没有可抽取的该稀有度称号。\n{}当前积分：{}".format(
                         result["rarity"], free_mid, now_points
                     )
-                ),
-            )
-            if completed:
-                names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
-                self.api.send_msg(at(user_id), text(f"🎯 {names}"))
-            return
+                )
+            else:
+                texts.append(
+                    "*摇骰子* 居然抽到了……{}！\n{}\n当前积分：{}".format(
+                        result["value"], draw_cost_hint, now_points
+                    )
+                )
 
-        self.api.send_msg(
-            at(user_id),
-            text("*摇骰子* 居然抽到了……{}！\n{}\n当前积分：{}".format(result["value"], draw_cost_hint, now_points)),
-        )
         if completed:
             names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
-            self.api.send_msg(at(user_id), text(f"🎯 {names}"))
+            texts.append(f"🎯 {names}")
+
+        return {"ok": True, "texts": texts}
+
+    def _handle_single_draw(self, user_id):
+        today = datetime.now().strftime("%Y-%m-%d")
+        draw_count = self.dbmanager.lottery.draw_count(user_id, today)
+        has_checkin_today = self.dbmanager.checkin.has_on_date(user_id, today)
+        max_draw = self._max_draw(user_id, today)
+        if draw_count >= max_draw:
+            self.api.send_msg(
+                at(user_id),
+                text("今天抽卡次数已用完（{}/{}）。{}。".format(
+                    draw_count,
+                    max_draw,
+                    "你今天已打卡，可抽5次" if has_checkin_today else "今日未打卡，默认可抽2次",
+                )),
+            )
+            return
+        outcome = self._perform_single_draw(user_id, today)
+        if not outcome["ok"]:
+            self.api.send_msg(
+                at(user_id),
+                text("抽奖需要1点积分，你现在只有{}点喵".format(outcome["points"])),
+            )
+            return
+        self.api.send_msg(at(user_id), text(outcome["texts"][0]))
+        for extra in outcome["texts"][1:]:
+            self.api.send_msg(text(extra))
+
+    def _handle_bulk_draw(self, user_id):
+        today = datetime.now().strftime("%Y-%m-%d")
+        has_checkin_today = self.dbmanager.checkin.has_on_date(user_id, today)
+        max_draw = self._max_draw(user_id, today)
+        draw_count = self.dbmanager.lottery.draw_count(user_id, today)
+        remaining = max_draw - draw_count
+        if remaining <= 0:
+            self.api.send_msg(
+                at(user_id),
+                text("今天抽卡次数已用完（{}/{}）。{}。".format(
+                    draw_count,
+                    max_draw,
+                    "你今天已打卡，可抽5次" if has_checkin_today else "今日未打卡，默认可抽2次",
+                )),
+            )
+            return
+        segments = []
+        done = 0
+        for _ in range(remaining):
+            outcome = self._perform_single_draw(user_id, today)
+            if not outcome["ok"]:
+                segments.append(text(
+                    "积分不足，停止抽奖（已完成 {} 次，剩余 {} 次未抽）。当前积分：{}".format(
+                        done, remaining - done, outcome["points"]
+                    )
+                ))
+                break
+            done += 1
+            segments.append(text("\n".join(outcome["texts"])))
+        segments.insert(0, text("🎲 一键抽奖完成：共 {} 次".format(done)))
+        self.api.send_forward_msg(segments)
+
+    def handle(self):
+        if self.bot_event.user_id == None:
+            return
+        user_id = self.bot_event.user_id
+        if self.cmd in ("/抽卡消费", "/抽卡消費"):
+            target_user_id = self._extract_target_user_id(user_id)
+            spent = self.dbmanager.lottery.spent(target_user_id)
+            self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))
+            return
+        if self.cmd in ("/一键抽奖", "/一鍵抽獎"):
+            self._handle_bulk_draw(user_id)
+            return
+        self._handle_single_draw(user_id)

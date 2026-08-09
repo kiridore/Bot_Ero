@@ -19,7 +19,7 @@
 | 9 | `week_list` | `week_list/` | CommandPlugin `/本周板油` | 本周完成打卡的成员列表 |
 | 10 | `personal_records` | `personal_records/` | CommandPlugin `/档案 [年份]` | 生成年度热力图档案卡 |
 | 11 | `leaderboard` | `leaderboard/` | CommandPlugin `/排名`/`/rank` | TOP10 积分排行榜 |
-| 12 | `lottery` | `lottery/` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费` | 抽卡系统 |
+| 12 | `lottery` | `lottery/` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费`/`/一键抽奖` | 抽卡系统（一键抽奖：连抽今日剩余次数并合并转发结果） |
 | 13 | `immortal_lottery` | `immortal_lottery/` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩 |
 | 14 | `dice` | `dice/` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
 | 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/rc/rh` | 跑团骰子系统：DND5E 万能骰点、d20检定、暗骰、属性引用（规则可切换） |

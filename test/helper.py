@@ -13,6 +13,7 @@ _api.WS_APP = None  # type: ignore[attr-defined]
 _api.echo = _api.Echo()  # type: ignore[attr-defined]
 
 from core.event import Event
+from core.cq import forward
 
 
 class MockApiWrapper:
@@ -31,6 +32,19 @@ class MockApiWrapper:
 
     def send_private_msg(self, *message) -> int:
         self.sent_messages.append(("send_private_msg", message))
+        return 0
+
+    def send_forward_msg(self, message: list) -> int:
+        if self.context.group_id is not None:
+            return self.send_group_forward_msg(message)
+        return self.send_private_forward_msg(message)
+
+    def send_group_forward_msg(self, message: list) -> int:
+        self.call_api("send_group_forward_msg", {"group_id": self.context.group_id, "messages": forward(message)})
+        return 0
+
+    def send_private_forward_msg(self, message: list) -> int:
+        self.call_api("send_private_forward_msg", {"user_id": self.context.user_id, "messages": forward(message)})
         return 0
 
     def call_api(self, action: str, params: dict) -> dict:

@@ -23,7 +23,7 @@
 | `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |
 | `personal_records/` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 生成年度打卡热力图档案卡 |
 | `leaderboard/` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分排行榜 |
-| `lottery/` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` | 抽卡系统：消耗积分随机获取奖励 |
+| `lottery/` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` / `/一键抽奖` | 抽卡系统：消耗积分随机获取奖励；一键抽奖连抽今日剩余次数并合并转发结果 |
 | `immortal_lottery/` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统 |
 | `dice/` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
 | `trpg_dice/` | `TrpgPlugin` | `trpg_dice` | 正则前缀匹配 | `.r` `.rc` `.rh` | 跑团骰子系统：DND5E 万能骰点、d20 检定、暗骰、角色属性引用（规则系统可切换） |
