@@ -265,4 +265,7 @@ TITLE_DEFS = {
     408: {"id": 408, "name": "年活跃", "rarity": "legendary", "description": "一年活跃300天", "unlock_type": "condition"},
     409: {"id": 409, "name": "忠实板油", "rarity": "rare", "description": "累计发言10000条", "unlock_type": "condition"},
     410: {"id": 410, "name": "元老", "rarity": "legendary", "description": "累计发言50000条", "unlock_type": "condition"},
+
+    # redeem: 兑换码解锁
+    501: {"id": 501, "name": "测试员", "rarity": "common", "description": "通过兑换码解锁的测试员称号", "unlock_type": "redeem"},
 }

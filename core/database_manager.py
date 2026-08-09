@@ -13,6 +13,7 @@ from core.db.quest import QuestManager
 from core.db.activity import ActivityManager
 from core.db.guestbook import GuestbookManager
 from core.db.message_stats import MessageStatsManager
+from core.db.redeem import RedeemManager
 
 
 class DbManager:
@@ -37,6 +38,7 @@ class DbManager:
         self.activity = ActivityManager(self.conn)
         self.guestbook = GuestbookManager(self.conn)
         self.message_stats = MessageStatsManager(self.conn)
+        self.redeem = RedeemManager(self.conn)
 
     def __del__(self):
         self.conn.commit()

@@ -347,5 +347,13 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             PRIMARY KEY (activity_id, user_id)
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS redeem_code_usage (
+            user_id INTEGER NOT NULL,
+            code TEXT NOT NULL,
+            used_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, code)
+        );
+    """)
 
     conn.commit()

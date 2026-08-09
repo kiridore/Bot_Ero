@@ -94,6 +94,16 @@ with _connect() as conn:
 | `points` | INTEGER | NOT NULL | 奖励积分 |
 | `claimed_at` | TEXT | NOT NULL | 领取时间 |
 
+#### `redeem_code_usage`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | INTEGER | PRIMARY KEY (with code) | 用户 QQ 号 |
+| `code` | TEXT | PRIMARY KEY (with user_id) | 兑换码（规范化后大写，如 `TEST-CODE-TEST`） |
+| `used_at` | TEXT | NOT NULL | 使用时间 |
+
+- 兑换码系统：`/兑换码 <CODE>` 由 `plugins/redeem_code/` 处理；每用户每码仅可兑换一次，`PRIMARY KEY (user_id, code)` 保证原子防重
+- 读写层：`core/db/redeem.py` 的 `RedeemManager`（`DbManager.redeem`），`claim()` 原子占位、`release()` 回调失败时回滚
+
 ### 周常任务
 
 #### `quest_progress`

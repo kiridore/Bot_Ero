@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-09 (直播间 /live：webapp 第 7 个模块，SRS HTTP-FLV + mpegts.js（SRS 官方播放器同款），状态探测方案 A)
+> Last updated: 2026-08-09 (直播间 /live：webapp 第 7 个模块，SRS HTTP-FLV + mpegts.js（SRS 官方播放器同款），状态探测方案 A；新增兑换码插件)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -12,7 +12,7 @@
 | 需要了解 | 阅读 |
 |---------|------|
 | 项目身份、硬编码常量、所有指令 | [`kb/QUICK_REFERENCE.md`](kb/QUICK_REFERENCE.md) |
-| 44 个插件列表、功能包、数据依赖 | [`kb/PLUGIN_CATALOG.md`](kb/PLUGIN_CATALOG.md) |
+| 45 个插件列表、功能包、数据依赖 | [`kb/PLUGIN_CATALOG.md`](kb/PLUGIN_CATALOG.md) |
 | 打卡流程、抽奖概率、商店价格、称号列表 | [`kb/GAMEPLAY.md`](kb/GAMEPLAY.md) |
 | 开发规范、AI 检查清单、技术债、陷阱 | [`kb/CONVENTIONS.md`](kb/CONVENTIONS.md) |
 | API 速查、部署运维、外部 API | [`kb/OPERATIONS.md`](kb/OPERATIONS.md) |
@@ -64,7 +64,7 @@
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
 │   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 见 core/web/static/gallery.css，与 webapp/homepage/style.css 数值同步）
 │   └── logger.py              ← 日志
-├── plugins/                   ← 44 个已注册插件
+├── plugins/                   ← 45 个已注册插件
 ├── kb/                        ← 知识库子文档
 │   ├── QUICK_REFERENCE.md
 │   ├── PLUGIN_CATALOG.md

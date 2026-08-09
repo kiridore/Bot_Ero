@@ -55,6 +55,13 @@ CREATE TABLE user_attendance_reward_claims (
     claimed_at TEXT NOT NULL,
     PRIMARY KEY (user_id, reward_type, period_key)
 );
+
+CREATE TABLE redeem_code_usage (
+    user_id INTEGER NOT NULL,
+    code TEXT NOT NULL,              -- 兑换码（大写规范化，如 TEST-CODE-TEST）
+    used_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, code)      -- 每用户每码一次
+);
 ```
 
 ## 周常任务
