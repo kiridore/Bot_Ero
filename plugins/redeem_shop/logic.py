@@ -8,7 +8,7 @@ import random
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
-from plugins.title import TITLE_DEFS, get_title_def
+from plugins.title import get_lottery_title_ids, get_title_def
 
 if TYPE_CHECKING:
     from . import RedeemShopPlugin
@@ -151,8 +151,8 @@ def refresh_shop_items_from_database(db) -> None:
 
 
 def weekly_refresh_shop_shelf(db) -> list[int]:
-    """清空商店：随机 4 个称号 + 固定功能商品，并同步内存。"""
-    all_ids = list(TITLE_DEFS.keys())
+    """清空商店：随机 4 个抽奖解锁称号 + 固定功能商品，并同步内存。"""
+    all_ids = get_lottery_title_ids()
     mapping: dict[str, int] = dict(_fixed_shop_stock_mapping())
     picked: list[int] = []
     if all_ids:
