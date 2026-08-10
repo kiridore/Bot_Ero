@@ -9,7 +9,6 @@ TABLES_USER_ID = [
     "user_equipped_titles",
     "user_lottery_profile",
     "user_lottery_stats",
-    "user_total_message_count",
     "user_weekly_streak_reward_claims",
     "user_attendance_reward_claims",
     "user_lottery_daily_stats",
@@ -20,7 +19,6 @@ TABLES_USER_ID = [
     "quest_progress",
     "quest_completion_stats",
     "quest_weekly_clears",
-    "group_daily_message_stats",
 ]
 
 TABLES_CREATOR_USER_ID = [

@@ -196,28 +196,6 @@ with _connect() as conn:
 
 **索引:** `idx_group_alarms_due` on `(fired, fire_at)`
 
-### 消息统计
-
-#### `group_daily_message_stats`
-| 列 | 类型 | 约束 | 说明 |
-|----|------|------|------|
-| `stat_date` | TEXT | PRIMARY KEY (with group_id, user_id) | 统计日期 |
-| `group_id` | INTEGER | PRIMARY KEY (with stat_date, user_id) | 群号 |
-| `user_id` | INTEGER | PRIMARY KEY (with stat_date, group_id) | 用户 QQ 号 |
-| `message_count` | INTEGER | DEFAULT 0 | 当日消息数 |
-
-#### `user_total_message_count`
-| 列 | 类型 | 约束 | 说明 |
-|----|------|------|------|
-| `user_id` | INTEGER | PRIMARY KEY | 用户 QQ 号 |
-| `message_count` | INTEGER | DEFAULT 0 | 历史总消息数 |
-
-**消息统计约定:**
-- 读写层：`core/db/message_stats.py` 的 `MessageStatsManager`（`DbManager.message_stats`），按群计数。
-- `stat_date` 为 **08:00 日界线对齐**的自然日：`(now - timedelta(hours=8)).strftime("%Y-%m-%d")`，与 `get_monday_to_monday()` 周边界严格对齐。
-- 活跃天数 = `COUNT(DISTINCT stat_date)`（`range_stats` 的第二个返回值，区间 `[start, end)` 半开）。
-- `user_total_message_count` 为跨群累计计数器（仅「累计」称号与 `/发言统计` 的「累计」行使用）。
-
 ### 留言簿
 
 #### `guestbook_entries`

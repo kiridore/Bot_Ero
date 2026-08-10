@@ -43,7 +43,6 @@
 | `weekly_quest/` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
 | `who_is_spy/` | `WhoIsSpyPlugin` | `who_is_spy` | 自定义 match: COMMANDS + 私聊游戏阶段 | `/创建游戏 <类型> [人数]` `/开始 <房间号>` `/加入 <房间号>` `/离开` `/退出` `/状态 [房间号]` `/放弃 <房间号>` | 谁是卧底：群聊创建房间，私聊匿名游戏进行 |
 | `activity/` | `ActivityPlugin` | `activity` | 自定义 match | `/活动 创建 接龙\|匹配 …` `/活动 加入/退出/开始/状态/结束`（群聊）`/提交 [活动id]`（私聊） | 群活动：接龙（每人限时、机器人接力转发）与匹配下家（圆桌单环，开始通知下家、作品玩家自提，机器人仅记录归档），全员完成/截止自动归档 |
-| `message_stats/` | `MessageStatsPlugin` | `message_stats` | 自定义 match（消息全匹配 + 指令） | `/发言统计 [@用户]` | 消息统计：按群计数、周期汇总、活跃天数、发言活跃称号 |
 | `redeem_code/` | `RedeemCodePlugin` | `redeem_code` | CommandPlugin | `/兑换码 <兑换码>` | 兑换码系统：一次性兑换码，回调发放奖励 |
 
 ## 通知/请求处理插件
@@ -85,8 +84,7 @@ title/ (TITLE_DEFS, get_title_def, evaluate_and_unlock_titles, get_lottery_title
   ├── checkin/           (unlock titles on check-in)
   ├── lottery/           (lottery title pool)
   ├── week_list/         (format_title_prefix)
-  ├── redeem_shop/       (shop title definitions)
-  └── message_stats/  (TITLE_DEFS, evaluate_and_unlock_titles)
+  └── redeem_shop/       (shop title definitions)
 
 who_is_spy/ (grant_game_titles)
   └── title/        (evaluate_and_unlock_titles, get_title_def)

@@ -241,28 +241,6 @@ CREATE TABLE guestbook_likes (
 );
 ```
 
-## 消息统计
-
-```sql
-CREATE TABLE group_daily_message_stats (
-    stat_date TEXT NOT NULL,
-    group_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
-    message_count INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (stat_date, group_id, user_id)
-);
-
-CREATE TABLE user_total_message_count (
-    user_id INTEGER PRIMARY KEY,
-    message_count INTEGER NOT NULL DEFAULT 0
-);
-```
-
-**约定:**
-- 读写层：`MessageStatsManager`（`core/db/message_stats.py`，挂载于 `DbManager.message_stats`），按群计数
-- `stat_date` 为 08:00 日界线对齐的自然日（`(now-8h).strftime("%Y-%m-%d")`），与周边界一致
-- 活跃天数 = `COUNT(DISTINCT stat_date)`；`user_total_message_count` 为跨群累计计数器
-
 ## 群插件配置
 
 ```sql

@@ -254,17 +254,6 @@ TITLE_DEFS = {
     307: {"id": 307, "name": "调查员", "rarity": "legendary", "description": "平民方累计获胜50场", "unlock_type": "condition"},
     308: {"id": 308, "name": "完美伪装", "rarity": "rare", "description": "卧底方累计获胜10场", "unlock_type": "condition"},
     309: {"id": 309, "name": "千面者", "rarity": "legendary", "description": "卧底方累计获胜50场", "unlock_type": "condition"},
-    # condition: 发言活跃
-    401: {"id": 401, "name": "话痨", "rarity": "common", "description": "单日发言100条", "unlock_type": "condition"},
-    402: {"id": 402, "name": "群聊之王", "rarity": "rare", "description": "单日发言300条", "unlock_type": "condition"},
-    403: {"id": 403, "name": "周常话痨", "rarity": "common", "description": "一周发言300条", "unlock_type": "condition"},
-    404: {"id": 404, "name": "周活跃达人", "rarity": "rare", "description": "一周活跃5天", "unlock_type": "condition"},
-    405: {"id": 405, "name": "月度话痨", "rarity": "rare", "description": "一个月发言1000条", "unlock_type": "condition"},
-    406: {"id": 406, "name": "月全勤", "rarity": "legendary", "description": "一个月活跃28天", "unlock_type": "condition"},
-    407: {"id": 407, "name": "年度话痨", "rarity": "legendary", "description": "一年发言10000条", "unlock_type": "condition"},
-    408: {"id": 408, "name": "年活跃", "rarity": "legendary", "description": "一年活跃300天", "unlock_type": "condition"},
-    409: {"id": 409, "name": "忠实板油", "rarity": "rare", "description": "累计发言10000条", "unlock_type": "condition"},
-    410: {"id": 410, "name": "元老", "rarity": "legendary", "description": "累计发言50000条", "unlock_type": "condition"},
 
     # redeem: 兑换码解锁
     501: {"id": 501, "name": "测试员", "rarity": "common", "description": "通过兑换码解锁的测试员称号", "unlock_type": "redeem"},

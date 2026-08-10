@@ -52,7 +52,6 @@ def get_monday_to_monday(date=None):
 - `utils.day_of_year()` — 热度图日期索引
 - `database_manager.get_user_streaks()` — 连续打卡天数计算
 - `webapp/gallery/dates.py` — Web 端结算日逻辑
-- 发言统计 `message_stats` — `stat_date` 日界线（按 08:00 偏移），与周窗口对齐
 
 **MUST:** 任何新增的"周"相关功能必须使用此偏移，否则跨周边界会出现不一致。
 

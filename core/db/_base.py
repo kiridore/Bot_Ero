@@ -42,21 +42,6 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         );
     """)
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS group_daily_message_stats (
-            stat_date TEXT NOT NULL,
-            group_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            message_count INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (stat_date, group_id, user_id)
-        );
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_total_message_count (
-            user_id INTEGER PRIMARY KEY,
-            message_count INTEGER NOT NULL DEFAULT 0
-        );
-    """)
-    cur.execute("""
         CREATE TABLE IF NOT EXISTS user_lottery_daily_stats (
             stat_date TEXT NOT NULL,
             user_id INTEGER NOT NULL,

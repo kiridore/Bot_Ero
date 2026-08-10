@@ -64,8 +64,6 @@ class PointsManager:
             SELECT DISTINCT user_id FROM user_title_state
             UNION
             SELECT DISTINCT user_id FROM user_equipped_titles
-            UNION
-            SELECT DISTINCT CAST(user_id AS TEXT) FROM group_daily_message_stats
         """)
         user_ids = [row[0] for row in self.cur.fetchall() if row[0] is not None]
 
