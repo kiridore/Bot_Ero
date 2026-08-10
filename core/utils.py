@@ -7,6 +7,7 @@ from core import context
 from core.api import ApiWrapper
 from core.base import Plugin
 from core.database_manager import DbManager
+from core.logger import logger
 
 PluginType = TypeVar("PluginType", bound=type[Plugin])
 # 返回本周一八点到下周一八点
@@ -47,6 +48,35 @@ def get_image(context, image):
     if image_path == "":
         image_path = ApiWrapper(context).get_image(image)
     return image_path
+
+def ensure_checkin_image(api, user_id, content):
+    """确保打卡图片已落盘（打卡时即时下载；08:00 备份任务兜底复用同款逻辑）。
+
+    返回状态：
+    - 'remedy'    补卡记录（remedy_checkin），无图片
+    - 'exists'    文件已存在（含大小写变体）
+    - 'downloaded'新下载成功
+    - 'failed'    不可用（QQ 取图失败/下载失败，等待备份兜底）
+    """
+    slug = content.replace("{", "").replace("}", "").replace("-", "")
+    if slug == "remedy_checkin":
+        return "remedy"
+    folder = f"{context.python_data_path}/record_images/{user_id}"
+    os.makedirs(folder, exist_ok=True)
+    dest = os.path.join(folder, slug)
+    if os.path.exists(dest.lower()) or os.path.exists(dest):
+        return "exists"
+    try:
+        if api.get_image(content) == "":
+            return "failed"
+        url = api.get_image_url(content)
+        if not url:
+            return "failed"
+        ok, _msg = download_image(url, dest)
+        return "downloaded" if ok else "failed"
+    except Exception:
+        logger.exception("打卡图片即时下载失败: user_id=%s content=%s", user_id, content)
+        return "failed"
 
 def download_image(url, local_path, expected_size=None):
     try:

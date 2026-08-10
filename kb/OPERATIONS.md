@@ -29,7 +29,8 @@ python -m webapp
 
 ## 备份机制
 
-- 每天 08:00 自动备份: 下载打卡图片到 `server_data/record_images/<user_id>/`
+- 打卡时即时下载: `/打卡` 时图片即落盘 `server_data/record_images/<user_id>/`（时间线事件引用的 /thumb/ URL 立即可用）
+- 每天 08:00 自动备份兜底: 扫描全部打卡记录，缺失图片补下载（已存在自动跳过）
 - 手动备份: 群内发 `/数据备份`
 
 ## 更新流程

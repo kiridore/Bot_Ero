@@ -2,7 +2,7 @@ import random
 from core.base import CommandPlugin
 from core.cq import text,at
 from core.logger import logger
-from core.utils import add_user_point, get_monday_to_monday, on_quest_trigger
+from core.utils import add_user_point, ensure_checkin_image, get_monday_to_monday, on_quest_trigger
 from core.timeline_client import emit_event
 from datetime import datetime
 from plugins.title import evaluate_and_unlock_titles, get_title_def
@@ -41,6 +41,10 @@ class CheckinPlugin(CommandPlugin):
             # 先打卡（带上 message_id，便于撤回消息时撤销记录）
             msg_id = self.bot_event.message_id
             self.dbmanager.checkin.insert(self.bot_event.user_id, img_list, msg_id)
+
+            # 图片即时落盘：时间线事件引用的 /thumb/ URL 立即可用（08:00 备份任务兜底）
+            for img in img_list:
+                ensure_checkin_image(self.api, self.bot_event.user_id, img)
             checkin_luck_bonus = 0
             if self.dbmanager.shop.pop_luck(self.bot_event.user_id):
                 if random.random() < 0.1:

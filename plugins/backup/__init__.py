@@ -1,12 +1,9 @@
-import os
 import time
 
-import core.context as runtime_context
-from core import utils
 from core.base import TimedHeartbeatPlugin
 from core.cq import text
 
-from core.utils import register_plugin
+from core.utils import register_plugin, ensure_checkin_image
 @register_plugin
 class BackupPlugin(TimedHeartbeatPlugin):
     name = 'backup_data'
@@ -29,44 +26,17 @@ class BackupPlugin(TimedHeartbeatPlugin):
 
         t0 = time.perf_counter()
         for row in rows:
-            # 根据QQ号创建文件夹
             user_id = row[1]
-            python_user_folder = f"{runtime_context.python_data_path}/record_images/{user_id}"
-            image_name = row[3].replace('{', '').replace('}', '').replace('-', '')
+            status = ensure_checkin_image(self.api, user_id, row[3])
 
-            if image_name == "remedy_checkin": 
+            if status == "remedy":
                 remedy_cnt += 1
-                continue
-
-            os.makedirs(python_user_folder, exist_ok=True)
-            flag = "成功"
-
-            # 检测图片是否已经存在对应的文件夹
-            backup_image = os.path.join(python_user_folder, image_name)
-
-            # 确保大小写有一种图片保存下来了
-            if not os.path.exists(backup_image.lower()) and not os.path.exists(backup_image):
-                qq_origin_image_name = self.api.get_image(row[3])
-                if qq_origin_image_name != "":
-                    url = self.api.get_image_url(row[3])
-                    ok, msg = utils.download_image(url, backup_image)
-                    print("download {}".format(backup_image))
-
-                    # qq_origin_image_name = qq_origin_image_name.replace("/root/.config/QQ", context.onebot_qq_volume)
-                    # shutil.copy(qq_origin_image_name, python_user_folder)
-                    if not ok:
-                        print("备份失败{}".format(msg))
-                    else:
-                        success_cnt += 1
-                else:
-                    flag = "QQ图片获取失败"
-                    print("尝试备份{}, {}".format(backup_image, flag))
-                    error_cnt += 1
-            else:
-                flag = "无需备份"
+            elif status == "exists":
                 exists_cnt += 1
-
-            # print("尝试备份{}, {}".format(backup_image, flag))
+            elif status == "downloaded":
+                success_cnt += 1
+            else:
+                error_cnt += 1
 
         elapsed = time.perf_counter() - t0
         if elapsed < 60:

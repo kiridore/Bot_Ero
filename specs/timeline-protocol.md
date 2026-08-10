@@ -90,7 +90,7 @@
 
 - 渲染约定：每个 URL 渲染为卡片内缩略图；URL 以 `/thumb/` 开头时，点击跳转的原图为同路径替换 `/media/` 的 URL（展示约定，非业务判断）；其他 http(s) URL 直接作为链接目标。
 - 图片的生成、存在性、尺寸校验由**发送方**负责；Event Server 不校验图片内容。
-- v1 提供者：`checkin` 事件按图库缩略图约定构造 `/thumb/<user_id>/<slug>`（slug = 文件名去 `{}` 与 `-`）。
+- v1 提供者：`checkin` 事件按图库缩略图约定构造 `/thumb/<user_id>/<slug>`（slug = 文件名去 `{}` 与 `-`）；发送方在**事件发出前**将图片下载到 `record_images/<user_id>/`（打卡时即时落盘，08:00 备份任务兜底补下载），保证时间线渲染时 URL 可用。
 
 ## Constraint: 已注册 source 与 dedup_key 约定
 
