@@ -156,5 +156,25 @@ class TestRedeemCode(unittest.TestCase):
             del codes.REDEEM_CODES["COMB-CODE-TEST"]
 
 
+    def test_first_anniversary_code_grants_title_and_points(self):
+        p = self._run("/兑换码 ONLY-YEAR-ONCE")
+        p.handle()
+        reply = _sent_text(p)
+        self.assertIn("兑换成功", reply)
+        self.assertIn("1st", reply)
+        self.assertIn("+10", reply)
+        self.assertTrue(self.db.titles.has(123456, 502))
+        self.assertEqual(self.db.points.get(123456), 10)
+        self.assertEqual(_usage_count(self.conn, 123456, "ONLY-YEAR-ONCE"), 1)
+
+    def test_first_anniversary_code_second_use_blocked(self):
+        self._run("/兑换码 ONLY-YEAR-ONCE").handle()
+        p = self._run("/兑换码 ONLY-YEAR-ONCE")
+        p.handle()
+        self.assertIn("已使用过", _sent_text(p))
+        self.assertEqual(self.db.points.get(123456), 10)  # 积分不重复发放
+        self.assertEqual(_usage_count(self.conn, 123456, "ONLY-YEAR-ONCE"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

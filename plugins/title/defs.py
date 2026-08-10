@@ -257,4 +257,5 @@ TITLE_DEFS = {
 
     # redeem: 兑换码解锁
     501: {"id": 501, "name": "测试员", "rarity": "common", "description": "通过兑换码解锁的测试员称号", "unlock_type": "redeem"},
+    502: {"id": 502, "name": "1st", "rarity": "legendary", "description": "一周年专属称号，通过一周年兑换码解锁", "unlock_type": "redeem"},
 }
