@@ -81,6 +81,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  border-right: 1px solid var(--rule);
+  padding-right: 1.4rem;
 }
 
 .tl-brand {
@@ -90,7 +92,7 @@
   color: var(--ink);
   text-decoration: none;
   padding-bottom: 0.6rem;
-  border-bottom: 2px solid var(--rule);
+  border-bottom: 3px double var(--line);
 }
 
 .tl-brand:hover {
@@ -115,7 +117,7 @@
   flex-direction: column;
   gap: 0.15rem;
   padding: 0.45rem 0.6rem;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   text-decoration: none;
   color: var(--ink);
   border-left: 3px solid transparent;
@@ -156,7 +158,7 @@
 }
 
 .tl-auth {
-  border-top: 1px solid var(--rule);
+  border-top: 3px double var(--line);
   padding-top: 0.9rem;
   margin-left: 0;
   flex-direction: column;
@@ -164,9 +166,24 @@
   gap: 0.6rem;
 }
 
+/* 页面内覆盖共享样式：登录按钮/用户卡片/对话框去圆角（报纸方块风） */
+.tl-auth .btn-login,
+.tl-auth .user-chip {
+  border-radius: 0;
+}
+
+.login-dialog {
+  border-radius: 0;
+}
+
 /* —— 主栏 —— */
 .tl-main {
   min-width: 0;
+}
+
+.tl-rail {
+  border-left: 1px solid var(--rule);
+  padding-left: 1.4rem;
 }
 
 .tl-head {
@@ -174,8 +191,8 @@
   align-items: baseline;
   gap: 0.75rem;
   padding-bottom: 0.6rem;
-  margin-bottom: 1rem;
-  border-bottom: 2px solid var(--line);
+  margin-bottom: 0.4rem;
+  border-bottom: 3px double var(--line);
 }
 
 .tl-head h1 {
@@ -218,12 +235,12 @@
 }
 
 .tl-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 0; /* 报纸人物照：方块 */
   object-fit: cover;
   background: rgba(44, 42, 36, 0.06);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--line);
 }
 
 .tl-actor {
@@ -275,8 +292,8 @@
   height: 130px;
   max-width: 200px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--rule);
+  border-radius: 0; /* 报纸配图：直角方块 */
+  border: 1px solid var(--line);
   background: rgba(44, 42, 36, 0.06);
   transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
@@ -292,15 +309,16 @@
   font-size: 0.82rem;
   color: var(--accent-ink);
   text-decoration: none;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  padding: 0.22rem 0.7rem;
-  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 0; /* 报纸方块 */
+  padding: 0.25rem 0.75rem;
+  background: transparent;
+  letter-spacing: 0.06em;
 }
 
 .tl-detail:hover {
-  border-color: var(--accent-ink);
   background: var(--accent);
+  border-color: var(--accent);
   color: var(--paper);
 }
 
