@@ -2,7 +2,7 @@
 
 /* —— 报头（恢复自旧导航主页 masthead）—— */
 .masthead {
-  width: min(1180px, 100% - 2rem); /* 与下方三栏布局同宽，边缘对齐 */
+  width: min(960px, 100% - 2rem); /* 与下方两栏布局同宽，边缘对齐 */
   margin: 1.5rem auto 0;
   text-align: center;
   padding: 2.2rem 0 1.2rem;
@@ -66,9 +66,9 @@
 
 .tl-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 640px) 1fr;
-  gap: 0 1.5rem; /* Twitter 式：列间仅 24px */
-  max-width: 1180px;
+  grid-template-columns: 240px minmax(0, 640px);
+  gap: 0 1.5rem; /* Twitter 式：列间仅 24px，无多余右栏 */
+  max-width: 960px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 4rem;
   align-items: start;
@@ -179,11 +179,6 @@
 /* —— 主栏 —— */
 .tl-main {
   min-width: 0;
-}
-
-.tl-rail {
-  border-left: 1px solid var(--rule);
-  padding-left: 1.4rem;
 }
 
 .tl-head {
@@ -352,9 +347,5 @@
 
   .tl-sidebar {
     position: static;
-  }
-
-  .tl-rail {
-    display: none;
   }
 }
