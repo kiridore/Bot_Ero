@@ -34,7 +34,7 @@
 | 字段 | 必填 | 说明 |
 |---|---|---|
 | `id` | MUST | 发送方生成，格式 `<source>:<uuid>`；同一 source 下全局唯一，用于幂等 |
-| `source` | MUST | 事件来源稳定标识（v1 注册：`checkin`、`quest`、`forum`）；新增 source 需在本文档注册 |
+| `source` | MUST | 事件来源稳定标识（v1 注册：`checkin`、`forum`、`title`；`quest` 已停用）；新增 source 需在本文档注册 |
 | `actor.id` | MUST | 发送方体系内参与者 id；QQ 相关系统传 user_id |
 | `actor.qq` | CAN | 已绑定/已知的 QQ 号；接收方据此解析昵称头像 |
 | `target.type` | CAN | 自由格式标签，仅作未来样式定制，接收方不据此做逻辑判断 |
@@ -70,6 +70,7 @@
   - `DELETE /api/timeline/events/by-key?source=<source>&key=<dedup_key>`——按业务自然键（**业务回滚专用**，发送方无需追踪事件 id）。
 - 鉴权：`BOTERO_EVENT_TOKEN`；删除时 source 必须匹配事件自身的 source。
 - **业务回滚 MUST 联动删除对应事件**：`/撤回打卡`、打卡消息撤回 → 删 `checkin` 事件。硬删除后同日重打卡可重新入列（新 id、新 dedup_key 行）。
+- `title` 事件（解锁称号）为**永久事件**：系统无称号回收路径，不联动撤回。
 
 ## Constraint: 查询与渲染
 
@@ -97,6 +98,7 @@
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
+| `title` | `plugins/title.logic`（`evaluate_and_unlock_titles`） | 解锁称号（打卡/抽奖等评估自动触发；商店/兑换码显式获取不发） | `title:<user_id>:<title_id>`（天然幂等；解锁永久、无回滚，不联动撤回） |
 
 > `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。
 
