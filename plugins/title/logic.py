@@ -21,25 +21,6 @@ def _title_collection_progress(unlocked: int, total: int, width: int = 16) -> st
     return f"[{'█' * filled}{'░' * (width - filled)}] {unlocked}/{total} ({pct:.1f}%)"
 
 
-def emit_title_unlock(user_id, tid, description: str | None = None):
-    """解锁称号时间线事件（best-effort；dedup title:<uid>:<tid> 天然幂等，无回滚）。
-
-    自动评估（evaluate_and_unlock_titles）与抽奖直抽（draw_title_by_rarity）共用。
-    """
-    tdef = TITLE_DEFS.get(tid)
-    if not tdef:
-        return
-    emit_event(
-        source="title",
-        actor_id=str(user_id),
-        actor_qq=str(user_id),
-        title="{id:%s} 解锁称号「%s」" % (user_id, tdef["name"]),
-        description=description or ("稀有度：%s" % tdef.get("rarity", "unknown")),
-        target_url="/profile",
-        dedup_key="title:%s:%s" % (user_id, tid),
-    )
-
-
 def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None = None):
     user_id = int(user_id)
     newly_unlocked = []
@@ -49,7 +30,16 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
             dbmanager.titles.unlock(user_id, tid)
             newly_unlocked.append(tid)
             # 社区时间线事件（best-effort；dedup 按 用户+称号，天然幂等，解锁无回滚）
-            emit_title_unlock(user_id, tid)
+            tdef = TITLE_DEFS[tid]
+            emit_event(
+                source="title",
+                actor_id=str(user_id),
+                actor_qq=str(user_id),
+                title="{id:%s} 解锁称号「%s」" % (user_id, tdef["name"]),
+                description="稀有度：%s" % tdef.get("rarity", "unknown"),
+                target_url="/profile",
+                dedup_key="title:%s:%s" % (user_id, tid),
+            )
 
     if checkin_dt is not None:
         h, m = checkin_dt.hour, checkin_dt.minute

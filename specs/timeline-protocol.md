@@ -98,7 +98,7 @@
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
-| `title` | `plugins/title.logic::emit_title_unlock`（由 `evaluate_and_unlock_titles` 评估触发与 `plugins/lottery.rewards.draw_title_by_rarity` 抽奖直抽调用） | 解锁称号（评估自动触发 + 抽奖直抽；兑换码/商店显式获取不发） | `title:<user_id>:<title_id>`（天然幂等；解锁永久、无回滚，不联动撤回） |
+| `title` | `plugins/title.logic`（`evaluate_and_unlock_titles`） | 解锁称号（打卡/抽奖等评估自动触发；商店/兑换码显式获取不发） | `title:<user_id>:<title_id>`（天然幂等；解锁永久、无回滚，不联动撤回） |
 
 > `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。
 
