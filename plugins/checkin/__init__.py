@@ -64,6 +64,13 @@ class CheckinPlugin(CommandPlugin):
                 actor_qq=self.bot_event.user_id,
                 title="{id:%s} 完成打卡" % self.bot_event.user_id,
                 description="本周第 %d 次" % len(checkin_list),
+                data={"images": [
+                    "/thumb/%s/%s" % (
+                        self.bot_event.user_id,
+                        img.replace("{", "").replace("}", "").replace("-", ""),
+                    )
+                    for img in img_list
+                ]},
                 dedup_key="checkin:%s:%s" % (
                     self.bot_event.user_id,
                     datetime.now().strftime("%Y-%m-%d"),

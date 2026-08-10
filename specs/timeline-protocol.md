@@ -78,6 +78,20 @@
 - 渲染降级顺序：`actor.qq` 存在 → 解析昵称头像；否则查绑定表（v1 无绑定表）→ 「未绑定玩家」。
 - 事件卡片 `display.title`/`description` 中占位符按「占位符解析」约束逐一代换（同批按 user_id 去重解析）。
 
+## Constraint: 卡片媒体（`data.images`）
+
+`data` 整体仍由 Event Server 透传不解析，但渲染层按以下**展示约定**读取：
+
+- 发送方 CAN 在 `data` 提供 `images` 键（图片 URL 数组），时间线卡片据此渲染缩略图条：
+
+```json
+"data": { "images": ["/thumb/123456/abc.image", "/thumb/123456/def.image"] }
+```
+
+- 渲染约定：每个 URL 渲染为卡片内缩略图；URL 以 `/thumb/` 开头时，点击跳转的原图为同路径替换 `/media/` 的 URL（展示约定，非业务判断）；其他 http(s) URL 直接作为链接目标。
+- 图片的生成、存在性、尺寸校验由**发送方**负责；Event Server 不校验图片内容。
+- v1 提供者：`checkin` 事件按图库缩略图约定构造 `/thumb/<user_id>/<slug>`（slug = 文件名去 `{}` 与 `-`）。
+
 ## Constraint: 已注册 source 与 dedup_key 约定
 
 | source | 发送方 | 事件含义 | dedup_key 约定 |

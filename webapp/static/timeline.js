@@ -77,13 +77,10 @@
   /* —— 时间线渲染 —— */
   function fmtTime(ts) {
     const d = new Date(String(ts).replace(" ", "T"));
-    const diff = Date.now() - d.getTime();
-    if (isNaN(diff)) return ts;
-    if (diff < 60e3) return "刚刚";
-    if (diff < 3600e3) return Math.floor(diff / 60e3) + " 分钟前";
-    if (diff < 86400e3) return Math.floor(diff / 3600e3) + " 小时前";
+    if (isNaN(d.getTime())) return ts;
     const pad = function (n) { return String(n).padStart(2, "0"); };
-    return (d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
   }
 
   function substitute(text, users) {
@@ -124,6 +121,25 @@
       desc.className = "tl-desc";
       desc.innerHTML = substitute(ev.description, users);
       card.appendChild(desc);
+    }
+
+    if (ev.data && Array.isArray(ev.data.images) && ev.data.images.length) {
+      const strip = document.createElement("div");
+      strip.className = "tl-images";
+      ev.data.images.forEach(function (src) {
+        const s = String(src);
+        const a = document.createElement("a");
+        a.href = s.startsWith("/thumb/") ? s.replace("/thumb/", "/media/") : s;
+        a.target = "_blank";
+        a.rel = "noopener";
+        const img = document.createElement("img");
+        img.src = s;
+        img.alt = "";
+        img.loading = "lazy";
+        a.appendChild(img);
+        strip.appendChild(a);
+      });
+      card.appendChild(strip);
     }
 
     if (ev.target && ev.target.url) {

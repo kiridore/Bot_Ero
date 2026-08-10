@@ -55,7 +55,8 @@ const feedPayload = {
       id: "checkin:1", source: "checkin", received_at: "2026-08-10 14:00:00",
       actor: { id: "123456", qq: "123456", display_name: "小明", avatar_url: "http://a/1.png" },
       target: { type: "url", url: "https://littlero.tech/gallery" },
-      title: "{id:123456} 完成打卡", description: "本周第 1 次", data: null,
+      title: "{id:123456} 完成打卡", description: "本周第 1 次",
+      data: { images: ["/thumb/123456/abc.image", "/thumb/123456/def.image"] },
     },
     {
       id: "quest:2", source: "quest", received_at: "2026-08-10 13:00:00",
@@ -132,7 +133,11 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   check("卡片1 占位符替换为昵称", c1.children[1].innerHTML.includes("tl-user") && c1.children[1].innerHTML.includes("小明"));
   check("卡片1 actor 昵称", c1.children[0].children[1].textContent === "小明");
   check("卡片1 详情按钮", c1.children.some((c) => c.className === "tl-detail" && c.href === "https://littlero.tech/gallery"));
-  check("卡片1 时间", typeof c1.children[0].children[2].textContent === "string" && c1.children[0].children[2].textContent.length > 0);
+  check("卡片1 具体时间戳", c1.children[0].children[2].textContent === "2026-08-10 14:00:00");
+  const strip = c1.children.find((c) => c.className === "tl-images");
+  check("卡片1 图片条渲染", strip && strip.children.length === 2);
+  check("卡片1 图片缩略图 URL", strip && strip.children[0].children[0].src === "/thumb/123456/abc.image");
+  check("卡片1 原图链接 /thumb→/media", strip && strip.children[0].href === "/media/123456/abc.image");
 
   check("卡片2 未绑定 actor", c2.children[0].children[1].textContent === "未绑定玩家");
   check("卡片2 无 target 无详情按钮", !c2.children.some((c) => c.className === "tl-detail"));

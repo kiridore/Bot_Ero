@@ -137,7 +137,7 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  padding: 0.9rem 1.05rem;
+  padding: 1.15rem 1.3rem;
 }
 
 .tl-card:hover {
@@ -147,13 +147,13 @@
 .tl-card-head {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  margin-bottom: 0.5rem;
+  gap: 0.7rem;
+  margin-bottom: 0.6rem;
 }
 
 .tl-avatar {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(44, 42, 36, 0.06);
@@ -161,21 +161,22 @@
 }
 
 .tl-actor {
-  font-size: 0.95rem;
+  font-size: 1.02rem;
   color: var(--ink);
 }
 
 .tl-time {
   margin-left: auto;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--ink-soft);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .tl-title {
   margin: 0;
-  font-size: 0.98rem;
-  line-height: 1.55;
+  font-size: 1.05rem;
+  line-height: 1.6;
   color: var(--ink);
 }
 
@@ -185,10 +186,38 @@
 }
 
 .tl-desc {
-  margin: 0.35rem 0 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
+  margin: 0.45rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
   color: var(--ink-soft);
+}
+
+/* 卡片图片条（data.images 约定，见 specs/timeline-protocol.md） */
+.tl-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.tl-images a {
+  display: block;
+  line-height: 0;
+}
+
+.tl-images img {
+  height: 130px;
+  max-width: 200px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: rgba(44, 42, 36, 0.06);
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+.tl-images a:hover img {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .tl-detail {
