@@ -36,7 +36,7 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
                 actor_id=str(user_id),
                 actor_qq=str(user_id),
                 title="{id:%s} 解锁称号「%s」" % (user_id, tdef["name"]),
-                description="稀有度：%s" % tdef.get("rarity", "unknown"),
+                description=tdef.get("description") or None,
                 target_url="/profile",
                 dedup_key="title:%s:%s" % (user_id, tid),
             )
