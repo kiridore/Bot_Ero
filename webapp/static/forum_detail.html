@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>详情 - 议事厅</title>
+  <link rel="stylesheet" href="/shared/gallery.css" />
+  <link rel="stylesheet" href="/static/forum.css" />
+</head>
+<body>
+  <div class="tl-layout">
+    <aside class="tl-sidebar">
+      <a class="tl-brand" href="/">小埃中继站</a>
+      <nav class="tl-nav" id="tlNav">
+        <div class="tl-nav-muted">功能</div>
+      </nav>
+      <div class="tl-auth auth-area" id="authArea"></div>
+    </aside>
+
+    <main class="tl-main">
+      <header class="tl-head">
+        <h1 id="postTitle">…</h1>
+        <a class="forum-link" href="/forum">返回列表</a>
+      </header>
+      <div class="forum-meta-bar" id="postMeta"></div>
+      <div id="msg"></div>
+      <article id="postBody" class="forum-rendered"></article>
+      <section id="pollSection" style="display:none" class="forum-poll">
+        <h3>投票</h3>
+        <div id="pollOptions"></div>
+      </section>
+      <section class="forum-comment">
+        <h3>评论 <span id="commentCount"></span></h3>
+        <div id="commentsList"></div>
+        <form id="commentForm">
+          <textarea id="commentText" rows="3" maxlength="2000" required placeholder="写下你的回复…"></textarea>
+          <button type="submit" class="forum-btn" style="margin-top:0.5rem">发布评论</button>
+        </form>
+      </section>
+      <div class="tl-sentinel" id="sentinel"></div>
+    </main>
+
+    <aside class="tl-rail"></aside>
+  </div>
+
+  <script src="/shared/auth.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/forum_detail.js"></script>
+</body>
+</html>

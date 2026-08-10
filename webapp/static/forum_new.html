@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>发新帖 - 议事厅</title>
+  <link rel="stylesheet" href="/shared/gallery.css" />
+  <link rel="stylesheet" href="/static/forum.css" />
+</head>
+<body>
+  <div class="tl-layout">
+    <aside class="tl-sidebar">
+      <a class="tl-brand" href="/">小埃中继站</a>
+      <nav class="tl-nav" id="tlNav">
+        <div class="tl-nav-muted">功能</div>
+      </nav>
+      <div class="tl-auth auth-area" id="authArea"></div>
+    </aside>
+
+    <main class="tl-main">
+      <header class="tl-head">
+        <h1>发新帖</h1>
+        <a class="forum-link" href="/forum">返回列表</a>
+      </header>
+      <div id="msg"></div>
+      <form id="compose" class="forum-composer">
+        <label>类型</label>
+        <select id="type" name="type">
+          <option value="post">长文</option>
+          <option value="poll">投票</option>
+          <option value="announce">公告（今日剩余 0/1）</option>
+        </select>
+        <label>标题</label>
+        <input type="text" id="title" name="title" maxlength="200" required />
+        <label>tag（逗号分隔）</label>
+        <input type="text" id="tags" name="tags" placeholder="例如：开张,公告,讨论" />
+        <div id="body-section">
+          <label>正文</label>
+          <div id="editor"></div>
+          <textarea id="body_json" name="body_json" style="display:none"></textarea>
+        </div>
+        <div id="poll-section" style="display:none">
+          <label>投票选项（至少 2 个）</label>
+          <div id="poll-options"></div>
+          <button type="button" class="forum-btn-secondary" id="add-option">+ 增加选项</button>
+          <label style="margin-top:1rem">截止时间（可空）</label>
+          <input type="datetime-local" id="deadline" />
+          <label style="margin-top:0.6rem">
+            <input type="checkbox" id="anonymous" /> 匿名投票（不展示投票人昵称）
+          </label>
+        </div>
+        <div style="margin-top:1rem">
+          <button type="submit" class="forum-btn">发布</button>
+        </div>
+      </form>
+    </main>
+
+    <aside class="tl-rail"></aside>
+  </div>
+
+  <script src="/shared/auth.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/forum_new.js"></script>
+</body>
+</html>

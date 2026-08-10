@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>议事厅</title>
+  <link rel="stylesheet" href="/shared/gallery.css" />
+  <link rel="stylesheet" href="/static/forum.css" />
+</head>
+<body>
+  <div class="tl-layout">
+    <aside class="tl-sidebar">
+      <a class="tl-brand" href="/">小埃中继站</a>
+      <nav class="tl-nav" id="tlNav">
+        <div class="tl-nav-muted">功能</div>
+      </nav>
+      <div class="forum-meta-bar" style="margin-top:0.5rem">tag 过滤</div>
+      <nav class="tl-nav-taglist" id="tagNav"></nav>
+      <div class="tl-auth auth-area" id="authArea"></div>
+    </aside>
+
+    <main class="tl-main">
+      <header class="tl-head">
+        <h1>议事厅</h1>
+        <a class="forum-btn" href="/forum/new">发新帖</a>
+        <a class="forum-link" href="/forum/tags" style="margin-left:0.6rem">tag 管理</a>
+      </header>
+      <div class="forum-meta-bar" id="filterBar"></div>
+      <div class="forum-list" id="list"></div>
+      <div class="tl-sentinel" id="sentinel">加载中…</div>
+    </main>
+
+    <aside class="tl-rail"></aside>
+  </div>
+
+  <script src="/shared/auth.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/forum.js"></script>
+</body>
+</html>

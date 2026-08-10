@@ -7,7 +7,13 @@
     "span": 2
   },
   {
+    "name": "议事厅",
+    "desc": "长文、公告与投票",
+    "url": "/forum"
+  },
+  {
     "name": "狼人杀",
+
     "desc": "谁是卧底与狼人杀桌游网页",
     "url": "https://werewolf.littlero.tech"
   },
