@@ -129,26 +129,28 @@
 .tl-feed {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
 }
 
-.tl-card {
+/* Twitter 式条目：无卡片边框/阴影/圆角，行间 1px 分割线，hover 仅轻微底色 */
+.tl-item {
+  padding: 1.05rem 0.4rem;
+  border-bottom: 1px solid var(--rule);
+  transition: background var(--motion-fast) var(--ease);
+}
+
+.tl-item:last-child {
+  border-bottom: none;
+}
+
+.tl-item:hover {
   background: var(--paper-card);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: 1.15rem 1.3rem;
 }
 
-.tl-card:hover {
-  box-shadow: var(--shadow-md);
-}
-
-.tl-card-head {
+.tl-item-head {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.55rem;
 }
 
 .tl-avatar {

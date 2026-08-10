@@ -92,11 +92,11 @@
   }
 
   function renderEvent(ev, users) {
-    const card = document.createElement("article");
-    card.className = "tl-card";
+    const item = document.createElement("article");
+    item.className = "tl-item";
 
     const head = document.createElement("div");
-    head.className = "tl-card-head";
+    head.className = "tl-item-head";
     const img = document.createElement("img");
     img.className = "tl-avatar";
     img.src = ev.actor.avatar_url || "";
@@ -109,18 +109,18 @@
     time.className = "tl-time";
     time.textContent = fmtTime(ev.received_at);
     head.append(img, name, time);
-    card.appendChild(head);
+    item.appendChild(head);
 
     const title = document.createElement("p");
     title.className = "tl-title";
     title.innerHTML = substitute(ev.title || "", users);
-    card.appendChild(title);
+    item.appendChild(title);
 
     if (ev.description) {
       const desc = document.createElement("p");
       desc.className = "tl-desc";
       desc.innerHTML = substitute(ev.description, users);
-      card.appendChild(desc);
+      item.appendChild(desc);
     }
 
     if (ev.data && Array.isArray(ev.data.images) && ev.data.images.length) {
@@ -139,7 +139,7 @@
         a.appendChild(img);
         strip.appendChild(a);
       });
-      card.appendChild(strip);
+      item.appendChild(strip);
     }
 
     if (ev.target && ev.target.url) {
@@ -149,9 +149,9 @@
       a.target = "_blank";
       a.rel = "noopener";
       a.textContent = "» 详情";
-      card.appendChild(a);
+      item.appendChild(a);
     }
-    return card;
+    return item;
   }
 
   function appendPage(payload) {
