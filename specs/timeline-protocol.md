@@ -69,7 +69,7 @@
   - `DELETE /api/timeline/events/{id}`——按事件 id；
   - `DELETE /api/timeline/events/by-key?source=<source>&key=<dedup_key>`——按业务自然键（**业务回滚专用**，发送方无需追踪事件 id）。
 - 鉴权：`BOTERO_EVENT_TOKEN`；删除时 source 必须匹配事件自身的 source。
-- **业务回滚 MUST 联动删除对应事件**：`/撤回打卡`、打卡消息撤回 → 删 `checkin` 事件；周常任务从已完成回退 → 删对应 `quest` 事件。硬删除后同日重打卡可重新入列（新 id、新 dedup_key 行）。
+- **业务回滚 MUST 联动删除对应事件**：`/撤回打卡`、打卡消息撤回 → 删 `checkin` 事件。硬删除后同日重打卡可重新入列（新 id、新 dedup_key 行）。
 
 ## Constraint: 查询与渲染
 
@@ -97,7 +97,8 @@
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
-| `quest` | `core.utils.on_quest_trigger` | 完成周常任务 | `quest:<user_id>:<week_key>:<quest_id>` |
+
+> `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。
 
 新增 source **MUST** 在本表注册并约定 dedup_key 格式，且文档更新与代码同一 commit。
 

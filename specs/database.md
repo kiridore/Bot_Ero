@@ -301,7 +301,7 @@ with _connect() as conn:
 | 列 | 类型 | 约束 | 说明 |
 |----|------|------|------|
 | `id` | TEXT | PRIMARY KEY | 事件 ID，格式 `<source>:<uuid>`（客户端生成） |
-| `source` | TEXT | NOT NULL, UNIQUE(source, id), UNIQUE(source, dedup_key) | 事件来源（`checkin` / `quest`，新增需在 timeline-protocol.md 注册） |
+| `source` | TEXT | NOT NULL, UNIQUE(source, id), UNIQUE(source, dedup_key) | 事件来源（`checkin`；`quest` 已停用，新增需在 timeline-protocol.md 注册） |
 | `received_at` | TEXT | NOT NULL | 服务器收件时间 `YYYY-MM-DD HH:MM:SS`（展示/排序唯一依据） |
 | `actor_id` | TEXT | NOT NULL | 参与者 id（发送方体系内） |
 | `actor_qq` | TEXT | | QQ 号（有值则渲染昵称头像，否则「未绑定玩家」） |

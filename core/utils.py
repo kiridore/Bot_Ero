@@ -7,7 +7,6 @@ from core import context
 from core.api import ApiWrapper
 from core.base import Plugin
 from core.database_manager import DbManager
-from core.timeline_client import emit_event, retract_event
 
 PluginType = TypeVar("PluginType", bound=type[Plugin])
 # 返回本周一八点到下周一八点
@@ -117,15 +116,7 @@ def on_quest_trigger(db, user_id, trigger_type):
         if count >= q["goal"] and db.quest.claim_reward(user_id, q["id"], week_key):
             add_user_point(db, user_id, q["reward"])
             db.quest.increment_completion(user_id)
-            completed.append({"id": q["id"], "name": q["name"], "reward": q["reward"]})
-            # 社区时间线事件（best-effort；撤回时按 dedup_key 删除）
-            emit_event(
-                source="quest",
-                actor_id=user_id,
-                actor_qq=user_id,
-                title="{id:%s} 完成周常任务「%s」" % (user_id, q["name"]),
-                dedup_key="quest:%s:%s:%s" % (user_id, week_key, q["id"]),
-            )
+            completed.append({"name": q["name"], "reward": q["reward"]})
     # 检查是否本周所有任务全清
     progress = db.quest.progress(user_id, week_key)
     if progress and all(progress.get(q["id"], {}).get("completed") for q in QUEST_DEFS):
@@ -144,6 +135,4 @@ def on_quest_rollback(db, user_id, trigger_type):
         if count < q["goal"] and db.quest.revoke_reward(user_id, q["id"], week_key):
             add_user_point(db, user_id, -q["reward"])
             revoked.append(q)
-            # 社区时间线联动：删除该任务对应的事件（best-effort）
-            retract_event("quest", dedup_key="quest:%s:%s:%s" % (user_id, week_key, q["id"]))
     return revoked
