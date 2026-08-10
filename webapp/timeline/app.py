@@ -73,8 +73,14 @@ def _validate_event(body: EventIn) -> None:
         except (TypeError, ValueError):
             raise HTTPException(status_code=422, detail="actor.qq 必须是 QQ 号")
     if body.target and body.target.url:
-        if not body.target.url.startswith(("http://", "https://")):
-            raise HTTPException(status_code=422, detail="target.url 必须是 http(s) 链接")
+        if not (
+            body.target.url.startswith(("http://", "https://"))
+            or body.target.url.startswith("/")
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="target.url 必须是 http(s) 链接或站内相对路径（以 / 开头）",
+            )
 
 
 def _loads(raw: str | None):

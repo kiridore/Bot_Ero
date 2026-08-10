@@ -14,6 +14,7 @@ from core.db.activity import ActivityManager
 from core.db.guestbook import GuestbookManager
 from core.db.redeem import RedeemManager
 from core.db.timeline import TimelineManager
+from core.db.forum import ForumManager
 
 
 class DbManager:
@@ -39,6 +40,7 @@ class DbManager:
         self.guestbook = GuestbookManager(self.conn)
         self.redeem = RedeemManager(self.conn)
         self.timeline = TimelineManager(self.conn)
+        self.forum = ForumManager(self.conn)
 
     def __del__(self):
         self.conn.commit()

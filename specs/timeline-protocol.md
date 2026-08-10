@@ -34,11 +34,11 @@
 | 字段 | 必填 | 说明 |
 |---|---|---|
 | `id` | MUST | 发送方生成，格式 `<source>:<uuid>`；同一 source 下全局唯一，用于幂等 |
-| `source` | MUST | 事件来源稳定标识（v1 注册：`checkin`、`quest`）；新增 source 需在本文档注册 |
+| `source` | MUST | 事件来源稳定标识（v1 注册：`checkin`、`quest`、`forum`）；新增 source 需在本文档注册 |
 | `actor.id` | MUST | 发送方体系内参与者 id；QQ 相关系统传 user_id |
 | `actor.qq` | CAN | 已绑定/已知的 QQ 号；接收方据此解析昵称头像 |
 | `target.type` | CAN | 自由格式标签，仅作未来样式定制，接收方不据此做逻辑判断 |
-| `target.url` | CAN | 存在且为 http(s) 时，时间线渲染「>>详情」按钮；缺失则不渲染 |
+| `target.url` | CAN | 存在且为 http(s) 链接或站内相对路径（以 `/` 开头）时，时间线渲染「>>详情」按钮；缺失则不渲染 |
 | `display.title` | MUST | 动作文案，可含 `{id:<user_id>}` 占位符（见占位符约束） |
 | `display.description` | CAN | 补充说明，同样支持占位符 |
 | `data` | CAN | 任意 JSON，Event Server **MUST NOT** 解析或索引 |

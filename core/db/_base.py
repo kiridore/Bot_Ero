@@ -361,5 +361,84 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_timeline_feed "
         "ON timeline_events (received_at DESC, id DESC)"
     )
-
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            author_user_id TEXT NOT NULL,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            body_json TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'open',
+            pinned INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            notified_at TEXT,
+            poll_anonymous INTEGER NOT NULL DEFAULT 0,
+            poll_allow_multi INTEGER NOT NULL DEFAULT 0,
+            poll_deadline TEXT
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_forum_posts_created "
+        "ON forum_posts (pinned DESC, id DESC)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_forum_posts_notified "
+        "ON forum_posts (notified_at) WHERE notified_at IS NULL"
+    )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_poll_options (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            ord INTEGER NOT NULL,
+            FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_poll_votes (
+            poll_id INTEGER NOT NULL,
+            option_id INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(poll_id, user_id),
+            FOREIGN KEY (option_id) REFERENCES forum_poll_options(id) ON DELETE CASCADE
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            author_user_id TEXT NOT NULL,
+            body_text TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_forum_comments_post "
+        "ON forum_comments (post_id, id DESC)"
+    )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_by TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_post_tags (
+            post_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (post_id, tag_id),
+            FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES forum_tags(id) ON DELETE CASCADE
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_forum_post_tags_tag "
+        "ON forum_post_tags (tag_id)"
+    )
     conn.commit()
