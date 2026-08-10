@@ -1,0 +1,247 @@
+/* 社区时间线（社区主页）—— 报纸风 token 全部来自 /shared/gallery.css :root */
+
+.tl-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 640px) 1fr;
+  gap: 2rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+  align-items: start;
+}
+
+/* —— 侧边栏 —— */
+.tl-sidebar {
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.tl-brand {
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+  text-decoration: none;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--rule);
+}
+
+.tl-brand:hover {
+  color: var(--accent-ink);
+}
+
+.tl-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tl-nav-muted {
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+  color: var(--gray);
+  text-transform: uppercase;
+}
+
+.tl-nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--ink);
+  border-left: 3px solid transparent;
+}
+
+.tl-nav-link:hover {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+
+.tl-nav-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.tl-nav-desc {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.tl-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.tl-nav-sublink {
+  font-size: 0.82rem;
+  color: var(--accent-ink);
+  text-decoration: none;
+  padding: 0.1rem 0;
+}
+
+.tl-nav-sublink:hover {
+  text-decoration: underline;
+}
+
+.tl-auth {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  margin-left: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+/* —— 主栏 —— */
+.tl-main {
+  min-width: 0;
+}
+
+.tl-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--line);
+}
+
+.tl-head h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.tl-head-hint {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.tl-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.tl-card {
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 0.9rem 1.05rem;
+}
+
+.tl-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.tl-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.5rem;
+}
+
+.tl-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(44, 42, 36, 0.06);
+  border: 1px solid var(--rule);
+}
+
+.tl-actor {
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.tl-time {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.tl-title {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.tl-user {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.tl-desc {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.tl-detail {
+  display: inline-block;
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--accent-ink);
+  text-decoration: none;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+  background: var(--accent-soft);
+}
+
+.tl-detail:hover {
+  border-color: var(--accent-ink);
+  background: var(--accent);
+  color: var(--paper);
+}
+
+.tl-empty {
+  text-align: center;
+  padding: 2.5rem 0;
+}
+
+.tl-sentinel {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  padding: 1.2rem 0;
+}
+
+.muted {
+  color: var(--ink-soft);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* —— 窄屏：单列，侧边栏置顶 —— */
+@media (max-width: 900px) {
+  .tl-layout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    padding: 1rem 0.9rem 3rem;
+  }
+
+  .tl-sidebar {
+    position: static;
+  }
+
+  .tl-rail {
+    display: none;
+  }
+}
