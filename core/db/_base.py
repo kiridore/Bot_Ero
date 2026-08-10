@@ -340,5 +340,26 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             PRIMARY KEY (user_id, code)
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS timeline_events (
+            id TEXT PRIMARY KEY,
+            source TEXT NOT NULL,
+            received_at TEXT NOT NULL,
+            actor_id TEXT NOT NULL,
+            actor_qq TEXT,
+            target_type TEXT,
+            target_url TEXT,
+            title TEXT NOT NULL,
+            description TEXT,
+            data TEXT,
+            dedup_key TEXT,
+            UNIQUE(source, id),
+            UNIQUE(source, dedup_key)
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_timeline_feed "
+        "ON timeline_events (received_at DESC, id DESC)"
+    )
 
     conn.commit()
