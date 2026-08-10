@@ -77,7 +77,17 @@
       div.className = "forum-comment-item";
       const meta = document.createElement("div");
       meta.className = "forum-comment-meta";
-      meta.textContent = `id ${c.author_user_id} · ${fmtTime(c.created_at)}`;
+      if (c.author_avatar) {
+        const av = document.createElement("img");
+        av.className = "tl-avatar forum-avatar";
+        av.src = c.author_avatar;
+        av.alt = "";
+        av.onerror = function () { av.style.display = "none"; };
+        meta.appendChild(av);
+      }
+      const metaText = document.createElement("span");
+      metaText.textContent = (c.author_name || c.author_user_id) + " · " + fmtTime(c.created_at);
+      meta.appendChild(metaText);
       const body = document.createElement("div");
       body.className = "forum-comment-body";
       body.textContent = c.body_text;
@@ -151,7 +161,10 @@
     if (!res.ok) { showMsg("加载失败：" + (await res.text()), false); return; }
     const post = await res.json();
     titleEl.textContent = post.title;
-    metaEl.innerHTML = `${esc(post.type)} · id ${post.author_user_id} · ${fmtTime(post.created_at)}` +
+    const avHtml = post.author_avatar
+      ? `<img class="tl-avatar forum-avatar" src="${esc(post.author_avatar)}" alt="" onerror="this.style.display='none'"> `
+      : "";
+    metaEl.innerHTML = `${esc(post.type)} · ${avHtml}${esc(post.author_name || post.author_user_id)} · ${fmtTime(post.created_at)}` +
       (post.tags && post.tags.length ? ` · ${post.tags.map(function (t) { return `<a class="forum-link" href="/forum?tag=${encodeURIComponent(t)}">${esc(t)}</a>`; }).join(" · ")}` : "");
     // 正文：Tiptap JSON 渲染（仅 post/announce）
     if (post.body_json && post.body_json.trim()) {

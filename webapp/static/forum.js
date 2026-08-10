@@ -92,8 +92,18 @@
         div.appendChild(head);
         const meta = document.createElement("div");
         meta.className = "forum-meta";
-        meta.textContent = "id " + it.id + " · " + fmtTime(it.created_at) +
+        if (it.author_avatar) {
+          const av = document.createElement("img");
+          av.className = "tl-avatar forum-avatar";
+          av.src = it.author_avatar;
+          av.alt = "";
+          av.onerror = function () { av.style.display = "none"; };
+          meta.appendChild(av);
+        }
+        const metaText = document.createElement("span");
+        metaText.textContent = (it.author_name || it.author_user_id) + " · " + fmtTime(it.created_at) +
           (it.poll_deadline ? " · 截止 " + it.poll_deadline : "");
+        meta.appendChild(metaText);
         div.appendChild(meta);
         frag.appendChild(div);
       });

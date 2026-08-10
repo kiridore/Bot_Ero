@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from core.timeline_client import emit_event, retract_event
 from core.web.auth_deps import get_current_user_id
+from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.database_manager import DbManager
 from webapp import STATIC_DIR
 
@@ -18,6 +19,15 @@ router = APIRouter()
 
 EXCERPT_LONG = 150   # 长文/公告节选长度
 EXCERPT_COMMENT = 80  # 评论节选长度
+
+
+def _author_fields(user_id) -> dict:
+    """作者展示字段：昵称 + 头像（OneBot 解析，失败降级回 id）。"""
+    uid = str(user_id)
+    return {
+        "author_name": resolve_display_name(uid),
+        "author_avatar": resolve_avatar_url(uid),
+    }
 
 
 def _tiptap_to_plain(doc: Any) -> str:
@@ -136,7 +146,9 @@ def list_posts(
     items = []
     for r in rows:
         cols = ("id", "author_user_id", "type", "title", "status", "pinned", "created_at", "updated_at", "poll_deadline")
-        items.append(dict(zip(cols, r)))
+        item = dict(zip(cols, r))
+        item.update(_author_fields(item["author_user_id"]))
+        items.append(item)
     return {"items": items, "next_cursor": next_cursor}
 
 
@@ -206,6 +218,7 @@ def get_post(
     post = db.forum.get_post(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
+    post.update(_author_fields(post["author_user_id"]))
     # 投票选项：附带票数 + 当前用户投票
     my_vote = None
     if post["type"] == "poll":
@@ -284,11 +297,12 @@ def list_comments(
     rows = db.forum.list_comments(post_id, cursor=cursor, limit=limit)
     has_more = len(rows) > limit
     rows = rows[:limit]
-    items = [
-        {"id": r[0], "post_id": r[1], "author_user_id": r[2],
-         "body_text": r[3], "created_at": r[4], "status": r[5]}
-        for r in rows
-    ]
+    items = []
+    for r in rows:
+        item = {"id": r[0], "post_id": r[1], "author_user_id": r[2],
+                "body_text": r[3], "created_at": r[4], "status": r[5]}
+        item.update(_author_fields(item["author_user_id"]))
+        items.append(item)
     next_cursor = items[-1]["id"] if has_more and items else None
     return {"items": items, "next_cursor": next_cursor}
 

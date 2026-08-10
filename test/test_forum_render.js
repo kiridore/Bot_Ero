@@ -48,9 +48,12 @@ const tagsPayload = {
 };
 const listPayload = {
   items: [
-    { id: 1, type: "announce", title: "欢迎来到议事厅", created_at: "2026-08-10 14:00:00", poll_deadline: null },
-    { id: 2, type: "post", title: "议事厅首发", created_at: "2026-08-10 14:30:00", poll_deadline: null },
-    { id: 3, type: "poll", title: "周末做什么", created_at: "2026-08-10 15:00:00", poll_deadline: "2099-01-01 00:00:00" },
+    { id: 1, type: "announce", title: "欢迎来到议事厅", created_at: "2026-08-10 14:00:00", poll_deadline: null,
+      author_user_id: 1057613133, author_name: "埃洛Erodis", author_avatar: "https://q.qlogo.cn/1.png" },
+    { id: 2, type: "post", title: "议事厅首发", created_at: "2026-08-10 14:30:00", poll_deadline: null,
+      author_user_id: 3915014383, author_name: "小埃同学", author_avatar: "" },
+    { id: 3, type: "poll", title: "周末做什么", created_at: "2026-08-10 15:00:00", poll_deadline: "2099-01-01 00:00:00",
+      author_user_id: 1171676207, author_name: "1171676207", author_avatar: "https://q.qlogo.cn/3.png" },
   ],
   next_cursor: null,
 };
@@ -91,6 +94,13 @@ function findLink(el) {
   const link = findLink(items[0]);
   check("item 含标题链接到 /forum/1", link && link.href === "/forum/1");
   check("第三个 item 标记 is-poll", items[2] && items[2].className.includes("is-poll"));
+  const meta0 = items[0] && items[0].children[1];
+  check("meta 显示作者昵称（非裸 id）", meta0 && meta0.children[1].textContent.includes("埃洛Erodis"));
+  check("meta 含作者头像 img", meta0 && meta0.children[0] && meta0.children[0].tagName.toUpperCase() === "IMG");
+  const meta1 = items[1] && items[1].children[1];
+  check("无头像时降级为昵称文本（无 img）", meta1 && meta1.children.length === 1 && meta1.children[0].textContent.includes("小埃同学"));
+  const meta2 = items[2] && items[2].children[1];
+  check("昵称缺失时降级回 id（含截止时间）", meta2 && meta2.children[1].textContent.includes("1171676207") && meta2.children[1].textContent.includes("截止"));
   check("sentinel 文案", els.sentinel.textContent.includes("已经到底"));
   process.exit(fail ? 1 : 0);
 })();

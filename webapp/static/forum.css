@@ -71,6 +71,14 @@
 /* 侧栏：tag 过滤器 */
 .tl-nav-taglist { display: flex; flex-direction: column; gap: 0.25rem; }
 
+/* 作者头像：继承 tl-avatar 圆形样式，缩小适配 meta 行 */
+.tl-avatar.forum-avatar {
+  width: 26px;
+  height: 26px;
+  vertical-align: -6px;
+  margin-right: 0.35rem;
+}
+
 .forum-composer, .forum-comment, .forum-poll { margin-bottom: 1.4rem; }
 
 .forum-composer label, .forum-poll label {
