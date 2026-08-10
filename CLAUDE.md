@@ -72,16 +72,16 @@ OneBot 服务端 ──WebSocket──> main.py
 
 ### Web 应用（单进程 `webapp`，单一 origin 路径分区）
 
-单进程 FastAPI（端口 8765）注册 7 个模块的 APIRouter + 导航主页，单一根域 `littlero.tech` 按路径分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live`），Caddy 全量反代 8765。共享 `core/` 层：
+注册 9 个模块
 
-- 入口 `webapp/app.py`：认证路由 `/api/auth/login` + `/api/auth/me`（**唯一一份**）、时间线主页（`/` 提供 `webapp/static/timeline.html`，侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供）、include 8 个模块 router、mount `/static`（`webapp/static/`）+ `/shared`（`core/web/static/`）
+include 9 个模块 router
 - 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
 - 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`（**单一来源 `scripts/botero.env`**：bot 启动加载 + webapp systemd EnvironmentFile）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
-模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）、`webapp/live/`（直播间：SRS HTTP-FLV + mpegts.js + `/api/live/status` 探测 + 观众在场 heartbeat/viewers）、`webapp/timeline/`（社区时间线 Event Server：POST/DELETE `/api/timeline/events` + GET `/api/timeline` + `/entries.json`；时间线主页 `/` 登录可见，协议见 `specs/timeline-protocol.md`）。
+`webapp/forum/`（议事厅：长文/公告/投票/评论，Tiptap 富文本，投票/评论自动入时间线；详见 `docs/superpowers/specs/2026-08-10-forum-design.md`）
 
 ### LLM 子系统 (`core/llm/`)
 

@@ -7,7 +7,9 @@
 | 分区 | 路径 |
 |------|------|
 | 时间线主页 | `/`（登录可见；`webapp/static/timeline.html`，侧边栏导航数据 `webapp/timeline/entries.json`） |
+| 议事厅 | `/forum` `/forum/{id}` `/forum/new` `/forum/tags`（长文/公告/投票/评论；详见 `docs/superpowers/specs/2026-08-10-forum-design.md`） |
 | 图库 | `/gallery` |
+
 | 留言簿 | `/guestbook` |
 | 个人中心 | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） |
 | 跑团 | `/trpg`（`/trpg/char/{user_id}/{char_id}`） |
@@ -110,9 +112,9 @@ systemctl enable --now botero-web
 
 > 旧变量 `BOTERO_GALLERY_URL`（图库域基地址）已删除：单 origin 后媒体 URL 为同源根相对路径，无需跨域基地址。
 
-## 6. 时间线主页（社区主页）
+时间线主页文件位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管，**登录后可见**（数据 API `GET /api/timeline` 需登录密钥，未登录 401）。侧边栏功能导航数据源为 `webapp/timeline/entries.json`，是主页**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述都在此文件完成（含议事厅）。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。侧边栏提供与全站一致的登录状态（`auth.js`）。
 
-时间线主页文件位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管，**登录后可见**（数据 API `GET /api/timeline` 需登录密钥，未登录 401）。侧边栏功能导航数据源为 `webapp/timeline/entries.json`，是主页**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述都在此文件完成。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。侧边栏提供与全站一致的登录状态（`auth.js`）。
+## 7. 启动顺序与验证
 
 事件发送方接入：bot 插件经 `core/timeline_client.py` 发送（`BOTERO_TIMELINE_URL` + `BOTERO_EVENT_TOKEN`，见第 5 节环境变量）；v1 发送方为打卡与周常任务，回滚联动删除。协议见 `specs/timeline-protocol.md`。
 

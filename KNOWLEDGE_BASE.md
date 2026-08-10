@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-10 (社区时间线：webapp 第 8 个模块 timeline —— Event Server 收事件 + `/` 时间线主页登录可见，打卡/周常任务发送事件，撤回打卡/消息撤回/任务回退联动删除；旧导航主页 webapp/homepage/ 已废弃删除)
+（社区时间线：webapp 第 8 个模块 timeline；新增第 9 个模块 forum 议事厅：长文/公告/投票/评论，所有用户消息自动入时间线，bot 发群消息；Tiptap 富文本）
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -76,8 +76,10 @@
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
 ├── webapp/                    ← Web 单进程入口（8765；认证路由/时间线主页/static 合并目录；`python -m webapp`）
-│   ├── app.py                 ← 唯一 FastAPI 入口（include 8 模块 router + 时间线主页 / + mount /static /shared）
+│   ├── app.py                 ← 唯一 FastAPI 入口（include 9 模块 router + 时间线主页 / + mount /static /shared）
 │   ├── timeline/              ← 时间线模块（Event Server：POST/DELETE /api/timeline/events + GET /api/timeline；entries.json 侧边栏导航数据源；协议见 specs/timeline-protocol.md）
+│   ├── forum/                 ← 议事厅模块（/forum；长文/公告/投票/评论；Tiptap 富文本；详见 docs/superpowers/specs/2026-08-10-forum-design.md）
+
 │   ├── gallery/               ← 图库模块（/gallery；repository/thumbnails/dates）
 │   ├── guestbook/             ← 留言簿模块（/guestbook）
 │   ├── profile/               ← 个人中心模块（/profile）

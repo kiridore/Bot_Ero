@@ -428,6 +428,71 @@ if column in ALLOWED_COLUMNS:
 | `immortal_lottery_bets` | **INTEGER** |
 | `activities.created_by` | **TEXT** |
 | `activity_members.user_id` | **TEXT** |
+| `forum_posts.author_user_id` | **TEXT** |
+| `forum_comments.author_user_id` | **TEXT** |
+| `forum_poll_votes.user_id` | **TEXT** |
+| `forum_tags.created_by` | **TEXT** |
+
+### 议事厅
+
+#### `forum_posts`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 帖子 ID |
+| `author_user_id` | TEXT | NOT NULL | 作者 QQ 号（TEXT 类型） |
+| `type` | TEXT | NOT NULL | `'post'` / `'announce'` / `'poll'` |
+| `title` | TEXT | NOT NULL | 标题 |
+| `body_json` | TEXT | NOT NULL DEFAULT '' | 长文 Tiptap JSON（公告/投票为空） |
+| `status` | TEXT | NOT NULL DEFAULT 'open' | `'open'` / `'closed'` / `'hidden'` / `'deleted'` |
+| `pinned` | INTEGER | NOT NULL DEFAULT 0 | 置顶（v1 字段预留） |
+| `created_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
+| `updated_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
+| `notified_at` | TEXT | | bot 群消息已发时刻（NULL=待发） |
+| `poll_anonymous` | INTEGER | NOT NULL DEFAULT 0 | 投票匿名（不展示投票人昵称） |
+| `poll_allow_multi` | INTEGER | NOT NULL DEFAULT 0 | 投票多选（v1 固定 0） |
+| `poll_deadline` | TEXT | | 投票截止时间（`NULL`=无截止） |
+
+#### `forum_poll_options`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 选项 ID |
+| `post_id` | INTEGER | NOT NULL, FK→forum_posts(id) CASCADE | 所属帖子 |
+| `text` | TEXT | NOT NULL | 选项文本 |
+| `ord` | INTEGER | NOT NULL | 排序 |
+
+#### `forum_poll_votes`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `poll_id` | INTEGER | NOT NULL | 帖子 ID（投票帖） |
+| `option_id` | INTEGER | NOT NULL, FK→forum_poll_options(id) CASCADE | 选项 |
+| `user_id` | TEXT | NOT NULL | 投票人 QQ 号 |
+| `created_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
+| `UNIQUE` | | (poll_id, user_id) | **一人一票强制** |
+
+#### `forum_comments`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 评论 ID |
+| `post_id` | INTEGER | NOT NULL, FK→forum_posts(id) CASCADE | 所属帖子 |
+| `author_user_id` | TEXT | NOT NULL | 评论人 QQ 号 |
+| `body_text` | TEXT | NOT NULL | 评论纯文本（无 Markdown） |
+| `status` | TEXT | NOT NULL DEFAULT 'open' | `'open'` / `'deleted'` |
+| `created_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
+
+#### `forum_tags`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | tag ID |
+| `name` | TEXT | NOT NULL UNIQUE | tag 名（自由创建，名字唯一） |
+| `created_by` | TEXT | NOT NULL | 创建者 QQ 号 |
+| `created_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
+
+#### `forum_post_tags`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `post_id` | INTEGER | NOT NULL, FK→forum_posts(id) CASCADE | 帖子 |
+| `tag_id` | INTEGER | NOT NULL, FK→forum_tags(id) CASCADE | tag |
+| `PRIMARY KEY` | | (post_id, tag_id) | 多对多 |
 
 跨表查询时的处理：
 ```python
