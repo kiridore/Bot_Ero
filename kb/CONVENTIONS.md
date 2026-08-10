@@ -70,6 +70,7 @@ logger.exception("...")  # 自动附带 traceback
 - 无测试框架，`test/` 下是临时测试脚本
 - 部分旧表 (user_title_state, group_alarms repeat_y/m/d) 已被新设计取代但未删除
 - `core/api.py` 延迟导入 `plugins.title` 存在循环依赖
+- `webapp/__main__.py` 的 `--db` 参数不生效：`core.config.DB_PATH` 在模块首次 import 时冻结，`main()` 里设 env 太晚；需启动前注入 env（`BOTERO_DB_PATH=...`）
 
 ## 安全注意
 
@@ -89,3 +90,63 @@ logger.exception("...")  # 自动附带 traceback
 - 多个 Plugin 实例同时操作数据库 — 靠 SQLite 文件锁
 - `TimedHeartbeatPlugin._last_run_minute` 是类级字典，依赖 GIL 保护
 - 不要在插件间共享 `DbManager` 实例
+
+## 时间线开发经验（2026-08-10）
+
+### 陷阱 1：全局 `main` 规则会让 grid 列收缩到内容宽（最难排查）
+
+`core/web/static/gallery.css` 有全局规则：
+
+```css
+main { padding: 12px 16px 3rem; max-width: 1600px; margin: 0 auto; }
+```
+
+任何 `<main>` 元素都会继承。若它同时是 **grid 项**，`margin: 0 auto` 会覆盖 `justify-self: stretch`——自动外边距吸收剩余空间后，该项收缩到**内容宽度**并在轨道内居中。结果：列宽 = 最长一行文本宽度，标题短 → 列窄 → 卡片窄，与固定列宽的预期完全不符（表现为"元素宽度跟随内容"）。
+
+修复（`webapp/static/timeline.css`）：
+
+```css
+.tl-main {
+  min-width: 0;
+  margin: 0;        /* 关键：清掉 auto 外边距，恢复 stretch */
+  max-width: none;
+  padding: 0;
+}
+```
+
+排查要点：DevTools 勾掉 `margin: 0 auto` 立即恢复，即查全局元素选择器（`main`/`div`/`section`）+ auto 外边距。
+
+### 陷阱 2：`--db` 启动参数不生效（见"已知技术债"）
+
+`core.config.DB_PATH` 在模块首次 import 时求值冻结，`webapp/__main__.py` 的 `main()` 里设 env 太晚 → `--db` 静默无效，测试数据可能写进真实 `data.db`。正确隔离：进程启动前注入 env：`BOTERO_DB_PATH=/tmp/x.db python3 -m webapp`。
+
+### 陷阱 3：`hub restart` 复用旧启动规格
+
+改 env/args 必须 `stop` 后重新 `start`，否则沿用旧参数（曾导致测试实例连错数据库）。
+
+### 陷阱 4：dedup_key 粒度必须等于业务动作粒度
+
+`timeline_events` 表 `UNIQUE(source, dedup_key)` + `INSERT OR IGNORE`——重复提交**静默丢弃**（HTTP 200，响应 `inserted: false`）。打卡事件最初用 `checkin:<user>:<日期>`，隐含"一天一次"假设；实际同一天多次打卡合法（每次独立记录），第二次事件被唯一约束吞掉。
+
+教训：
+- 业务自然键按**动作实例**设计，不按周期：`checkin:<user_id>:<YYYY-MM-DD>:<message_id>`
+- 排查"事件没上卡片"先看 POST 响应 `inserted` 字段（`false` = 被去重吞掉）
+- 撤回/回滚必须能由发送方推导同一 key：打卡/撤回打卡/消息撤回三处共用同一构造规则
+
+### 模式 1：`{id:}` 占位符 + 渲染时解析
+
+昵称/头像不在发送方烘焙进文案（QQ 改名 → 旧数据永远错）；协议支持 `{id:<user_id>}` 占位符，接收方渲染时经 `resolve_display_name`/`resolve_avatar_url` 解析；未绑定 → 「未绑定玩家」。
+
+### 模式 2：keyset 分页（硬删除免疫）
+
+硬删除（撤回）下 offset 分页会翻页错位；时间线用 `(received_at DESC, id DESC)` keyset 游标，对删除免疫。
+
+### 模式 3：浏览器不可用时的前端验证
+
+本环境 Chromium 缺系统库（libnspr4/libnss3，WSL2 无 sudo）无法 headless。替代：
+- 最小 DOM stub + node eval（`test/test_timeline_render.js`，复刻 `test_auth_render.js` 模式；eval 作用域隔离需 `global.X = window.X` 桥接）
+- 线上/本地对比：`curl https://littlero.tech/static/<file> | md5sum` 与本地比对，排除部署/缓存差异（生产 css/js 与本地一致即可信任本地结论）
+
+### 模式 4：测试隔离
+
+webapp 冒烟必须用进程启动前注入的 `BOTERO_DB_PATH` 指向临时库；测完清理残留行（`DELETE FROM timeline_events WHERE id IN (...)`），防止测试数据污染生产表。
