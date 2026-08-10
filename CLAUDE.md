@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 7 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/` 的 APIRouter + 根路径导航主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
+此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 8 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/`、`webapp/timeline/` 的 APIRouter + 根路径时间线主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
 
 ## 运行命令
 
@@ -18,7 +18,7 @@ python main.py
 python -m webapp
 
 # 本地调试：直接按路径访问 http://127.0.0.1:8765/<分区>
-#   /          导航主页   /gallery  /guestbook  /profile(/checkin /shop /settings)
+#   /          时间线（社区主页，登录可见）  /gallery  /guestbook  /profile(/checkin /shop /settings)
 #   /trpg(/char/...)  /alarms  /activities  /live
 python -m webapp --port 8765
 ```
@@ -54,6 +54,7 @@ OneBot 服务端 ──WebSocket──> main.py
 | `context.py` | 全局运行时状态：`plugin_registry`（插件类列表）、`script_start_time`、`DEFAULT_GROUP_ID`、路径配置 |
 | `database_manager.py` | SQLite 数据访问层（`data.db`），管理打卡、积分、称号、抽奖、商店、闹钟、留言簿等全部持久化 |
 | `utils.py` | 工具函数：日期计算、积分操作、图片下载、`register_plugin` 装饰器 |
+| `timeline_client.py` | 社区时间线事件发送助手（`emit_event`/`retract_event`，best-effort 不阻塞主流程） |
 
 ### 插件系统
 
@@ -73,14 +74,14 @@ OneBot 服务端 ──WebSocket──> main.py
 
 单进程 FastAPI（端口 8765）注册 7 个模块的 APIRouter + 导航主页，单一根域 `littlero.tech` 按路径分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live`），Caddy 全量反代 8765。共享 `core/` 层：
 
-- 入口 `webapp/app.py`：认证路由 `/api/auth/login` + `/api/auth/me`（**唯一一份**）、导航主页（`/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json`，文件在 `webapp/homepage/`）、include 6 个模块 router、mount `/static`（`webapp/static/`）+ `/shared`（`core/web/static/`）
+- 入口 `webapp/app.py`：认证路由 `/api/auth/login` + `/api/auth/me`（**唯一一份**）、时间线主页（`/` 提供 `webapp/static/timeline.html`，侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供）、include 8 个模块 router、mount `/static`（`webapp/static/`）+ `/shared`（`core/web/static/`）
 - 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
 - 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`（**单一来源 `scripts/botero.env`**：bot 启动加载 + webapp systemd EnvironmentFile）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
-模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）、`webapp/live/`（直播间：SRS HTTP-FLV + mpegts.js + `/api/live/status` 探测 + 观众在场 heartbeat/viewers）；导航主页 `webapp/homepage/`（`entries.json` 为唯一入口维护点）。
+模块划分（全部位于 `webapp/` 包内）：`webapp/gallery/`（图库瀑布流 + /thumb /media + 打卡数据 API）、`webapp/guestbook/`（留言簿）、`webapp/profile/`（个人主页/打卡/商店/称号/设置 5 域聚合，依赖 `webapp.gallery.repository`）、`webapp/trpg/`（车卡）、`webapp/alarms/`（闹钟）、`webapp/activities/`（活动归档）、`webapp/live/`（直播间：SRS HTTP-FLV + mpegts.js + `/api/live/status` 探测 + 观众在场 heartbeat/viewers）、`webapp/timeline/`（社区时间线 Event Server：POST/DELETE `/api/timeline/events` + GET `/api/timeline` + `/entries.json`；时间线主页 `/` 登录可见，协议见 `specs/timeline-protocol.md`）。
 
 ### LLM 子系统 (`core/llm/`)
 
@@ -105,6 +106,7 @@ OneBot 服务端 ──WebSocket──> main.py
 | 图片生成 | [`specs/image-generation.md`](specs/image-generation.md) |
 | 系统架构理解 | [`specs/architecture.md`](specs/architecture.md) |
 | 查找已有插件 | [`specs/plugin-catalog.md`](specs/plugin-catalog.md) |
+| 社区时间线 | [`specs/timeline-protocol.md`](specs/timeline-protocol.md) |
 | 规范体系总览 | [`specs/README.md`](specs/README.md) |
 
 **规范体系设计原则：**

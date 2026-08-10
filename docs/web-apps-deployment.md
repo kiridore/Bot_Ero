@@ -6,7 +6,7 @@
 
 | 分区 | 路径 |
 |------|------|
-| 导航主页 | `/`（`webapp/homepage/`，纯静态 + entries/quotes/notices JSON） |
+| 时间线主页 | `/`（登录可见；`webapp/static/timeline.html`，侧边栏导航数据 `webapp/timeline/entries.json`） |
 | 图库 | `/gallery` |
 | 留言簿 | `/guestbook` |
 | 个人中心 | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） |
@@ -15,7 +15,7 @@
 | 活动 | `/activities`（`/activities/{activity_id}`） |
 | API/静态/媒体 | `/api/*` `/static/*` `/shared/*` `/thumb/*` `/media/*` `/archive/*`（根路径，全局唯一） |
 
-根域 `/` 为导航主页（`webapp/homepage/`，纯静态）。单 origin 下登录态天然共享（同源 localStorage），页面间跳转均为同源相对路径。
+根域 `/` 为时间线社区主页（登录可见；`webapp/static/timeline.html`，数据 API `GET /api/timeline` 需登录密钥）。单 origin 下登录态天然共享（同源 localStorage），页面间跳转均为同源相对路径。
 
 ## 2. DNS
 
@@ -105,12 +105,16 @@ systemctl enable --now botero-web
 | `BOTERO_AUTH_SALT_OLD` | 空 | 历史盐列表（逗号分隔，写于 `scripts/botero.env`）。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 网页打卡单次最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
+| `BOTERO_TIMELINE_URL` | `http://127.0.0.1:8765` | Event Server 基地址（bot 插件发送时间线事件的目标） |
+| `BOTERO_EVENT_TOKEN` | `BotEro-Timeline-ChangeMe` | 系统间事件令牌（bot 发送与 webapp 校验共用；**单一来源 `scripts/botero.env`**，生产建议改为随机值） |
 
 > 旧变量 `BOTERO_GALLERY_URL`（图库域基地址）已删除：单 origin 后媒体 URL 为同源根相对路径，无需跨域基地址。
 
-## 6. 导航主页
+## 6. 时间线主页（社区主页）
 
-导航主页文件位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + 三个 JSON），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管。`entries.json` 是主页（入口页）**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述/徽标都在此文件完成，无需改动 `index.html`。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。主页右上角提供与全站一致的登录按钮（`auth.js`），单 origin 下任一分区登录后主页即显示用户卡片。
+时间线主页文件位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管，**登录后可见**（数据 API `GET /api/timeline` 需登录密钥，未登录 401）。侧边栏功能导航数据源为 `webapp/timeline/entries.json`，是主页**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述都在此文件完成。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。侧边栏提供与全站一致的登录状态（`auth.js`）。
+
+事件发送方接入：bot 插件经 `core/timeline_client.py` 发送（`BOTERO_TIMELINE_URL` + `BOTERO_EVENT_TOKEN`，见第 5 节环境变量）；v1 发送方为打卡与周常任务，回滚联动删除。协议见 `specs/timeline-protocol.md`。
 
 ## 7. 启动顺序与验证
 

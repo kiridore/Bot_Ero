@@ -8,7 +8,7 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **7 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` 等前缀路径；根域 `/` 由 webapp 提供导航主页（`webapp/homepage/`，纯静态 + `entries.json` 配置卡片）聚合入口。
+Web 端按功能域拆分为 **8 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -19,14 +19,15 @@ Web 端按功能域拆分为 **7 个模块（`gallery`/`guestbook`/`profile`/`tr
 | 闹钟 | `alarms` | `/alarms` | 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
+| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`）；时间线主页 + `entries.json` |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
 │  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg       │
-│                      │     │  /alarms /activities /live（7 个 APIRouter）     │
+│                      │     │  /alarms /activities /live /timeline（8 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
-         │                  │        └── / (webapp/homepage 导航主页)   │
+         │                  │        └── / (时间线社区主页，登录可见)     │
          └──────────┬───────┘
                     │
               ┌─────▼─────┐
@@ -58,25 +59,27 @@ Web 端按功能域拆分为 **7 个模块（`gallery`/`guestbook`/`profile`/`tr
 | `core/trpg/` | 跑团规则与角色派生计算 |
 | `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
 
-- Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，与 webapp/homepage/style.css 同步），禁止在子应用样式文件引入新的硬编码颜色。
+- Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，全站唯一来源），禁止在子应用样式文件引入新的硬编码颜色。
 
 ---
 
 ## Constraint: 模块统一骨架
 
-每个功能域模块目录（位于 `webapp/` 包内）：`app.py`（`router = APIRouter()`，业务/页面路由）、`__init__.py`；静态文件全部集中在 `webapp/static/`（25 个文件，文件名全局唯一）。单进程入口 `webapp/app.py` 负责认证路由、导航主页（`webapp/homepage/`，根路径 `/` 与 5 个资源路由）、router include 与静态挂载：
+每个功能域模块目录（位于 `webapp/` 包内）：`app.py`（`router = APIRouter()`，业务/页面路由）、`__init__.py`；静态文件全部集中在 `webapp/static/`（文件名全局唯一）。单进程入口 `webapp/app.py` 负责认证路由、时间线主页（根路径 `/` 提供 `webapp/static/timeline.html`）、router include 与静态挂载：
 
 ```python
 # webapp/app.py（唯一 FastAPI 入口）
 app = FastAPI(title="BotEro Web", version="1.0.0")
 # POST /api/auth/login + GET /api/auth/me（唯一一份）
-# GET / → webapp/homepage/index.html（导航主页，entries/quotes/notices JSON 同根路径）
+# GET / → webapp/static/timeline.html（时间线社区主页，登录可见）
 app.include_router(gallery_router)       # from webapp.gallery.app import router as ...
 app.include_router(guestbook_router)
 app.include_router(profile_router)
 app.include_router(trpg_router)
 app.include_router(alarms_router)
 app.include_router(activities_router)    # 最后：/activities/{activity_id:int} 不遮蔽任何已注册路由
+app.include_router(live_router)
+app.include_router(timeline_router)      # Event Server + /entries.json
 app.mount("/static", StaticFiles(directory=webapp/static))    # 全部模块静态
 app.mount("/shared", StaticFiles(directory=core/web/static))  # 共享静态
 
@@ -231,10 +234,11 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 ### 页面路由（FileResponse）
 
-页面路由在各模块（前缀路径，根域 `/` 为 homepage 导航，不经 webapp）：
+页面路由在各模块（前缀路径，根域 `/` 为时间线社区主页，登录可见）：
 
 | 模块 | 路径 |
 |--------|------|
+| `timeline` | `/` 时间线社区主页（登录可见；侧边栏导航 + 无限滚动 feed） |
 | `gallery` | `/gallery` 图库主页 |
 | `profile` | `/profile` 个人主页；`/profile/checkin` 网页打卡；`/profile/shop` 积分商店；`/profile/settings` 称号设置 |
 | `trpg` | `/trpg` 车卡管理；`/trpg/char/{user_id}/{char_id}` 角色卡只读查看页 |
@@ -372,7 +376,7 @@ webapp/static/
   live.html/live.js/mpegts.min.js             ← 直播间（mpegts.js 1.7.3 内置，与 SRS 官方播放器同款；flv.js 1.6.2 与该 SRS 实例不兼容已弃用）
 ```
 
-导航主页位于 `webapp/homepage/`（`index.html` + `app.js` + `style.css` + `entries.json`/`notices.json`/`quotes.json`），由 `webapp/app.py` 在根路径 `/` 与 `/style.css` `/app.js` `/entries.json` `/notices.json` `/quotes.json` 提供；`entries.json` 为唯一入口维护点。登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走主页 style.css 的报纸风 token）。
+时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/gallery.css` 的报纸风 token）。
 
 - 原生 JavaScript，无框架
 - 认证 token 通过 `Authorization: Bearer <token>` 传递

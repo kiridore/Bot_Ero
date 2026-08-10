@@ -33,6 +33,7 @@
 | [`llm-subsystem.md`](llm-subsystem.md) | LLM 子系统 | LLM 功能开发 |
 | [`web-gallery.md`](web-gallery.md) | Web 打卡图库 | Web 端开发 |
 | [`image-generation.md`](image-generation.md) | 图片生成 | 热度图/档案卡 |
+| [`timeline-protocol.md`](timeline-protocol.md) | 社区时间线事件协议 | 时间线事件发送/接收 |
 
 ## 阅读顺序（新开发者）
 

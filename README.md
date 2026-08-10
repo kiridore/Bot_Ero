@@ -40,7 +40,7 @@ python -m webapp                               # 默认 http://0.0.0.0:8765
 
 | 访问地址 | 内容 |
 |----------|------|
-| `littlero.tech/` | 导航主页（卡片入口维护于 `webapp/homepage/entries.json`） |
+| `littlero.tech/` | 时间线社区主页（登录可见；侧边栏功能导航 + 无限滚动时间线，入口维护于 `webapp/timeline/entries.json`） |
 | `littlero.tech/gallery` | 打卡图库（瀑布流 + 缩略图/原图） |
 | `littlero.tech/guestbook` | 留言簿 |
 | `littlero.tech/profile` | 个人中心（`/profile/checkin` 打卡、`/profile/shop` 商店、`/profile/settings` 设置） |
@@ -61,8 +61,8 @@ OneBot 服务端 ──WebSocket──> main.py ──> 每事件新线程 → p
                                               └─ plugin.match() → plugin.handle()
 
 littlero.tech ──Caddy 反代──> webapp（单进程 FastAPI, 8765）
-   ├── / 主页（webapp/homepage/）
-   ├── 7 个功能模块（webapp/gallery|guestbook|profile|trpg|alarms|activities|live，各含 APIRouter）
+   ├── / 时间线社区主页（登录可见，webapp/static/timeline.html）
+   ├── 8 个功能模块（webapp/gallery|guestbook|profile|trpg|alarms|activities|live|timeline，各含 APIRouter）
    └── /api /static /shared /thumb /media /archive（根路径）
 
 core/（共享层）── bot 与 webapp 共用：config / auth / database_manager / onebot_client /
@@ -80,8 +80,8 @@ data.db（SQLite WAL）── bot 与 webapp 两个写者
 ```
 core/        bot 与 web 共享核心（config/auth/db/trpg/character_store/user_settings/web/static…）
 plugins/     43 个已注册插件（每插件一个文件夹）
-webapp/      Web 单进程入口：app.py（认证+主页+router include+mount）、7 功能模块、
-             homepage/（导航主页）、static/（25 个静态文件）、requirements.txt
+webapp/      Web 单进程入口：app.py（认证+时间线主页+router include+mount）、8 功能模块、
+             timeline/（Event Server + entries.json）、static/（静态文件）、requirements.txt
 scripts/     systemd unit（botero-web.service）、Caddyfile、botero-services.sh
 specs/       权威约束文档（SDD，改代码前必读对应规范）
 kb/          知识库分主题（QUICK_REFERENCE / PLUGIN_CATALOG / GAMEPLAY / CONVENTIONS /

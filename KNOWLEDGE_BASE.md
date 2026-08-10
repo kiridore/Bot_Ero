@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-> Last updated: 2026-08-09 (直播间 /live：webapp 第 7 个模块，SRS HTTP-FLV + mpegts.js（SRS 官方播放器同款），状态探测方案 A；新增兑换码插件；新增 /一键抽奖 指令，合并转发按次独立子消息)
+> Last updated: 2026-08-10 (社区时间线：webapp 第 8 个模块 timeline —— Event Server 收事件 + `/` 时间线主页登录可见，打卡/周常任务发送事件，撤回打卡/消息撤回/任务回退联动删除；旧导航主页 webapp/homepage/ 已废弃删除)
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -32,8 +32,9 @@
 | [`specs/conventions.md`](specs/conventions.md) | 编码约定、隐式知识、路径、周边界 |
 | [`specs/database.md`](specs/database.md) | 数据库 Schema 概述、迁移规则 |
 | [`specs/onebot-protocol.md`](specs/onebot-protocol.md) | OneBot v11 协议、CQ 消息构造 |
-| [`specs/web-gallery.md`](specs/web-gallery.md) | Web 应用架构（单进程 webapp：6 模块 + 共享 core）、API 路由 |
+| [`specs/web-gallery.md`](specs/web-gallery.md) | Web 应用架构（单进程 webapp：8 模块 + 共享 core）、API 路由 |
 | [`specs/image-generation.md`](specs/image-generation.md) | 图片生成子系统（热度图/档案卡） |
+| [`specs/timeline-protocol.md`](specs/timeline-protocol.md) | 社区时间线事件协议（Event Server / 发送方接入 / 撤回 / 占位符） |
 | [`specs/llm-subsystem.md`](specs/llm-subsystem.md) | LLM 子系统（已弃用） |
 
 ---
@@ -56,13 +57,14 @@
 │   ├── cq.py                  ← CQ 消息段构造器
 │   ├── event.py               ← Event 包装器
 │   ├── database_manager.py    ← DbManager（统一 DB_PATH + WAL + busy_timeout=5000）
-│   ├── db/                    ← 各业务模块数据库管理层（checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook）
+│   ├── db/                    ← 各业务模块数据库管理层（checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook/redeem/timeline）
 │   ├── character_store.py     ← 角色卡 JSON 存储（server_data/trpg_chars/）
 │   ├── user_settings.py       ← 个人设置 JSON 存储（server_data/user_settings/）
 │   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
-│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 见 core/web/static/gallery.css，与 webapp/homepage/style.css 数值同步）
+│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 全站唯一来源 core/web/static/gallery.css）
+│   ├── timeline_client.py     ← 社区时间线事件发送助手（emit_event/retract_event，best-effort）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 45 个已注册插件
 ├── kb/                        ← 知识库子文档
@@ -73,9 +75,9 @@
 │   ├── OPERATIONS.md
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
-├── webapp/                    ← Web 单进程入口（8765；认证路由/导航主页/static 合并目录；`python -m webapp`）
-│   ├── app.py                 ← 唯一 FastAPI 入口（include 6 模块 router + mount /static /shared）
-│   ├── homepage/              ← 导航主页（根路径 / 提供；entries/quotes/notices 三个 JSON 配置，entries.json 为唯一入口维护点；登录与全站统一 auth.js）
+├── webapp/                    ← Web 单进程入口（8765；认证路由/时间线主页/static 合并目录；`python -m webapp`）
+│   ├── app.py                 ← 唯一 FastAPI 入口（include 8 模块 router + 时间线主页 / + mount /static /shared）
+│   ├── timeline/              ← 时间线模块（Event Server：POST/DELETE /api/timeline/events + GET /api/timeline；entries.json 侧边栏导航数据源；协议见 specs/timeline-protocol.md）
 │   ├── gallery/               ← 图库模块（/gallery；repository/thumbnails/dates）
 │   ├── guestbook/             ← 留言簿模块（/guestbook）
 │   ├── profile/               ← 个人中心模块（/profile）
@@ -83,7 +85,7 @@
 │   ├── alarms/                ← 闹钟模块（/alarms）
 │   ├── activities/            ← 活动归档模块（/activities）
 │   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 探测 + 观众在场 heartbeat/viewers，登录显示昵称）
-│   └── static/                ← 全部模块静态文件（index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等 25 个）
+│   └── static/                ← 全部模块静态文件（timeline.html/js/css、index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js 等）
 └── test/                      ← 临时测试脚本
 ```
 

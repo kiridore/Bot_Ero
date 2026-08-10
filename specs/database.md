@@ -295,6 +295,30 @@ with _connect() as conn:
 
 ---
 
+### 社区时间线
+
+#### `timeline_events`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | TEXT | PRIMARY KEY | 事件 ID，格式 `<source>:<uuid>`（客户端生成） |
+| `source` | TEXT | NOT NULL, UNIQUE(source, id), UNIQUE(source, dedup_key) | 事件来源（`checkin` / `quest`，新增需在 timeline-protocol.md 注册） |
+| `received_at` | TEXT | NOT NULL | 服务器收件时间 `YYYY-MM-DD HH:MM:SS`（展示/排序唯一依据） |
+| `actor_id` | TEXT | NOT NULL | 参与者 id（发送方体系内） |
+| `actor_qq` | TEXT | | QQ 号（有值则渲染昵称头像，否则「未绑定玩家」） |
+| `target_type` | TEXT | | 自由标签，无业务语义 |
+| `target_url` | TEXT | | 存在且 http(s) 时渲染「»详情」按钮 |
+| `title` | TEXT | NOT NULL | 动作文案，支持 `{id:<user_id>}` 占位符 |
+| `description` | TEXT | | 补充说明，同样支持占位符 |
+| `data` | TEXT | | 业务数据 JSON 原文，Event Server 不解析 |
+| `dedup_key` | TEXT | UNIQUE(source, dedup_key) | 业务自然键（如 `checkin:123456:2026-08-10`），撤回/回滚定位用 |
+
+- 索引：`idx_timeline_feed (received_at DESC, id DESC)`（keyset 分页）
+- 幂等：`(source, id)` 与 `(source, dedup_key)` 唯一约束 + `INSERT OR IGNORE`；`dedup_key` 为 NULL 时不参与唯一
+- 撤回 = 硬删除（DELETE 行）；业务回滚（`/撤回打卡`、消息撤回、周常任务回退）必须联动删除对应事件
+- 协议细节见 [`timeline-protocol.md`](timeline-protocol.md)
+
+---
+
 ## Constraint: 迁移模式 (CRITICAL)
 
 项目**没有**迁移框架。Schema 演化通过在 `DbManager.__init__()` 中手动执行：
