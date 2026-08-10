@@ -9,6 +9,7 @@ from .logic import (
     evaluate_and_unlock_titles,
     get_title_def,
     get_lottery_title_ids,
+    emit_title_unlock,
     _title_collection_progress,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     "get_title_def",
     "get_lottery_title_ids",
     "evaluate_and_unlock_titles",
+    "emit_title_unlock",
     "TitlePlugin",
 ]
 

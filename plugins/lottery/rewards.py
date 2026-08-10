@@ -1,7 +1,7 @@
 import random
 
 from core import utils
-from plugins.title import get_lottery_title_ids, get_title_def
+from plugins.title import get_lottery_title_ids, get_title_def, emit_title_unlock
 
 DUP_REBATE = {"common": 1, "rare": 2, "legendary": 3}
 
@@ -24,6 +24,7 @@ def draw_title_by_rarity(dbmanager, user_id, rarity):
         return {"type": "title_duplicate", "value": title_id, "rarity": rarity, "rebate": rebate}
 
     dbmanager.titles.unlock(user_id, title_id)
+    emit_title_unlock(user_id, title_id)
     return {"type": "title_new", "value": title_id, "rarity": rarity}
 
 
