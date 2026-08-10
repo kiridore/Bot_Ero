@@ -1,5 +1,69 @@
 /* 社区时间线（社区主页）—— 报纸风 token 全部来自 /shared/gallery.css :root */
 
+/* —— 报头（恢复自旧导航主页 masthead）—— */
+.masthead {
+  width: min(880px, 100% - 2rem);
+  margin: 1.5rem auto 0;
+  text-align: center;
+  padding: 2.2rem 0 1.2rem;
+  position: relative;
+}
+
+.masthead::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--gold) 50%, var(--accent) 70%, transparent);
+}
+
+.masthead::before {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  bottom: -0.62rem;
+  transform: translateX(-50%);
+  background: var(--paper);
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.masthead-issue {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.masthead-title {
+  margin: 0;
+  font-size: clamp(2.2rem, 6.5vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--ink);
+}
+
+.masthead-sub {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+}
+
+.masthead-date {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.15em;
+}
+
 .tl-layout {
   display: grid;
   grid-template-columns: 240px minmax(0, 640px) 1fr;

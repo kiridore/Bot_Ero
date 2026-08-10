@@ -231,4 +231,11 @@
   loadNav();
   bindAuth();
   initObserver();
+
+  const dateEl = document.getElementById("mastheadDate");
+  if (dateEl) {
+    dateEl.textContent = new Date().toLocaleDateString("zh-CN", {
+      year: "numeric", month: "long", day: "numeric", weekday: "long",
+    });
+  }
 })();
