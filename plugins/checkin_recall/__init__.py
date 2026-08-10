@@ -4,6 +4,7 @@ from core import utils
 from core.base import Plugin
 from core.cq import at, text
 from core.utils import get_monday_to_monday, on_quest_rollback
+from core.timeline_client import retract_event
 
 
 from core.utils import register_plugin
@@ -85,6 +86,9 @@ class CheckinRecallPlugin(Plugin):
         deleted = self.dbmanager.checkin.delete_by_msg(user_id, message_id)
         if deleted <= 0:
             return
+
+        # 社区时间线联动：删除该打卡对应的事件（best-effort）
+        retract_event("checkin", dedup_key="checkin:%s:%s" % (user_id, dt.strftime("%Y-%m-%d")))
 
         week_after = self.dbmanager.checkin.search_user_range(
             user_id, start_date, end_date, limit=9999999

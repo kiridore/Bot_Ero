@@ -3,6 +3,7 @@ from core.base import CommandPlugin
 from core.cq import text,at
 from core.logger import logger
 from core.utils import add_user_point, get_monday_to_monday, on_quest_trigger
+from core.timeline_client import emit_event
 from datetime import datetime
 from plugins.title import evaluate_and_unlock_titles, get_title_def
 
@@ -55,6 +56,19 @@ class CheckinPlugin(CommandPlugin):
             # 后搜索
             checkin_list = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
             streak_res = self.dbmanager.checkin.streaks(self.bot_event.user_id)
+
+            # 社区时间线事件（best-effort；dedup_key 按打卡日期，撤回/回滚按它删除）
+            emit_event(
+                source="checkin",
+                actor_id=self.bot_event.user_id,
+                actor_qq=self.bot_event.user_id,
+                title="{id:%s} 完成打卡" % self.bot_event.user_id,
+                description="本周第 %d 次" % len(checkin_list),
+                dedup_key="checkin:%s:%s" % (
+                    self.bot_event.user_id,
+                    datetime.now().strftime("%Y-%m-%d"),
+                ),
+            )
 
             display_str = "\n🌟打卡成功喵🌟\n收录了{}张图片\n".format(len(img_list))
 

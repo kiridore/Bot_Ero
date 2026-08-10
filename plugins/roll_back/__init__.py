@@ -2,6 +2,7 @@ from core import utils
 from core.base import CommandPlugin
 from core.cq import text,image
 from core.utils import get_monday_to_monday, on_quest_rollback
+from core.timeline_client import retract_event
 from core.logger import logger
 from datetime import datetime, timedelta
 
@@ -75,7 +76,11 @@ class RollbackCheckinPlugin(CommandPlugin):
                 if month_weekly_points > 0:
                     utils.add_user_point(self.dbmanager, self.bot_event.user_id, -month_weekly_points)
 
-            self.dbmanager.checkin.delete(rows[0][0])
-            on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin")
             dt = datetime.strptime(del_time, "%Y-%m-%d %H:%M:%S")
+            self.dbmanager.checkin.delete(rows[0][0])
+            # 社区时间线联动：删除该打卡对应的事件（best-effort）
+            retract_event(
+                "checkin", dedup_key="checkin:%s:%s" % (self.bot_event.user_id, dt.strftime("%Y-%m-%d"))
+            )
+            on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin")
             self._rollback_attendance_rewards(self.bot_event.user_id, dt)
