@@ -1,7 +1,7 @@
 # BotEro 站点配置：根域 littlero.tech 全部流量反代单进程 webapp（8765）
 # 用法：caddy run --config scripts/Caddyfile 或复制到 /etc/caddy/Caddyfile
-# webapp 自行路由：/ 导航主页（webapp/homepage/）、/gallery /guestbook /profile(/checkin /shop /settings)
-# /trpg(/char/...) /alarms /activities 各分区页面，/api /static /shared /thumb /media /archive 根路径资源
+# webapp 自行路由：/ 时间线主页（登录可见）、/gallery /guestbook /profile(/checkin /shop /settings)
+# /trpg(/char/...) /alarms /activities /live 各分区页面，/api /static /shared /thumb /media /archive 根路径资源
 
 littlero.tech {
 	reverse_proxy 127.0.0.1:8765

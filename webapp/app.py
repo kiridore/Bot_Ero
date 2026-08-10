@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from core.auth import verify_login_key
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.web.auth_deps import get_current_user_id
-from webapp import HOME_DIR, STATIC_DIR
+from webapp import STATIC_DIR
 
 from webapp.gallery.app import router as gallery_router
 from webapp.guestbook.app import router as guestbook_router
@@ -18,6 +18,7 @@ from webapp.trpg.app import router as trpg_router
 from webapp.alarms.app import router as alarms_router
 from webapp.activities.app import router as activities_router
 from webapp.live.app import router as live_router
+from webapp.timeline.app import router as timeline_router
 
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
 
@@ -59,35 +60,10 @@ def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
     )
 
 
-# 导航主页（webapp/homepage/，根域 / 由 Caddy 反代到本进程）
+# 社区主页（时间线，登录可见；根域 / 由 Caddy 反代到本进程）
 @app.get("/")
 def home():
-    return FileResponse(HOME_DIR / "index.html")
-
-
-@app.get("/style.css")
-def home_style():
-    return FileResponse(HOME_DIR / "style.css")
-
-
-@app.get("/app.js")
-def home_script():
-    return FileResponse(HOME_DIR / "app.js")
-
-
-@app.get("/entries.json")
-def home_entries():
-    return FileResponse(HOME_DIR / "entries.json")
-
-
-@app.get("/notices.json")
-def home_notices():
-    return FileResponse(HOME_DIR / "notices.json")
-
-
-@app.get("/quotes.json")
-def home_quotes():
-    return FileResponse(HOME_DIR / "quotes.json")
+    return FileResponse(STATIC_DIR / "timeline.html")
 
 
 app.include_router(gallery_router)
@@ -97,5 +73,6 @@ app.include_router(trpg_router)
 app.include_router(alarms_router)
 app.include_router(activities_router)
 app.include_router(live_router)
+app.include_router(timeline_router)
 app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
