@@ -96,7 +96,7 @@
 
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
-| `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>`（打卡记录日期） |
+| `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
 | `quest` | `core.utils.on_quest_trigger` | 完成周常任务 | `quest:<user_id>:<week_key>:<quest_id>` |
 
 新增 source **MUST** 在本表注册并约定 dedup_key 格式，且文档更新与代码同一 commit。

@@ -87,8 +87,10 @@ class CheckinRecallPlugin(Plugin):
         if deleted <= 0:
             return
 
-        # 社区时间线联动：删除该打卡对应的事件（best-effort）
-        retract_event("checkin", dedup_key="checkin:%s:%s" % (user_id, dt.strftime("%Y-%m-%d")))
+        # 社区时间线联动：删除该打卡对应的事件（best-effort；按 message_id 定位）
+        retract_event(
+            "checkin", dedup_key="checkin:%s:%s:%s" % (user_id, dt.strftime("%Y-%m-%d"), message_id)
+        )
 
         week_after = self.dbmanager.checkin.search_user_range(
             user_id, start_date, end_date, limit=9999999

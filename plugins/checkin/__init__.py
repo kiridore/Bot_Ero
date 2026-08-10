@@ -71,9 +71,10 @@ class CheckinPlugin(CommandPlugin):
                     )
                     for img in img_list
                 ]},
-                dedup_key="checkin:%s:%s" % (
+                dedup_key="checkin:%s:%s:%s" % (
                     self.bot_event.user_id,
                     datetime.now().strftime("%Y-%m-%d"),
+                    msg_id,  # 每次 /打卡 一条消息一个 id；同一天多次打卡各成一条
                 ),
             )
 

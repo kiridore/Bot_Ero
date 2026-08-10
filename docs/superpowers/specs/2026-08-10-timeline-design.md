@@ -136,7 +136,7 @@ def retract_event(source, dedup_key=None, event_id=None) -> None
 ### checkin 事件
 
 - 发送点：`plugins/checkin/__init__.py` `handle()`，`self.dbmanager.checkin.insert(...)` 之后。
-- 事件：`source="checkin"`，`actor.id=user_id`（`qq` 同值），title `"{id:<user_id>} 完成打卡"`，description 可带「本周第 N 次」，`dedup_key = "checkin:<user_id>:<YYYY-MM-DD>"`（日期取打卡记录时间）。
+- 事件：`source="checkin"`，`actor.id=user_id`（`qq` 同值），title `"{id:<user_id>} 完成打卡"`，description 可带「本周第 N 次」，`dedup_key = "checkin:<user_id>:<YYYY-MM-DD>:<message_id>"`（按消息 id 区分同日多次打卡；日期取打卡记录时间）。
 - 回滚联动：
   - `plugins/roll_back/__init__.py`（`/撤回打卡`）：`self.dbmanager.checkin.delete(...)` 后 `retract_event("checkin", dedup_key=...)`。
   - `plugins/checkin_recall/__init__.py`（消息撤回）：删除打卡记录处同样 `retract_event`。

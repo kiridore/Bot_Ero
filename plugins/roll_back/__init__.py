@@ -78,9 +78,10 @@ class RollbackCheckinPlugin(CommandPlugin):
 
             dt = datetime.strptime(del_time, "%Y-%m-%d %H:%M:%S")
             self.dbmanager.checkin.delete(rows[0][0])
-            # 社区时间线联动：删除该打卡对应的事件（best-effort）
+            # 社区时间线联动：删除该打卡对应的事件（best-effort；rows[0][4]=message_id）
             retract_event(
-                "checkin", dedup_key="checkin:%s:%s" % (self.bot_event.user_id, dt.strftime("%Y-%m-%d"))
+                "checkin",
+                dedup_key="checkin:%s:%s:%s" % (self.bot_event.user_id, dt.strftime("%Y-%m-%d"), rows[0][4]),
             )
             on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin")
             self._rollback_attendance_rewards(self.bot_event.user_id, dt)
