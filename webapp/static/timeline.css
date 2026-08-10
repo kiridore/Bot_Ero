@@ -237,7 +237,7 @@
 .tl-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 0; /* 报纸人物照：方块 */
+  border-radius: 50%; /* QQ 头像：圆形 */
   object-fit: cover;
   background: rgba(44, 42, 36, 0.06);
   border: 1px solid var(--line);
