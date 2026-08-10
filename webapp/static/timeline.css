@@ -214,7 +214,7 @@
 
 /* Twitter 式条目：无卡片边框/阴影/圆角，行间 1px 分割线，hover 仅轻微底色 */
 .tl-item {
-  padding: 1.05rem 0.4rem;
+  padding: 1.05rem 0; /* 左右贴齐栏边，与栏头/分割线对齐 */
   border-bottom: 1px solid var(--rule);
   transition: background var(--motion-fast) var(--ease);
 }
