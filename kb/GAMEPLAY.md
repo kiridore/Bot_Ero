@@ -244,7 +244,7 @@
 
 > 新增/修改 `plugins/title/defs.py` 中的称号定义后，除 bot 重启外还需重启 webapp（`systemctl restart botero-web`）——网页端称号目录是进程导入时的快照（`core/title_defs.py`）。
 
-**自动解锁推送**：`evaluate_and_unlock_titles` 评估触发的新解锁（打卡/抽奖/游戏结算等）会推送社区时间线事件（`source: title`，标题「解锁称号」）；商店/兑换码等显式获取不推送。
+**不推送时间线**：解锁称号（含评估自动触发、抽奖直抽、兑换码/商店）均不产生时间线事件（`title` source 已停用）。
 
 装备上限 **3 个**（slot 1-3）。
 

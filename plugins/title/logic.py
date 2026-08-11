@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from core.timeline_client import emit_event
-
 from .defs import TITLE_DEFS
 
 
@@ -29,17 +27,6 @@ def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None =
         if tid in TITLE_DEFS and not dbmanager.titles.has(user_id, tid):
             dbmanager.titles.unlock(user_id, tid)
             newly_unlocked.append(tid)
-            # 社区时间线事件（best-effort；dedup 按 用户+称号，天然幂等，解锁无回滚）
-            tdef = TITLE_DEFS[tid]
-            emit_event(
-                source="title",
-                actor_id=str(user_id),
-                actor_qq=str(user_id),
-                title="{id:%s} 解锁称号「%s」" % (user_id, tdef["name"]),
-                description=tdef.get("description") or None,
-                target_url="/profile",
-                dedup_key="title:%s:%s" % (user_id, tid),
-            )
 
     if checkin_dt is not None:
         h, m = checkin_dt.hour, checkin_dt.minute
