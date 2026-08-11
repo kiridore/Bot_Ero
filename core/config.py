@@ -6,6 +6,9 @@ from pathlib import Path
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# 当前版本（单一来源，随 CHANGELOG.md 同步更新）
+BOTERO_VERSION = "1.9.0"
+
 def _path_from_env(key: str, default: Path) -> Path:
     raw = os.environ.get(key)
     return Path(raw) if raw else default

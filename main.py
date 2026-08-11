@@ -79,6 +79,8 @@ def on_message(_, message):
 
 
 if __name__ == "__main__":
+    from core.config import BOTERO_VERSION
+    logger.info("BotEro v%s 启动（WS: %s）", BOTERO_VERSION, WS_URL)
     api.echo = api.Echo()
     api.WS_APP = websocket.WebSocketApp(
         WS_URL,
