@@ -4,6 +4,7 @@ const NAV_HOME_URL = "https://littlero.tech";
 const NAV_HOME_LABEL = "小埃中继站";
 const NAV_ITEMS = [
   { label: "图库", path: "/gallery" },
+  { label: "议事厅", path: "/forum" },
   { label: "个人中心", path: "/profile" },
   { label: "跑团", path: "/trpg" },
   { label: "留言簿", path: "/guestbook" },
