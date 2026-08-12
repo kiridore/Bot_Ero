@@ -61,13 +61,6 @@ def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
     )
 
 
-@app.get("/api/version")
-def api_version():
-    """当前版本（主页右栏展示；单一来源 core.config.BOTERO_VERSION）。"""
-    from core.config import BOTERO_VERSION
-
-    return {"version": BOTERO_VERSION}
-
 # 社区主页（时间线，登录可见；根域 / 由 Caddy 反代到本进程）
 @app.get("/")
 def home():
