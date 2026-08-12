@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
   const UNBOUND = "未绑定玩家";
   const feed = document.getElementById("feed");
   const sentinel = document.getElementById("sentinel");
@@ -193,7 +193,6 @@
       }
       if (!res.ok) throw new Error("加载失败 " + res.status);
       appendPage(await res.json());
-      setStatus("");
       sentinel.textContent = ended ? "— 已经到底了 —" : "加载中…";
     } catch (err) {
       setStatus(err.message || "加载失败");
@@ -206,7 +205,7 @@
     if (!("IntersectionObserver" in window)) return;
     const io = new IntersectionObserver(function (entries) {
       if (entries[0].isIntersecting) loadPage();
-    }, { rootMargin: "400px" });
+    }, { rootMargin: "600px" });
     io.observe(sentinel);
   }
 

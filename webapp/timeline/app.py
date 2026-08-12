@@ -6,6 +6,7 @@
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -25,6 +26,7 @@ TIMELINE_DIR = Path(__file__).resolve().parent
 _PLACEHOLDER_RE = re.compile(r"\{id:(\d+)\}")
 _PAGE_SIZE_DEFAULT = 50
 _PAGE_SIZE_MAX = 100
+_RESOLVE_WORKERS = 16  # 昵称/头像并发解析线程数（OneBot HTTP 局域网，16 并发安全）
 UNBOUND_LABEL = "未绑定玩家"
 
 
@@ -142,7 +144,7 @@ def timeline_feed(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
 ):
-    """时间线查询（登录可见）。服务端解析占位符与昵称头像。"""
+    """时间线查询（登录可见）。服务端解析占位符与昵称头像（并发，冷缓存首屏提速）。"""
     cur = None
     if cursor:
         if "|" not in cursor:
@@ -155,16 +157,42 @@ def timeline_feed(
     has_more = len(rows) > limit
     rows = rows[:limit]
 
-    events = []
+    # 第一遍：收集本页需要解析的全部用户（事件 actor + 文案占位符），去重
+    need: set[str] = set()
+    unbound_keys: set[str] = set()
+    for row in rows:
+        (_eid, _source, _received_at, actor_id, actor_qq, _tt, _tu,
+         title, description, _data_raw, _dedup_key) = row
+        if actor_qq:
+            need.add(str(actor_qq))
+        else:
+            unbound_keys.add(str(actor_id))
+        for text_field in (title, description or ""):
+            for m in _PLACEHOLDER_RE.finditer(text_field):
+                need.add(m.group(1))
+
+    # 并发解析昵称+头像（resolve_* 带 lru_cache；OneBot HTTP 串行是首屏耗时主因）
     users: dict[str, dict] = {}
+    if need:
+        with ThreadPoolExecutor(max_workers=_RESOLVE_WORKERS) as pool:
+            for uid, name, avatar in pool.map(
+                lambda uid: (uid, resolve_display_name(uid), resolve_avatar_url(uid)),
+                sorted(need),
+            ):
+                users[uid] = {"name": name, "avatar": avatar}
+    for uid in unbound_keys:
+        users[uid] = {"name": UNBOUND_LABEL, "avatar": ""}
+
+    # 第二遍：组装响应
+    events = []
     for row in rows:
         (eid, source, received_at, actor_id, actor_qq, target_type, target_url,
          title, description, data_raw, _dedup_key) = row
         if actor_qq:
-            name, avatar = resolve_display_name(actor_qq), resolve_avatar_url(actor_qq)
+            name = users[str(actor_qq)]["name"]
+            avatar = users[str(actor_qq)]["avatar"]
         else:
             name, avatar = UNBOUND_LABEL, ""
-        users.setdefault(str(actor_qq or actor_id), {"name": name, "avatar": avatar})
         events.append({
             "id": eid,
             "source": source,
@@ -180,14 +208,6 @@ def timeline_feed(
             "description": description,
             "data": _loads(data_raw),
         })
-        for text_field in (title, description or ""):
-            for m in _PLACEHOLDER_RE.finditer(text_field):
-                uid = m.group(1)
-                if uid not in users:
-                    users[uid] = {
-                        "name": resolve_display_name(uid),
-                        "avatar": resolve_avatar_url(uid),
-                    }
 
     next_cursor = None
     if has_more and rows:
