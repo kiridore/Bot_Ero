@@ -74,6 +74,30 @@
   align-items: start;
 }
 
+/* 主页三列：右栏展示版本信息（论坛等复用 tl-layout 的页面保持两列） */
+.tl-layout-rail {
+  grid-template-columns: 240px minmax(0, 760px) 220px;
+  max-width: 1400px;
+}
+
+.tl-rail {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+}
+
+.tl-version {
+  padding: 0.5rem 0.8rem;
+  border-left: 3px double var(--line);
+}
+
+.tl-version-value {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* —— 侧边栏 —— */
 .tl-sidebar {
   position: sticky;

@@ -74,6 +74,19 @@
     }
   }
 
+  /* —— 右栏版本信息（/api/version，单一来源 core.config.BOTERO_VERSION）—— */
+  async function loadVersion() {
+    try {
+      const res = await fetch("/api/version");
+      if (!res.ok) return;
+      const data = await res.json();
+      const el = document.getElementById("tlVersion");
+      if (el && data.version) el.textContent = "v" + data.version;
+    } catch (err) {
+      /* 版本加载失败不阻塞时间线 */
+    }
+  }
+ 
   /* —— 时间线渲染 —— */
   function fmtTime(ts) {
     const d = new Date(String(ts).replace(" ", "T"));
@@ -229,6 +242,7 @@
   }
 
   loadNav();
+  loadVersion();
   bindAuth();
   initObserver();
 
