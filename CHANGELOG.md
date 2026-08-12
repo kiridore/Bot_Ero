@@ -2,6 +2,8 @@
 
 本文件记录 BotEro 的用户可见变更。版本号以 `core/config.py::BOTERO_VERSION` 为单一来源，遵循语义化版本；格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+**维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
+
 ## [1.9.0] - 2026-08-11
 
 ### 新增
