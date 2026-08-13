@@ -17,6 +17,8 @@
   bottom: 0;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--gold) 50%, var(--accent) 70%, transparent);
+  background-size: 200% 100%;
+  animation: masthead-flow 9s linear infinite;
 }
 
 .masthead::before {
@@ -62,6 +64,46 @@
   font-size: 0.85rem;
   color: var(--ink-soft);
   letter-spacing: 0.15em;
+}
+
+/* —— 动效装饰（P2）：报头依次浮现 + 金线流动（reduced-motion 下关闭）—— */
+.masthead-issue {
+  animation: masthead-rise var(--motion-slow) var(--ease) both;
+}
+
+.masthead-title {
+  animation: masthead-rise var(--motion-slow) var(--ease) both;
+  animation-delay: 90ms;
+}
+
+.masthead-sub {
+  animation: masthead-rise var(--motion-slow) var(--ease) both;
+  animation-delay: 180ms;
+}
+
+.masthead-date {
+  animation: masthead-rise var(--motion-slow) var(--ease) both;
+  animation-delay: 270ms;
+}
+
+@keyframes masthead-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes masthead-flow {
+  from { background-position: 0% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead::after,
+  .masthead-issue,
+  .masthead-title,
+  .masthead-sub,
+  .masthead-date {
+    animation: none;
+  }
 }
 
 .tl-layout {

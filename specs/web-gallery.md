@@ -71,6 +71,7 @@ Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`t
 - **MUST:** 动画只作用于 transform/opacity，单次 ≤ 450ms，曲线一律使用 `--ease`/`--spring` token；动效 token（`--motion-*`/`--reveal-dist`）唯一来源 gallery.css `:root`，禁止硬编码
 - **MUST:** `prefers-reduced-motion: reduce` 下全部动效禁用：motion.js 不注入 `js-motion`、不暴露 `window.Motion`（页面代码用 `window.Motion` 判空做渐进增强）；motion.css 媒体查询兜底关闭动画。JS 失败/不支持时内容 MUST 保持可见
 - View Transitions API（MPA 整页过渡）为渐进增强：Chrome/Edge/Safari 生效，Firefox 自动降级普通跳转，**MUST NOT** 为它加 polyfill
+- 装饰性氛围动效例外：时间线报头金线流动（timeline.css `masthead-flow`）允许对非布局属性 `background-position` 做长循环动画（2px 装饰元素，paint 成本可忽略）；**MUST** 在 reduced-motion 下关闭
 - 页面 JS 调用 `Motion.animateNumber(el, to, {duration, from})` 做数字滚动时，静态文本 MUST 保持最终值（`from` 显式传 0），保证无 JS 时内容正确
 
 ---
