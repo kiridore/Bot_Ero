@@ -266,7 +266,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
-| `tools` | `/tools` 工具箱（链接卡片网格 + tag 徽标/点击筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，添加需登录，登录用户可删除自己提交的链接） |
+| `tools` | `/tools` 工具箱（链接卡片网格 + tag 徽标/点击筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可删除自己提交的链接） |
 
 ---
 

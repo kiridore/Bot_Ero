@@ -78,7 +78,11 @@
 
   function applyView() {
     toolList.className = viewMode === "list" ? "tools-grid is-list" : "tools-grid";
-    viewToggle.textContent = viewMode === "card" ? "列表" : "卡片";
+    // 按钮图标 = 切换目标视图（惯例：显示点击后将切换到的视图）
+    const target = viewMode === "card" ? "list" : "grid";
+    viewToggle.innerHTML = GalleryIcons.svgHTML(target);
+    viewToggle.title = viewMode === "card" ? "列表" : "卡片";
+    viewToggle.setAttribute("aria-label", viewMode === "card" ? "切换到列表视图" : "切换到卡片视图");
   }
 
   viewToggle.addEventListener("click", function () {
@@ -94,7 +98,12 @@
 
   function applySort() {
     sortSelect.value = sortDim;
-    orderToggle.textContent = sortOrder === "desc" ? "正序" : "倒序";
+    // 图标固定为上下箭头，title 提示切换目标方向（惯例：显示点击后将切换到的方向）
+    orderToggle.title = sortOrder === "desc" ? "正序" : "倒序";
+    orderToggle.setAttribute(
+      "aria-label",
+      "切换排序方向（当前" + (sortOrder === "desc" ? "倒序" : "正序") + "）"
+    );
   }
 
   sortSelect.addEventListener("change", function () {
@@ -214,16 +223,20 @@
       meta.appendChild(document.createTextNode("由 " + (item.created_by_name || item.created_by) + " 提交 · "));
       const clicksEl = document.createElement("span");
       clicksEl.className = "tools-clicks";
-      clicksEl.textContent = item.click_count || 0;
+      clicksEl.title = "点击次数";
+      clicksEl.appendChild(GalleryIcons.svgEl("eye"));
+      const clicksNum = document.createElement("span");
+      clicksNum.className = "tools-clicks-num";
+      clicksNum.textContent = item.click_count || 0;
+      clicksEl.appendChild(clicksNum);
       meta.appendChild(clicksEl);
-      meta.appendChild(document.createTextNode(" 次点击"));
       a.appendChild(meta);
       // 点击计数：best-effort，不阻塞跳转
       a.addEventListener("click", function () {
         fetch("/api/tools/" + item.id + "/click", { method: "POST" })
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
-            if (d && typeof d.clicks === "number") clicksEl.textContent = d.clicks;
+            if (d && typeof d.clicks === "number") clicksNum.textContent = d.clicks;
           })
           .catch(function () {});
       });
@@ -232,7 +245,9 @@
         const del = document.createElement("button");
         del.type = "button";
         del.className = "tools-del";
-        del.textContent = "删除";
+        del.title = "删除";
+        del.setAttribute("aria-label", "删除");
+        del.innerHTML = GalleryIcons.svgHTML("trash");
         del.addEventListener("click", async function () {
           if (!confirm(`确定删除「${item.title}」？`)) return;
           try {

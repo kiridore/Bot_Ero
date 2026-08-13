@@ -21,18 +21,26 @@
     <main class="tl-main">
       <header class="tl-head">
         <h1>工具箱</h1>
-        <button id="addBtn" class="tools-btn" type="button">添加链接</button>
-        <select id="sortSelect" class="tools-sort" title="排序方式">
+        <button id="addBtn" class="tools-btn tools-icon-btn" type="button" title="添加链接" aria-label="添加链接">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </button>
+        <select id="sortSelect" class="tools-sort" title="排序方式" aria-label="排序方式">
           <option value="time">按添加时间</option>
           <option value="hot">按热度</option>
         </select>
-        <button id="orderToggle" class="tools-btn" type="button">正序</button>
-        <button id="viewToggle" class="tools-btn" type="button">列表</button>
+        <button id="orderToggle" class="tools-btn tools-icon-btn" type="button" title="正序" aria-label="切换排序方向">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>
+        </button>
+        <button id="viewToggle" class="tools-btn tools-icon-btn" type="button" title="列表" aria-label="切换到列表视图">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
+        </button>
       </header>
       <input id="searchInput" class="tools-search" type="search" placeholder="搜索标题 / 简介 / URL" />
       <p id="tagFilterRow" class="tools-tag-filter hidden">
         筛选：<span id="tagFilterName"></span>
-        <button id="tagFilterClear" class="tools-btn tools-btn-sm" type="button">×</button>
+        <button id="tagFilterClear" class="tools-btn tools-btn-sm tools-icon-btn-sm" type="button" title="清除筛选" aria-label="清除筛选">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
       </p>
       <div id="toolList" class="tools-grid"></div>
       <p id="toolEmpty" class="tl-empty hidden"></p>
@@ -66,6 +74,7 @@
 
   <script src="/shared/auth.js"></script>
   <script src="/shared/nav.js"></script>
+  <script src="/shared/icons.js"></script>
   <script src="/static/tools.js"></script>
 </body>
 </html>
