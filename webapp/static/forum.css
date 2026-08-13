@@ -153,6 +153,7 @@
   background: var(--accent-soft);
   padding: 0.1em 0.3em;
 }
+.forum-editor-content img { max-width: 100%; height: auto; }
 
 .forum-poll-option {
   display: flex;
@@ -213,6 +214,12 @@
   padding: 0.1em 0.35em;
 }
 .forum-rendered a { color: var(--accent-ink); }
+.forum-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.6em 0;
+}
 
 .forum-comment-item {
   padding: 0.7rem 0;

@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-13 (新增工具箱模块 tools：`/tools` 页面 + `GET/POST /api/tools`；模块清单补全 forum 与 tools 共 10 个)
+> 最后更新: 2026-08-13 (议事厅正文图片上传：`POST /api/forum/images` + `/forum/media/{filename}`；新增工具箱模块 tools：`/tools` 页面 + `GET/POST /api/tools`；模块清单补全 forum 与 tools 共 10 个)
 
 ---
 
@@ -244,6 +244,12 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；非法 URL → 400；返回 `{"ok": true, "id": N}`；成功后推送时间线事件 `source=tools`，`{id:}` 占位符渲染提交者） |
 | `DELETE` | `/api/tools/{id}` | 必须 | 删除自己提交的链接（非本人 → 403，不存在 → 404；成功后按 `tools_link:{id}` 撤回时间线事件） |
 
+### 议事厅（`forum` 模块）
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`BOTERO_FORUM_IMAGE_MAX_BYTES`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
+
 ### 页面路由（FileResponse）
 
 页面路由在各模块（前缀路径，根域 `/` 为时间线社区主页，登录可见）：
@@ -258,7 +264,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
-| `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论） |
+| `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
 | `tools` | `/tools` 工具箱（链接卡片网格 + 关键字搜索 + 卡片/列表双视图，添加需登录，登录用户可删除自己提交的链接） |
 
 ---

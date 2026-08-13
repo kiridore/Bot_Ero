@@ -54,6 +54,10 @@ AUTH_SALT_OLD = [s for s in os.environ.get("BOTERO_AUTH_SALT_OLD", "").split(","
 CHECKIN_MAX_IMAGES = int(os.environ.get("BOTERO_CHECKIN_MAX_IMAGES", "9"))
 CHECKIN_MAX_BYTES = int(os.environ.get("BOTERO_CHECKIN_MAX_BYTES", str(10 * 1024 * 1024)))
 
+# 议事厅正文图片上传
+FORUM_IMAGES_ROOT = _path_from_env("BOTERO_FORUM_IMAGES_ROOT", PROJECT_ROOT / "server_data" / "forum_images")
+FORUM_IMAGE_MAX_BYTES = int(os.environ.get("BOTERO_FORUM_IMAGE_MAX_BYTES", str(10 * 1024 * 1024)))
+
 # 社区时间线（Event Server 基地址与系统间事件令牌）
 TIMELINE_URL = os.environ.get("BOTERO_TIMELINE_URL", "http://127.0.0.1:8765")
 TIMELINE_TOKEN = os.environ.get("BOTERO_EVENT_TOKEN", "BotEro-Timeline-ChangeMe")

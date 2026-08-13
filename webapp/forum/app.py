@@ -4,8 +4,9 @@ import json
 import re
 from datetime import datetime
 from typing import Annotated, Any
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,7 @@ from core.timeline_client import emit_event, retract_event
 from core.web.auth_deps import get_current_user_id
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.database_manager import DbManager
+from core.config import FORUM_IMAGE_MAX_BYTES, FORUM_IMAGES_ROOT
 from webapp import STATIC_DIR
 
 router = APIRouter()
@@ -56,6 +58,36 @@ def _excerpt(body_json_str: str, max_len: int) -> str:
     if len(text) <= max_len:
         return text
     return text[:max_len].rstrip() + "…"
+
+
+_ALLOWED_IMAGE_MIME = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
+
+def _save_forum_image(data: bytes, content_type: str | None) -> str:
+    """校验并保存议事厅正文图片，返回文件名（uuid，不可枚举）。"""
+    mime = (content_type or "").split(";")[0].strip().lower()
+    ext = _ALLOWED_IMAGE_MIME.get(mime)
+    if ext is None:
+        raise ValueError("仅支持 JPG / PNG / WebP / GIF 图片")
+    if len(data) > FORUM_IMAGE_MAX_BYTES:
+        raise ValueError(f"图片不能超过 {FORUM_IMAGE_MAX_BYTES // (1024 * 1024)} MB")
+
+    FORUM_IMAGES_ROOT.mkdir(parents=True, exist_ok=True)
+    name = f"f{uuid4().hex}{ext}"
+    (FORUM_IMAGES_ROOT / name).write_bytes(data)
+    return name
+
+
+def _upload_or_400(fn, *args):
+    try:
+        return fn(*args)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _emit_post_event(post: dict) -> None:
@@ -207,6 +239,16 @@ def create_post(
     post = db.forum.get_post(pid)
     _emit_post_event(post)
     return {"ok": True, "id": pid}
+
+
+@router.post("/api/forum/images")
+async def api_forum_image_upload(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    file: UploadFile = File(...),
+):
+    data = await file.read()
+    name = _upload_or_400(_save_forum_image, data, file.content_type)
+    return {"url": f"/forum/media/{name}"}
 
 
 @router.get("/api/forum/posts/{post_id}")
@@ -429,6 +471,20 @@ def forum_new_page():
 @router.get("/forum/tags")
 def forum_tags_page():
     return _serve("forum_tags.html")
+
+
+@router.get("/forum/media/{filename}")
+def forum_media(filename: str):
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="非法路径")
+    path = FORUM_IMAGES_ROOT / filename
+    try:
+        path.resolve().relative_to(FORUM_IMAGES_ROOT.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="禁止访问") from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return FileResponse(path)
 
 
 @router.get("/forum/{post_id}")

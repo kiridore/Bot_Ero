@@ -59,6 +59,11 @@
       case "blockquote": return "<blockquote>" + children + "</blockquote>";
       case "codeBlock": return "<pre><code>" + children + "</code></pre>";
       case "hardBreak": return "<br/>";
+      case "image": {
+        const src = escText((doc.attrs && doc.attrs.src) || "");
+        const alt = escText((doc.attrs && doc.attrs.alt) || "");
+        return '<img class="forum-img" src="' + src + '" alt="' + alt + '">';
+      }
       default: return children;
     }
   }
