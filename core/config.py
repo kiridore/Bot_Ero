@@ -7,7 +7,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.9.1"
+BOTERO_VERSION = "1.10.0"
 
 def _path_from_env(key: str, default: Path) -> Path:
     raw = os.environ.get(key)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>工具箱</title>
+  <link rel="stylesheet" href="/shared/gallery.css" />
+  <link rel="stylesheet" href="/static/timeline.css" />
+  <link rel="stylesheet" href="/static/tools.css" />
+</head>
+<body>
+  <div class="tl-layout">
+    <aside class="tl-sidebar">
+      <a class="tl-brand" href="/">小埃中继站</a>
+      <nav class="tl-nav" id="tlNav">
+        <div class="tl-nav-muted">功能</div>
+      </nav>
+      <div class="tl-auth auth-area" id="authArea"></div>
+    </aside>
+
+    <main class="tl-main">
+      <header class="tl-head">
+        <h1>工具箱</h1>
+        <button id="addBtn" class="tools-btn" type="button">添加链接</button>
+        <button id="viewToggle" class="tools-btn" type="button">列表</button>
+      </header>
+      <input id="searchInput" class="tools-search" type="search" placeholder="搜索标题 / 简介 / URL" />
+      <div id="toolList" class="tools-grid"></div>
+      <p id="toolEmpty" class="tl-empty hidden"></p>
+    </main>
+
+    <aside class="tl-rail"></aside>
+  </div>
+
+  <dialog id="addDialog" class="tools-dialog">
+    <form id="addForm">
+      <h2>添加链接</h2>
+      <label>标题
+        <input type="text" id="addTitle" maxlength="50" required />
+      </label>
+      <label>简介
+        <input type="text" id="addDesc" maxlength="200" />
+      </label>
+      <label>URL
+        <input type="url" id="addUrl" maxlength="2048" required placeholder="https://" />
+      </label>
+      <p class="tools-msg hidden" id="addMsg"></p>
+      <div class="tools-dialog-actions">
+        <button type="button" id="addCancel">取消</button>
+        <button type="submit" class="primary">提交</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/shared/auth.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/tools.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 > 关联规范: [conventions.md](conventions.md) | [plugins.md](plugins.md) | [web-gallery.md](web-gallery.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-03 (新增活动系统 activities/activity_members 表)
+> 最后更新: 2026-08-13 (新增工具箱 tools_links 表)
 
 ---
 
@@ -214,6 +214,22 @@ with _connect() as conn:
 | `entry_id` | INTEGER | PRIMARY KEY (with user_id), FK→guestbook_entries(id) | 留言 ID |
 | `user_id` | INTEGER | PRIMARY KEY (with entry_id) | 点赞用户 QQ 号 |
 | `created_at` | TEXT | NOT NULL | 点赞时间 |
+
+### 工具箱
+
+#### `tools_links`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 链接 ID |
+| `title` | TEXT | NOT NULL | 标题（1-50 字） |
+| `description` | TEXT | NOT NULL DEFAULT `''` | 简介（≤200 字） |
+| `url` | TEXT | NOT NULL | 网页链接（须 http/https） |
+| `domain` | TEXT | NOT NULL | URL 域名（小写；icon 来源 `https://<domain>/favicon.ico`，失败降级首字母） |
+| `created_by` | TEXT | NOT NULL | 提交人 QQ 号（TEXT 类型，与 `activities.created_by` 约定一致） |
+| `created_at` | TEXT | NOT NULL | 创建时间 `YYYY-MM-DD HH:MM:SS` |
+
+- 列表按 `id DESC`（最新在前），表小无索引；搜索经 `LIKE ? ESCAPE '\'` 匹配标题/简介/URL（`_like_escape` 转义通配符）
+- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入，`GET /api/tools` 读取
 
 ### 仙人彩（不朽抽奖）
 

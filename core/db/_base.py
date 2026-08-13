@@ -441,4 +441,15 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_forum_post_tags_tag "
         "ON forum_post_tags (tag_id)"
     )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tools_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            url TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+    """)
     conn.commit()

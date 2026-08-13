@@ -2,13 +2,13 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-09 (单进程 webapp + 同源路径分区：6 模块路由挂根域 `littlero.tech` 下 `/gallery` 等路径；删除子域、Host 分发与 `BOTERO_GALLERY_URL`)
+> 最后更新: 2026-08-13 (新增工具箱模块 tools：`/tools` 页面 + `GET/POST /api/tools`；模块清单补全 forum 与 tools 共 10 个)
 
 ---
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **8 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
+Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -20,12 +20,14 @@ Web 端按功能域拆分为 **8 个模块（`gallery`/`guestbook`/`profile`/`tr
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`）；时间线主页 + `entries.json` |
+| 议事厅 | `forum` | `/forum`（`/forum/new` `/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理 |
+| 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、卡片/列表双视图） |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
-│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg       │
-│                      │     │  /alarms /activities /live /timeline（8 个 APIRouter） │
+│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools │
+│                      │     │  /alarms /activities /live /timeline（10 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (时间线社区主页，登录可见)     │
          └──────────┬───────┘
@@ -80,6 +82,8 @@ app.include_router(alarms_router)
 app.include_router(activities_router)    # 最后：/activities/{activity_id:int} 不遮蔽任何已注册路由
 app.include_router(live_router)
 app.include_router(timeline_router)      # Event Server + /entries.json
+app.include_router(forum_router)
+app.include_router(tools_router)         # 最后：/tools 页面 + /api/tools（不遮蔽任何已注册路由）
 app.mount("/static", StaticFiles(directory=webapp/static))    # 全部模块静态
 app.mount("/shared", StaticFiles(directory=core/web/static))  # 共享静态
 
@@ -232,6 +236,13 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/live/heartbeat` | 可选 | 观众心跳（body `{client_id}`；登录态经 Bearer 解析昵称，匿名单记 client_id；进程内存在场表，75s 无心跳过期，同 client 10s 节流） |
 | `GET` | `/api/live/viewers` | 否 | 当前观众列表：已登录按 user_id 去重显示昵称（成员徽标），匿名单个显示（`匿名观众 #xxxx`）；`{"viewers": [...], "count": N}` |
 
+### 工具箱（`tools` 模块）
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/tools` | 可选 | 链接列表（`q` 关键字搜索标题/简介/URL，最新在前，`id DESC`；每项含 `created_by` 及 OneBot 解析的提交者 `created_by_name`/`created_by_avatar`，解析失败降级回 QQ 号） |
+| `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；非法 URL → 400；返回 `{"ok": true, "id": N}`） |
+
 ### 页面路由（FileResponse）
 
 页面路由在各模块（前缀路径，根域 `/` 为时间线社区主页，登录可见）：
@@ -246,6 +257,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
+| `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论） |
+| `tools` | `/tools` 工具箱（链接卡片网格 + 关键字搜索 + 卡片/列表双视图，添加需登录） |
 
 ---
 

@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: "闹钟", path: "/alarms" },
   { label: "活动", path: "/activities" },
   { label: "直播", path: "/live" },
+  { label: "工具箱", path: "/tools" },
 ];
 
 (function () {

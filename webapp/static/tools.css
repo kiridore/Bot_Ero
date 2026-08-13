@@ -1,0 +1,161 @@
+/* 工具箱主页：链接卡片网格，token 全部来自 /shared/gallery.css :root */
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.tools-grid.is-list {
+  grid-template-columns: 1fr;
+}
+
+.tools-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.8rem;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tools-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.tools-grid.is-list .tools-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tools-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.tools-icon-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.tools-name {
+  font-weight: 600;
+}
+
+.tools-desc {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.tools-grid.is-list .tools-desc {
+  margin-left: 0.4rem;
+}
+
+.tools-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.tools-meta-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.tools-grid.is-list .tools-meta {
+  margin-left: auto;
+}
+
+.tools-btn {
+  background: var(--accent);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  margin-left: 0.6rem;
+}
+
+.tools-btn:hover {
+  filter: brightness(1.08);
+}
+
+.tools-search {
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0.6rem 0 1rem;
+}
+
+/* 添加链接对话框 */
+.tools-dialog label {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.tools-dialog input[type="text"],
+.tools-dialog input[type="url"] {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+}
+
+.tools-msg {
+  font-size: 0.85rem;
+  color: var(--red);
+}
+
+.tools-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.tools-dialog-actions button,
+.tools-dialog-actions button.primary {
+  background: var(--accent);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tools-dialog-actions button.primary:hover {
+  filter: brightness(1.08);
+}
