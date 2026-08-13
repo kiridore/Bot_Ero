@@ -88,7 +88,7 @@
 │   ├── alarms/                ← 闹钟模块（/alarms）
 │   ├── activities/            ← 活动归档模块（/activities）
 │   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 探测 + 观众在场 heartbeat/viewers，登录显示昵称）
-│   └── static/                ← 全部模块静态文件（timeline.html/js/css、index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js、forum.*、tools.* 等；18 个页面统一注入 /shared/motion.css + /shared/motion.js 动效层：View Transitions 页面过渡、data-reveal 滚动揭示批量交错、按压反馈、lightbox/toast 过渡、数字滚动，prefers-reduced-motion 全关闭）
+│   └── static/                ← 全部模块静态文件（timeline.html/js/css、index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js、forum.*、tools.* 等；18 个页面统一注入 /shared/motion.css + /shared/motion.js 动效层：View Transitions 页面过渡、data-reveal 滚动揭示批量交错（40ms/级上限 300ms，视口下方 25% 预揭示区提前进场）、按压反馈、lightbox/toast 过渡、数字滚动，prefers-reduced-motion 全关闭）
 └── test/                      ← 临时测试脚本
 ```
 

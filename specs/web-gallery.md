@@ -67,7 +67,7 @@ Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`t
 
 - **MUST:** 动效统一经由 `core/web/static/motion.css`（样式层：View Transitions 页面过渡、`[data-reveal]` 滚动揭示、`.entering`/`.motion-pop`、按压反馈）与 `core/web/static/motion.js`（`window.Motion`：`reveal`/`stagger`/`enter`/`animateNumber` + MutationObserver 批量交错接管），**MUST NOT** 在页面内自行硬编码动画 keyframes
 - **MUST:** 每个页面 HTML `<head>` 在页面自身 CSS 之前引用 `/shared/motion.css`；`</body>` 前、页面自身脚本之前引用 `/shared/motion.js`
-- **MUST:** 滚动揭示仅需给元素加 `data-reveal` 属性（可选 `data-reveal-delay` 毫秒）；JS 渲染的新内容批次自动交错（55ms/级、上限 600ms），无需手动注册
+- **MUST:** 滚动揭示仅需给元素加 `data-reveal` 属性（可选 `data-reveal-delay` 毫秒）；JS 渲染的新内容批次自动交错（40ms/级、上限 300ms），观察器以视口下方 25% 为预揭示区（`rootMargin: 0 0 25% 0`），卡片提前进场、滚动到时须已完整可见，无需手动注册
 - **MUST:** 动画只作用于 transform/opacity，单次 ≤ 450ms，曲线一律使用 `--ease`/`--spring` token；动效 token（`--motion-*`/`--reveal-dist`）唯一来源 gallery.css `:root`，禁止硬编码
 - **MUST:** `prefers-reduced-motion: reduce` 下全部动效禁用：motion.js 不注入 `js-motion`、不暴露 `window.Motion`（页面代码用 `window.Motion` 判空做渐进增强）；motion.css 媒体查询兜底关闭动画。JS 失败/不支持时内容 MUST 保持可见
 - View Transitions API（MPA 整页过渡）为渐进增强：Chrome/Edge/Safari 生效，Firefox 自动降级普通跳转，**MUST NOT** 为它加 polyfill

@@ -16,10 +16,12 @@
 
   document.documentElement.classList.add("js-motion");
 
+  // 视口下方 25% 为预揭示区：卡片还在折叠线下就开始进场动画，
+  // 滚动到时已完整可见，避免"滚到空白板面等卡片出现"
   var observer = "IntersectionObserver" in window
     ? new IntersectionObserver(onIntersect, {
-        rootMargin: "0px 0px -6% 0px",
-        threshold: 0.06
+        rootMargin: "0px 0px 25% 0px",
+        threshold: 0
       })
     : null;
 
@@ -53,9 +55,9 @@
 
   function stagger(root, stepMs) {
     var els = (root || document).querySelectorAll("[data-reveal]:not(.revealed)");
-    var step = stepMs || 70;
+    var step = stepMs || 40;
     for (var i = 0; i < els.length; i++) {
-      els[i].style.setProperty("--reveal-delay", Math.min(i * step, 600) + "ms");
+      els[i].style.setProperty("--reveal-delay", Math.min(i * step, 300) + "ms");
     }
     reveal(root);
   }
@@ -122,7 +124,7 @@
         var batch = newEls;
         newEls = [];
         for (var i = 0; i < batch.length; i++) {
-          batch[i].style.setProperty("--reveal-delay", Math.min(i * 55, 600) + "ms");
+          batch[i].style.setProperty("--reveal-delay", Math.min(i * 40, 300) + "ms");
           if (observer) observer.observe(batch[i]);
           else revealNow(batch[i]);
         }
