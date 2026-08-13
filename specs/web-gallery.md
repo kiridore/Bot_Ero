@@ -242,6 +242,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/tools` | 可选 | 链接列表（`q` 关键字搜索标题/简介/URL，最新在前，`id DESC`；每项含 `created_by` 及 OneBot 解析的提交者 `created_by_name`/`created_by_avatar`，解析失败降级回 QQ 号） |
 | `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；非法 URL → 400；返回 `{"ok": true, "id": N}`；成功后推送时间线事件 `source=tools`，`{id:}` 占位符渲染提交者） |
+| `DELETE` | `/api/tools/{id}` | 必须 | 删除自己提交的链接（非本人 → 403，不存在 → 404；成功后按 `tools_link:{id}` 撤回时间线事件） |
 
 ### 页面路由（FileResponse）
 
@@ -258,7 +259,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论） |
-| `tools` | `/tools` 工具箱（链接卡片网格 + 关键字搜索 + 卡片/列表双视图，添加需登录） |
+| `tools` | `/tools` 工具箱（链接卡片网格 + 关键字搜索 + 卡片/列表双视图，添加需登录，登录用户可删除自己提交的链接） |
 
 ---
 

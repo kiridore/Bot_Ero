@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from core.database_manager import DbManager
 from core.onebot_client import resolve_avatar_url, resolve_display_name
-from core.timeline_client import emit_event
+from core.timeline_client import emit_event, retract_event
 from core.web.auth_deps import get_current_user_id, get_optional_user_id
 from webapp import STATIC_DIR
 
@@ -77,6 +77,21 @@ def api_tools_add(
         dedup_key=f"tools_link:{tool_id}",
     )
     return {"ok": True, "id": tool_id}
+
+
+@router.delete("/api/tools/{tool_id}")
+def api_tools_delete(
+    tool_id: int,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    db = DbManager()
+    result = db.tools.delete_tool(user_id, tool_id)
+    if result["status"] == "not_found":
+        raise HTTPException(status_code=404, detail="链接不存在")
+    if result["status"] == "forbidden":
+        raise HTTPException(status_code=403, detail="只能删除自己提交的链接")
+    retract_event(source="tools", dedup_key=f"tools_link:{tool_id}")
+    return {"ok": True}
 
 
 @router.get("/tools")

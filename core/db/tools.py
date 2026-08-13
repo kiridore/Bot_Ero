@@ -52,3 +52,15 @@ class ToolsManager:
         )
         self.conn.commit()
         return int(self.cur.lastrowid)
+
+    def delete_tool(self, user_id: str, tool_id: int) -> dict:
+        """删除自己提交的链接。返回 {"status": "ok" | "not_found" | "forbidden"}。"""
+        self.cur.execute("SELECT created_by FROM tools_links WHERE id = ?", (int(tool_id),))
+        row = self.cur.fetchone()
+        if row is None:
+            return {"status": "not_found"}
+        if row[0] != user_id:
+            return {"status": "forbidden"}
+        self.cur.execute("DELETE FROM tools_links WHERE id = ?", (int(tool_id),))
+        self.conn.commit()
+        return {"status": "ok"}

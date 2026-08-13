@@ -111,6 +111,9 @@
       return;
     }
     items.forEach(function (item) {
+      const session = GalleryAuth.load();
+      const wrap = document.createElement("div");
+      wrap.className = "tools-card-wrap";
       const a = document.createElement("a");
       a.className = "tools-card";
       a.href = item.url;
@@ -137,7 +140,37 @@
       meta.appendChild(avatar);
       meta.appendChild(document.createTextNode("由 " + (item.created_by_name || item.created_by) + " 提交"));
       a.appendChild(meta);
-      toolList.appendChild(a);
+      wrap.appendChild(a);
+      if (session && String(item.created_by) === String(session.user_id)) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "tools-del";
+        del.textContent = "删除";
+        del.addEventListener("click", async function () {
+          if (!confirm(`确定删除「${item.title}」？`)) return;
+          try {
+            const res = await fetch("/api/tools/" + item.id, {
+              method: "DELETE",
+              headers: GalleryAuth.headers(),
+            });
+            if (res.status === 401) {
+              const dlg = GalleryAuth.ensureLoginDialog();
+              if (typeof dlg.showModal === "function") dlg.showModal();
+              return;
+            }
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              alert(data.detail || "删除失败");
+              return;
+            }
+            loadTools();
+          } catch (err) {
+            alert("网络错误，请重试");
+          }
+        });
+        wrap.appendChild(del);
+      }
+      toolList.appendChild(wrap);
     });
   }
 
@@ -188,6 +221,7 @@
       if (GalleryAuth.isLoggedIn()) {
         clearInterval(timer);
         openAddDialog();
+        loadTools();
       } else if (!dlg.open) {
         clearInterval(timer); // 用户取消登录
       }

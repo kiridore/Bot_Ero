@@ -98,7 +98,7 @@
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
 | `forum` | `webapp/forum` | 发帖 / 评论 / 投票关闭 | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回） |
-| `tools` | `webapp/tools` | 提交工具链接 | `tools_link:<tool_id>`（新增无删除功能，暂不接线撤回） |
+| `tools` | `webapp/tools` | 提交 / 删除工具链接 | `tools_link:<tool_id>`（删除时按同 key 撤回事件） |
 
 > `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。
 > `title`（解锁称号）自 2026-08-11 起**不再发送到时间线**（`plugins/title.logic::evaluate_and_unlock_titles` 已移除发送接线）；如需恢复需重新在本表注册并约定 dedup_key。

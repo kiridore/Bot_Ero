@@ -229,7 +229,7 @@ with _connect() as conn:
 | `created_at` | TEXT | NOT NULL | 创建时间 `YYYY-MM-DD HH:MM:SS` |
 
 - 列表按 `id DESC`（最新在前），表小无索引；搜索经 `LIKE ? ESCAPE '\'` 匹配标题/简介/URL（`_like_escape` 转义通配符）
-- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入，`GET /api/tools` 读取
+- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入，`GET /api/tools` 读取，`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
 
 ### 仙人彩（不朽抽奖）
 
