@@ -4,6 +4,21 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.11.0] - 2026-08-13
+
+### 新增
+
+- **全站动效**：新增零依赖动效层 `core/web/static/motion.css` + `motion.js`（`/shared` 挂载，18 个页面统一注入；gallery.css `:root` 扩展动效 token `--motion-slow`/`--spring`/`--reveal-dist`）：
+  - **MPA 整页平滑过渡**：View Transitions API（Chrome/Edge/Safari 生效，Firefox 自动降级普通跳转）
+  - **卡片滚动进场揭示**：元素 `data-reveal` 标记即可，新增批次自动交错（55ms/级、上限 600ms，MutationObserver 接管，无需页面手动注册）；覆盖时间线/图库/议事厅帖子与评论/留言簿/闹钟/商店/称号/跑团/工具箱/活动卡片
+  - **按压反馈**：按钮/导航/卡片链接按压缩放（触屏与 reduced-motion 自动跳过）
+  - **图库 lightbox**：淡入淡出过渡（原 display 硬切），关闭动画中途重开已防护
+  - **提示滑入**：全站 `settings-toast` 入场动画（display 恢复自动重播，无需改各页 showToast）
+  - **数字滚动**：签到统计（本周收录/连续/最长周数）与商店积分从 0 滚动（easeOutCubic）
+  - **投票反馈**：议事厅投票中「我投的选项」结果弹性弹入
+  - **无障碍**：`prefers-reduced-motion: reduce` 一键关闭全部动效（motion.js 不注入、CSS 媒体查询兜底）；JS 失败时内容保持可见（渐进增强）
+- 跑团/活动：webapp 无骰子交互且活动倒计时每秒跳动（不适合数字滚动），改由区块滚动揭示覆盖
+
 ## [1.10.0] - 2026-08-13
 
 ### 新增

@@ -1,0 +1,106 @@
+/* ============================================================
+   全站动效层（零依赖）
+   - token 全部来自 gallery.css :root（--motion-* / --ease / --reveal-dist）
+   - 只动画 transform/opacity；prefers-reduced-motion 一键关闭
+   - 滚动揭示依赖 <html>.js-motion（由 motion.js 注入）：
+     JS 失败或不支持时内容保持可见（渐进增强）
+   ============================================================ */
+
+/* —— MPA 页面过渡（View Transitions API，Chrome/Edge/Safari 生效，Firefox 自动降级普通跳转）—— */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: vt-fade-out var(--motion-base) var(--ease) both;
+}
+
+::view-transition-new(root) {
+  animation: vt-fade-in var(--motion-slow) var(--ease) both;
+}
+
+@keyframes vt-fade-out {
+  to { opacity: 0; transform: translateY(-6px) scale(0.996); }
+}
+
+@keyframes vt-fade-in {
+  from { opacity: 0; transform: translateY(6px) scale(1.004); }
+}
+
+/* —— 滚动进场揭示 ——
+   animation 实现（而非 transition）：不与页面自有的 hover transition 冲突，
+   交错延迟经 --reveal-delay 变量注入，动画结束后无残留影响 */
+.js-motion [data-reveal]:not(.revealed) {
+  opacity: 0;
+}
+
+[data-reveal].revealed {
+  animation: reveal-in var(--motion-base) var(--ease) both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--reveal-dist, 12px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* —— 新条目进入（JS 通过 Motion.enter(el) 触发一次后自动移除类）—— */
+@keyframes motion-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.entering {
+  animation: motion-enter var(--motion-base) var(--ease) both;
+}
+
+/* —— 弹性入场（骰子/强调数字等，需页面 JS 显式加类）—— */
+@keyframes motion-pop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.motion-pop {
+  animation: motion-pop var(--motion-slow) var(--spring) both;
+}
+
+/* —— 按钮/链接按压反馈（瞬时，无 transition 覆盖页面自有过渡；触屏跳过避免粘滞）—— */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  .btn-sm:active,
+  .toolbar-link:active,
+  .btn-login:active,
+  .user-chip:active,
+  .tl-nav-link:active,
+  .tl-nav-sublink:active,
+  .tl-detail:active,
+  .forum-btn:active,
+  .forum-link:active,
+  .activity-link:active {
+    transform: scale(0.96);
+  }
+}
+
+/* —— 无障碍：用户偏好减少动效时全部关闭 —— */
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+
+  .js-motion [data-reveal]:not(.revealed) {
+    opacity: 1;
+  }
+
+  [data-reveal].revealed,
+  .entering,
+  .motion-pop {
+    animation: none;
+  }
+}

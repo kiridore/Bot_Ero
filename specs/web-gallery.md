@@ -59,9 +59,19 @@ Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`t
 | `core/database_manager.py` + `core/db/` | `DbManager` 统一数据库访问（WAL + busy_timeout=5000；checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook 各业务 manager） |
 | `core/character_store.py` / `core/user_settings.py` | 角色卡/个人设置 JSON 存储（原子写 tmp + os.replace） |
 | `core/trpg/` | 跑团规则与角色派生计算 |
-| `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
+| `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css / motion.css / motion.js），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
 
 - Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，全站唯一来源），禁止在子应用样式文件引入新的硬编码颜色。
+
+## Constraint: 全站动效层（motion.css / motion.js）
+
+- **MUST:** 动效统一经由 `core/web/static/motion.css`（样式层：View Transitions 页面过渡、`[data-reveal]` 滚动揭示、`.entering`/`.motion-pop`、按压反馈）与 `core/web/static/motion.js`（`window.Motion`：`reveal`/`stagger`/`enter`/`animateNumber` + MutationObserver 批量交错接管），**MUST NOT** 在页面内自行硬编码动画 keyframes
+- **MUST:** 每个页面 HTML `<head>` 在页面自身 CSS 之前引用 `/shared/motion.css`；`</body>` 前、页面自身脚本之前引用 `/shared/motion.js`
+- **MUST:** 滚动揭示仅需给元素加 `data-reveal` 属性（可选 `data-reveal-delay` 毫秒）；JS 渲染的新内容批次自动交错（55ms/级、上限 600ms），无需手动注册
+- **MUST:** 动画只作用于 transform/opacity，单次 ≤ 450ms，曲线一律使用 `--ease`/`--spring` token；动效 token（`--motion-*`/`--reveal-dist`）唯一来源 gallery.css `:root`，禁止硬编码
+- **MUST:** `prefers-reduced-motion: reduce` 下全部动效禁用：motion.js 不注入 `js-motion`、不暴露 `window.Motion`（页面代码用 `window.Motion` 判空做渐进增强）；motion.css 媒体查询兜底关闭动画。JS 失败/不支持时内容 MUST 保持可见
+- View Transitions API（MPA 整页过渡）为渐进增强：Chrome/Edge/Safari 生效，Firefox 自动降级普通跳转，**MUST NOT** 为它加 polyfill
+- 页面 JS 调用 `Motion.animateNumber(el, to, {duration, from})` 做数字滚动时，静态文本 MUST 保持最终值（`from` 显式传 0），保证无 JS 时内容正确
 
 ---
 

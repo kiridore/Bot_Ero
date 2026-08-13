@@ -257,6 +257,7 @@
       const session = GalleryAuth.load();
       const wrap = document.createElement("div");
       wrap.className = "tools-card-wrap";
+      wrap.dataset.reveal = "";
       const a = document.createElement("a");
       a.className = "tools-card";
       a.href = item.url;

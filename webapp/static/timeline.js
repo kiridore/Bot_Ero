@@ -94,6 +94,7 @@
   function renderEvent(ev, users) {
     const item = document.createElement("article");
     item.className = "tl-item";
+    item.dataset.reveal = "";
 
     const head = document.createElement("div");
     head.className = "tl-item-head";

@@ -131,6 +131,7 @@ function renderTitles() {
   for (const t of filteredTitles()) {
     const card = document.createElement("article");
     card.className = `title-card${t.unlocked ? " unlocked" : ""}`;
+    card.dataset.reveal = "";
     const pct = Math.round(t.progress * 100);
     card.innerHTML = `
       <div class="title-row">

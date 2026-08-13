@@ -80,6 +80,7 @@
     (data.items || []).forEach(function (c) {
       const div = document.createElement("div");
       div.className = "forum-comment-item";
+      div.dataset.reveal = "";
       const meta = document.createElement("div");
       meta.className = "forum-comment-meta";
       if (c.author_avatar) {
@@ -126,6 +127,7 @@
     counts.forEach(function (r) {
       const row = document.createElement("div");
       row.className = "forum-poll-option";
+      row.dataset.reveal = "";
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "forum-btn" + (closed || mine ? " forum-btn-secondary" : "");
@@ -148,6 +150,7 @@
       row.appendChild(btn);
       const cnt = document.createElement("span");
       cnt.className = "forum-poll-result" + (mine === r.id ? " is-mine" : "");
+      if (mine === r.id) cnt.classList.add("motion-pop");
       const pct = total ? Math.round((r.count / total) * 100) : 0;
       cnt.textContent = `${r.count} 票（${pct}%）` + (closed ? " · 已结束" : "");
       row.appendChild(cnt);

@@ -79,6 +79,7 @@ function renderView(char, rules) {
 
   const attrSec = document.createElement("section");
   attrSec.className = "settings-section";
+  attrSec.dataset.reveal = "";
   attrSec.innerHTML = `<div class="section-head"><h2>属性</h2></div>`;
   const attrTable = document.createElement("table");
   attrTable.className = "trpg-table";
@@ -94,6 +95,7 @@ function renderView(char, rules) {
 
   const skillSec = document.createElement("section");
   skillSec.className = "settings-section";
+  skillSec.dataset.reveal = "";
   skillSec.innerHTML = `<div class="section-head"><h2>技能</h2></div>`;
   const skillTable = document.createElement("table");
   skillTable.className = "trpg-table";
@@ -110,6 +112,7 @@ function renderView(char, rules) {
 
   const saveSec = document.createElement("section");
   saveSec.className = "settings-section";
+  saveSec.dataset.reveal = "";
   saveSec.innerHTML = `<div class="section-head"><h2>豁免</h2></div>`;
   const saveTable = document.createElement("table");
   saveTable.className = "trpg-table";

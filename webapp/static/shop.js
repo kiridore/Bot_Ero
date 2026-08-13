@@ -77,6 +77,10 @@ function renderShop(data) {
   `;
   shopMain.appendChild(header);
 
+  // 积分数字滚动（渐进增强：无 Motion 时保持静态文本）
+  const ptsEl = document.getElementById("shopPoints");
+  if (ptsEl && window.Motion) Motion.animateNumber(ptsEl, Number(ptsEl.textContent), { duration: 600, from: 0 });
+
   if (!data.items.length) {
     const empty = document.createElement("p");
     empty.className = "empty-hint center";
@@ -92,6 +96,7 @@ function renderShop(data) {
   for (const item of data.items) {
     const card = document.createElement("article");
     card.className = "shop-item";
+    card.dataset.reveal = "";
     if (item.owned) card.classList.add("owned");
 
     let status = "";

@@ -77,6 +77,7 @@
       data.items.forEach(function (it) {
         const div = document.createElement("div");
         div.className = "forum-item is-" + it.type;
+        div.dataset.reveal = "";
         const typeLabel = TYPE_LABEL[it.type] || it.type;
         const title = document.createElement("a");
         title.className = "forum-title";

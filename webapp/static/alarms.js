@@ -326,6 +326,7 @@ function renderAlarmList(items) {
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "alarm-item";
+    card.dataset.reveal = "";
 
     const metaParts = [`#${item.id}`, item.scope];
     if (item.recur_desc) metaParts.push(item.recur_desc);

@@ -100,6 +100,7 @@ function appendCard(item) {
 
   const card = document.createElement("article");
   card.className = "card";
+  card.dataset.reveal = "";
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = `${userLabel(item)} 打卡`;
@@ -117,7 +118,14 @@ function appendCard(item) {
 function openLightbox(item, dayKey) {
   const dayLabel = dayKey ? formatDayHeader(dayKey) : settlementDayKey(item.checkin_date);
   lightboxCaption.textContent = `${userLabel(item)} · ${dayLabel} ${formatTime(item.checkin_date)}`;
-  lightbox.classList.remove("hidden");
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    lightbox.classList.remove("hidden");
+  } else {
+    lightbox.classList.add("closing");
+    lightbox.classList.remove("hidden");
+    void lightbox.offsetWidth; // 强制重排，让淡入过渡生效
+    lightbox.classList.remove("closing");
+  }
   lightbox.classList.add("is-loading");
   lightboxImg.alt = userLabel(item);
   lightboxImg.onload = () => lightbox.classList.remove("is-loading");
@@ -129,8 +137,18 @@ function openLightbox(item, dayKey) {
 }
 
 function closeLightbox() {
-  lightbox.classList.add("hidden");
-  lightboxImg.src = "";
+  if (lightbox.classList.contains("hidden") || lightbox.classList.contains("closing")) return;
+  lightbox.classList.add("closing");
+  const finalize = () => {
+    if (!lightbox.classList.contains("closing")) return; // 关闭动画中途被重新打开
+    lightbox.classList.add("hidden");
+    lightboxImg.src = "";
+  };
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    finalize();
+    return;
+  }
+  lightbox.addEventListener("transitionend", finalize, { once: true });
 }
 
 async function loadPage(reset = false) {

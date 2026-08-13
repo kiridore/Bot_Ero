@@ -176,6 +176,7 @@ function renderList() {
   for (const c of chars) {
     const row = document.createElement("article");
     row.className = "settings-title-row";
+    row.dataset.reveal = "";
     const isCur = c.id === currentId;
     row.innerHTML = `
       <div class="row-main">

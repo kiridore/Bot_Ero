@@ -64,10 +64,16 @@ function renderStatusBox() {
   box.innerHTML = `
     <h2>本周进度</h2>
     <p class="status-line">${statusData.week_start} ~ ${statusData.week_end}</p>
-    <p class="status-line">本周已收录 <strong>${statusData.week_image_count}</strong> 张图</p>
-    <p class="status-line">连续打卡 <strong>${s.current_weekly}</strong> 周 · 最长 <strong>${s.longest_weekly}</strong> 周</p>
+    <p class="status-line">本周已收录 <strong data-count="${statusData.week_image_count}">${statusData.week_image_count}</strong> 张图</p>
+    <p class="status-line">连续打卡 <strong data-count="${s.current_weekly}">${s.current_weekly}</strong> 周 · 最长 <strong data-count="${s.longest_weekly}">${s.longest_weekly}</strong> 周</p>
     <p class="status-hint">单次最多 ${statusData.max_images} 张，每张不超过 ${formatBytes(statusData.max_bytes)}</p>
   `;
+  // 数字滚动（渐进增强：无 Motion 时保持静态文本）
+  if (window.Motion) {
+    box.querySelectorAll("[data-count]").forEach(function (el) {
+      Motion.animateNumber(el, Number(el.dataset.count), { duration: 500, from: 0 });
+    });
+  }
   return box;
 }
 

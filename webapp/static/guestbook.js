@@ -96,6 +96,7 @@ function renderEntry(item) {
   const card = document.createElement("article");
   card.className = "guestbook-item";
   card.dataset.id = String(item.id);
+  card.dataset.reveal = "";
 
   const likedClass = item.liked ? " liked" : "";
   card.innerHTML = `

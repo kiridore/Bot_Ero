@@ -63,7 +63,7 @@
 │   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
-│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css）；Web 主题统一为报纸风（token 全站唯一来源 core/web/static/gallery.css）
+│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css/motion.css/motion.js 动效层）；Web 主题统一为报纸风（token 全站唯一来源 core/web/static/gallery.css，动效 token --motion-fast/base/slow/--spring/--ease/--reveal-dist）
 │   ├── timeline_client.py     ← 社区时间线事件发送助手（emit_event/retract_event，best-effort）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 45 个已注册插件
@@ -88,7 +88,7 @@
 │   ├── alarms/                ← 闹钟模块（/alarms）
 │   ├── activities/            ← 活动归档模块（/activities）
 │   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 探测 + 观众在场 heartbeat/viewers，登录显示昵称）
-│   └── static/                ← 全部模块静态文件（timeline.html/js/css、index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js、forum.*、tools.* 等）
+│   └── static/                ← 全部模块静态文件（timeline.html/js/css、index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js、forum.*、tools.* 等；18 个页面统一注入 /shared/motion.css + /shared/motion.js 动效层：View Transitions 页面过渡、data-reveal 滚动揭示批量交错、按压反馈、lightbox/toast 过渡、数字滚动，prefers-reduced-motion 全关闭）
 └── test/                      ← 临时测试脚本
 ```
 
