@@ -241,7 +241,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/tools` | 可选 | 链接列表（`q` 关键字搜索标题/简介/URL，最新在前，`id DESC`；每项含 `created_by` 及 OneBot 解析的提交者 `created_by_name`/`created_by_avatar`，解析失败降级回 QQ 号） |
-| `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；非法 URL → 400；返回 `{"ok": true, "id": N}`） |
+| `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；非法 URL → 400；返回 `{"ok": true, "id": N}`；成功后推送时间线事件 `source=tools`，`{id:}` 占位符渲染提交者） |
 
 ### 页面路由（FileResponse）
 

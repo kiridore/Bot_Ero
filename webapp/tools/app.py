@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from core.database_manager import DbManager
 from core.onebot_client import resolve_avatar_url, resolve_display_name
+from core.timeline_client import emit_event
 from core.web.auth_deps import get_current_user_id, get_optional_user_id
 from webapp import STATIC_DIR
 
@@ -65,6 +66,15 @@ def api_tools_add(
         body.description.strip(),
         url,
         domain,
+    )
+    emit_event(
+        source="tools",
+        actor_id=user_id,
+        actor_qq=user_id,
+        title=f"{{id:{user_id}}} 在工具箱提交了「{body.title.strip()}」",
+        description=body.description.strip() or None,
+        target_url=url,
+        dedup_key=f"tools_link:{tool_id}",
     )
     return {"ok": True, "id": tool_id}
 

@@ -34,7 +34,7 @@
 | 字段 | 必填 | 说明 |
 |---|---|---|
 | `id` | MUST | 发送方生成，格式 `<source>:<uuid>`；同一 source 下全局唯一，用于幂等 |
-| `source` | MUST | 事件来源稳定标识（v1 注册：`checkin`、`forum`；`quest`、`title` 已停用）；新增 source 需在本文档注册 |
+| `source` | MUST | 事件来源稳定标识（v1 注册：`checkin`、`forum`、`tools`；`quest`、`title` 已停用）；新增 source 需在本文档注册 |
 | `actor.id` | MUST | 发送方体系内参与者 id；QQ 相关系统传 user_id |
 | `actor.qq` | CAN | 已绑定/已知的 QQ 号；接收方据此解析昵称头像 |
 | `target.type` | CAN | 自由格式标签，仅作未来样式定制，接收方不据此做逻辑判断 |
@@ -97,6 +97,8 @@
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
+| `forum` | `webapp/forum` | 发帖 / 评论 / 投票关闭 | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回） |
+| `tools` | `webapp/tools` | 提交工具链接 | `tools_link:<tool_id>`（新增无删除功能，暂不接线撤回） |
 
 > `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。
 > `title`（解锁称号）自 2026-08-11 起**不再发送到时间线**（`plugins/title.logic::evaluate_and_unlock_titles` 已移除发送接线）；如需恢复需重新在本表注册并约定 dedup_key。

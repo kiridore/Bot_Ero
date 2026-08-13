@@ -79,7 +79,7 @@
 │   ├── app.py                 ← 唯一 FastAPI 入口（include 10 模块 router + 时间线主页 / + mount /static /shared）
 │   ├── timeline/              ← 时间线模块（Event Server：POST/DELETE /api/timeline/events + GET /api/timeline；entries.json 侧边栏导航数据源，含「工具箱」入口；协议见 specs/timeline-protocol.md）
 │   ├── forum/                 ← 议事厅模块（/forum；长文/公告/投票/评论；Tiptap 富文本；详见 docs/superpowers/specs/2026-08-10-forum-design.md）
-│   ├── tools/                 ← 工具箱模块（/tools 页面 + GET/POST /api/tools；仅登录可提交；链接收藏卡片：icon 解析自域名、关键字搜索、卡片/列表双视图、卡片展示提交者昵称头像；表 tools_links，读写 core/db/tools.py）
+│   ├── tools/                 ← 工具箱模块（/tools 页面 + GET/POST /api/tools；仅登录可提交；提交推送时间线事件 source=tools（specs/timeline-protocol.md 注册）；链接收藏卡片：icon 解析自域名、关键字搜索、卡片/列表双视图、卡片展示提交者昵称头像；表 tools_links，读写 core/db/tools.py）
 
 │   ├── gallery/               ← 图库模块（/gallery；repository/thumbnails/dates）
 │   ├── guestbook/             ← 留言簿模块（/guestbook）
