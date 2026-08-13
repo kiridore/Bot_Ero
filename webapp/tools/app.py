@@ -3,8 +3,10 @@
 from typing import Annotated
 from urllib.parse import urlsplit
 
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from core.database_manager import DbManager
@@ -12,8 +14,11 @@ from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.timeline_client import emit_event, retract_event
 from core.web.auth_deps import get_current_user_id, get_optional_user_id
 from webapp import STATIC_DIR
+from webapp.tools.icon import fetch_icon
 
 router = APIRouter()
+
+NOT_FOUND_TTL = timedelta(days=7)  # 负缓存：无图标域名 7 天后重试
 
 
 class ToolCreateIn(BaseModel):
@@ -72,6 +77,40 @@ def _clean_tags(tags: list[str]) -> list[str]:
     if len(cleaned) > 10:
         raise ValueError("最多 10 个 tag")
     return cleaned
+
+
+@router.get("/api/tools/icon")
+def api_tools_icon(
+    viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
+    domain: str = Query(min_length=1, max_length=253),
+):
+    """卡片图标：服务端解析（favicon.ico → 首页 link rel=icon）+ 入库缓存。公开。
+    仅允许已收录链接的域名；无图标 404；负缓存 7 天。"""
+    db = DbManager()
+    if not db.tools.domain_exists(domain):
+        raise HTTPException(status_code=404, detail="无此域名")
+    cached = db.tools.get_icon(domain)
+    if cached is not None:
+        if cached.get("not_found"):
+            fetched_at = datetime.strptime(cached["fetched_at"], "%Y-%m-%d %H:%M:%S")
+            if datetime.now() - fetched_at < NOT_FOUND_TTL:
+                raise HTTPException(status_code=404, detail="无图标")
+        else:
+            return Response(
+                content=cached["bytes"],
+                media_type=cached["content_type"],
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+    data = fetch_icon(domain)
+    if data is None:
+        db.tools.put_icon_not_found(domain)
+        raise HTTPException(status_code=404, detail="无图标")
+    db.tools.put_icon(domain, data[0], data[1])
+    return Response(
+        content=data[0],
+        media_type=data[1],
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/api/tools/tags")

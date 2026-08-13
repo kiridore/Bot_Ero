@@ -200,3 +200,40 @@ class ToolsManager:
             """
         )
         return self.cur.fetchall()
+
+    def domain_exists(self, domain: str) -> bool:
+        self.cur.execute(
+            "SELECT 1 FROM tools_links WHERE domain = ? LIMIT 1", (domain,)
+        )
+        return self.cur.fetchone() is not None
+
+    def get_icon(self, domain: str) -> dict | None:
+        """图标缓存读取。命中图标 → {"bytes", "content_type"}；命中 not_found → {"not_found", "fetched_at"}；未缓存 → None。"""
+        self.cur.execute(
+            "SELECT bytes, content_type, not_found, fetched_at FROM tools_icon_cache WHERE domain = ?",
+            (domain,),
+        )
+        row = self.cur.fetchone()
+        if row is None:
+            return None
+        if row[2]:
+            return {"not_found": True, "fetched_at": row[3]}
+        return {"bytes": row[0], "content_type": row[1]}
+
+    def put_icon(self, domain: str, data: bytes, content_type: str) -> None:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute(
+            "INSERT OR REPLACE INTO tools_icon_cache "
+            "(domain, bytes, content_type, fetched_at, not_found) VALUES (?, ?, ?, ?, 0)",
+            (domain, data, content_type, now),
+        )
+        self.conn.commit()
+
+    def put_icon_not_found(self, domain: str) -> None:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute(
+            "INSERT OR REPLACE INTO tools_icon_cache "
+            "(domain, bytes, content_type, fetched_at, not_found) VALUES (?, NULL, NULL, ?, 1)",
+            (domain, now),
+        )
+        self.conn.commit()

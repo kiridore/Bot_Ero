@@ -248,7 +248,18 @@ with _connect() as conn:
 | `PRIMARY KEY` | | (link_id, tag_id) | 多对多 |
 
 - tag 自由创建（create-or-get，`get_or_create_tag` UNIQUE 兜底竞态）；每链接 ≤10 个 tag，同名去重；表小无额外索引
-- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入、`PUT /api/tools/{id}` 修改（`update_tool` 校验本人后更新字段并整体替换 tag，返回 not_found/forbidden/ok）、`GET /api/tools` 读取（`sort`/`order`/`tag` 过滤，每项带 `click_count`/`tags`）、`GET /api/tools/tags` 全部 tag 计数（`list_tags_with_counts`，仅 count>0）、`POST /api/tools/{id}/click` 计数（公开，不存在 404）、`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
+
+#### `tools_icon_cache`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `domain` | TEXT | PRIMARY KEY | 链接域名（小写，同 `tools_links.domain`） |
+| `bytes` | BLOB | NULL | 图标二进制（`not_found=1` 时为 NULL） |
+| `content_type` | TEXT | NULL | 图标 MIME |
+| `fetched_at` | TEXT | NOT NULL | 抓取时间 `YYYY-MM-DD HH:MM:SS` |
+| `not_found` | INTEGER | NOT NULL DEFAULT 0 | 负缓存标记（无图标，7 天后重试） |
+
+- 图标解析：`webapp/tools/icon.py` `fetch_icon`——先试 `https://<domain>/favicon.ico`，失败抓首页解析 `<link rel="icon">`；仅允许已收录链接的域名（防开放代理），内网/回环地址拒绝（防 SSRF），上游超时 4-5s、体积 ≤512KB、重定向 ≤3 跳
+- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入、`PUT /api/tools/{id}` 修改（`update_tool` 校验本人后更新字段并整体替换 tag，返回 not_found/forbidden/ok）、`GET /api/tools` 读取（`sort`/`order`/`tag` 过滤，每项带 `click_count`/`tags`）、`GET /api/tools/tags` 全部 tag 计数（`list_tags_with_counts`，仅 count>0）、`GET /api/tools/icon` 卡片图标（服务端解析 + 缓存，`domain_exists`/`get_icon`/`put_icon`/`put_icon_not_found`）、`POST /api/tools/{id}/click` 计数（公开，不存在 404）、`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
 
 ### 仙人彩（不朽抽奖）
 

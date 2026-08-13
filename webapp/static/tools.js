@@ -195,14 +195,21 @@
     const img = document.createElement("img");
     img.className = "tools-icon";
     img.alt = "";
-    img.src = "https://" + item.domain + "/favicon.ico";
+    img.src = "/api/tools/icon?domain=" + encodeURIComponent(item.domain);
     const first = item.title.trim().charAt(0).toUpperCase() || "?";
-    img.onerror = function () {
+    let replaced = false;
+    function fallback() {
+      if (replaced) return;
+      replaced = true;
       const fb = document.createElement("span");
       fb.className = "tools-icon tools-icon-fallback";
       fb.textContent = first;
       img.replaceWith(fb);
-    };
+    }
+    img.onerror = fallback;
+    img.onload = function () { replaced = true; };
+    // 慢速看门狗：首查（服务端发现流程）最坏十几秒，超时即占位，不阻塞页面
+    setTimeout(fallback, 12000);
     return img;
   }
 

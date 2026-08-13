@@ -476,4 +476,13 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             FOREIGN KEY (tag_id) REFERENCES tools_tags(id) ON DELETE CASCADE
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tools_icon_cache (
+            domain TEXT PRIMARY KEY,
+            bytes BLOB,
+            content_type TEXT,
+            fetched_at TEXT NOT NULL,
+            not_found INTEGER NOT NULL DEFAULT 0
+        );
+    """)
     conn.commit()
