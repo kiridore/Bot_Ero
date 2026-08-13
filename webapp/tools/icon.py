@@ -39,11 +39,12 @@ def _session() -> requests.Session:
 
 
 def _is_private_host(domain: str) -> bool:
-    """域名解析到内网/回环/链路本地地址 → 拒绝。解析失败同样视为不可用。"""
+    """域名解析到内网/回环/链路本地地址 → 拒绝（防 SSRF）。
+    解析失败视为不可判定 → 不拦截（连接本身会自然失败）。"""
     try:
         infos = socket.getaddrinfo(domain, None)
     except (socket.gaierror, UnicodeError):
-        return True
+        return False
     for info in infos:
         ip = str(info[4][0])
         if (
@@ -69,8 +70,13 @@ def _link_icon_candidates(html: str):
             yield href.strip()
 
 
-def _looks_like_image(url: str, content_type: str) -> bool:
-    if content_type and content_type.lower().startswith("image/"):
+def _looks_like_image(url: str, content_type: str, lenient: bool = False) -> bool:
+    """默认路径 favicon.ico 放宽（浏览器能显示的 octet-stream/未知类型也算），
+    HTML 声明候选保持严格（image/* 或图片扩展名）。体积上限是真正的兜底。"""
+    ct = content_type.lower()
+    if ct.startswith("image/") or ct in ("application/octet-stream", "application/x-icon"):
+        return True
+    if lenient:
         return True
     return url.split("?", 1)[0].lower().endswith(_IMAGE_EXT)
 
@@ -90,12 +96,12 @@ def fetch_icon(domain: str) -> tuple[bytes, str] | None:
     if _is_private_host(domain):
         return None
 
-    # 1) 默认路径
+    # 1) 默认路径（放宽内容判断：浏览器能显示的这里都算）
     resp = _get(f"https://{domain}/favicon.ico", TIMEOUT_FAVICON)
     if (
         resp is not None and resp.status_code == 200
         and resp.content and len(resp.content) <= MAX_BYTES
-        and _looks_like_image(resp.url, resp.headers.get("Content-Type", ""))
+        and _looks_like_image(resp.url, resp.headers.get("Content-Type", ""), lenient=True)
     ):
         ct = resp.headers.get("Content-Type") or "image/x-icon"
         return resp.content, ct

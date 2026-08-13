@@ -195,21 +195,46 @@
     const img = document.createElement("img");
     img.className = "tools-icon";
     img.alt = "";
-    img.src = "/api/tools/icon?domain=" + encodeURIComponent(item.domain);
     const first = item.title.trim().charAt(0).toUpperCase() || "?";
-    let replaced = false;
+    const serverUrl = "/api/tools/icon?domain=" + encodeURIComponent(item.domain);
+    // 阶段机：0=浏览器直连默认路径（恢复原行为，走用户网络无超时）
+    //        1=服务端发现兜底（onerror/看门狗触发；服务端请求必有超时上限，终会 onload/onerror）
+    //        2=已出结果（图标或占位）
+    let phase = 0;
+    let reqId = 0;
     function fallback() {
-      if (replaced) return;
-      replaced = true;
+      if (phase === 2) return;
+      phase = 2;
       const fb = document.createElement("span");
       fb.className = "tools-icon tools-icon-fallback";
       fb.textContent = first;
       img.replaceWith(fb);
     }
-    img.onerror = fallback;
-    img.onload = function () { replaced = true; };
-    // 慢速看门狗：首查（服务端发现流程）最坏十几秒，超时即占位，不阻塞页面
-    setTimeout(fallback, 12000);
+    function load(url) {
+      const id = ++reqId;
+      img.src = url;
+      img.onload = function () {
+        if (id === reqId) phase = 2;
+      };
+      img.onerror = function () {
+        if (id !== reqId) return; // 过期请求（src 已切换）
+        if (phase === 0) {
+          phase = 1;
+          load(serverUrl);
+        } else {
+          fallback();
+        }
+      };
+    }
+    load("https://" + item.domain + "/favicon.ico");
+    // 看门狗：浏览器直连默认路径可能无限挂起（无超时），10s 未出结果转服务端
+    setTimeout(function () {
+      if (phase === 2) return;
+      if (phase === 0) {
+        phase = 1;
+        load(serverUrl);
+      }
+    }, 10000);
     return img;
   }
 
