@@ -124,6 +124,57 @@
   filter: brightness(1.08);
 }
 
+.tools-sort {
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  margin-left: 0.6rem;
+}
+
+.tools-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tools-tag {
+  display: inline-block;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  color: var(--accent-ink);
+  background: var(--paper-card);
+  cursor: pointer;
+  align-self: flex-start;
+  font-family: inherit;
+}
+
+.tools-tag:hover {
+  border-color: var(--accent);
+}
+
+.tools-tag.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.tools-tag-filter {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+}
+
+.tools-btn-sm {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
 .tools-search {
   background: var(--paper-card);
   border: 1px solid var(--rule);

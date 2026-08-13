@@ -22,9 +22,18 @@
       <header class="tl-head">
         <h1>工具箱</h1>
         <button id="addBtn" class="tools-btn" type="button">添加链接</button>
+        <select id="sortSelect" class="tools-sort" title="排序方式">
+          <option value="time">按添加时间</option>
+          <option value="hot">按热度</option>
+        </select>
+        <button id="orderToggle" class="tools-btn" type="button">正序</button>
         <button id="viewToggle" class="tools-btn" type="button">列表</button>
       </header>
       <input id="searchInput" class="tools-search" type="search" placeholder="搜索标题 / 简介 / URL" />
+      <p id="tagFilterRow" class="tools-tag-filter hidden">
+        筛选：<span id="tagFilterName"></span>
+        <button id="tagFilterClear" class="tools-btn tools-btn-sm" type="button">×</button>
+      </p>
       <div id="toolList" class="tools-grid"></div>
       <p id="toolEmpty" class="tl-empty hidden"></p>
     </main>
@@ -43,6 +52,9 @@
       </label>
       <label>URL
         <input type="url" id="addUrl" maxlength="2048" required placeholder="https://" />
+      </label>
+      <label>Tag（可选，多个用逗号分隔）
+        <input type="text" id="addTags" maxlength="200" placeholder="如：工具, 常用" />
       </label>
       <p class="tools-msg hidden" id="addMsg"></p>
       <div class="tools-dialog-actions">

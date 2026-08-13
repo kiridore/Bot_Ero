@@ -1,4 +1,4 @@
-/* 工具箱：链接卡片网格 + 关键字搜索 + 卡片/列表视图切换。 */
+/* 工具箱：链接卡片网格 + 关键字搜索 + 卡片/列表视图切换 + 双维度排序 + tag 徽标/筛选 + 点击统计。 */
 
 (function () {
   "use strict";
@@ -6,7 +6,12 @@
   const toolList = document.getElementById("toolList");
   const toolEmpty = document.getElementById("toolEmpty");
   const searchInput = document.getElementById("searchInput");
+  const tagFilterRow = document.getElementById("tagFilterRow");
+  const tagFilterName = document.getElementById("tagFilterName");
+  const tagFilterClear = document.getElementById("tagFilterClear");
   const addBtn = document.getElementById("addBtn");
+  const sortSelect = document.getElementById("sortSelect");
+  const orderToggle = document.getElementById("orderToggle");
   const viewToggle = document.getElementById("viewToggle");
   const addDialog = document.getElementById("addDialog");
   const addForm = document.getElementById("addForm");
@@ -14,6 +19,7 @@
   const addTitle = document.getElementById("addTitle");
   const addDesc = document.getElementById("addDesc");
   const addUrl = document.getElementById("addUrl");
+  const addTags = document.getElementById("addTags");
   const addCancel = document.getElementById("addCancel");
 
   function esc(s) {
@@ -82,6 +88,46 @@
     loadTools();
   });
 
+  /* —— 排序（双维度 × 正/倒序，偏好持久化） —— */
+  let sortDim = localStorage.getItem("tools_sort_dim") === "hot" ? "hot" : "time";
+  let sortOrder = localStorage.getItem("tools_sort_order") === "asc" ? "asc" : "desc";
+
+  function applySort() {
+    sortSelect.value = sortDim;
+    orderToggle.textContent = sortOrder === "desc" ? "正序" : "倒序";
+  }
+
+  sortSelect.addEventListener("change", function () {
+    sortDim = sortSelect.value;
+    localStorage.setItem("tools_sort_dim", sortDim);
+    loadTools();
+  });
+
+  orderToggle.addEventListener("click", function () {
+    sortOrder = sortOrder === "desc" ? "asc" : "desc";
+    localStorage.setItem("tools_sort_order", sortOrder);
+    applySort();
+    loadTools();
+  });
+
+  /* —— tag 筛选（会话内） —— */
+  let activeTag = null;
+
+  function renderTagFilter() {
+    if (activeTag) {
+      tagFilterName.textContent = activeTag;
+      tagFilterRow.classList.remove("hidden");
+    } else {
+      tagFilterRow.classList.add("hidden");
+    }
+  }
+
+  tagFilterClear.addEventListener("click", function () {
+    activeTag = null;
+    renderTagFilter();
+    loadTools();
+  });
+
   /* —— 渲染 —— */
   function showEmpty(text) {
     toolEmpty.textContent = text;
@@ -107,7 +153,15 @@
     toolList.innerHTML = "";
     toolEmpty.classList.add("hidden");
     if (!items.length) {
-      showEmpty(searchInput.value.trim() ? "没有匹配的链接" : "还没有链接，点右上角「添加链接」提交第一个");
+      let text;
+      if (activeTag) {
+        text = "没有匹配的链接";
+      } else if (searchInput.value.trim()) {
+        text = "没有匹配的链接";
+      } else {
+        text = "还没有链接，点右上角「添加链接」提交第一个";
+      }
+      showEmpty(text);
       return;
     }
     items.forEach(function (item) {
@@ -124,6 +178,25 @@
       name.className = "tools-name";
       name.textContent = item.title;
       a.appendChild(name);
+      if (item.tags && item.tags.length) {
+        const tagRow = document.createElement("span");
+        tagRow.className = "tools-tags-row";
+        item.tags.forEach(function (tagName) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "tools-tag" + (activeTag === tagName ? " is-active" : "");
+          btn.textContent = tagName;
+          btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            activeTag = activeTag === tagName ? null : tagName;
+            renderTagFilter();
+            loadTools();
+          });
+          tagRow.appendChild(btn);
+        });
+        a.appendChild(tagRow);
+      }
       if (item.description) {
         const desc = document.createElement("span");
         desc.className = "tools-desc";
@@ -138,8 +211,22 @@
       avatar.src = item.created_by_avatar || "";
       avatar.onerror = function () { avatar.style.display = "none"; };
       meta.appendChild(avatar);
-      meta.appendChild(document.createTextNode("由 " + (item.created_by_name || item.created_by) + " 提交"));
+      meta.appendChild(document.createTextNode("由 " + (item.created_by_name || item.created_by) + " 提交 · "));
+      const clicksEl = document.createElement("span");
+      clicksEl.className = "tools-clicks";
+      clicksEl.textContent = item.click_count || 0;
+      meta.appendChild(clicksEl);
+      meta.appendChild(document.createTextNode(" 次点击"));
       a.appendChild(meta);
+      // 点击计数：best-effort，不阻塞跳转
+      a.addEventListener("click", function () {
+        fetch("/api/tools/" + item.id + "/click", { method: "POST" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (d && typeof d.clicks === "number") clicksEl.textContent = d.clicks;
+          })
+          .catch(function () {});
+      });
       wrap.appendChild(a);
       if (session && String(item.created_by) === String(session.user_id)) {
         const del = document.createElement("button");
@@ -177,8 +264,12 @@
   /* —— 数据 —— */
   async function loadTools() {
     const q = searchInput.value.trim();
+    let url = "/api/tools?q=" + encodeURIComponent(q) +
+      "&sort=" + encodeURIComponent(sortDim) +
+      "&order=" + encodeURIComponent(sortOrder);
+    if (activeTag) url += "&tag=" + encodeURIComponent(activeTag);
     try {
-      const res = await fetch("/api/tools?q=" + encodeURIComponent(q), {
+      const res = await fetch(url, {
         headers: GalleryAuth.headers(),
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -235,10 +326,20 @@
   addForm.addEventListener("submit", async function (e) {
     e.preventDefault();
     addMsg.classList.add("hidden");
+    const seen = {};
+    const tags = [];
+    addTags.value.split(/[,，]/).forEach(function (raw) {
+      const name = raw.trim();
+      if (name && !seen[name]) {
+        seen[name] = true;
+        tags.push(name);
+      }
+    });
     const payload = {
       title: addTitle.value.trim(),
       description: addDesc.value.trim(),
       url: addUrl.value.trim(),
+      tags: tags,
     };
     try {
       const res = await fetch("/api/tools", {
@@ -274,5 +375,7 @@
   GalleryAuth.renderAuth(document.getElementById("authArea"));
   loadNav();
   applyView();
+  applySort();
+  renderTagFilter();
   loadTools();
 })();

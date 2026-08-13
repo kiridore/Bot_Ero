@@ -449,7 +449,31 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             url TEXT NOT NULL,
             domain TEXT NOT NULL,
             created_by TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            click_count INTEGER NOT NULL DEFAULT 0
+        );
+    """)
+    cur.execute("PRAGMA table_info(tools_links)")
+    _tl_cols = [row[1] for row in cur.fetchall()]
+    if "click_count" not in _tl_cols:
+        cur.execute(
+            "ALTER TABLE tools_links ADD COLUMN click_count INTEGER NOT NULL DEFAULT 0"
+        )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tools_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_by TEXT NOT NULL,
             created_at TEXT NOT NULL
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tools_link_tags (
+            link_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (link_id, tag_id),
+            FOREIGN KEY (link_id) REFERENCES tools_links(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tools_tags(id) ON DELETE CASCADE
         );
     """)
     conn.commit()

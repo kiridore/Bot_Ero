@@ -2,7 +2,7 @@
 
 > 关联规范: [conventions.md](conventions.md) | [plugins.md](plugins.md) | [web-gallery.md](web-gallery.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-13 (新增工具箱 tools_links 表)
+> 最后更新: 2026-08-13 (工具箱：tools_links 加 click_count 列；新增 tools_tags/tools_link_tags 表)
 
 ---
 
@@ -227,9 +227,28 @@ with _connect() as conn:
 | `domain` | TEXT | NOT NULL | URL 域名（小写；icon 来源 `https://<domain>/favicon.ico`，失败降级首字母） |
 | `created_by` | TEXT | NOT NULL | 提交人 QQ 号（TEXT 类型，与 `activities.created_by` 约定一致） |
 | `created_at` | TEXT | NOT NULL | 创建时间 `YYYY-MM-DD HH:MM:SS` |
+| `click_count` | INTEGER | NOT NULL DEFAULT 0 | 点击次数（公开自增，`register_click` 原子 `+1`） |
 
-- 列表按 `id DESC`（最新在前），表小无索引；搜索经 `LIKE ? ESCAPE '\'` 匹配标题/简介/URL（`_like_escape` 转义通配符）
-- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入，`GET /api/tools` 读取，`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
+- `click_count` 为旧库迁移列（`PRAGMA table_info` + 条件 `ALTER TABLE ADD COLUMN`，幂等）
+- 列表默认按 `id DESC`（最新在前）；`sort=hot` 按 `click_count` 排序（平手 `id DESC`）；表小无索引；搜索经 `LIKE ? ESCAPE '\'` 匹配标题/简介/URL（`_like_escape` 转义通配符）
+
+#### `tools_tags`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | tag ID |
+| `name` | TEXT | NOT NULL UNIQUE | tag 名（strip 后 ≤20 字） |
+| `created_by` | TEXT | NOT NULL | 首次创建者 QQ 号 |
+| `created_at` | TEXT | NOT NULL | 创建时间 `YYYY-MM-DD HH:MM:SS` |
+
+#### `tools_link_tags`
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `link_id` | INTEGER | NOT NULL, FK→tools_links(id) CASCADE | 链接 |
+| `tag_id` | INTEGER | NOT NULL, FK→tools_tags(id) CASCADE | tag |
+| `PRIMARY KEY` | | (link_id, tag_id) | 多对多 |
+
+- tag 自由创建（create-or-get，`get_or_create_tag` UNIQUE 兜底竞态）；每链接 ≤10 个 tag，同名去重；表小无额外索引
+- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入（含 `tags` 数组），`GET /api/tools` 读取（`sort`/`order`/`tag` 过滤，每项带 `click_count`/`tags`），`POST /api/tools/{id}/click` 计数（公开，不存在 404），`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
 
 ### 仙人彩（不朽抽奖）
 

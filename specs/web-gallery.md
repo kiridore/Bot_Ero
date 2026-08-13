@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-13 (议事厅正文图片上传：`POST /api/forum/images` + `/forum/media/{filename}`；新增工具箱模块 tools：`/tools` 页面 + `GET/POST /api/tools`；模块清单补全 forum 与 tools 共 10 个)
+> 最后更新: 2026-08-13 (工具箱：点击统计 `POST /api/tools/{id}/click`、`GET /api/tools` 双维度排序 `sort/order` + tag 过滤 `tag=`、提交 `tags` 数组、页面 tag 徽标/筛选；议事厅正文图片上传：`POST /api/forum/images` + `/forum/media/{filename}`；模块清单补全 forum 与 tools 共 10 个)
 
 ---
 
@@ -21,7 +21,7 @@ Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`t
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`）；时间线主页 + `entries.json` |
 | 议事厅 | `forum` | `/forum`（`/forum/new` `/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理 |
-| 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、卡片/列表双视图） |
+| 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
@@ -240,8 +240,9 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| `GET` | `/api/tools` | 可选 | 链接列表（`q` 关键字搜索标题/简介/URL，最新在前，`id DESC`；每项含 `created_by` 及 OneBot 解析的提交者 `created_by_name`/`created_by_avatar`，解析失败降级回 QQ 号） |
-| `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；非法 URL → 400；返回 `{"ok": true, "id": N}`；成功后推送时间线事件 `source=tools`，`{id:}` 占位符渲染提交者） |
+| `GET` | `/api/tools` | 可选 | 链接列表（`q` 关键字搜索标题/简介/URL；`sort=time\|hot` × `order=asc\|desc` 双维度排序，默认 `time`+`desc`（最新在前，`id DESC`）；`tag=` 按 tag 名精确过滤，非法 sort/order → 422；每项含 `created_by`、`click_count`（点击次数）、`tags`（tag 名数组）及 OneBot 解析的提交者 `created_by_name`/`created_by_avatar`，解析失败降级回 QQ 号） |
+| `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；可选 `tags` 数组——每个 strip 后 ≤20 字、最多 10 个、同名去重，超限 → 400；非法 URL → 400；返回 `{"ok": true, "id": N}`；成功后推送时间线事件 `source=tools`，`{id:}` 占位符渲染提交者） |
+| `POST` | `/api/tools/{id}/click` | 否 | 点击计数（公开自增，无需登录；不存在 → 404；返回 `{"ok": true, "clicks": N}`） |
 | `DELETE` | `/api/tools/{id}` | 必须 | 删除自己提交的链接（非本人 → 403，不存在 → 404；成功后按 `tools_link:{id}` 撤回时间线事件） |
 
 ### 议事厅（`forum` 模块）
@@ -265,7 +266,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
-| `tools` | `/tools` 工具箱（链接卡片网格 + 关键字搜索 + 卡片/列表双视图，添加需登录，登录用户可删除自己提交的链接） |
+| `tools` | `/tools` 工具箱（链接卡片网格 + tag 徽标/点击筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，添加需登录，登录用户可删除自己提交的链接） |
 
 ---
 

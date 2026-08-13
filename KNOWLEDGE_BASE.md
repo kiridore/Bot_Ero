@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-（社区时间线：webapp 第 8 个模块 timeline；新增第 9 个模块 forum 议事厅：长文/公告/投票/评论，所有用户消息自动入时间线，bot 发群消息；Tiptap 富文本；新增第 10 个模块 tools 工具箱：网页链接收藏卡片 /tools，icon 解析自域名、关键字搜索、卡片/列表双视图）
+（社区时间线：webapp 第 8 个模块 timeline；新增第 9 个模块 forum 议事厅：长文/公告/投票/评论，所有用户消息自动入时间线，bot 发群消息；Tiptap 富文本；新增第 10 个模块 tools 工具箱：网页链接收藏卡片 /tools，icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图）
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。
@@ -79,7 +79,7 @@
 │   ├── app.py                 ← 唯一 FastAPI 入口（include 10 模块 router + 时间线主页 / + mount /static /shared）
 │   ├── timeline/              ← 时间线模块（Event Server：POST/DELETE /api/timeline/events + GET /api/timeline；entries.json 侧边栏导航数据源，含「工具箱」入口；协议见 specs/timeline-protocol.md）
 │   ├── forum/                 ← 议事厅模块（/forum；长文/公告/投票/评论；Tiptap 富文本；正文图片上传 /forum/media/（POST /api/forum/images，JPG/PNG/WebP/GIF ≤10MB，落盘 server_data/forum_images/，公开读取 uuid 文件名不可枚举）；详见 docs/superpowers/specs/2026-08-10-forum-design.md）
-│   ├── tools/                 ← 工具箱模块（/tools 页面 + GET/POST/DELETE /api/tools；仅登录可提交/删除自己的链接；提交/删除推送/撤回时间线事件 source=tools（specs/timeline-protocol.md 注册）；链接收藏卡片：icon 解析自域名、关键字搜索、卡片/列表双视图、卡片展示提交者昵称头像；表 tools_links，读写 core/db/tools.py）
+*82|│   ├── tools/                 ← 工具箱模块（/tools 页面 + GET/POST/DELETE /api/tools + POST /api/tools/{id}/click；仅登录可提交/删除自己的链接；提交/删除推送/撤回时间线事件 source=tools（specs/timeline-protocol.md 注册）；链接收藏卡片：icon 解析自域名、关键字搜索、双维度排序（时间/热度 × 正/倒序，偏好存 localStorage）、tag 徽标/点击筛选（提交时逗号分隔自由创建，create-or-get）、点击统计（公开计数展示在卡片）、卡片/列表双视图、卡片展示提交者昵称头像；表 tools_links/tools_tags/tools_link_tags，读写 core/db/tools.py）
 
 │   ├── gallery/               ← 图库模块（/gallery；repository/thumbnails/dates）
 │   ├── guestbook/             ← 留言簿模块（/guestbook）

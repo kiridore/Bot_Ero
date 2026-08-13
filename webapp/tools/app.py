@@ -20,6 +20,7 @@ class ToolCreateIn(BaseModel):
     title: str = Field(min_length=1, max_length=50)
     description: str = Field(default="", max_length=200)
     url: str = Field(max_length=2048)
+    tags: list[str] = Field(default_factory=list)
 
 
 def _validate_url(url: str) -> str:
@@ -41,14 +42,36 @@ def _or_400(fn, *args):
 def api_tools_list(
     viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
     q: str | None = Query(default=None, max_length=100),
+    sort: str = Query(default="time", pattern="^(time|hot)$"),
+    order: str = Query(default="desc", pattern="^(asc|desc)$"),
+    tag: str | None = Query(default=None, max_length=20),
 ):
     db = DbManager()
-    items = db.tools.list_tools(q)
+    items = db.tools.list_tools(q, sort=sort, order=order, tag=tag)
     for item in items:
         uid = item["created_by"]
         item["created_by_name"] = resolve_display_name(uid)
         item["created_by_avatar"] = resolve_avatar_url(uid)
     return {"items": items}
+
+
+def _clean_tags(tags: list[str]) -> list[str]:
+    """清洗 tag：strip、去空、≤20 字、去重、≤10 个。非法抛 ValueError。"""
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in tags:
+        name = raw.strip()
+        if not name:
+            continue
+        if len(name) > 20:
+            raise ValueError("tag 名不能超过 20 字")
+        if name in seen:
+            continue
+        seen.add(name)
+        cleaned.append(name)
+    if len(cleaned) > 10:
+        raise ValueError("最多 10 个 tag")
+    return cleaned
 
 
 @router.post("/api/tools")
@@ -58,6 +81,7 @@ def api_tools_add(
 ):
     url = _or_400(_validate_url, body.url)
     domain = urlsplit(url).netloc.lower()
+    tags = _or_400(_clean_tags, body.tags)
     db = DbManager()
     tool_id = _or_400(
         db.tools.add_tool,
@@ -67,6 +91,8 @@ def api_tools_add(
         url,
         domain,
     )
+    if tags:
+        db.tools.add_link_tags(tool_id, tags, user_id)
     emit_event(
         source="tools",
         actor_id=user_id,
@@ -77,6 +103,19 @@ def api_tools_add(
         dedup_key=f"tools_link:{tool_id}",
     )
     return {"ok": True, "id": tool_id}
+
+
+@router.post("/api/tools/{tool_id}/click")
+def api_tools_click(
+    tool_id: int,
+    viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
+):
+    """公开：浏览者点击卡片即计数，无需登录。"""
+    db = DbManager()
+    clicks = db.tools.register_click(tool_id)
+    if clicks is None:
+        raise HTTPException(status_code=404, detail="链接不存在")
+    return {"ok": True, "clicks": clicks}
 
 
 @router.delete("/api/tools/{tool_id}")
