@@ -74,6 +74,16 @@ def _clean_tags(tags: list[str]) -> list[str]:
     return cleaned
 
 
+@router.get("/api/tools/tags")
+def api_tools_tags(
+    viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
+):
+    """全部 tag 及使用数量（仅 count > 0，按数量降序）。公开。"""
+    db = DbManager()
+    rows = db.tools.list_tags_with_counts()
+    return {"tags": [{"name": r[1], "count": int(r[2])} for r in rows]}
+
+
 @router.post("/api/tools")
 def api_tools_add(
     body: ToolCreateIn,

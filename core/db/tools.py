@@ -186,3 +186,17 @@ class ToolsManager:
                 (int(link_id), tag_id),
             )
         self.conn.commit()
+
+    def list_tags_with_counts(self) -> list[tuple]:
+        """所有 tag 及使用该 tag 的链接数（链接删除经 CASCADE 自动清关联，孤儿 tag 不展示）。
+        按数量降序、同名升序。返回 (id, name, link_count)。"""
+        self.cur.execute(
+            """
+            SELECT t.id, t.name,
+                   (SELECT COUNT(*) FROM tools_link_tags lt WHERE lt.tag_id = t.id) AS link_count
+            FROM tools_tags t
+            WHERE (SELECT COUNT(*) FROM tools_link_tags lt WHERE lt.tag_id = t.id) > 0
+            ORDER BY link_count DESC, t.name
+            """
+        )
+        return self.cur.fetchall()

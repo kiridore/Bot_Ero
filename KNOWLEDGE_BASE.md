@@ -79,7 +79,7 @@
 │   ├── app.py                 ← 唯一 FastAPI 入口（include 10 模块 router + 时间线主页 / + mount /static /shared）
 │   ├── timeline/              ← 时间线模块（Event Server：POST/DELETE /api/timeline/events + GET /api/timeline；entries.json 侧边栏导航数据源，含「工具箱」入口；协议见 specs/timeline-protocol.md）
 │   ├── forum/                 ← 议事厅模块（/forum；长文/公告/投票/评论；Tiptap 富文本；正文图片上传 /forum/media/（POST /api/forum/images，JPG/PNG/WebP/GIF ≤10MB，落盘 server_data/forum_images/，公开读取 uuid 文件名不可枚举）；详见 docs/superpowers/specs/2026-08-10-forum-design.md）
-*82|│   ├── tools/                 ← 工具箱模块（/tools 页面 + GET/POST/PUT/DELETE /api/tools + POST /api/tools/{id}/click；仅登录可提交/编辑/删除自己的链接；提交/修改/删除推送/撤回时间线事件 source=tools（specs/timeline-protocol.md 注册）；链接收藏卡片：icon 解析自域名、关键字搜索、双维度排序（时间/热度 × 正/倒序，偏好存 localStorage）、tag 徽标/点击筛选（提交时逗号分隔自由创建，create-or-get）、点击统计（眼睛图标展示，公开计数）、卡片/列表双视图、卡片展示提交者昵称头像；头部操作/编辑/删除按钮为内联 SVG 图标（自托管 lucide-static ISC，core/web/static/icons.js）；表 tools_links/tools_tags/tools_link_tags，读写 core/db/tools.py）
+*82|│   ├── tools/                 ← 工具箱模块（/tools 页面 + GET/POST/PUT/DELETE /api/tools + GET /api/tools/tags（全部 tag 及计数）+ POST /api/tools/{id}/click；仅登录可提交/编辑/删除自己的链接；提交/修改/删除推送/撤回时间线事件 source=tools（specs/timeline-protocol.md 注册）；链接收藏卡片：icon 解析自域名、关键字搜索、双维度排序（时间/热度 × 正/倒序，偏好存 localStorage）、tag 云（全部 tag + 使用数量，点击筛选）+ tag 徽标/筛选（提交时逗号分隔自由创建，create-or-get）、点击统计（眼睛图标展示，公开计数）、卡片/列表双视图、卡片展示提交者昵称头像；头部操作/编辑/删除按钮为内联 SVG 图标（自托管 lucide-static ISC，core/web/static/icons.js）；表 tools_links/tools_tags/tools_link_tags，读写 core/db/tools.py）
 
 │   ├── gallery/               ← 图库模块（/gallery；repository/thumbnails/dates）
 │   ├── guestbook/             ← 留言簿模块（/guestbook）

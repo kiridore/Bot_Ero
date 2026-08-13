@@ -214,6 +214,23 @@
   margin: 0 0 0.6rem;
 }
 
+.tools-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.8rem;
+}
+
+.tools-tag-count {
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 0 0.3rem;
+  line-height: 1.2;
+}
+
 .tools-btn-sm {
   padding: 0.1rem 0.5rem;
   font-size: 0.75rem;

@@ -241,6 +241,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/tools` | 可选 | 链接列表（`q` 关键字搜索标题/简介/URL；`sort=time\|hot` × `order=asc\|desc` 双维度排序，默认 `time`+`desc`（最新在前，`id DESC`）；`tag=` 按 tag 名精确过滤，非法 sort/order → 422；每项含 `created_by`、`click_count`（点击次数）、`tags`（tag 名数组）及 OneBot 解析的提交者 `created_by_name`/`created_by_avatar`，解析失败降级回 QQ 号） |
+| `GET` | `/api/tools/tags` | 可选 | 全部 tag 及使用数量（仅 count > 0，按数量降序、同名升序；`{"tags": [{"name": "...", "count": N}]}`，公开） |
 | `POST` | `/api/tools` | 必须 | 添加链接（仅登录用户可提交；`title` 1-50、`description` ≤200、`url` 须 http/https；可选 `tags` 数组——每个 strip 后 ≤20 字、最多 10 个、同名去重，超限 → 400；非法 URL → 400；返回 `{"ok": true, "id": N}`；成功后推送时间线事件 `source=tools`，`{id:}` 占位符渲染提交者） |
 | `PUT` | `/api/tools/{id}` | 必须 | 修改自己提交的链接（body 同 POST，tag 整体替换；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并以同 `tools_link:{id}` key 重发最新内容） |
 | `POST` | `/api/tools/{id}/click` | 否 | 点击计数（公开自增，无需登录；不存在 → 404；返回 `{"ok": true, "clicks": N}`） |
@@ -267,7 +268,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
-| `tools` | `/tools` 工具箱（链接卡片网格 + tag 徽标/点击筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可编辑/删除自己提交的链接） |
+| `tools` | `/tools` 工具箱（链接卡片网格 + tag 云（全部 tag 及使用数量，点击筛选）+ tag 徽标/筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可编辑/删除自己提交的链接） |
 
 ---
 

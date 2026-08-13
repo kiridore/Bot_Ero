@@ -9,6 +9,7 @@
   const tagFilterRow = document.getElementById("tagFilterRow");
   const tagFilterName = document.getElementById("tagFilterName");
   const tagFilterClear = document.getElementById("tagFilterClear");
+  const tagCloud = document.getElementById("tagCloud");
   const addBtn = document.getElementById("addBtn");
   const sortSelect = document.getElementById("sortSelect");
   const orderToggle = document.getElementById("orderToggle");
@@ -132,11 +133,57 @@
     }
   }
 
+  function toggleTag(name) {
+    activeTag = activeTag === name ? null : name;
+    renderTagFilter();
+    loadTools();
+    loadTagCloud(); // 同步 tag 云高亮
+  }
+
   tagFilterClear.addEventListener("click", function () {
     activeTag = null;
     renderTagFilter();
     loadTools();
+    loadTagCloud();
   });
+
+  /* —— tag 云：全部 tag + 使用数量 —— */
+  async function loadTagCloud() {
+    try {
+      const res = await fetch("/api/tools/tags");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      renderTagCloud(data.tags || []);
+    } catch (err) {
+      tagCloud.classList.add("hidden");
+    }
+  }
+
+  function renderTagCloud(tags) {
+    tagCloud.innerHTML = "";
+    if (!tags.length) {
+      tagCloud.classList.add("hidden");
+      return;
+    }
+    tagCloud.classList.remove("hidden");
+    tags.forEach(function (t) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tools-tag" + (activeTag === t.name ? " is-active" : "");
+      btn.title = t.name + "（" + t.count + " 个链接）";
+      const nameEl = document.createElement("span");
+      nameEl.textContent = t.name;
+      const countEl = document.createElement("span");
+      countEl.className = "tools-tag-count";
+      countEl.textContent = t.count;
+      btn.appendChild(nameEl);
+      btn.appendChild(countEl);
+      btn.addEventListener("click", function () {
+        toggleTag(t.name);
+      });
+      tagCloud.appendChild(btn);
+    });
+  }
 
   /* —— 渲染 —— */
   function showEmpty(text) {
@@ -199,9 +246,7 @@
           btn.addEventListener("click", function (e) {
             e.preventDefault();
             e.stopPropagation();
-            activeTag = activeTag === tagName ? null : tagName;
-            renderTagFilter();
-            loadTools();
+            toggleTag(tagName);
           });
           tagRow.appendChild(btn);
         });
@@ -277,6 +322,7 @@
               return;
             }
             loadTools();
+            loadTagCloud();
           } catch (err) {
             alert("网络错误，请重试");
           }
@@ -347,6 +393,7 @@
         clearInterval(timer);
         openAddDialog();
         loadTools();
+        loadTagCloud();
       } else if (!dlg.open) {
         clearInterval(timer); // 用户取消登录
       }
@@ -402,6 +449,7 @@
       addForm.reset();
       editingId = null;
       loadTools();
+      loadTagCloud();
     } catch (err) {
       addMsg.textContent = "网络错误，请重试";
       addMsg.classList.remove("hidden");
@@ -415,4 +463,5 @@
   applySort();
   renderTagFilter();
   loadTools();
+  loadTagCloud();
 })();
