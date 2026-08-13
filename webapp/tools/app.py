@@ -118,6 +118,43 @@ def api_tools_click(
     return {"ok": True, "clicks": clicks}
 
 
+@router.put("/api/tools/{tool_id}")
+def api_tools_update(
+    tool_id: int,
+    body: ToolCreateIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    url = _or_400(_validate_url, body.url)
+    domain = urlsplit(url).netloc.lower()
+    tags = _or_400(_clean_tags, body.tags)
+    db = DbManager()
+    result = db.tools.update_tool(
+        user_id,
+        tool_id,
+        body.title.strip(),
+        body.description.strip(),
+        url,
+        domain,
+        tags,
+    )
+    if result["status"] == "not_found":
+        raise HTTPException(status_code=404, detail="链接不存在")
+    if result["status"] == "forbidden":
+        raise HTTPException(status_code=403, detail="只能修改自己提交的链接")
+    # 撤回旧时间线事件并以同 dedup_key 重发（feed 展示最新内容）
+    retract_event(source="tools", dedup_key=f"tools_link:{tool_id}")
+    emit_event(
+        source="tools",
+        actor_id=user_id,
+        actor_qq=user_id,
+        title=f"{{id:{user_id}}} 在工具箱提交了「{body.title.strip()}」",
+        description=body.description.strip() or None,
+        target_url=url,
+        dedup_key=f"tools_link:{tool_id}",
+    )
+    return {"ok": True, "id": tool_id}
+
+
 @router.delete("/api/tools/{tool_id}")
 def api_tools_delete(
     tool_id: int,

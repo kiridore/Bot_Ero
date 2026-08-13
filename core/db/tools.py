@@ -111,6 +111,32 @@ class ToolsManager:
         self.conn.commit()
         return {"status": "ok"}
 
+    def update_tool(
+        self,
+        user_id: str,
+        tool_id: int,
+        title: str,
+        description: str,
+        url: str,
+        domain: str,
+        tag_names: list[str],
+    ) -> dict:
+        """修改自己提交的链接（tag 整体替换为 tag_names）。返回 {"status": "ok" | "not_found" | "forbidden"}。"""
+        self.cur.execute("SELECT created_by FROM tools_links WHERE id = ?", (int(tool_id),))
+        row = self.cur.fetchone()
+        if row is None:
+            return {"status": "not_found"}
+        if row[0] != user_id:
+            return {"status": "forbidden"}
+        self.cur.execute(
+            "UPDATE tools_links SET title = ?, description = ?, url = ?, domain = ? WHERE id = ?",
+            (title, description, url, domain, int(tool_id)),
+        )
+        self.cur.execute("DELETE FROM tools_link_tags WHERE link_id = ?", (int(tool_id),))
+        self.conn.commit()
+        self.add_link_tags(int(tool_id), tag_names, user_id)
+        return {"status": "ok"}
+
     def register_click(self, tool_id: int) -> int | None:
         """点击计数原子自增。返回最新计数；链接不存在返回 None。"""
         self.cur.execute(

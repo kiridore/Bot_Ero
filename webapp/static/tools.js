@@ -14,6 +14,7 @@
   const orderToggle = document.getElementById("orderToggle");
   const viewToggle = document.getElementById("viewToggle");
   const addDialog = document.getElementById("addDialog");
+  const addDialogTitle = document.getElementById("addDialogTitle");
   const addForm = document.getElementById("addForm");
   const addMsg = document.getElementById("addMsg");
   const addTitle = document.getElementById("addTitle");
@@ -242,6 +243,16 @@
       });
       wrap.appendChild(a);
       if (session && String(item.created_by) === String(session.user_id)) {
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "tools-edit";
+        edit.title = "编辑";
+        edit.setAttribute("aria-label", "编辑");
+        edit.innerHTML = GalleryIcons.svgHTML("pencil");
+        edit.addEventListener("click", function () {
+          openAddDialog(item);
+        });
+        wrap.appendChild(edit);
         const del = document.createElement("button");
         del.type = "button";
         del.className = "tools-del";
@@ -308,8 +319,16 @@
     }
   });
 
-  /* —— 添加链接 —— */
-  function openAddDialog() {
+  /* —— 添加/编辑链接 —— */
+  let editingId = null;
+
+  function openAddDialog(item) {
+    editingId = item ? item.id : null;
+    addDialogTitle.textContent = item ? "编辑链接" : "添加链接";
+    addTitle.value = item ? item.title : "";
+    addDesc.value = item ? (item.description || "") : "";
+    addUrl.value = item ? item.url : "";
+    addTags.value = item ? (item.tags || []).join(", ") : "";
     addMsg.classList.add("hidden");
     if (typeof addDialog.showModal === "function") addDialog.showModal();
     addTitle.focus();
@@ -356,9 +375,11 @@
       url: addUrl.value.trim(),
       tags: tags,
     };
+    const apiPath = editingId ? "/api/tools/" + editingId : "/api/tools";
+    const method = editingId ? "PUT" : "POST";
     try {
-      const res = await fetch("/api/tools", {
-        method: "POST",
+      const res = await fetch(apiPath, {
+        method: method,
         headers: Object.assign({ "Content-Type": "application/json" }, GalleryAuth.headers()),
         body: JSON.stringify(payload),
       });
@@ -379,6 +400,7 @@
       }
       addDialog.close();
       addForm.reset();
+      editingId = null;
       loadTools();
     } catch (err) {
       addMsg.textContent = "网络错误，请重试";

@@ -88,10 +88,10 @@
   margin-left: auto;
 }
 
-.tools-del {
+.tools-del,
+.tools-edit {
   position: absolute;
   top: 0.4rem;
-  right: 0.4rem;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -106,7 +106,16 @@
   cursor: pointer;
 }
 
-.tools-del svg {
+.tools-del {
+  right: 0.4rem;
+}
+
+.tools-edit {
+  right: 2.7rem;
+}
+
+.tools-del svg,
+.tools-edit svg {
   width: 0.9rem;
   height: 0.9rem;
 }
@@ -114,6 +123,11 @@
 .tools-del:hover {
   color: var(--red);
   border-color: var(--red);
+}
+
+.tools-edit:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .tools-btn {

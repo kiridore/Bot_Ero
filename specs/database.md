@@ -248,7 +248,7 @@ with _connect() as conn:
 | `PRIMARY KEY` | | (link_id, tag_id) | 多对多 |
 
 - tag 自由创建（create-or-get，`get_or_create_tag` UNIQUE 兜底竞态）；每链接 ≤10 个 tag，同名去重；表小无额外索引
-- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入（含 `tags` 数组），`GET /api/tools` 读取（`sort`/`order`/`tag` 过滤，每项带 `click_count`/`tags`），`POST /api/tools/{id}/click` 计数（公开，不存在 404），`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
+- 读写层：`core/db/tools.py` 的 `ToolsManager`（`DbManager.tools`）；Web 端 `POST /api/tools` 写入、`PUT /api/tools/{id}` 修改（`update_tool` 校验本人后更新字段并整体替换 tag，返回 not_found/forbidden/ok）、`GET /api/tools` 读取（`sort`/`order`/`tag` 过滤，每项带 `click_count`/`tags`）、`POST /api/tools/{id}/click` 计数（公开，不存在 404）、`DELETE /api/tools/{id}` 删除（仅本人，`delete_tool` 返回 not_found/forbidden/ok）
 
 ### 仙人彩（不朽抽奖）
 
