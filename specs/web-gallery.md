@@ -20,7 +20,7 @@ Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`t
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`）；时间线主页 + `entries.json` |
-| 议事厅 | `forum` | `/forum`（`/forum/new` `/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理 |
+| 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 
 ```
@@ -264,6 +264,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`BOTERO_FORUM_IMAGE_MAX_BYTES`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
+| `PATCH` | `/api/forum/posts/{id}` | 必须 | 编辑自己的帖子（`title`/`body_json`/`tags` 可改，`tags` 整体替换；类型与投票结构不可改；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并按 `forum_post:{id}` 同 key 重发最新内容，卡片不产生新事件） |
+| `DELETE` | `/api/forum/posts/{id}` | 必须 | 删除自己的帖子（级联删除评论/选项/投票/标签关联；非本人 → 403；成功后按 `forum_post:{id}` 撤回时间线事件） |
 
 ### 页面路由（FileResponse）
 
@@ -279,7 +281,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
-| `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
+| `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖（`?id=` 编辑模式，类型/投票结构不可改）；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论，作者可见编辑/删除按钮）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
 | `tools` | `/tools` 工具箱（链接卡片网格 + tag 云（全部 tag 及使用数量，点击筛选）+ tag 徽标/筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，卡片 icon 浏览器直连默认路径、失败/超时转服务端解析兜底（favicon.ico → 首页 link rel=icon，入库缓存），头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可编辑/删除自己提交的链接） |
 
 ---

@@ -3,6 +3,12 @@
 (async function () {
   "use strict";
 
+  // 编辑模式：/forum/new?id=<post_id>
+  const editingId = (function () {
+    const m = location.search.match(/[?&]id=(\d+)/);
+    return m ? Number(m[1]) : null;
+  })();
+
   const msg = document.getElementById("msg");
   const typeSelect = document.getElementById("type");
   const bodySection = document.getElementById("body-section");
@@ -132,11 +138,52 @@
       extensions: [StarterKit, Image],
       content: { type: "doc", content: [{ type: "paragraph" }] },
     });
+    if (editingId) loadForEdit(editingId);
   } catch (e) {
     showMsg("Tiptap 加载失败（请检查网络或刷新重试）：" + e.message, false);
+    if (editingId) loadForEdit(editingId);
   }
 
   GalleryAuth.renderAuth(document.getElementById("authArea"));
+
+  // 编辑模式预填：?id= 加载帖子（类型/投票结构不可改，title/body/tags 可改）
+  async function loadForEdit(id) {
+    const res = await fetch(`/api/forum/posts/${id}`, { headers: GalleryAuth.headers() });
+    if (!res.ok) {
+      showMsg("加载帖子失败：" + res.status, false);
+      return;
+    }
+    const post = await res.json();
+    document.getElementById("pageTitle").textContent = "编辑帖子";
+    document.getElementById("submitBtn").textContent = "保存修改";
+    document.getElementById("title").value = post.title;
+    document.getElementById("tags").value = (post.tags || []).join(", ");
+    typeSelect.value = post.type;
+    typeSelect.disabled = true; // 类型不可改
+    updateSections();
+    if (post.type === "poll") {
+      // 选项只读展示，截止/匿名锁定
+      pollOptions.innerHTML = "";
+      (post.poll_options || []).forEach(function (o) { addOption(o.text); });
+      pollOptions.querySelectorAll("input[name=poll_option]").forEach(function (i) { i.disabled = true; });
+      document.getElementById("add-option").style.display = "none";
+      document.getElementById("anonymous").disabled = true;
+      const dl = document.getElementById("deadline");
+      if (post.poll_deadline) {
+        dl.value = post.poll_deadline.replace(" ", "T").slice(0, 16);
+        dl.disabled = true;
+      }
+    }
+    if (editor) {
+      try {
+        editor.commands.setContent(JSON.parse(post.body_json || "{}"));
+      } catch (e) {
+        editor.commands.setContent("");
+      }
+    } else if (post.type !== "poll") {
+      showMsg("Tiptap 编辑器加载失败，无法编辑正文（请刷新重试）", false);
+    }
+  }
 
   // 提交
   form.addEventListener("submit", async function (e) {
@@ -152,6 +199,32 @@
     if (!title) { showMsg("请输入标题", false); return; }
     const tags = document.getElementById("tags").value.split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
     const body = editor ? JSON.stringify(editor.getJSON()) : "";
+    if (editingId) {
+      // 编辑模式：类型/投票结构不可改；投票帖不提交正文
+      if (type !== "poll" && !editor) {
+        showMsg("Tiptap 编辑器加载失败，无法编辑正文", false);
+        return;
+      }
+      const payload = { title: title, tags: tags };
+      if (type !== "poll") payload.body_json = body;
+      showMsg("保存中…", true);
+      try {
+        const res = await fetch("/api/forum/posts/" + editingId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(function () { return {}; });
+          showMsg("保存失败：" + (err.detail || res.status), false);
+          return;
+        }
+        location.href = "/forum/" + editingId;
+      } catch (e) {
+        showMsg("保存失败：" + e.message, false);
+      }
+      return;
+    }
     const payload = { type: type, title: title, body_json: body, tags: tags };
     if (type === "poll") {
       const opts = [];

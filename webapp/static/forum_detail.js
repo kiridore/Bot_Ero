@@ -186,6 +186,31 @@
       bodyEl.innerHTML = "<p class=\"muted\">（无正文）</p>";
     }
     renderPoll(post);
+    // 作者专属操作：编辑/删除（仅本人可见）
+    const session = GalleryAuth.load();
+    const mine = session && String(post.author_user_id) === String(session.user_id);
+    const actions = document.getElementById("postActions");
+    if (actions && mine) {
+      actions.hidden = false;
+      document.getElementById("editPostBtn").addEventListener("click", function () {
+        location.href = "/forum/new?id=" + post.id;
+      });
+      document.getElementById("deletePostBtn").addEventListener("click", async function () {
+        if (!confirm(`确定删除「${post.title}」？帖子与全部评论将一并删除，不可恢复。`)) return;
+        const res = await fetch(`/api/forum/posts/${post.id}`, {
+          method: "DELETE",
+          headers: GalleryAuth.headers(),
+        });
+        if (res.ok) { location.href = "/forum"; return; }
+        if (res.status === 401) {
+          const dlg = GalleryAuth.ensureLoginDialog();
+          if (typeof dlg.showModal === "function") dlg.showModal();
+          return;
+        }
+        const err = await res.json().catch(function () { return {}; });
+        showMsg("删除失败：" + (err.detail || res.status), false);
+      });
+    }
   }
 
   commentForm.addEventListener("submit", async function (e) {

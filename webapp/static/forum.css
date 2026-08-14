@@ -187,6 +187,10 @@
 
 .forum-btn-secondary:hover { background: var(--accent-soft); border-color: var(--accent); }
 
+.forum-post-actions { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+.forum-btn-danger { color: var(--red); border-color: var(--red); }
+.forum-btn-danger:hover { background: #f3d7cf; border-color: var(--red); color: var(--red); }
+
 .forum-link { color: var(--accent-ink); text-decoration: none; }
 .forum-link:hover { text-decoration: underline; }
 
