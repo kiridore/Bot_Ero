@@ -23,7 +23,7 @@ let fail = 0;
 function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!ok) fail++; }
 
 // 每次场景重建全局 DOM 并 eval 真实脚本
-function runScenario(sessionUid, authorUid) {
+function runScenario(sessionUid, authorUid, payloadOverride) {
   const els = {};
   global.location = {
     hostname: "127.0.0.1", protocol: "http:", search: "", href: "http://127.0.0.1/forum/1",
@@ -55,12 +55,12 @@ function runScenario(sessionUid, authorUid) {
     els[id].id = id;
   });
 
-  const postPayload = {
+  const postPayload = Object.assign({
     id: 1, type: "post", title: "测试帖", body_json: "", status: "open",
     author_user_id: authorUid, author_name: "作者", author_avatar: "",
     created_at: "2026-08-14 10:00:00", updated_at: "2026-08-14 10:00:00",
     tags: [], poll_options: [], my_vote: null,
-  };
+  }, payloadOverride || {});
   global.fetch = async (url) => {
     const u = String(url);
     if (u.includes("/comments")) return { ok: true, status: 200, json: async () => ({ items: [], next_cursor: null }) };
@@ -92,6 +92,31 @@ function runScenario(sessionUid, authorUid) {
   const els3 = runScenario(null, "1057613133");
   await new Promise((r) => setTimeout(r, 120));
   check("未登录：postActions 保持隐藏", els3.postActions.hidden !== false);
+
+  // 场景 4：富文本渲染 — marks（加粗/斜体/删除线/行内代码）与结构节点
+  const richBody = JSON.stringify({
+    type: "doc", content: [
+      { type: "paragraph", content: [{ type: "text", text: "加粗", marks: [{ type: "bold" }] }] },
+      { type: "paragraph", content: [{ type: "text", text: "斜体", marks: [{ type: "italic" }] }] },
+      { type: "paragraph", content: [{ type: "text", text: "划线", marks: [{ type: "strike" }] }] },
+      { type: "paragraph", content: [{ type: "text", text: "行内代码", marks: [{ type: "code" }] }] },
+      { type: "paragraph", content: [{ type: "text", text: "粗斜", marks: [{ type: "bold" }, { type: "italic" }] }] },
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "小标题" }] },
+      { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "列表项" }] }] }] },
+      { type: "paragraph", content: [{ type: "text", text: "<b>原样</b>&" }] },
+    ],
+  });
+  const els4 = runScenario("1057613133", "1057613133", { body_json: richBody });
+  await new Promise((r) => setTimeout(r, 120));
+  const html = els4.postBody.innerHTML;
+  check("加粗渲染为 <strong>", html.includes("<strong>加粗</strong>"));
+  check("斜体渲染为 <em>", html.includes("<em>斜体</em>"));
+  check("删除线渲染为 <s>", html.includes("<s>划线</s>"));
+  check("行内代码渲染为 <code>", html.includes("<code>行内代码</code>"));
+  check("多重 marks 叠加", html.includes("<em><strong>粗斜</strong></em>"));
+  check("标题渲染为 <h2>", html.includes("<h2>小标题</h2>"));
+  check("列表渲染为 ul/li/p", html.includes("<ul><li><p>列表项</p></li></ul>"));
+  check("正文 HTML 仍被转义（防 XSS）", html.includes("&lt;b&gt;原样&lt;/b&gt;&amp;"));
 
   process.exit(fail ? 1 : 0);
 })();

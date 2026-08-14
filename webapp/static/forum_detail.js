@@ -47,7 +47,20 @@
     const escText = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     }); };
-    if (doc.type === "text") return escText(doc.text || "");
+    if (doc.type === "text") {
+      // Tiptap 的加粗/斜体/删除线/行内代码是 text 节点上的 marks，需逐层包裹
+      let t = escText(doc.text || "");
+      (doc.marks || []).forEach(function (m) {
+        if (!m || !m.type) return;
+        switch (m.type) {
+          case "bold": t = "<strong>" + t + "</strong>"; break;
+          case "italic": t = "<em>" + t + "</em>"; break;
+          case "strike": t = "<s>" + t + "</s>"; break;
+          case "code": t = "<code>" + t + "</code>"; break;
+        }
+      });
+      return t;
+    }
     const children = Array.isArray(doc.content) ? doc.content.map(renderTiptap).join("") : "";
     switch (doc.type) {
       case "doc": return children;
