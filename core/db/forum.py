@@ -87,6 +87,7 @@ class ForumManager:
                 self.cur.execute(
                     "INSERT INTO forum_post_tags (post_id, tag_id) VALUES (?, ?)", (post_id, tid)
                 )
+            self.purge_orphan_tags()
         self.conn.commit()
         return True
 
@@ -97,6 +98,8 @@ class ForumManager:
             (post_id, author_user_id),
         )
         ok = self.cur.rowcount > 0
+        if ok:
+            self.purge_orphan_tags()
         self.conn.commit()
         return ok
 
@@ -209,10 +212,17 @@ class ForumManager:
                     JOIN forum_posts p ON pt.post_id = p.id
                     WHERE pt.tag_id = t.id AND p.status != 'deleted') AS post_count
             FROM forum_tags t
+            WHERE t.id IN (SELECT DISTINCT tag_id FROM forum_post_tags)
             ORDER BY post_count DESC, t.name
             """
         )
         return self.cur.fetchall()
+
+    def purge_orphan_tags(self):
+        """删除无任何帖子引用的悬空 tag（引用计数 0）。在删帖/改 tag 后调用。"""
+        self.cur.execute(
+            "DELETE FROM forum_tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM forum_post_tags)"
+        )
 
     # —— Poll options / votes ——
 

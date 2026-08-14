@@ -91,6 +91,14 @@ with patch("webapp.forum.app.emit_event") as m_emit, patch("webapp.forum.app.ret
     r = client.patch(f"/api/forum/posts/{pid}", headers=AH, json={"tags": []})
     check("tags 清空 200", r.status_code == 200, r.text)
     check("GET tags 为空", client.get(f"/api/forum/posts/{pid}", headers=AH).json().get("tags") == [])
+    tg = client.get("/api/forum/tags", headers=AH).json()["tags"]
+    check("编辑移除的 tag 已从列表消失", not any(t["name"] in ("测试", "测试2", "新tag") for t in tg))
+
+    # —— 独立创建的无引用 tag 不展示（引用 0 隐藏） ——
+    r = client.post("/api/forum/tags", headers=AH, json={"name": "孤悬"})
+    check("独立创建 tag 200", r.status_code == 200, r.text)
+    tg = client.get("/api/forum/tags", headers=AH).json()["tags"]
+    check("无引用 tag 不展示", not any(t["name"] == "孤悬" for t in tg))
 
     # —— 不存在 404 ——
     r = client.patch("/api/forum/posts/999999", headers=AH, json={"title": "x"})
@@ -115,6 +123,20 @@ with patch("webapp.forum.app.emit_event") as m_emit, patch("webapp.forum.app.ret
     b_pid = r2.json()["id"]
     r = client.delete(f"/api/forum/posts/{b_pid}", headers=AH)
     check("删除他人帖子 403", r.status_code == 403, r.text)
+
+    # —— 删帖清理悬空 tag ——
+    r = client.post("/api/forum/posts", headers=AH, json={"type": "post", "title": "带tag帖", "body_json": "", "tags": ["悬空待删"]})
+    t_pid = r.json()["id"]
+    tg = client.get("/api/forum/tags", headers=AH).json()["tags"]
+    check("引用中的 tag 正常展示（count=1）", any(t["name"] == "悬空待删" and t["post_count"] == 1 for t in tg))
+    r = client.delete(f"/api/forum/posts/{t_pid}", headers=AH)
+    check("删除带 tag 帖 200", r.status_code == 200, r.text)
+    tg = client.get("/api/forum/tags", headers=AH).json()["tags"]
+    check("删帖后悬空 tag 不再展示", not any(t["name"] == "悬空待删" for t in tg))
+    _c = sqlite3.connect(_db)
+    ntag = _c.execute("SELECT COUNT(*) FROM forum_tags WHERE name = '悬空待删'").fetchone()[0]
+    _c.close()
+    check("悬空 tag 已从 forum_tags 物理删除", ntag == 0)
 
     # —— 作者删除：级联 + 时间线撤回 ——
     r = client.delete(f"/api/forum/posts/{pid}", headers=AH)
