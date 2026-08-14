@@ -17,6 +17,13 @@
   const bodyHidden = document.getElementById("body_json");
   const form = document.getElementById("compose");
 
+  // 回车误触防护：title/tags 是单行文本输入，Enter 会触发表单隐式提交
+  ["title", "tags"].forEach(function (id) {
+    document.getElementById(id).addEventListener("keydown", function (e) {
+      if (e.key === "Enter") e.preventDefault();
+    });
+  });
+
   function showMsg(text, ok) {
     msg.innerHTML = "";
     const d = document.createElement("div");
