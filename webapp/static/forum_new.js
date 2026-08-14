@@ -24,6 +24,10 @@
     });
   });
 
+  // 编辑模式预填：立即加载帖子，不等待 Tiptap CDN（esm.sh 慢/失败时标题/tag 也照常填充）
+  let pendingBodyDoc = null;
+  if (editingId) loadForEdit(editingId);
+
   function showMsg(text, ok) {
     msg.innerHTML = "";
     const d = document.createElement("div");
@@ -63,12 +67,22 @@
   typeSelect.addEventListener("change", updateSections);
   updateSections();
 
+  // CDN 动态导入加超时：esm.sh 慢/不可达时 12s 快速降级（正文编辑器缺失，但预填/标题/tag 不受影响）
+  function withTimeout(promise, label) {
+    return Promise.race([
+      promise,
+      new Promise(function (_, reject) {
+        setTimeout(function () { reject(new Error(label + " 加载超时（12s）")); }, 12000);
+      }),
+    ]);
+  }
+
   // Tiptap 编辑器
   let editor = null;
   try {
-    const { Editor } = await import("https://esm.sh/@tiptap/core@2.6.0");
-    const { default: StarterKit } = await import("https://esm.sh/@tiptap/starter-kit@2.6.0");
-    const { default: Image } = await import("https://esm.sh/@tiptap/extension-image@2.6.0");
+    const { Editor } = await withTimeout(import("https://esm.sh/@tiptap/core@2.6.0"), "Tiptap core");
+    const { default: StarterKit } = await withTimeout(import("https://esm.sh/@tiptap/starter-kit@2.6.0"), "StarterKit");
+    const { default: Image } = await withTimeout(import("https://esm.sh/@tiptap/extension-image@2.6.0"), "Image");
     const toolbar = document.createElement("div");
     toolbar.className = "forum-editor-toolbar";
     const content = document.createElement("div");
@@ -145,10 +159,9 @@
       extensions: [StarterKit, Image],
       content: { type: "doc", content: [{ type: "paragraph" }] },
     });
-    if (editingId) loadForEdit(editingId);
+    if (editingId) applyPendingBody();
   } catch (e) {
     showMsg("Tiptap 加载失败（请检查网络或刷新重试）：" + e.message, false);
-    if (editingId) loadForEdit(editingId);
   }
 
   GalleryAuth.renderAuth(document.getElementById("authArea"));
@@ -181,15 +194,26 @@
         dl.disabled = true;
       }
     }
-    if (editor) {
+    // 正文：编辑器可能尚未就绪（esm.sh 慢/失败），暂存待编辑器创建后补填
+    if (post.type !== "poll") {
       try {
-        editor.commands.setContent(JSON.parse(post.body_json || "{}"));
+        pendingBodyDoc = JSON.parse(post.body_json || "{}");
       } catch (e) {
-        editor.commands.setContent("");
+        pendingBodyDoc = null;
       }
-    } else if (post.type !== "poll") {
-      showMsg("Tiptap 编辑器加载失败，无法编辑正文（请刷新重试）", false);
     }
+    applyPendingBody();
+  }
+
+  // 编辑器就绪后补填正文（loadForEdit 先完成、编辑器后创建时由创建处调用）
+  function applyPendingBody() {
+    if (!editor || !pendingBodyDoc) return;
+    try {
+      editor.commands.setContent(pendingBodyDoc);
+    } catch (e) {
+      editor.commands.setContent("");
+    }
+    pendingBodyDoc = null;
   }
 
   // 提交
@@ -208,12 +232,14 @@
     const body = editor ? JSON.stringify(editor.getJSON()) : "";
     if (editingId) {
       // 编辑模式：类型/投票结构不可改；投票帖不提交正文
-      if (type !== "poll" && !editor) {
-        showMsg("Tiptap 编辑器加载失败，无法编辑正文", false);
-        return;
-      }
       const payload = { title: title, tags: tags };
-      if (type !== "poll") payload.body_json = body;
+      if (type !== "poll") {
+        if (editor) {
+          payload.body_json = body;
+        } else {
+          showMsg("提示：Tiptap 编辑器未加载，正文保持不变（本次仅保存标题/tag 修改）", false);
+        }
+      }
       showMsg("保存中…", true);
       try {
         const res = await fetch("/api/forum/posts/" + editingId, {
