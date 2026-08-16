@@ -170,7 +170,7 @@ CREATE TABLE messages (
     msg_id INTEGER NOT NULL,        -- QQ 消息 ID，防重复入库
     reply_to_msg_id INTEGER,        -- 本消息回复的目标消息 ID（无 reply 段为空）
     sent_at TEXT NOT NULL,          -- YYYY-MM-DD HH:MM:SS
-    text TEXT NOT NULL DEFAULT '',  -- 剥离 CQ 码后的纯文本（命令也存，统计时过滤）
+    text TEXT NOT NULL DEFAULT '',  -- 剥离 CQ 码后的纯文本（命令也存，统计时过滤；纯图片消息存 [图片]）
     has_image INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_messages_group_time ON messages(group_id, sent_at);
@@ -178,7 +178,7 @@ CREATE INDEX idx_messages_text ON messages(text);   -- 复读检测 GROUP BY tex
 ```
 
 - 只记录群消息（`group_id` 为 None 的私聊不记），并跳过 bot 自身消息（`user_id == BOT_QQ`）
-- 文本提取：遍历 message segments，text 段拼接；图片段置 `has_image=1`；`@` 段剥离；`reply` 段剥离前取 `data.id` 写入 `reply_to_msg_id`
+- 文本提取：遍历 message segments，text 段拼接；图片段置 `has_image=1`；纯图片消息 text 存 `[图片]`；`@` 段剥离；`reply` 段剥离前取 `data.id` 写入 `reply_to_msg_id`
 - 永久保留（决策 1）；库文件不存在时自动建表（`init_schema` 模式）
 
 ### data.db（`core/db/_base.py::init_schema` 追加）
@@ -340,7 +340,7 @@ def handle(self):
 # 消息日志
 群发 3 条消息 → message_log.db 出现 3 行，私聊消息不出现，bot 自身消息不落库
 同 msg_id 重复事件 → 不重复入库
-含图片消息 → has_image=1；@/reply 段不进入 text，reply 消息的 reply_to_msg_id 正确落库
+含图片消息 → has_image=1；纯图片消息 text=[图片]；@/reply 段不进入 text，reply 消息的 reply_to_msg_id 正确落库
 
 # 抽奖流水
 每抽 1 次 → lottery_draw_log 新增 1 行；points 10 或 title_new(legendary) 可被周度欧皇查询命中
