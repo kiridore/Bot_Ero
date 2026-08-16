@@ -1,6 +1,6 @@
 # 插件目录与功能包
 
-> 全部 44 个已注册插件、功能包定义、数据依赖
+> 全部 47 个已注册插件、功能包定义、数据依赖
 
 ---
 
@@ -47,6 +47,7 @@
 |---|--------|------|------|------|
 | 32 | `auto_friend` | `auto_friend/` | `request_type == "friend"` | 自动同意好友请求 |
 | 33 | `welcome` | `welcome/` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
+| 46 | `message_logger` | `message_logger/` | 所有群消息（系统插件） | 记录群消息到独立库 `server_data/message_log.db`（周报数据源，永久保留） |
 
 ## 定时/心跳
 
@@ -57,6 +58,8 @@
 | 36 | `startup_changelog` | `startup_changelog/` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
 | 37 | `weekly_quest_reset` | `weekly_quest/` | 每周一 08:00 | 清理过期任务进度 |
 | 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配截止结束 |
+| 44 | `forum_notify` | `forum_notify/` | 每分钟（meta 心跳） | 议事厅新帖群通知 + 过期投票自动关闭 |
+| 47 | `weekly_report` | `weekly_report/` | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档（首周通知默认关闭） |
 
 ## 管理/超级用户
 

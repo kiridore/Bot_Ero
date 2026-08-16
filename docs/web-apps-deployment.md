@@ -1,6 +1,6 @@
 # 网页应用部署文档（Caddy + systemd + DNS）
 
-本文档是 BotEro 网页端在 VPS 上的部署参考。6 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。
+本文档是 BotEro 网页端在 VPS 上的部署参考。11 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`、`live`、`timeline`、`forum`、`tools`、`weekly`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。
 
 ## 1. URL 方案
 
@@ -15,6 +15,7 @@
 | 跑团 | `/trpg`（`/trpg/char/{user_id}/{char_id}`） |
 | 闹钟 | `/alarms` |
 | 活动 | `/activities`（`/activities/{activity_id}`） |
+| 周报 | `/weekly`（最新期重定向）`/weekly/{week_key}`（报纸详情页；API 为 `/api/weekly`） |
 | API/静态/媒体 | `/api/*` `/static/*` `/shared/*` `/thumb/*` `/media/*` `/archive/*`（根路径，全局唯一） |
 
 根域 `/` 为时间线社区主页（登录可见；`webapp/static/timeline.html`，数据 API `GET /api/timeline` 需登录密钥）。单 origin 下登录态天然共享（同源 localStorage），页面间跳转均为同源相对路径。
@@ -109,6 +110,9 @@ systemctl enable --now botero-web
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
 | `BOTERO_TIMELINE_URL` | `http://127.0.0.1:8765` | Event Server 基地址（bot 插件发送时间线事件的目标） |
 | `BOTERO_EVENT_TOKEN` | `BotEro-Timeline-ChangeMe` | 系统间事件令牌（bot 发送与 webapp 校验共用；**单一来源 `scripts/botero.env`**，生产建议改为随机值） |
+| `BOTERO_MESSAGE_LOG_DB_PATH` | `<仓库>/server_data/message_log.db` | 群消息日志独立库路径（周报数据源，永久保留） |
+| `BOTERO_WEB_BASE_URL` | `https://littlero.tech` | 周报群通知链接的 Web 基址 |
+| `BOTERO_WEEKLY_NOTIFY` | `0` | 周报群通知开关（`1` 开启；首周测试期默认关闭） |
 
 > 旧变量 `BOTERO_GALLERY_URL`（图库域基地址）已删除：单 origin 后媒体 URL 为同源根相对路径，无需跨域基地址。
 

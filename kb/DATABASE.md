@@ -306,6 +306,57 @@ CREATE TABLE activity_members (
 
 ---
 
+## 消息日志（独立库 message_log.db）
+
+| 表 | 说明 |
+|----|------|
+| `messages` | 群消息日志，独立库 `server_data/message_log.db`，永久保留 |
+
+### `messages`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 自增主键 |
+| `group_id` | INTEGER | NOT NULL | 群号 |
+| `user_id` | INTEGER | NOT NULL | 发送者 QQ 号 |
+| `msg_id` | INTEGER | UNIQUE | QQ 消息 ID，防重复入库 |
+| `reply_to_msg_id` | INTEGER | 可空 | 本消息回复的目标消息 ID（reply 段剥离前落库） |
+| `sent_at` | TEXT | NOT NULL | `YYYY-MM-DD HH:MM:SS` |
+| `text` | TEXT | NOT NULL DEFAULT '' | 剥离 CQ 码后的纯文本（命令也存，统计时过滤） |
+| `has_image` | INTEGER | NOT NULL DEFAULT 0 | 是否含图片段 |
+
+- 索引：`idx_messages_group_time (group_id, sent_at)`、`idx_messages_text (text)`
+- 只记群消息；bot 自身消息不落库
+
+## 周报归档
+
+### `weekly_reports`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `week_key` | TEXT | PRIMARY KEY (week_key, group_id) | 周一日期 `YYYY-MM-DD`（周界起点） |
+| `group_id` | INTEGER | PRIMARY KEY (week_key, group_id) | 群号（预留多群） |
+| `data_json` | TEXT | NOT NULL | 完整版面数据 JSON |
+| `created_at` | TEXT | NOT NULL | 生成时间 |
+
+期号 = `SELECT COUNT(*) FROM weekly_reports WHERE group_id=? AND week_key <= ?`。
+
+## 抽奖流水（周报统计用）
+
+### `lottery_draw_log`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 自增主键 |
+| `user_id` | INTEGER | NOT NULL | 抽奖用户 QQ 号 |
+| `drawn_at` | TEXT | NOT NULL | 抽奖时间 `YYYY-MM-DD HH:MM:SS` |
+| `result_type` | TEXT | NOT NULL | `points` / `title_new` / `title_duplicate` / `title_none` |
+| `value` | INTEGER | 可空 | points 数值或 title_id |
+| `rarity` | TEXT | 可空 | title 稀有度（title_* 时） |
+| `zero_streak_after` | INTEGER | NOT NULL DEFAULT 0 | 抽后连续零奖励次数 |
+
+- 索引：`idx_lottery_draw_log_time (drawn_at)`
+
 ## 重要约束
 
 - **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER。

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>小埃周报</title>
+  <link rel="stylesheet" href="/shared/gallery.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/static/weekly.css" />
+</head>
+<body>
+  <header class="weekly-masthead" data-reveal>
+    <p class="weekly-masthead-kicker">小埃中继站 · 每周出版</p>
+    <h1 class="weekly-masthead-title">小埃周报</h1>
+    <p class="weekly-masthead-sub" id="weeklyDateRange">—</p>
+  </header>
+
+  <div class="weekly-layout">
+    <aside class="weekly-sidebar">
+      <a class="weekly-brand" href="/">小埃中继站</a>
+      <nav class="weekly-nav" aria-label="周报导航">
+        <div class="weekly-nav-muted">期号归档</div>
+        <select id="issueSelect" class="weekly-select"></select>
+        <div class="weekly-pager">
+          <button type="button" id="prevIssue" class="weekly-pager-btn">← 上一期</button>
+          <button type="button" id="nextIssue" class="weekly-pager-btn">下一期 →</button>
+        </div>
+      </nav>
+      <div class="weekly-auth auth-area" id="authArea"></div>
+    </aside>
+
+    <main class="weekly-main">
+      <article id="weeklyPaper" class="weekly-paper">
+        <div class="weekly-empty muted" id="weeklyEmpty">加载中…</div>
+      </article>
+    </main>
+  </div>
+
+  <script src="/shared/auth.js"></script>
+  <script src="/shared/motion.js"></script>
+  <script src="/static/weekly.js"></script>
+</body>
+</html>

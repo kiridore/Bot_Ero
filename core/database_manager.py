@@ -16,6 +16,7 @@ from core.db.redeem import RedeemManager
 from core.db.timeline import TimelineManager
 from core.db.forum import ForumManager
 from core.db.tools import ToolsManager
+from core.db.weekly import WeeklyReportManager
 
 
 class DbManager:
@@ -43,6 +44,7 @@ class DbManager:
         self.timeline = TimelineManager(self.conn)
         self.forum = ForumManager(self.conn)
         self.tools = ToolsManager(self.conn)
+        self.weekly = WeeklyReportManager(self.conn)
 
     def __del__(self):
         self.conn.commit()

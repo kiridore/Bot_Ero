@@ -21,6 +21,7 @@ from webapp.live.app import router as live_router
 from webapp.forum.app import router as forum_router
 from webapp.timeline.app import router as timeline_router
 from webapp.tools.app import router as tools_router
+from webapp.weekly.app import router as weekly_router
 
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
 
@@ -78,5 +79,6 @@ app.include_router(live_router)
 app.include_router(timeline_router)
 app.include_router(forum_router)
 app.include_router(tools_router)
+app.include_router(weekly_router)
 app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

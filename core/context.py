@@ -24,6 +24,7 @@ SYSTEM_PLUGINS = frozenset({
     "update",
     "auto_friend",
     "welcome",
+    "message_logger",
 })
 
 # 跑团录制状态

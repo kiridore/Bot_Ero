@@ -289,7 +289,7 @@ CREATE INDEX idx_lottery_draw_log_time ON lottery_draw_log (drawn_at);
 
 ```python
 def handle(self):
-    start, end = get_monday_to_monday()   # 上一周周界（周一 08:00 → 次周一 08:00）
+    start, end = _last_week_bounds()      # 最近完整周界（周一 08:00 → 次周一 08:00）
     week_key = start.split(" ")[0]        # 周一日期 YYYY-MM-DD（周界起点）
     group_id = core.config.GROUP_ID
     if self.dbmanager.weekly.exists(week_key, group_id):

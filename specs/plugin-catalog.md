@@ -2,9 +2,9 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-09 (插件目录结构同步：每插件一个文件夹；新增活动系统 activity/activity_timer 插件)
+> 最后更新: 2026-08-16 (周报：新增 message_logger 与 weekly_report 插件；补登 forum_notify；插件总数 47)
 
-全部 44 个已注册插件的完整目录。新增插件时必须在此添加条目。
+全部 47 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
 ---
 
@@ -51,6 +51,7 @@
 |------|------|--------|------|------|
 | `auto_friend/` | `AutoFriendPlugin` | `auto_friend` | `request_type == "friend"` | 自动接受好友请求 |
 | `welcome/` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息 |
+| `message_logger/` | `MessageLoggerPlugin` | `message_logger` | 所有群消息（系统插件） | 记录群消息到独立库 `server_data/message_log.db`（周报数据源，永久保留） |
 
 ## 定时/心跳插件
 
@@ -61,6 +62,8 @@
 | `startup_changelog/` | `StartupChangelogPlugin` | `startup_changelog` | Plugin (手动 meta) | 启动时一次 | 发送开机问候 |
 | `weekly_quest/` | `WeeklyQuestResetPlugin` | `weekly_quest_reset` | TimedHeartbeatPlugin | 每周一 08:00 | 清理过期任务进度 |
 | `activity/` | `ActivityTimerPlugin` | `activity_timer` | Plugin (手动 meta) | 每 60 秒 | 活动计时：接龙超时跳过、匹配截止结束 |
+| `forum_notify/` | `ForumNotifyPlugin` | `forum_notify` | Plugin (手动 meta) | 每分钟 | 议事厅新帖群通知 + 过期投票自动关闭 |
+| `weekly_report/` | `WeeklyReportPlugin` | `weekly_report` | TimedHeartbeatPlugin | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档（首周通知默认关闭） |
 
 ## 管理/超级用户插件
 

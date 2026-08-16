@@ -98,3 +98,103 @@ class LotteryManager:
         """, (int(user_id), ws.strftime("%Y-%m-%d"), we.strftime("%Y-%m-%d")))
         row = self.cur.fetchone()
         return 0 if row is None else int(row[0])
+
+
+    # —— 周报抽奖流水 ——
+
+    def insert_draw_log(self, user_id, result_type, value=None, rarity=None, zero_streak_after=0):
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute("""
+            INSERT INTO lottery_draw_log (user_id, drawn_at, result_type, value, rarity, zero_streak_after)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (int(user_id), ts, str(result_type), value, rarity, int(zero_streak_after)))
+        self.conn.commit()
+
+    def weekly_draw_totals(self, start_date, end_date):
+        """按自然日统计周内抽奖：返回 (总抽数, 参与人数)。"""
+        self.cur.execute("""
+            SELECT COALESCE(SUM(draw_count), 0), COUNT(DISTINCT user_id)
+            FROM user_lottery_daily_stats
+            WHERE stat_date >= ? AND stat_date < ?
+        """, (str(start_date), str(end_date)))
+        row = self.cur.fetchone()
+        if not row:
+            return 0, 0
+        return int(row[0] or 0), int(row[1] or 0)
+
+    def weekly_top_drawer(self, start_date, end_date):
+        self.cur.execute("""
+            SELECT user_id, SUM(draw_count) AS total
+            FROM user_lottery_daily_stats
+            WHERE stat_date >= ? AND stat_date < ?
+            GROUP BY user_id
+            ORDER BY total DESC, user_id ASC
+            LIMIT 1
+        """, (str(start_date), str(end_date)))
+        row = self.cur.fetchone()
+        if not row:
+            return None
+        return {"user_id": int(row[0]), "count": int(row[1])}
+
+    def weekly_lucky_from_log(self, start: str, end: str) -> list[dict]:
+        """周内欧皇：points=10 或 title_new 且 rarity=legendary。"""
+        self.cur.execute("""
+            SELECT user_id, result_type, value, rarity, COUNT(*) AS hits
+            FROM lottery_draw_log
+            WHERE drawn_at >= ? AND drawn_at < ?
+              AND ((result_type = 'points' AND value = 10)
+                   OR (result_type = 'title_new' AND rarity = 'legendary'))
+            GROUP BY user_id, result_type, value, rarity
+            ORDER BY hits DESC, user_id ASC
+        """, (start, end))
+        rows = self.cur.fetchall()
+        out = []
+        for user_id, result_type, value, rarity, hits in rows:
+            hit = "points_10" if result_type == "points" else "legendary_title"
+            out.append({
+                "user_id": int(user_id),
+                "hit": hit,
+                "hits": int(hits),
+                "title_id": value if result_type == "title_new" else None,
+            })
+        return out
+
+    def weekly_unlucky_from_log(self, start: str, end: str) -> dict | None:
+        """周内非酋：本周连续零奖励最长者（含跨周界的连零，按最近 draw 计算重叠段）。"""
+        # 先收集所有在 [start, end) 内有抽奖记录的用户
+        self.cur.execute("""
+            SELECT DISTINCT user_id FROM lottery_draw_log
+            WHERE drawn_at >= ? AND drawn_at < ?
+        """, (start, end))
+        user_ids = [int(r[0]) for r in self.cur.fetchall()]
+        best = None
+        for uid in user_ids:
+            self.cur.execute("""
+                SELECT drawn_at, result_type, value FROM lottery_draw_log
+                WHERE user_id = ?
+                ORDER BY drawn_at ASC, id ASC
+            """, (uid,))
+            rows = self.cur.fetchall()
+            # 计算与 [start, end) 重叠的最长连续 points=0 段
+            cur_streak = 0
+            max_overlap = 0
+            for drawn_at, result_type, value in rows:
+                is_zero = result_type == "points" and int(value or 0) == 0
+                if is_zero:
+                    cur_streak += 1
+                    if drawn_at < end and drawn_at >= start:
+                        max_overlap = max(max_overlap, cur_streak)
+                    elif drawn_at < start:
+                        # 仅在窗口前累积，不在窗口内结算
+                        pass
+                    elif drawn_at >= end:
+                        # 超出窗口；如果窗口起点仍在当前连零段内，则补算已覆盖的窗口部分
+                        break
+                else:
+                    if drawn_at >= end:
+                        break
+                    cur_streak = 0
+            if max_overlap > 0:
+                if best is None or max_overlap > best["zero_streak"]:
+                    best = {"user_id": uid, "zero_streak": max_overlap}
+        return best

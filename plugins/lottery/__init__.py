@@ -175,6 +175,15 @@ class LotteryPlugin(CommandPlugin):
                     )
                 )
 
+        # 周报抽奖流水：每次抽奖结果落一行（供周报按周统计欧皇/非酋）
+        self.dbmanager.lottery.insert_draw_log(
+            user_id=user_id,
+            result_type=result["type"],
+            value=result.get("value"),
+            rarity=result.get("rarity"),
+            zero_streak_after=zero_streak,
+        )
+
         if completed:
             names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
             texts.append(f"🎯 {names}")

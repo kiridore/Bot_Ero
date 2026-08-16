@@ -7,7 +7,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.13.0"
+BOTERO_VERSION = "1.14.0"
 
 def _path_from_env(key: str, default: Path) -> Path:
     raw = os.environ.get(key)
@@ -15,6 +15,9 @@ def _path_from_env(key: str, default: Path) -> Path:
 
 
 DB_PATH = _path_from_env("BOTERO_DB_PATH", PROJECT_ROOT / "data.db")
+MESSAGE_LOG_DB_PATH = _path_from_env(
+    "BOTERO_MESSAGE_LOG_DB_PATH", PROJECT_ROOT / "server_data" / "message_log.db"
+)
 IMAGE_ROOT = _path_from_env("BOTERO_IMAGE_ROOT", PROJECT_ROOT / "server_data" / "record_images")
 TRPG_CHARS_ROOT = _path_from_env(
     "BOTERO_TRPG_CHARS_ROOT", PROJECT_ROOT / "server_data" / "trpg_chars"
@@ -36,6 +39,10 @@ REMEDY_MARKER = "remedy_checkin"
 ONEBOT_HTTP_URL = os.environ.get("BOTERO_ONEBOT_HTTP", "http://192.168.0.103:3000")
 ONEBOT_TOKEN = os.environ.get("BOTERO_ONEBOT_TOKEN", "123456")
 GROUP_ID = int(os.environ.get("BOTERO_GROUP_ID", "296470819"))
+
+# 小埃周报：Web 基址（群通知链接）与通知开关
+WEB_BASE_URL = os.environ.get("BOTERO_WEB_BASE_URL", "https://littlero.tech").rstrip("/")
+WEEKLY_NOTIFY_ENABLED = os.environ.get("BOTERO_WEEKLY_NOTIFY", "0") == "1"
 
 THUMB_CACHE_DIR = _path_from_env(
     "BOTERO_THUMB_CACHE",

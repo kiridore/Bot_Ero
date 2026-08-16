@@ -30,7 +30,7 @@
 | API 超时 | `core/api.py:43` | 30 秒 |
 | 周边界偏移 | `core/utils.py:13-21` | 8 小时 (08:00) |
 | 重连延迟 | `main.py:67` | 5 秒 |
-| 系统插件（不可禁用） | `core/context.py:19-26` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome` |
+| 系统插件（不可禁用） | `core/context.py:19-27` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome`, `message_logger` |
 | 插件命名 | `core/context.py:28-30` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
 | 群插件配置表 | `core/db/_base.py:290-295` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
 | 私聊配置 group_id | `core/context.py:40` | `0` |
@@ -50,6 +50,7 @@
   trpg_chars/<user_id>/                     ← 角色卡 JSON：meta.json（current_id/order）+ <char_id>.json
   user_settings/<user_id>.json              ← 个人设置 JSON（文件不存在 = 全默认）
   activity_archive/<活动id>/                ← 活动归档：meta.json + 接龙/匹配 markdown + imgs/
+  message_log.db                            ← 群消息日志独立库（周报数据源，永久保留）
 
 /app/llonebot/server_data/                  ← OneBot API 调用中使用的路径
 /var/lib/docker/volumes/onebot_qq_volume/   ← Docker 卷（裸机部署时不用）

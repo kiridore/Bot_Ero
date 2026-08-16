@@ -2,13 +2,13 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-13 (工具箱：点击统计 `POST /api/tools/{id}/click`、`GET /api/tools` 双维度排序 `sort/order` + tag 过滤 `tag=`、提交 `tags` 数组、页面 tag 徽标/筛选；议事厅正文图片上传：`POST /api/forum/images` + `/forum/media/{filename}`；模块清单补全 forum 与 tools 共 10 个)
+> 最后更新: 2026-08-16 (小埃周报：新增第 11 个模块 `weekly`，`/weekly` 报纸页面 + `/api/weekly` 归档 API；模块清单补全 weekly 共 11 个)
 
 ---
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
+Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -22,12 +22,13 @@ Web 端按功能域拆分为 **10 个模块（`gallery`/`guestbook`/`profile`/`t
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`）；时间线主页 + `entries.json` |
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
+| 周报 | `weekly` | `/weekly`（`/weekly/{week_key}`） | 群周报归档：`GET /api/weekly` 列表、`GET /api/weekly/{week_key}` 详情；报纸排版页面 |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
-│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools │
-│                      │     │  /alarms /activities /live /timeline（10 个 APIRouter） │
+│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools /weekly │
+│                      │     │  /alarms /activities /live /timeline（11 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (时间线社区主页，登录可见)     │
          └──────────┬───────┘
@@ -95,6 +96,7 @@ app.include_router(live_router)
 app.include_router(timeline_router)      # Event Server + /entries.json
 app.include_router(forum_router)
 app.include_router(tools_router)         # 最后：/tools 页面 + /api/tools（不遮蔽任何已注册路由）
+app.include_router(weekly_router)       # /weekly 页面 + /api/weekly（不遮蔽任何已注册路由）
 app.mount("/static", StaticFiles(directory=webapp/static))    # 全部模块静态
 app.mount("/shared", StaticFiles(directory=core/web/static))  # 共享静态
 
@@ -259,6 +261,13 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/tools/{id}/click` | 否 | 点击计数（公开自增，无需登录；不存在 → 404；返回 `{"ok": true, "clicks": N}`） |
 | `DELETE` | `/api/tools/{id}` | 必须 | 删除自己提交的链接（非本人 → 403，不存在 → 404；成功后按 `tools_link:{id}` 撤回时间线事件） |
 
+### 周报（`weekly` 模块）
+
+| 方法 | 路径 | 登录 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/weekly` | 必须 | 归档列表：每期 issue/start/end/total_messages/headline.title，按 week_key 倒序，仅返回 `core.config.GROUP_ID` 数据 |
+| `GET` | `/api/weekly/{week_key}` | 必须 | 详情：整行 `data_json` 返回；不存在 → 404 |
+
 ### 议事厅（`forum` 模块）
 
 | 方法 | 路径 | 认证 | 说明 |
@@ -284,6 +293,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖（`?id=` 编辑模式，类型/投票结构不可改）；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论，作者可见编辑/删除按钮）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
 | `tools` | `/tools` 工具箱（链接卡片网格 + tag 云（全部 tag 及使用数量，点击筛选）+ tag 徽标/筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，卡片 icon 浏览器直连默认路径、失败/超时转服务端解析兜底（favicon.ico → 首页 link rel=icon，入库缓存），头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可编辑/删除自己提交的链接） |
+| `weekly` | `/weekly` 最新一期重定向；`/weekly/{week_key}` 报纸详情页（报头 + 5 版渲染 + 归档导航） |
 
 ---
 

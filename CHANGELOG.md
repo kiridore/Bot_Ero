@@ -4,6 +4,14 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.14.0] - 2026-08-16
+
+### 新增
+
+- **小埃周报**：每周一 08:00 自动出版一期报纸排版的群周报并永久归档——新系统插件 `message_logger` 将群消息记录到独立库 `server_data/message_log.db`，新定时插件 `weekly_report` 聚合消息日志与玩法数据（打卡/抽奖/仙人彩/周常/称号/活动/卧底），产出 5 版报纸数据（头条/群情数据/群友言论/群像观察/花絮）；webapp 新增第 11 个模块 `weekly`（`/weekly` 页面 + `/api/weekly` 归档 API）
+- **抽奖流水**：`plugins/lottery` 每次抽奖后写 `lottery_draw_log`，供周报统计每周欧皇/非酋
+- **配置新增**：`BOTERO_MESSAGE_LOG_DB_PATH`、`BOTERO_WEB_BASE_URL`、`BOTERO_WEEKLY_NOTIFY`
+
 ## [1.13.0] - 2026-08-14
 
 ### 新增

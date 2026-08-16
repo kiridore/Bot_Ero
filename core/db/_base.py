@@ -485,4 +485,28 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             not_found INTEGER NOT NULL DEFAULT 0
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS weekly_reports (
+            week_key TEXT NOT NULL,
+            group_id INTEGER NOT NULL,
+            data_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (week_key, group_id)
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS lottery_draw_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            drawn_at TEXT NOT NULL,
+            result_type TEXT NOT NULL,
+            value INTEGER,
+            rarity TEXT,
+            zero_streak_after INTEGER NOT NULL DEFAULT 0
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_lottery_draw_log_time "
+        "ON lottery_draw_log (drawn_at)"
+    )
     conn.commit()

@@ -12,7 +12,7 @@
 python main.py
 ```
 
-依赖: `websocket-client` `requests` `Pillow`
+依赖: `websocket-client` `requests` `Pillow` `jieba`（周报热词分词）
 可选: `psutil` (系统监控) `GitPython` (更新) `openai` (LLM，已弃用)
 
 ### Web 应用部署
@@ -23,7 +23,9 @@ python -m webapp
 
 > 登录密钥盐经 `scripts/botero.env` 单一来源注入（bot 的 `main.py` 启动时自动加载该文件；webapp 生产环境经 systemd `EnvironmentFile`）。无需手动 export，改盐只改该文件。
 
-单进程承载导航主页（`/`）与 7 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live`），Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
+单进程承载导航主页（`/`）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` `/weekly`），Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
+
+周报新增 env：`BOTERO_MESSAGE_LOG_DB_PATH`（默认 `server_data/message_log.db`）、`BOTERO_WEB_BASE_URL`（默认 `https://littlero.tech`，周报通知链接前缀）、`BOTERO_WEEKLY_NOTIFY`（`1` 开启周报群通知，默认 `0` 关闭；首周测试期保持关闭）。
 
 > **称号定义变更后需重启 webapp：** `plugins/title/defs.py` 由 `core/title_defs.py` 在**进程导入时快照加载**一次（`TITLE_DEFS: dict = _load()`），网页端个人主页的称号目录（含总数与进度条）读该快照。新增/修改/删除称号后必须 `sudo systemctl restart botero-web`（或 `./scripts/botero-services.sh restart`），否则页面停留在旧称号列表（新解锁的称号也不显示）。
 

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 8 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/`、`webapp/timeline/` 的 APIRouter + 根路径时间线主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
+此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 11 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/`、`webapp/timeline/`、`webapp/forum/`、`webapp/tools/`、`webapp/weekly/` 的 APIRouter + 根路径时间线主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
 
 ## 运行命令
 
@@ -72,9 +72,9 @@ OneBot 服务端 ──WebSocket──> main.py
 
 ### Web 应用（单进程 `webapp`，单一 origin 路径分区）
 
-注册 9 个模块
+注册 11 个模块
 
-include 9 个模块 router
+include 11 个模块 router
 - 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
 - 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`（**单一来源 `scripts/botero.env`**：bot 启动加载 + webapp systemd EnvironmentFile）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
@@ -82,6 +82,7 @@ include 9 个模块 router
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
 `webapp/forum/`（议事厅：长文/公告/投票/评论，Tiptap 富文本，投票/评论自动入时间线；详见 `docs/superpowers/specs/2026-08-10-forum-design.md`）
+`webapp/weekly/`（小埃周报：`/weekly` 报纸排版归档，`/api/weekly` 列表与详情 API；详见 `docs/superpowers/specs/2026-08-15-weekly-report-design.md`）
 
 ### LLM 子系统 (`core/llm/`)
 
