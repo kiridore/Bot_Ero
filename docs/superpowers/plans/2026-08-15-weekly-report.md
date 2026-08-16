@@ -35,7 +35,7 @@
     - 索引：`idx_messages_group_time (group_id, sent_at)`、`idx_messages_text (text)`
     - `insert`（`INSERT OR IGNORE` 防重；`sent_at` 取 `bot_event.time` Unix 秒转 `YYYY-MM-DD HH:MM:SS`，缺失回退 `datetime.now()`）+ `get_week(group_id, start, end)` 查询供生成器
   - `core/context.py`：`SYSTEM_PLUGINS` 追加 `message_logger`
-  - `plugins/message_logger/__init__.py`：`Plugin`，match 所有 `message` 事件，仅群消息（`group_id` 非 None）且跳过 bot 自身（`user_id == BOT_QQ`）；文本提取（text 段拼接、图片段置 `has_image`、纯图片消息 text 存 `[图片]`、`@` 段剥离；`reply` 段剥离前取 `data.id` 写入 `reply_to_msg_id`）；`handle` try/except
+  - `plugins/message_logger/__init__.py`：`Plugin`，match 所有 `message` 事件，仅群消息（`group_id` 非 None）且跳过 bot 自身（`user_id == BOT_QQ`）；文本提取（text 段拼接、图片段置 `has_image`、`@` 段剥离；`reply` 段剥离前取 `data.id` 写入 `reply_to_msg_id`）；`handle` try/except
 
 - [ ] **T2：存储层** `core/db/weekly.py` + 抽奖流水
   - `core/db/_base.py::init_schema` 追加：
@@ -184,7 +184,7 @@
 # 消息日志（隔离 DB 起 bot 或手动 match/handle）
 - 群发 3 条 → message_log.db 3 行；私聊不出现；bot 自身消息不落库
 - 同 msg_id 重复事件 → 不重复入库
-- 含图消息 → has_image=1；纯图片消息 text=[图片]；@/reply 段不进入 text，reply 消息的 reply_to_msg_id 正确落库
+- 含图消息 → has_image=1；@/reply 段不进入 text，reply 消息的 reply_to_msg_id 正确落库
 
 # 抽奖流水（隔离 DB 手动触发一次抽奖）
 - 每抽 1 次 → lottery_draw_log 新增 1 行；points 10 或 title_new(legendary) 可被周度欧皇查询命中

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from core.base import TimedHeartbeatPlugin
 from core.config import GROUP_ID, WEB_BASE_URL, WEEKLY_NOTIFY_ENABLED
 from core.cq import text
-from core.db.message_log import IMAGE_PLACEHOLDER, MessageLogManager
+from core.db.message_log import MessageLogManager
 from core.onebot_client import resolve_display_name
 from core.utils import get_monday_to_monday, register_plugin
 
@@ -400,8 +400,6 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
             text = (m.get("text") or "").strip()
             if not text:
                 continue
-            if text == IMAGE_PLACEHOLDER:
-                continue
             if self._is_command(text):
                 continue
             if "@" in text or _LINK_RE.search(text) or self._is_redeem_code(text):
@@ -450,8 +448,6 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         groups: dict[str, list[dict]] = {}
         for m in messages:
             text = (m.get("text") or "").strip()
-            if text == IMAGE_PLACEHOLDER:
-                continue
             if self._is_command(text) or len(text) <= 2:
                 continue
             groups.setdefault(text, []).append({
@@ -534,7 +530,7 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         freq: dict[str, int] = {}
         for m in messages:
             text = (m.get("text") or "").strip()
-            if not text or self._is_command(text) or text == IMAGE_PLACEHOLDER:
+            if not text or self._is_command(text):
                 continue
             day = m.get("sent_at", "")[:10]
             uid = int(m["user_id"])
@@ -556,7 +552,7 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         freq: dict[str, int] = {}
         for m in messages:
             text = (m.get("text") or "").strip()
-            if not text or self._is_command(text) or text == IMAGE_PLACEHOLDER:
+            if not text or self._is_command(text):
                 continue
             day = m.get("sent_at", "")[:10]
             uid = int(m["user_id"])

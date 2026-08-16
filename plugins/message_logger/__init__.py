@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from core.base import BOT_QQ, Plugin
-from core.db.message_log import IMAGE_PLACEHOLDER, MessageLogManager
+from core.db.message_log import MessageLogManager
 from core.utils import register_plugin
 
 
@@ -58,9 +58,6 @@ class MessageLoggerPlugin(Plugin):
             msg_id = self.bot_event.message_id
             if msg_id is None:
                 return
-            msg_text = "".join(text_parts)
-            if not msg_text and has_image:
-                msg_text = IMAGE_PLACEHOLDER
             db = MessageLogManager()
             try:
                 db.insert(
@@ -68,7 +65,7 @@ class MessageLoggerPlugin(Plugin):
                     user_id=int(user_id),
                     msg_id=int(msg_id),
                     sent_at=self._sent_at(self.bot_event.time),
-                    text=msg_text,
+                    text="".join(text_parts),
                     has_image=has_image,
                     reply_to_msg_id=reply_to_msg_id,
                 )

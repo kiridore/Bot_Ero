@@ -7,9 +7,6 @@ from datetime import datetime
 
 from core.config import MESSAGE_LOG_DB_PATH
 
-# 纯图片消息的文本占位（周报/统计据此识别图片消息）
-IMAGE_PLACEHOLDER = "[图片]"
-
 
 class MessageLogManager:
     """管理 `server_data/message_log.db`（独立库，仿 DbManager 的 WAL + busy_timeout）。"""
