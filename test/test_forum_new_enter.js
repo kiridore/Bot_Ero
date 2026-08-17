@@ -45,8 +45,8 @@ global.localStorage = (() => { let m = {}; return {
   removeItem: (k) => { delete m[k]; },
 }; })();
 
-["msg", "type", "body-section", "poll-section", "poll-options", "body_json", "compose",
- "title", "tags", "editor", "add-option", "deadline", "anonymous", "authArea",
+["msg", "type", "body-section", "poll-section", "polls", "body_json", "compose",
+ "title", "tags", "editor", "add-poll", "deadline", "anonymous", "authArea",
  "pageTitle", "submitBtn"].forEach((id) => {
   els[id] = makeEl("div");
   els[id].id = id;

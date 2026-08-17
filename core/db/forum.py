@@ -17,27 +17,36 @@ class ForumManager:
 
     def create_post(self, author_user_id, type_, title, body_json,
                     polls=None, tag_ids=None,
-                    poll_anonymous=False, poll_allow_multi=False, poll_deadline=None):
-        """创建帖子。polls: list[str]，tag_ids: list[int]。返回 post_id。"""
+                    poll_anonymous=False, poll_deadline=None):
+        """创建帖子。
+
+        polls: list[dict]，每个子投票 = {"title": str, "allow_multi": bool, "options": list[str]}。
+        tag_ids: list[int]。返回 post_id。
+        """
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.cur.execute(
             """
             INSERT INTO forum_posts
                 (author_user_id, type, title, body_json, status, pinned,
-                 created_at, updated_at, poll_anonymous, poll_allow_multi, poll_deadline)
-            VALUES (?, ?, ?, ?, 'open', 0, ?, ?, ?, ?, ?)
+                 created_at, updated_at, poll_anonymous, poll_deadline)
+            VALUES (?, ?, ?, ?, 'open', 0, ?, ?, ?, ?)
             """,
             (author_user_id, type_, title, body_json or "",
-             now, now, int(bool(poll_anonymous)), int(bool(poll_allow_multi)),
-             poll_deadline),
+             now, now, int(bool(poll_anonymous)), poll_deadline),
         )
         post_id = self.cur.lastrowid
         if polls and type_ == "poll":
-            for idx, text in enumerate(polls):
+            for pidx, poll in enumerate(polls):
                 self.cur.execute(
-                    "INSERT INTO forum_poll_options (post_id, text, ord) VALUES (?, ?, ?)",
-                    (post_id, text, idx),
+                    "INSERT INTO forum_polls (post_id, title, allow_multi, ord) VALUES (?, ?, ?, ?)",
+                    (post_id, poll.get("title", ""), int(bool(poll.get("allow_multi"))), pidx),
                 )
+                poll_id = self.cur.lastrowid
+                for oidx, text in enumerate(poll.get("options") or []):
+                    self.cur.execute(
+                        "INSERT INTO forum_poll_options (poll_id, text, ord) VALUES (?, ?, ?)",
+                        (poll_id, text, oidx),
+                    )
         if tag_ids:
             for tid in tag_ids:
                 self.cur.execute(
@@ -49,16 +58,22 @@ class ForumManager:
 
     def get_post(self, post_id):
         self.cur.execute(
-            "SELECT * FROM forum_posts WHERE id = ? AND status != 'deleted'", (post_id,)
+            "SELECT id, author_user_id, type, title, body_json, status, pinned, "
+            "created_at, updated_at, notified_at, poll_anonymous, poll_deadline "
+            "FROM forum_posts WHERE id = ? AND status != 'deleted'",
+            (post_id,),
         )
         row = self.cur.fetchone()
         if not row:
             return None
-        post = self._row_to_post(row)
+        post = dict(zip(
+            ("id", "author_user_id", "type", "title", "body_json", "status", "pinned",
+             "created_at", "updated_at", "notified_at", "poll_anonymous", "poll_deadline"),
+            row,
+        ))
         return {
             **post,
             "tags": self.get_post_tag_names(post_id),
-            "poll_options": self.list_poll_options(post_id),
         }
 
 
@@ -137,12 +152,6 @@ class ForumManager:
             (user_id, today),
         )
         return self.cur.fetchone()[0]
-
-    def _row_to_post(self, row):
-        cols = ("id", "author_user_id", "type", "title", "body_json", "status", "pinned",
-                "created_at", "updated_at", "notified_at",
-                "poll_anonymous", "poll_allow_multi", "poll_deadline")
-        return dict(zip(cols, row))
 
     def get_post_tag_names(self, post_id):
         self.cur.execute(
@@ -224,71 +233,103 @@ class ForumManager:
             "DELETE FROM forum_tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM forum_post_tags)"
         )
 
-    # —— Poll options / votes ——
+    # —— Polls / options / votes ——
 
-    def list_poll_options(self, post_id):
+    def get_polls(self, post_id, user_id=None):
+        """返回帖子下全部子投票（含选项票数）；user_id 提供时附带该用户已投选项 id 列表。"""
         self.cur.execute(
-            "SELECT id, text, ord FROM forum_poll_options WHERE post_id = ? ORDER BY ord",
+            "SELECT id, title, allow_multi FROM forum_polls WHERE post_id = ? ORDER BY ord, id",
             (post_id,),
         )
-        return self.cur.fetchall()
+        polls = []
+        for poll_id, title, allow_multi in self.cur.fetchall():
+            self.cur.execute(
+                "SELECT id, text, ord FROM forum_poll_options WHERE poll_id = ? ORDER BY ord, id",
+                (poll_id,),
+            )
+            options = []
+            for oid, text, ord_ in self.cur.fetchall():
+                self.cur.execute(
+                    "SELECT COUNT(*) FROM forum_poll_votes WHERE option_id = ?", (oid,)
+                )
+                count = self.cur.fetchone()[0]
+                options.append({"id": oid, "text": text, "ord": ord_, "count": count})
+            my_vote = []
+            if user_id is not None:
+                self.cur.execute(
+                    "SELECT option_id FROM forum_poll_votes WHERE poll_id = ? AND user_id = ? ORDER BY option_id",
+                    (poll_id, user_id),
+                )
+                my_vote = [r[0] for r in self.cur.fetchall()]
+            polls.append({
+                "id": poll_id,
+                "title": title,
+                "allow_multi": bool(allow_multi),
+                "options": options,
+                "my_vote": my_vote,
+            })
+        return polls
 
-    def vote(self, post_id, option_id, user_id):
-        """投票。返回 (ok, error_code)。UNIQUE 约束保证一人一票。"""
-        # 校验帖子存在且为 poll 且 open
+    def vote(self, post_id, poll_id, option_ids, user_id):
+        """对某个子投票投票。返回 (ok, error_code)。
+
+        option_ids: 要投的选项 id 列表（单选恰 1 个，多选 >=1 个）。
+        单选一人一票（应用层校验）；多选可投多个选项，同选项不重复（UNIQUE 兜底）。
+        """
+        option_ids = list(dict.fromkeys(option_ids))  # 去重保序
+        if not option_ids:
+            return False, "no_option"
         self.cur.execute(
-            "SELECT type, status, poll_deadline FROM forum_posts WHERE id = ?",
-            (post_id,),
+            "SELECT fp.id, fp.allow_multi, p.type, p.status, p.poll_deadline "
+            "FROM forum_polls fp JOIN forum_posts p ON p.id = fp.post_id "
+            "WHERE fp.id = ? AND fp.post_id = ?",
+            (poll_id, post_id),
         )
         row = self.cur.fetchone()
         if not row:
             return False, "not_found"
-        type_, status, deadline = row
+        _, allow_multi, type_, status, deadline = row
         if type_ != "poll":
             return False, "not_poll"
         if status != "open":
             return False, "closed"
         if deadline and deadline <= datetime.now().strftime("%Y-%m-%d %H:%M:%S"):
             return False, "expired"
-        # 校验选项属于该帖
-        self.cur.execute(
-            "SELECT post_id FROM forum_poll_options WHERE id = ?", (option_id,)
-        )
-        opt = self.cur.fetchone()
-        if not opt or opt[0] != post_id:
-            return False, "invalid_option"
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        try:
+        if not allow_multi and len(option_ids) > 1:
+            return False, "too_many"
+        # 校验全部选项都属于该子投票
+        for oid in option_ids:
             self.cur.execute(
-                "INSERT INTO forum_poll_votes (poll_id, option_id, user_id, created_at) VALUES (?, ?, ?, ?)",
-                (post_id, option_id, user_id, now),
+                "SELECT id FROM forum_poll_options WHERE poll_id = ? AND id = ?",
+                (poll_id, oid),
             )
+            if not self.cur.fetchone():
+                return False, "invalid_option"
+        # 单选：一人一票（已有任意投票即重复）
+        if not allow_multi:
+            self.cur.execute(
+                "SELECT COUNT(*) FROM forum_poll_votes WHERE poll_id = ? AND user_id = ?",
+                (poll_id, user_id),
+            )
+            if self.cur.fetchone()[0] > 0:
+                return False, "duplicate"
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        inserted = 0
+        try:
+            for oid in option_ids:
+                self.cur.execute(
+                    "INSERT OR IGNORE INTO forum_poll_votes (poll_id, option_id, user_id, created_at) "
+                    "VALUES (?, ?, ?, ?)",
+                    (poll_id, oid, user_id, now),
+                )
+                inserted += self.cur.rowcount
             self.conn.commit()
-            return True, None
         except sqlite3.IntegrityError:
-            self.conn.commit()
+            self.conn.rollback()
             return False, "duplicate"
-
-    def get_vote_counts(self, poll_id):
-        """返回 [(option_id, text, ord, count), ...]"""
-        self.cur.execute(
-            """
-            SELECT o.id, o.text, o.ord,
-                   (SELECT COUNT(*) FROM forum_poll_votes v WHERE v.option_id = o.id) AS cnt
-            FROM forum_poll_options o WHERE o.post_id = ?
-            ORDER BY o.ord
-            """,
-            (poll_id,),
-        )
-        return self.cur.fetchall()
-
-    def get_user_vote(self, poll_id, user_id):
-        self.cur.execute(
-            "SELECT option_id FROM forum_poll_votes WHERE poll_id = ? AND user_id = ?",
-            (poll_id, user_id),
-        )
-        row = self.cur.fetchone()
-        return row[0] if row else None
+        if inserted == 0:
+            return False, "duplicate"
+        return True, None
 
     def close_poll(self, post_id):
         """手动/自动关闭投票。返回 True 表示状态从 open 变为 closed。"""

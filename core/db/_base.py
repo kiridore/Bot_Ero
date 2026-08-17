@@ -2,6 +2,85 @@ from datetime import datetime, timedelta
 import sqlite3
 
 
+def _migrate_forum_polls(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
+    """旧版「选项直挂帖子、整帖单选」结构 → 新版「帖子含多个子投票（单选/多选）」。
+
+    幂等：`forum_poll_options` 已含 `poll_id` 列即视为已迁移。
+    原子：整个迁移包在单个 `BEGIN IMMEDIATE ... COMMIT` 事务内，任一失败整体回滚
+    （SQLite 支持事务化 DDL），进程被杀也能靠 WAL 恢复自动回滚。
+    并发安全：bot 与 webapp 共享同一 SQLite、启动时都会跑 `init_schema`，故先拿写锁
+    （`BEGIN IMMEDIATE`）串行化，拿到锁后二次确认是否已被另一进程迁移。
+    迁移期间临时关闭外键以安全重建被 `forum_poll_votes` 引用的表，结束后恢复。
+    """
+    def _has_new_schema():
+        cols = [r[1] for r in cur.execute("PRAGMA table_info(forum_poll_options)").fetchall()]
+        return "poll_id" in cols
+
+    if _has_new_schema():
+        return
+    # 结束此前可能由早期 DML 打开的隐式事务，否则 `PRAGMA foreign_keys` 会被静默忽略，
+    # 导致重建被引用表时触发 ON DELETE CASCADE 误删投票。
+    conn.commit()
+    cur.execute("PRAGMA foreign_keys=OFF")
+    try:
+        # 立即拿写锁串行化并发迁移（另一进程正在迁移时会在此阻塞，busy_timeout=5000 兜底）
+        cur.execute("BEGIN IMMEDIATE")
+        # 拿锁后二次确认：另一进程可能已完成迁移
+        if _has_new_schema():
+            conn.rollback()
+            return
+        # 1. 为每个含选项的旧投票帖建一个默认子投票（问题为空，多选标志取自旧帖级字段）
+        cur.execute("""
+            INSERT INTO forum_polls (post_id, title, allow_multi, ord)
+            SELECT o.post_id, '', p.poll_allow_multi, 0
+            FROM (SELECT DISTINCT post_id FROM forum_poll_options) o
+            JOIN forum_posts p ON p.id = o.post_id
+        """)
+        # 2. 选项表：post_id → poll_id
+        cur.execute("ALTER TABLE forum_poll_options RENAME TO forum_poll_options_old")
+        cur.execute("""
+            CREATE TABLE forum_poll_options (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                poll_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                ord INTEGER NOT NULL,
+                FOREIGN KEY (poll_id) REFERENCES forum_polls(id) ON DELETE CASCADE
+            );
+        """)
+        cur.execute("""
+            INSERT INTO forum_poll_options (id, poll_id, text, ord)
+            SELECT oo.id, fp.id, oo.text, oo.ord
+            FROM forum_poll_options_old oo
+            JOIN forum_polls fp ON fp.post_id = oo.post_id
+        """)
+        cur.execute("DROP TABLE forum_poll_options_old")
+        # 3. 投票表：poll_id 由「帖子 id」重映射为「子投票 id」，唯一约束改为多选兼容
+        cur.execute("ALTER TABLE forum_poll_votes RENAME TO forum_poll_votes_old")
+        cur.execute("""
+            CREATE TABLE forum_poll_votes (
+                poll_id INTEGER NOT NULL,
+                option_id INTEGER NOT NULL,
+                user_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(poll_id, option_id, user_id),
+                FOREIGN KEY (option_id) REFERENCES forum_poll_options(id) ON DELETE CASCADE
+            );
+        """)
+        cur.execute("""
+            INSERT INTO forum_poll_votes (poll_id, option_id, user_id, created_at)
+            SELECT oo.poll_id, vo.option_id, vo.user_id, vo.created_at
+            FROM forum_poll_votes_old vo
+            JOIN forum_poll_options oo ON oo.id = vo.option_id
+        """)
+        cur.execute("DROP TABLE forum_poll_votes_old")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.execute("PRAGMA foreign_keys=ON")
+
+
 def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     cur.execute("""
     CREATE TABLE IF NOT EXISTS checkin_records (
@@ -374,7 +453,6 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             updated_at TEXT NOT NULL,
             notified_at TEXT,
             poll_anonymous INTEGER NOT NULL DEFAULT 0,
-            poll_allow_multi INTEGER NOT NULL DEFAULT 0,
             poll_deadline TEXT
         );
     """)
@@ -387,12 +465,26 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "ON forum_posts (notified_at) WHERE notified_at IS NULL"
     )
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS forum_poll_options (
+        CREATE TABLE IF NOT EXISTS forum_polls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             post_id INTEGER NOT NULL,
-            text TEXT NOT NULL,
+            title TEXT NOT NULL DEFAULT '',
+            allow_multi INTEGER NOT NULL DEFAULT 0,
             ord INTEGER NOT NULL,
             FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_forum_polls_post "
+        "ON forum_polls (post_id, ord)"
+    )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS forum_poll_options (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            poll_id INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            ord INTEGER NOT NULL,
+            FOREIGN KEY (poll_id) REFERENCES forum_polls(id) ON DELETE CASCADE
         );
     """)
     cur.execute("""
@@ -401,10 +493,11 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             option_id INTEGER NOT NULL,
             user_id TEXT NOT NULL,
             created_at TEXT NOT NULL,
-            UNIQUE(poll_id, user_id),
+            UNIQUE(poll_id, option_id, user_id),
             FOREIGN KEY (option_id) REFERENCES forum_poll_options(id) ON DELETE CASCADE
         );
     """)
+    _migrate_forum_polls(conn, cur)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS forum_comments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

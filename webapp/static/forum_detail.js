@@ -129,45 +129,106 @@
     io.observe(sentinel);
   }
 
+  async function submitVote(pollId, optionIds) {
+    const res = await fetch(`/api/forum/posts/${postId()}/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
+      body: JSON.stringify({ poll_id: pollId, option_ids: optionIds }),
+    });
+    if (res.ok) { location.reload(); return; }
+    const err = await res.json().catch(function () { return {}; });
+    showMsg("投票失败：" + (err.detail || res.status), false);
+  }
+
   function renderPoll(post) {
     if (post.type !== "poll") return;
     pollSection.style.display = "";
     pollOptionsEl.innerHTML = "";
-    const counts = post.vote_counts || [];
-    const total = counts.reduce(function (s, r) { return s + (r.count || 0); }, 0);
-    const mine = post.my_vote;
     const closed = post.status !== "open";
-    counts.forEach(function (r) {
-      const row = document.createElement("div");
-      row.className = "forum-poll-option";
-      row.dataset.reveal = "";
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "forum-btn" + (closed || mine ? " forum-btn-secondary" : "");
-      btn.textContent = (closed || mine ? (mine === r.id ? "✓ " : "") : "") + r.text;
-      btn.disabled = closed || !!mine;
-      btn.style.flex = "1";
-      btn.addEventListener("click", async function () {
-        if (mine) return;
-        const r2 = await fetch(`/api/forum/posts/${post.id}/vote`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
-          body: JSON.stringify({ option_id: r.id }),
+    (post.polls || []).forEach(function (poll) {
+      const block = document.createElement("div");
+      block.className = "forum-poll-block";
+      block.dataset.reveal = "";
+
+      // 子投票头：问题 + 单选/多选徽标
+      const head = document.createElement("div");
+      head.className = "forum-poll-block-head";
+      const q = document.createElement("h4");
+      q.className = "forum-poll-title";
+      q.textContent = poll.title || "投票";
+      const badge = document.createElement("span");
+      badge.className = "forum-poll-mode-badge" + (poll.allow_multi ? " is-multi" : "");
+      badge.textContent = poll.allow_multi ? "多选" : "单选";
+      head.append(q, badge);
+      block.appendChild(head);
+
+      const total = (poll.options || []).reduce(function (s, o) { return s + (o.count || 0); }, 0);
+      const mine = poll.my_vote || [];
+      const hasVoted = mine.length > 0;
+      const pctOf = function (n) { return total ? Math.round((n / total) * 100) : 0; };
+
+      if (poll.allow_multi) {
+        // 多选：复选框 + 提交按钮
+        const optList = document.createElement("div");
+        optList.className = "forum-poll-opts";
+        (poll.options || []).forEach(function (o) {
+          const row = document.createElement("label");
+          row.className = "forum-poll-option forum-poll-check";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.value = String(o.id);
+          cb.disabled = closed || hasVoted;
+          if (mine.indexOf(o.id) !== -1) cb.checked = true;
+          const label = document.createElement("span");
+          label.className = "forum-poll-check-label";
+          label.textContent = o.text;
+          const cnt = document.createElement("span");
+          cnt.className = "forum-poll-result" + (mine.indexOf(o.id) !== -1 ? " is-mine" : "");
+          cnt.textContent = `${o.count} 票（${pctOf(o.count)}%）`;
+          row.append(cb, label, cnt);
+          optList.appendChild(row);
         });
-        if (r2.ok) location.reload();
-        else {
-          const err = await r2.json().catch(function () { return {}; });
-          showMsg("投票失败：" + (err.detail || r2.status), false);
+        block.appendChild(optList);
+        if (!closed && !hasVoted) {
+          const submit = document.createElement("button");
+          submit.type = "button";
+          submit.className = "forum-btn";
+          submit.textContent = "提交投票";
+          submit.addEventListener("click", async function () {
+            const selected = [];
+            optList.querySelectorAll("input[type=checkbox]:checked").forEach(function (c) {
+              selected.push(Number(c.value));
+            });
+            if (!selected.length) { showMsg("请至少选择一个选项", false); return; }
+            await submitVote(poll.id, selected);
+          });
+          block.appendChild(submit);
         }
-      });
-      row.appendChild(btn);
-      const cnt = document.createElement("span");
-      cnt.className = "forum-poll-result" + (mine === r.id ? " is-mine" : "");
-      if (mine === r.id) cnt.classList.add("motion-pop");
-      const pct = total ? Math.round((r.count / total) * 100) : 0;
-      cnt.textContent = `${r.count} 票（${pct}%）` + (closed ? " · 已结束" : "");
-      row.appendChild(cnt);
-      pollOptionsEl.appendChild(row);
+      } else {
+        // 单选：点击即投
+        (poll.options || []).forEach(function (o) {
+          const row = document.createElement("div");
+          row.className = "forum-poll-option";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "forum-btn" + (closed || hasVoted ? " forum-btn-secondary" : "");
+          btn.textContent = (closed || hasVoted ? (mine.indexOf(o.id) !== -1 ? "✓ " : "") : "") + o.text;
+          btn.disabled = closed || hasVoted;
+          btn.style.flex = "1";
+          btn.addEventListener("click", async function () {
+            if (hasVoted) return;
+            await submitVote(poll.id, [o.id]);
+          });
+          row.appendChild(btn);
+          const cnt = document.createElement("span");
+          cnt.className = "forum-poll-result" + (mine.indexOf(o.id) !== -1 ? " is-mine" : "");
+          if (mine.indexOf(o.id) !== -1) cnt.classList.add("motion-pop");
+          cnt.textContent = `${o.count} 票（${pctOf(o.count)}%）`;
+          row.appendChild(cnt);
+          block.appendChild(row);
+        });
+      }
+      pollOptionsEl.appendChild(block);
     });
     if (post.poll_deadline && !closed) {
       const dl = document.createElement("div");

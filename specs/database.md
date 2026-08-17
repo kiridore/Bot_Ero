@@ -541,25 +541,35 @@ if column in ALLOWED_COLUMNS:
 | `updated_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
 | `notified_at` | TEXT | | bot 群消息已发时刻（NULL=待发） |
 | `poll_anonymous` | INTEGER | NOT NULL DEFAULT 0 | 投票匿名（不展示投票人昵称） |
-| `poll_allow_multi` | INTEGER | NOT NULL DEFAULT 0 | 投票多选（v1 固定 0） |
-| `poll_deadline` | TEXT | | 投票截止时间（`NULL`=无截止） |
+| `poll_deadline` | TEXT | | 投票截止时间（作用于整帖全部子投票；`NULL`=无截止） |
+
+> 旧版 `forum_posts.poll_allow_multi` 已废弃：单选/多选改由 `forum_polls.allow_multi` 承载（每个子投票各自单选/多选）。存量库该列保留但不使用（不读不写），新库不再创建。
+
+#### `forum_polls`（子投票：一个投票帖可含多个）
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 子投票 ID |
+| `post_id` | INTEGER | NOT NULL, FK→forum_posts(id) CASCADE | 所属帖子 |
+| `title` | TEXT | NOT NULL DEFAULT '' | 子投票问题（可空） |
+| `allow_multi` | INTEGER | NOT NULL DEFAULT 0 | `0`=单选，`1`=多选 |
+| `ord` | INTEGER | NOT NULL | 排序 |
 
 #### `forum_poll_options`
 | 列 | 类型 | 约束 | 说明 |
 |----|------|------|------|
 | `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 选项 ID |
-| `post_id` | INTEGER | NOT NULL, FK→forum_posts(id) CASCADE | 所属帖子 |
+| `poll_id` | INTEGER | NOT NULL, FK→forum_polls(id) CASCADE | 所属子投票 |
 | `text` | TEXT | NOT NULL | 选项文本 |
 | `ord` | INTEGER | NOT NULL | 排序 |
 
 #### `forum_poll_votes`
 | 列 | 类型 | 约束 | 说明 |
 |----|------|------|------|
-| `poll_id` | INTEGER | NOT NULL | 帖子 ID（投票帖） |
+| `poll_id` | INTEGER | NOT NULL | 子投票 ID |
 | `option_id` | INTEGER | NOT NULL, FK→forum_poll_options(id) CASCADE | 选项 |
 | `user_id` | TEXT | NOT NULL | 投票人 QQ 号 |
 | `created_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
-| `UNIQUE` | | (poll_id, user_id) | **一人一票强制** |
+| `UNIQUE` | | (poll_id, option_id, user_id) | **同子投票同选项一人至多一票**（单选的一人一票由 `ForumManager.vote` 应用层校验） |
 
 #### `forum_comments`
 | 列 | 类型 | 约束 | 说明 |

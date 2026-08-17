@@ -164,6 +164,60 @@
 
 .forum-poll-option input { flex: 1; }
 
+/* 子投票块：一个投票帖可含多个子投票，每个子投票可选单选/多选 */
+.forum-poll-block {
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.forum-poll-block-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.forum-poll-title { margin: 0; font-size: 1rem; color: var(--ink); flex: 1; }
+
+.forum-poll-mode-badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.forum-poll-mode-badge.is-multi { border-color: var(--accent); color: var(--accent-ink); }
+
+.poll-title {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.poll-mode {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.poll-options { margin-bottom: 0.4rem; }
+.poll-add-option { font-size: 0.85rem; }
+
+/* 多选投票行：复选框 + 文本 + 票数 */
+.forum-poll-check { cursor: pointer; }
+.forum-poll-check input { flex: 0 0 auto; }
+.forum-poll-check .forum-poll-check-label { flex: 1; }
+.forum-poll-check .forum-poll-result { margin-top: 0; margin-left: auto; }
+
 .forum-btn {
   display: inline-block;
   padding: 0.45rem 1rem;

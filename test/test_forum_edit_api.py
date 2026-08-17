@@ -104,15 +104,18 @@ with patch("webapp.forum.app.emit_event") as m_emit, patch("webapp.forum.app.ret
     r = client.patch("/api/forum/posts/999999", headers=AH, json={"title": "x"})
     check("编辑不存在帖子 404", r.status_code == 404, r.text)
 
-    # —— 投票：编辑标题不影响选项 ——
+    # —— 投票：编辑标题不影响子投票结构 ——
     r = client.post("/api/forum/posts", headers=AH, json={
-        "type": "poll", "title": "周末做什么", "polls": [{"text": "选项A"}, {"text": "选项B"}],
+        "type": "poll", "title": "周末做什么",
+        "polls": [{"title": "问题", "allow_multi": False,
+                   "options": [{"text": "选项A"}, {"text": "选项B"}]}],
     })
     p_pid = r.json()["id"]
     r = client.patch(f"/api/forum/posts/{p_pid}", headers=AH, json={"title": "周末做什么改"})
     check("投票改标题 200", r.status_code == 200, r.text)
     gp = client.get(f"/api/forum/posts/{p_pid}", headers=AH).json()
-    check("投票选项保持不变", [o["text"] for o in gp.get("poll_options", [])] == ["选项A", "选项B"])
+    check("投票选项保持不变",
+          [o["text"] for p in gp.get("polls", []) for o in p["options"]] == ["选项A", "选项B"])
 
     # —— 评论级联删除 ——
     r = client.post(f"/api/forum/posts/{pid}/comments", headers=BH, json={"body_text": "楼下评论"})

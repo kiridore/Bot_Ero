@@ -45,14 +45,14 @@ function runScenario(postPayload) {
   global.localStorage.setItem("botero_gallery_session",
     JSON.stringify({ user_id: "1057613133", token: "t", display_name: "测试" }));
 
-  ["msg", "type", "body-section", "poll-section", "poll-options", "body_json", "compose",
-   "title", "tags", "editor", "add-option", "deadline", "anonymous", "authArea",
+  ["msg", "type", "body-section", "poll-section", "polls", "body_json", "compose",
+   "title", "tags", "editor", "add-poll", "deadline", "anonymous", "authArea",
    "pageTitle", "submitBtn"].forEach((id) => {
     els[id] = makeEl("div");
     els[id].id = id;
   });
   els.type.value = "post";
-  els["add-option"].style.display = "";
+  els["add-poll"].style.display = "";
   els["anonymous"].disabled = false;
   els["deadline"].value = "";
 
@@ -86,17 +86,21 @@ function runScenario(postPayload) {
   check("tag 预填（逗号连接）", els1.tags.value === "开张, 讨论");
   check("类型锁定为 post 且 disabled", els1.type.value === "post" && els1.type.disabled === true);
 
-  // 场景 2：投票帖 —— 选项只读、锁定截止/匿名、正文区隐藏
+  // 场景 2：投票帖 —— 子投票只读、锁定截止/匿名、正文区隐藏
   const poll = {
     id: 6, type: "poll", title: "投票原文", body_json: "",
-    tags: [], poll_options: [{ id: 1, text: "选项A", ord: 0 }, { id: 2, text: "选项B", ord: 1 }],
+    tags: [], polls: [{
+      id: 1, title: "问题", allow_multi: false,
+      options: [{ id: 1, text: "选项A", ord: 0 }, { id: 2, text: "选项B", ord: 1 }], my_vote: [],
+    }],
     poll_deadline: "2026-08-20 12:00:00", status: "open",
   };
   const els2 = runScenario(poll);
   await new Promise((r) => setTimeout(r, 150));
   check("投票帖类型锁定 poll", els2.type.value === "poll" && els2.type.disabled === true);
   check("投票帖正文区隐藏", els2["body-section"].style.display === "none");
-  check("投票帖增加选项按钮隐藏", els2["add-option"].style.display === "none");
+  check("投票帖增加子投票按钮隐藏", els2["add-poll"].style.display === "none");
+  check("投票帖子投票块已渲染", els2["polls"].children.length === 1);
   check("投票帖匿名复选框锁定", els2["anonymous"].disabled === true);
   check("投票帖截止时间预填并锁定",
         els2["deadline"].value === "2026-08-20T12:00" && els2["deadline"].disabled === true);

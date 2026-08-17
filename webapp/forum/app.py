@@ -132,12 +132,18 @@ class PollOptionIn(BaseModel):
     text: str = Field(min_length=1, max_length=200)
 
 
+class PollIn(BaseModel):
+    title: str = Field(default="", max_length=200)
+    allow_multi: bool = False
+    options: list[PollOptionIn] = Field(min_length=2)
+
+
 class PostCreateIn(BaseModel):
     type: str = Field(pattern="^(post|announce|poll)$")
     title: str = Field(min_length=1, max_length=200)
     body_json: str = Field(default="")
     tags: list[str] = Field(default_factory=list)
-    polls: list[PollOptionIn] = Field(default_factory=list)
+    polls: list[PollIn] = Field(default_factory=list)
     poll_anonymous: bool = False
     poll_deadline: str | None = None  # "YYYY-MM-DD HH:MM:SS"
 
@@ -153,7 +159,8 @@ class CommentCreateIn(BaseModel):
 
 
 class VoteIn(BaseModel):
-    option_id: int
+    poll_id: int
+    option_ids: list[int] = Field(min_length=1)
 
 
 class TagCreateIn(BaseModel):
@@ -194,9 +201,9 @@ def create_post(
     if body.type == "announce":
         if db.forum.count_today_announces(user_id) >= 1:
             raise HTTPException(status_code=429, detail="今天已经发过公告了，每人每天至多 1 条")
-    # 投票至少 2 个选项
-    if body.type == "poll" and len(body.polls) < 2:
-        raise HTTPException(status_code=400, detail="投票至少需要 2 个选项")
+    # 投票帖至少 1 个子投票；每个子投票至少 2 个选项（由 PollIn.options 的 min_length=2 保证）
+    if body.type == "poll" and len(body.polls) < 1:
+        raise HTTPException(status_code=400, detail="投票至少需要 1 个子投票")
     # 截止时间格式校验
     deadline = body.poll_deadline
     if deadline:
@@ -222,18 +229,24 @@ def create_post(
             tid = db.forum.create_tag(name, user_id)
             if tid:
                 tag_ids.append(tid)
-    # 选项文本
-    poll_texts = [p.text for p in body.polls] if body.polls else None
+    # 子投票结构（每个子投票：问题 + 单选/多选 + 选项文本）
+    polls = [
+        {
+            "title": p.title,
+            "allow_multi": p.allow_multi,
+            "options": [o.text for o in p.options],
+        }
+        for p in body.polls
+    ] if body.polls else None
     # 写入
     pid = db.forum.create_post(
         author_user_id=user_id,
         type_=body.type,
         title=body.title,
         body_json=body.body_json,
-        polls=poll_texts,
+        polls=polls,
         tag_ids=tag_ids or None,
         poll_anonymous=body.poll_anonymous,
-        poll_allow_multi=False,  # v1 不做多选
         poll_deadline=deadline,
     )
     post = db.forum.get_post(pid)
@@ -261,15 +274,9 @@ def get_post(
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
     post.update(_author_fields(post["author_user_id"]))
-    # 投票选项：附带票数 + 当前用户投票
-    my_vote = None
+    # 投票帖：附带每个子投票的选项票数 + 当前用户已投选项
     if post["type"] == "poll":
-        post["vote_counts"] = [
-            {"id": r[0], "text": r[1], "ord": r[2], "count": r[3]}
-            for r in db.forum.get_vote_counts(post_id)
-        ]
-        my_vote = db.forum.get_user_vote(post_id, user_id)
-    post["my_vote"] = my_vote
+        post["polls"] = db.forum.get_polls(post_id, user_id)
     # tag 名数组已包含
     return post
 
@@ -390,15 +397,17 @@ def vote(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     db = DbManager()
-    ok, err = db.forum.vote(post_id, body.option_id, user_id)
+    ok, err = db.forum.vote(post_id, body.poll_id, body.option_ids, user_id)
     if ok:
         return {"ok": True}
     code_map = {
-        "not_found": (404, "帖子不存在"),
+        "not_found": (404, "帖子或子投票不存在"),
         "not_poll": (400, "该帖不是投票"),
         "closed": (422, "投票已结束"),
         "expired": (422, "投票已截止"),
         "invalid_option": (400, "投票选项无效"),
+        "no_option": (400, "请至少选择一个选项"),
+        "too_many": (400, "单选投票只能投 1 个选项"),
         "duplicate": (409, "你已经投过这个投票"),
     }
     sc, msg = code_map.get(err, (500, "投票失败"))

@@ -59,7 +59,7 @@ function runScenario(sessionUid, authorUid, payloadOverride) {
     id: 1, type: "post", title: "测试帖", body_json: "", status: "open",
     author_user_id: authorUid, author_name: "作者", author_avatar: "",
     created_at: "2026-08-14 10:00:00", updated_at: "2026-08-14 10:00:00",
-    tags: [], poll_options: [], my_vote: null,
+    tags: [], polls: [],
   }, payloadOverride || {});
   global.fetch = async (url) => {
     const u = String(url);

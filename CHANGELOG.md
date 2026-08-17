@@ -10,6 +10,12 @@
 
 - **归档 superpowers 文档**：不再使用 superpowers skill 开发，将 `docs/superpowers/`（7 篇设计文档 + 10 篇实施计划）整体归档至 `docs/archive/superpowers/`，删除 `.superpowers/` 工作目录，并同步更新 CLAUDE.md / KNOWLEDGE_BASE.md / specs/timeline-protocol.md / docs/web-apps-deployment.md 中的引用路径
 
+## [1.15.0] - 2026-08-17
+
+### 新增
+
+- **议事厅投票单选/多选 + 多子投票**：一个投票帖可包含多个子投票，每个子投票各自设单选/多选——发布页新增子投票块（问题 + 单选/多选开关 + 动态增删选项），详情页按子投票分组渲染（单选点击即投、多选勾选后提交）；数据层新增 `forum_polls` 表，`forum_poll_options`/`forum_poll_votes` 改以子投票（`poll_id`）关联，旧库自动迁移（选项重挂子投票、投票重映射、唯一约束改为 `(poll_id, option_id, user_id)`），`forum_posts.poll_allow_multi` 废弃；投票 API 改为 `{poll_id, option_ids}`，单选一人一票、多选可投多个选项且同选项不重复
+
 ## [1.14.0] - 2026-08-16
 
 ### 新增

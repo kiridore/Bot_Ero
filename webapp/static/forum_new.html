@@ -42,10 +42,10 @@
           <textarea id="body_json" name="body_json" style="display:none"></textarea>
         </div>
         <div id="poll-section" style="display:none">
-          <label>投票选项（至少 2 个）</label>
-          <div id="poll-options"></div>
-          <button type="button" class="forum-btn-secondary" id="add-option">+ 增加选项</button>
-          <label style="margin-top:1rem">截止时间（可空）</label>
+          <label>子投票（可添加多个；每个子投票至少 2 个选项，可设单选/多选）</label>
+          <div id="polls"></div>
+          <button type="button" class="forum-btn-secondary" id="add-poll">+ 添加子投票</button>
+          <label style="margin-top:1rem">截止时间（可空，作用于整个投票帖）</label>
           <input type="datetime-local" id="deadline" />
           <label style="margin-top:0.6rem">
             <input type="checkbox" id="anonymous" /> 匿名投票（不展示投票人昵称）

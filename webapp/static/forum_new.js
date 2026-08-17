@@ -13,8 +13,6 @@
   const typeSelect = document.getElementById("type");
   const bodySection = document.getElementById("body-section");
   const pollSection = document.getElementById("poll-section");
-  const pollOptions = document.getElementById("poll-options");
-  const bodyHidden = document.getElementById("body_json");
   const form = document.getElementById("compose");
 
   // 回车误触防护：title/tags 是单行文本输入，Enter 会触发表单隐式提交
@@ -36,8 +34,10 @@
     msg.appendChild(d);
   }
 
-  // 投票选项动态增减
-  function addOption(value) {
+  // —— 子投票动态构建：每个子投票含「问题 + 单选/多选 + 若干选项」 ——
+  const pollsContainer = document.getElementById("polls");
+
+  function addOptionRow(optContainer, value) {
     const row = document.createElement("div");
     row.className = "forum-poll-option";
     const input = document.createElement("input");
@@ -52,11 +52,79 @@
     btn.textContent = "×";
     btn.addEventListener("click", function () { row.remove(); });
     row.append(input, btn);
-    pollOptions.appendChild(row);
+    optContainer.appendChild(row);
   }
-  addOption("选项A");
-  addOption("选项B");
-  document.getElementById("add-option").addEventListener("click", function () { addOption(""); });
+
+  function addPoll(data) {
+    data = data || {};
+    const block = document.createElement("div");
+    block.className = "forum-poll-block";
+
+    const head = document.createElement("div");
+    head.className = "forum-poll-block-head";
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.className = "poll-title";
+    titleInput.maxLength = 200;
+    titleInput.placeholder = "投票问题（可空，如：周末去哪儿？）";
+    titleInput.value = data.title || "";
+    const mode = document.createElement("select");
+    mode.className = "poll-mode";
+    const oSingle = document.createElement("option");
+    oSingle.value = "single";
+    oSingle.textContent = "单选";
+    const oMulti = document.createElement("option");
+    oMulti.value = "multi";
+    oMulti.textContent = "多选";
+    mode.append(oSingle, oMulti);
+    mode.value = data.allow_multi ? "multi" : "single";
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "forum-btn-secondary forum-btn-danger";
+    removeBtn.textContent = "删除";
+    removeBtn.addEventListener("click", function () { block.remove(); });
+    head.append(titleInput, mode, removeBtn);
+
+    const opts = document.createElement("div");
+    opts.className = "poll-options";
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "forum-btn-secondary poll-add-option";
+    addBtn.textContent = "+ 增加选项";
+    addBtn.addEventListener("click", function () { addOptionRow(opts, ""); });
+
+    block.append(head, opts, addBtn);
+    const options = data.options || [];
+    options.forEach(function (o) { addOptionRow(opts, typeof o === "string" ? o : o.text); });
+    if (!options.length) {
+      addOptionRow(opts, "选项A");
+      addOptionRow(opts, "选项B");
+    }
+    pollsContainer.appendChild(block);
+    return block;
+  }
+
+  function disablePollBlock(block) {
+    block.querySelectorAll("input, select, button").forEach(function (el) { el.disabled = true; });
+  }
+
+  function collectPolls() {
+    const polls = [];
+    pollsContainer.querySelectorAll(".forum-poll-block").forEach(function (block) {
+      const title = block.querySelector(".poll-title").value.trim();
+      const allow_multi = block.querySelector(".poll-mode").value === "multi";
+      const options = [];
+      block.querySelectorAll(".poll-options input[name=poll_option]").forEach(function (i) {
+        const v = i.value.trim();
+        if (v) options.push({ text: v });
+      });
+      polls.push({ title: title, allow_multi: allow_multi, options: options });
+    });
+    return polls;
+  }
+
+  document.getElementById("add-poll").addEventListener("click", function () { addPoll(); });
+  if (!editingId) addPoll();
 
   // 类型切换显示
   function updateSections() {
@@ -182,11 +250,17 @@
     typeSelect.disabled = true; // 类型不可改
     updateSections();
     if (post.type === "poll") {
-      // 选项只读展示，截止/匿名锁定
-      pollOptions.innerHTML = "";
-      (post.poll_options || []).forEach(function (o) { addOption(o.text); });
-      pollOptions.querySelectorAll("input[name=poll_option]").forEach(function (i) { i.disabled = true; });
-      document.getElementById("add-option").style.display = "none";
+      // 子投票结构只读展示（类型/投票结构不可改），截止/匿名锁定
+      pollsContainer.innerHTML = "";
+      (post.polls || []).forEach(function (p) {
+        addPoll({
+          title: p.title,
+          allow_multi: p.allow_multi,
+          options: (p.options || []).map(function (o) { return o.text; }),
+        });
+      });
+      pollsContainer.querySelectorAll(".forum-poll-block").forEach(disablePollBlock);
+      document.getElementById("add-poll").style.display = "none";
       document.getElementById("anonymous").disabled = true;
       const dl = document.getElementById("deadline");
       if (post.poll_deadline) {
@@ -260,13 +334,12 @@
     }
     const payload = { type: type, title: title, body_json: body, tags: tags };
     if (type === "poll") {
-      const opts = [];
-      pollOptions.querySelectorAll("input[name=poll_option]").forEach(function (i) {
-        const v = i.value.trim();
-        if (v) opts.push({ text: v });
-      });
-      if (opts.length < 2) { showMsg("投票至少需要 2 个选项", false); return; }
-      payload.polls = opts;
+      const polls = collectPolls();
+      if (!polls.length) { showMsg("请至少添加一个子投票", false); return; }
+      for (const p of polls) {
+        if (p.options.length < 2) { showMsg("每个子投票至少需要 2 个选项", false); return; }
+      }
+      payload.polls = polls;
       payload.poll_anonymous = document.getElementById("anonymous").checked;
       const dl = document.getElementById("deadline").value;
       if (dl) {
