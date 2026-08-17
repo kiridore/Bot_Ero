@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- 权威设计：`docs/superpowers/specs/2026-08-05-web-apps-split-design.md`（本计划与之一致，冲突以 spec 为准）
+- 权威设计：`docs/archive/superpowers/specs/2026-08-05-web-apps-split-design.md`（本计划与之一致，冲突以 spec 为准）
 - 旧链接不做重定向，直接失效（Caddy 只配新子域）
 - 所有子应用共享同一 `data.db`（WAL 已启用）+ 同一组 `BOTERO_*` 环境变量
 - 登录：密钥即 token（HMAC），跨域通用；但 localStorage 按域名隔离，**每个子域首次访问需重新登录一次**（同一把密钥）

@@ -1,6 +1,6 @@
 # 小埃周报实施计划（2026-08-15）
 
-> 权威设计：`docs/superpowers/specs/2026-08-15-weekly-report-design.md`。
+> 权威设计：`docs/archive/superpowers/specs/2026-08-15-weekly-report-design.md`。
 
 **Goal:** 每周一 08:00 自动出版一期报纸排版的群周报（webapp 展示 + 永久归档 + 群内通知链接），汇总打卡/抽奖/发言/复读/语录/热词/活跃柱状图等群内趣味数据。
 

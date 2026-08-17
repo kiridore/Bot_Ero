@@ -1,7 +1,7 @@
 # 社区时间线事件协议
 
 > 交叉引用：[`README.md`](README.md)、[`architecture.md`](architecture.md)、[`database.md`](database.md)、[`web-gallery.md`](web-gallery.md)
-> 设计文档：[`docs/superpowers/specs/2026-08-10-timeline-design.md`](../docs/superpowers/specs/2026-08-10-timeline-design.md)
+> 设计文档：[`docs/archive/superpowers/specs/2026-08-10-timeline-design.md`](../docs/archive/superpowers/specs/2026-08-10-timeline-design.md)
 > 最后更新：2026-08-10
 
 ## 概述

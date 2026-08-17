@@ -1,7 +1,7 @@
 # 社区时间线设计（2026-08-10）
 
 > 权威协议见 [`specs/timeline-protocol.md`](../../specs/timeline-protocol.md)（本设计与之一致，冲突以 spec 为准）。
-> 状态：设计已收敛，待实施。实施任务清单见本文「实施任务清单」；实施阶段在 `docs/superpowers/plans/` 建立逐任务计划。
+> 状态：设计已收敛，待实施。实施任务清单见本文「实施任务清单」；实施阶段在 `docs/archive/superpowers/plans/` 建立逐任务计划。
 
 ## 背景与目标
 

@@ -329,4 +329,4 @@ GET /tags 返回带帖子数
 
 ## 文档同步义务
 
-实施 commit 需同步：`specs/timeline-protocol.md`（source 表）、`specs/database.md`（表结构）、`CLAUDE.md`（模块与路由）、`KNOWLEDGE_BASE.md`（索引）、`docs/web-apps-deployment.md`（路由表）、`docs/superpowers/plans/<日期>-forum.md`（实施计划）。
+实施 commit 需同步：`specs/timeline-protocol.md`（source 表）、`specs/database.md`（表结构）、`CLAUDE.md`（模块与路由）、`KNOWLEDGE_BASE.md`（索引）、`docs/web-apps-deployment.md`（路由表）、`docs/archive/superpowers/plans/<日期>-forum.md`（实施计划）。

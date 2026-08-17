@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [未发布]
+
+### 文档
+
+- **归档 superpowers 文档**：不再使用 superpowers skill 开发，将 `docs/superpowers/`（7 篇设计文档 + 10 篇实施计划）整体归档至 `docs/archive/superpowers/`，删除 `.superpowers/` 工作目录，并同步更新 CLAUDE.md / KNOWLEDGE_BASE.md / specs/timeline-protocol.md / docs/web-apps-deployment.md 中的引用路径
+
 ## [1.14.0] - 2026-08-16
 
 ### 新增

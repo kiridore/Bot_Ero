@@ -81,8 +81,8 @@ include 11 个模块 router
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
-`webapp/forum/`（议事厅：长文/公告/投票/评论，Tiptap 富文本，投票/评论自动入时间线；详见 `docs/superpowers/specs/2026-08-10-forum-design.md`）
-`webapp/weekly/`（小埃周报：`/weekly` 报纸排版归档，`/api/weekly` 列表与详情 API；详见 `docs/superpowers/specs/2026-08-15-weekly-report-design.md`）
+`webapp/forum/`（议事厅：长文/公告/投票/评论，Tiptap 富文本，投票/评论自动入时间线；详见 `docs/archive/superpowers/specs/2026-08-10-forum-design.md`）
+`webapp/weekly/`（小埃周报：`/weekly` 报纸排版归档，`/api/weekly` 列表与详情 API；详见 `docs/archive/superpowers/specs/2026-08-15-weekly-report-design.md`）
 
 ### LLM 子系统 (`core/llm/`)
 

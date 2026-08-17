@@ -7,7 +7,7 @@
 | 分区 | 路径 |
 |------|------|
 | 时间线主页 | `/`（登录可见；`webapp/static/timeline.html`，侧边栏导航数据 `webapp/timeline/entries.json`） |
-| 议事厅 | `/forum` `/forum/{id}` `/forum/new` `/forum/tags`（长文/公告/投票/评论；详见 `docs/superpowers/specs/2026-08-10-forum-design.md`） |
+| 议事厅 | `/forum` `/forum/{id}` `/forum/new` `/forum/tags`（长文/公告/投票/评论；详见 `docs/archive/superpowers/specs/2026-08-10-forum-design.md`） |
 | 图库 | `/gallery` |
 
 | 留言簿 | `/guestbook` |
