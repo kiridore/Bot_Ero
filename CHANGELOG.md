@@ -24,6 +24,7 @@
 
 ### 文档
 
+- **提交规范新增分块要求**：一个 commit 只承载一个逻辑变更，无关改动（功能/修复/测试/文档）必须拆开提交；同一逻辑变更的配套文件（代码+测试+spec+菜单+CHANGELOG+KB）仍在同一 commit。`specs/conventions.md` 新增 §Commit 提交分块，`commit-msg` 钩子对单次暂存 >12 个文件输出分块提示（警告不阻断）
 - **归档 superpowers 文档**：不再使用 superpowers skill 开发，将 `docs/superpowers/`（7 篇设计文档 + 10 篇实施计划）整体归档至 `docs/archive/superpowers/`，删除 `.superpowers/` 工作目录，并同步更新 CLAUDE.md / KNOWLEDGE_BASE.md / specs/timeline-protocol.md / docs/web-apps-deployment.md 中的引用路径
 
 ## [1.15.0] - 2026-08-17

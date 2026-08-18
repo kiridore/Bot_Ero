@@ -36,4 +36,14 @@ if [ ${#DESC} -lt 4 ]; then
     echo "WARNING: commit description is very short, consider adding more detail"
 fi
 
+# Warn if too many files staged in one commit (chunking hint, advisory only)
+# Spec: specs/conventions.md §Commit 提交分块 — one commit = one logical change
+COUNT=$(git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
+if [ "${COUNT:-0}" -gt 12 ]; then
+    echo "WARNING: $COUNT files staged in a single commit"
+    echo "  Spec requires logical chunking: one commit = one logical change"
+    echo "  Consider splitting by concern (feature/fix/test/docs/refactor) unless these"
+    echo "  files form one atomic change with their companion updates (spec/menu/changelog/KB)."
+fi
+
 exit 0

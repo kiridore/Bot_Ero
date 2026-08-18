@@ -8,6 +8,28 @@
 
 ---
 
+## Constraint: Commit 提交分块
+
+**每条 commit 只承载一个逻辑变更**，禁止把互不相关的改动揉进同一个 commit。
+
+**MUST:**
+- 一个 commit = 一个可独立描述的逻辑单元（`feat` / `fix` / `test` / `docs` / `refactor` / `chore` 等），按类型与关注点拆分
+- 同一逻辑变更的**配套文件必须在同一个 commit 内**：代码 + 对应行为测试 + 关联 spec + `BOT_MENU_TEXT` + `CHANGELOG.md` + `KNOWLEDGE_BASE.md`（配合 `specs/README.md` 的同步维护表）
+- 独立事项（预先存在的测试修复、依赖升级、格式化、无关文档）与功能开发**分 commit 提交**
+
+**MUST NOT:**
+- 把多个无关改动合并为一个 commit（如"功能 + 无关测试修复 + 文档"一把梭）
+- 让一个 commit 承载两种以上语义类型（如 `feat` 夹带无关 `fix` / `test`）
+
+**分块判断示例:**
+- 功能改动 + 其行为测试 + spec 描述 + CHANGELOG/版本 bump → 同一 `feat`/`fix` commit
+- 预先存在的测试日期过期修复 → 独立 `test` commit（不 bump 版本）
+- 纯文档/内部重构 → 独立 `docs`/`refactor` commit（可只记 CHANGELOG 不 bump）
+
+**辅助:** `.githooks/commit-msg` 钩子在暂存文件过多（>12 个）时输出分块提示（警告不阻断，人工判断）。
+
+---
+
 ## Constraint: 菜单文本集中管理
 
 `plugins/menu/bot_menu_text.py` 的 `BOT_MENU_TEXT` 是指令文本的**唯一来源**。
@@ -247,3 +269,4 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 - [ ] 13. 是否在 `match()` 中有副作用（发消息/写库）？→ 移到 `handle()`
 - [ ] 14. 是否修改了 `core/` 模块？→ 确认是否有必要，更新对应 spec
 - [ ] 15. 是否跨插件导入了业务逻辑类？→ 改用共享数据模块或数据库
+- [ ] 16. 是否把无关改动揉进了一个 commit？→ 按逻辑分块（功能/修复/测试/文档），配套文件同 commit

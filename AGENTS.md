@@ -10,6 +10,7 @@ Start with [CLAUDE.md](CLAUDE.md) for project overview, [KNOWLEDGE_BASE.md](KNOW
 - Dependencies are documented only: robot depends on `websocket-client`, `requests`, `Pillow`; the web app (single `webapp` process hosting the 6 feature modules) depends on `webapp/requirements.txt`.
 - **Git hooks:** run `git config core.hooksPath .githooks` after clone to enable Conventional Commits validation on every commit.
 - **Commit messages MUST be written in Chinese** with Conventional Commits format (e.g. `feat(任务): 新增周常全清称号`).
+- **Commits MUST be logically chunked**: one commit = one logical change (feature/fix/test/docs/refactor), never bundle unrelated changes; the companion files of one logical change (code + behavior tests + spec + menu text + CHANGELOG + KNOWLEDGE_BASE) go in the SAME commit, unrelated fixes go to SEPARATE commits (see `specs/conventions.md` §Commit 提交分块).
 
 ## Plugin auto-import magic
 
