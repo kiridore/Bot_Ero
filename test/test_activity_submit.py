@@ -163,28 +163,38 @@ class TestSubmit(unittest.TestCase):
         d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
         self.assertTrue(os.path.isfile(f"{d}/relay.md"))
 
-    def test_submit_finishes_match(self):
+    def test_submit_match_stays_running(self):
+        """匹配全员提交：不自动结束（可反复覆盖修改），等待截止/手动结束。"""
         aid = _setup_activity(self.db, "match")
         for uid, content in ((100, "一"), (200, "二"), (300, "三")):
             self._submit(uid, content).handle()
         act = self.db.activity.get_activity(aid)
-        self.assertEqual(act["status"], "finished")
+        self.assertEqual(act["status"], "running")
         d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
-        self.assertTrue(os.path.isfile(f"{d}/match.md"))
+        self.assertFalse(os.path.exists(d), "全员提交后不应归档")
 
-    def test_match_last_submit_finishes_no_forward(self):
-        """环 A→B→C→A 全员提交：最后提交后正常结束归档，且全程无私聊转发。"""
+    def test_match_all_submitted_no_forward(self):
+        """环 A→B→C→A 全员提交：活动保持进行，全程无私聊转发。"""
         aid = _setup_activity(self.db, "match")
         p = None
         for uid, content in ((100, "一"), (200, "二"), (300, "三")):
             p = self._submit(uid, content)
             p.handle()
         act = self.db.activity.get_activity(aid)
-        self.assertEqual(act["status"], "finished")
-        d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
-        self.assertTrue(os.path.isfile(f"{d}/match.md"))
+        self.assertEqual(act["status"], "running")
         fwd = [c for a, c in p.api.api_calls if a == "send_private_msg"]
         self.assertFalse(fwd, "匹配提交全程不应有私聊转发")
+
+    def test_match_revise_after_all_submitted(self):
+        """全员提交后仍可覆盖修改（核心诉求：保留修改机会）。"""
+        aid = _setup_activity(self.db, "match")
+        for uid, content in ((100, "一"), (200, "二"), (300, "三")):
+            self._submit(uid, content).handle()
+        p = self._submit(100, "修改版")
+        p.handle()
+        m = self.db.activity.get_member(aid, "100")
+        self.assertEqual(m["content"], "修改版")
+        self.assertEqual(self.db.activity.get_activity(aid)["status"], "running")
 
     def test_leave_running_relay_advances(self):
         """进行中退出（轮到 B 时）：B 标记 left 且链顺延给 C（Task 4 死分支修复验证）。"""
@@ -197,16 +207,14 @@ class TestSubmit(unittest.TestCase):
         self.assertIsNotNone(c["received_at"])          # 链已顺延到 C
         self.assertEqual(self.db.activity.get_activity(aid)["status"], "running")
 
-    def test_match_leave_then_finishes(self):
-        """匹配环中有人退出后，全员提交仍应结束并归档（all(done) 排除 left）。"""
+    def test_match_leave_then_all_submitted_stays_running(self):
+        """匹配环中有人退出后，剩余成员全员提交仍保持进行（可修改，截止才结束）。"""
         aid = _setup_activity(self.db, "match")
         self._group_leave(200).handle()                 # B 退出 → A.next 改为 C
         self._submit(100, "给C的礼物").handle()
         self._submit(300, "给A的礼物").handle()
         act = self.db.activity.get_activity(aid)
-        self.assertEqual(act["status"], "finished")
-        d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
-        self.assertTrue(os.path.isfile(f"{d}/match.md"))
+        self.assertEqual(act["status"], "running")
 
 
 if __name__ == "__main__":

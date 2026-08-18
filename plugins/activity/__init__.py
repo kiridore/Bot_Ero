@@ -251,8 +251,6 @@ class ActivityPlugin(Plugin):
         else:
             if not is_update:
                 self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
-                if all(m["status"] in ("done", "left") for m in members):
-                    _finish_activity(self.api, self.dbmanager, act)
 
     def _extract_submission(self) -> tuple[str, list[str]]:
         """从消息段提取正文与图片文件（命令文本之后的部分为正文）。"""
@@ -420,9 +418,6 @@ class ActivityPlugin(Plugin):
                     _finish_activity(self.api, self.dbmanager, act)
         else:
             _match_reconnect(self.api, self.dbmanager, act, member["user_id"], members)
-            fresh = self.dbmanager.activity.get_members(act["id"])
-            if all(m["status"] in ("done", "left") for m in fresh):
-                _finish_activity(self.api, self.dbmanager, act)
 
     def _handle_start(self, gid: int, uid: str):
         act = self.dbmanager.activity.get_active_activity(gid)
