@@ -306,6 +306,27 @@ CREATE TABLE activity_members (
 
 ---
 
+## 时间线（未读/已读状态）
+
+### `timeline_user_watermarks`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY | 用户 QQ 号（web 侧 str） |
+| `position` | INTEGER | NOT NULL | 未读边界 rowid：首访基线或整批追平后的最大 rowid；空时间线为 0 |
+
+### `timeline_read_events`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY (with event_id) | 用户 QQ 号 |
+| `event_id` | TEXT | PRIMARY KEY (with user_id), FK→`timeline_events(id)` ON DELETE CASCADE | 已读事件 id |
+
+- 未读判定：事件 rowid > `position` 且无回执；不依赖 `received_at`/`id` 组合（秒级精度 + 随机 uuid）
+- 硬删除事件时回执级联清理；DDL 在 `core/db/_base.py::init_schema`，读写 `core/db/timeline.py::TimelineManager`
+
+---
+
 ## 消息日志（独立库 message_log.db）
 
 | 表 | 说明 |
@@ -359,7 +380,7 @@ CREATE TABLE activity_members (
 
 ## 重要约束
 
-- **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER。
+- **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER；例外：web 侧由 `get_current_user_id` 直接写入的新表（如 `timeline_user_watermarks`/`timeline_read_events`）用 TEXT，与 `forum_posts.author_user_id` 一致。
 - **无迁移框架:** Schema 演化通过在 `DbManager.__init__()` 中 `PRAGMA table_info` + `ALTER TABLE ADD COLUMN` 手动执行
 - **不用 DROP COLUMN / ALTER COLUMN**（旧版 SQLite 不支持）
 - **事务:** 多步原子操作用 `BEGIN IMMEDIATE` + try/except/rollback

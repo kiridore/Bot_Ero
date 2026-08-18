@@ -19,7 +19,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | 闹钟 | `alarms` | `/alarms` | 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
-| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`）；时间线主页 + `entries.json` |
+| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ `entries.json` |
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 | 周报 | `weekly` | `/weekly`（`/weekly/{week_key}`） | 群周报归档：`GET /api/weekly` 列表、`GET /api/weekly/{week_key}` 详情；报纸排版页面 |
@@ -274,7 +274,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/forum/tags` | 必须 | 全部被引用 tag 及使用数量（`{"tags": [{"id","name","created_at","post_count"}]}`；仅返回至少被一个帖子引用的 tag，删帖/编辑移除引用后悬空 tag 自动清理，不再出现「引用(0)」） |
 | `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`BOTERO_FORUM_IMAGE_MAX_BYTES`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
-| `PATCH` | `/api/forum/posts/{id}` | 必须 | 编辑自己的帖子（`title`/`body_json`/`tags` 可改，`tags` 整体替换；类型与投票结构不可改；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并按 `forum_post:{id}` 同 key 重发最新内容，卡片不产生新事件） |
+| `PATCH` | `/api/forum/posts/{id}` | 必须 | 编辑自己的帖子（`title`/`body_json`/`tags` 可改，`tags` 整体替换；类型与投票结构不可改；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并按 `forum_post:{id}` 同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `DELETE` | `/api/forum/posts/{id}` | 必须 | 删除自己的帖子（级联删除评论/选项/投票/标签关联；非本人 → 403；成功后按 `forum_post:{id}` 撤回时间线事件） |
 
 ### 页面路由（FileResponse）
@@ -283,7 +283,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 | 模块 | 路径 |
 |--------|------|
-| `timeline` | `/` 时间线社区主页（登录可见；侧边栏导航 + 无限滚动 feed） |
+| `timeline` | `/` 时间线社区主页（登录可见；侧边栏导航 + 无限滚动 feed + 30s 新事件轮询 pill + 逐卡未读/已读高亮） |
 | `gallery` | `/gallery` 图库主页 |
 | `profile` | `/profile` 个人主页；`/profile/checkin` 网页打卡；`/profile/shop` 积分商店；`/profile/settings` 称号设置 |
 | `trpg` | `/trpg` 车卡管理；`/trpg/char/{user_id}/{char_id}` 角色卡只读查看页 |

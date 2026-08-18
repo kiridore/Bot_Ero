@@ -262,6 +262,49 @@
   transition: background var(--motion-fast) var(--ease);
 }
 
+/* 持久未读卡：浅底 + 左侧标线（Twitter 新帖风格）；hover 保持未读态不被覆盖 */
+.tl-item.tl-unread {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.tl-item.tl-unread:hover {
+  background: var(--accent-soft);
+}
+
+/* 会话新事件 pill（置顶粘性，复用全站 token，reduced-motion 无动画） */
+.tl-new-events {
+  position: sticky;
+  top: 0.6rem;
+  z-index: 5;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto 0.6rem;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: rgba(228, 233, 221, 0.95);
+  backdrop-filter: blur(6px);
+  color: var(--accent-ink);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.tl-new-events:hover {
+  border-color: var(--accent-ink);
+}
+
+.tl-new-events:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .tl-item:last-child {
   border-bottom: none;
 }

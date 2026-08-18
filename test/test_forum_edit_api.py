@@ -77,7 +77,7 @@ with patch("webapp.forum.app.emit_event") as m_emit, patch("webapp.forum.app.ret
     check("编辑后撤回旧事件", m_retract.call_count == 1
           and m_retract.call_args.kwargs.get("source") == "forum"
           and m_retract.call_args.kwargs.get("dedup_key") == f"forum_post:{pid}")
-    check("编辑后按同 key 重发（不产生新事件）",
+    check("编辑后按同 key 重发（重新入列按新事件计算未读）",
           m_emit.call_count == 2 and m_emit.call_args.kwargs.get("dedup_key") == f"forum_post:{pid}")
 
     g = client.get(f"/api/forum/posts/{pid}", headers=AH)

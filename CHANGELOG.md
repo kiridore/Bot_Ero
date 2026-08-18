@@ -4,6 +4,16 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.16.0] - 2026-08-18
+
+### 新增
+
+- **时间线实时更新**：社区主页每 30 秒轻量轮询新事件，出现 Twitter 式「查看 N 条新事件」pill，点击后才把新卡置顶插入（不打断正在阅读的内容）；轮询 401 自动停止并提示重新登录
+- **时间线逐卡未读/已读**：服务端按用户持久化未读状态（rowid 单调基线 + 逐事件已读回执），未读卡浅底高亮 + 左侧标线；卡片进入视口后完全离开才记为已读，刷新/换设备后仍准确；首访把既有历史视为已读；撤回事件自动从未读计数消失
+- **时间线读状态 API**：`GET /api/timeline/poll`、`GET /api/timeline/new`、`POST /api/timeline/read`（鉴权同现有登录密钥）；事件响应新增 `seq`/`unread` 字段
+- **forum 编辑语义变更**：编辑帖子重发的时间线事件按新事件重新入列并计算未读（撤回键仍为 `forum_post:{id}`，不变）
+- 新增数据表 `timeline_user_watermarks` / `timeline_read_events`（启动自动建表，无需迁移）
+
 ## [未发布]
 
 ### 文档

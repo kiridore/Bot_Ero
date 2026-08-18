@@ -363,6 +363,26 @@ with _connect() as conn:
 - 撤回 = 硬删除（DELETE 行）；业务回滚（`/撤回打卡`、消息撤回、周常任务回退）必须联动删除对应事件
 - 协议细节见 [`timeline-protocol.md`](timeline-protocol.md)
 
+#### `timeline_user_watermarks`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY | 用户 QQ 号（web 侧按 str，见「数据约定」例外） |
+| `position` | INTEGER | NOT NULL | 未读边界 rowid：首次访问基线或整批追平后的最大 rowid；空时间线为 0 |
+
+- 不对事件建外键：基线事件被硬删除后边界仍有效
+- 首访惰性初始化（`INSERT OR IGNORE` 并发安全）；推进仅发生在本用户全部基线后事件均有回执时，且取 `max(现有, MAX(rowid))` 防撤回回退
+
+#### `timeline_read_events`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY (with event_id) | 用户 QQ 号 |
+| `event_id` | TEXT | PRIMARY KEY (with user_id), FK→`timeline_events(id)` ON DELETE CASCADE | 已读事件 id |
+
+- 索引：`idx_timeline_read_events_event (event_id)`（撤回事件时级联清理回执）
+- 未读判定：事件 rowid > `timeline_user_watermarks.position` 且本表无该 `(user_id, event_id)` 行；不得用 `(received_at, id)` 组合比较（秒级精度 + 随机 uuid）
+
 ---
 
 ### 消息日志（独立库 message_log.db）
@@ -606,6 +626,8 @@ user_id_str = str(user_id)
 ```
 
 **MUST:** 新增表时将 `user_id` 统一为 `INTEGER`，逐步消除不一致。
+
+**例外（web 侧）**：由 `get_current_user_id` 直接写入的 web 侧新表（如 `timeline_user_watermarks`/`timeline_read_events`）使用 `TEXT`，与 `forum_posts.author_user_id TEXT` 等既有 web 表一致，避免隐式类型强转；bot 侧新表仍按 INTEGER 规则。
 
 ### 打卡标记
 

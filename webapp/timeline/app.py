@@ -138,30 +138,13 @@ def delete_event(
     return {"ok": True, "deleted": deleted}
 
 
-@router.get("/api/timeline")
-def timeline_feed(
-    _user_id: Annotated[str, Depends(get_current_user_id)],
-    cursor: str | None = Query(default=None),
-    limit: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
-):
-    """时间线查询（登录可见）。服务端解析占位符与昵称头像（并发，冷缓存首屏提速）。"""
-    cur = None
-    if cursor:
-        if "|" not in cursor:
-            raise HTTPException(status_code=422, detail="游标格式错误")
-        received_at, event_id = cursor.rsplit("|", 1)
-        cur = (received_at, event_id)
-
-    db = DbManager()
-    rows = db.timeline.page(cur, limit + 1)
-    has_more = len(rows) > limit
-    rows = rows[:limit]
-
-    # 第一遍：收集本页需要解析的全部用户（事件 actor + 文案占位符），去重
+def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str]):
+    """两遍组装：收集需解析用户（actor + 占位符）→ 并发解析昵称/头像 → 事件 dict。
+    首列 rowid 作为 seq 暴露给客户端（顶部事件锚点）；unread = seq > 水印 且无回执。"""
     need: set[str] = set()
     unbound_keys: set[str] = set()
     for row in rows:
-        (_eid, _source, _received_at, actor_id, actor_qq, _tt, _tu,
+        (_seq, _eid, _source, _received_at, actor_id, actor_qq, _tt, _tu,
          title, description, _data_raw, _dedup_key) = row
         if actor_qq:
             need.add(str(actor_qq))
@@ -183,10 +166,9 @@ def timeline_feed(
     for uid in unbound_keys:
         users[uid] = {"name": UNBOUND_LABEL, "avatar": ""}
 
-    # 第二遍：组装响应
     events = []
     for row in rows:
-        (eid, source, received_at, actor_id, actor_qq, target_type, target_url,
+        (seq, eid, source, received_at, actor_id, actor_qq, target_type, target_url,
          title, description, data_raw, _dedup_key) = row
         if actor_qq:
             name = users[str(actor_qq)]["name"]
@@ -194,6 +176,7 @@ def timeline_feed(
         else:
             name, avatar = UNBOUND_LABEL, ""
         events.append({
+            "seq": seq,
             "id": eid,
             "source": source,
             "received_at": received_at,
@@ -207,13 +190,92 @@ def timeline_feed(
             "title": title,
             "description": description,
             "data": _loads(data_raw),
+            "unread": seq > watermark and eid not in read_ids,
         })
+    return events, users
+
+
+@router.get("/api/timeline")
+def timeline_feed(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
+):
+    """时间线查询（登录可见）。服务端解析占位符与昵称头像（并发，冷缓存首屏提速）。"""
+    cur = None
+    if cursor:
+        if "|" not in cursor:
+            raise HTTPException(status_code=422, detail="游标格式错误")
+        received_at, event_id = cursor.rsplit("|", 1)
+        cur = (received_at, event_id)
+
+    db = DbManager()
+    watermark = db.timeline.get_or_init_watermark(user_id)
+    rows = db.timeline.page(cur, limit + 1)
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    read_ids = db.timeline.read_event_ids(user_id, [r[1] for r in rows]) if rows else set()
+    events, users = _serialize_rows(rows, watermark, read_ids)
 
     next_cursor = None
     if has_more and rows:
         last = rows[-1]
-        next_cursor = f"{last[2]}|{last[0]}"
+        next_cursor = f"{last[3]}|{last[1]}"
     return {"events": events, "users": users, "next_cursor": next_cursor}
+
+
+@router.get("/api/timeline/poll")
+def timeline_poll(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    after: int | None = Query(default=None, ge=1),
+):
+    """轻量轮询：返回比 max(after, 水印) 更新且无回执的事件数（不解析昵称/不返回卡片）。"""
+    db = DbManager()
+    watermark = db.timeline.get_or_init_watermark(user_id)
+    lower = max(after or 0, watermark)
+    count = db.timeline.count_unread_after(user_id, lower)
+    return {"count": count}
+
+
+@router.get("/api/timeline/new")
+def timeline_new(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    after: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
+):
+    """拉取比 max(after, 水印) 更新且无回执的事件。数据库按 rowid ASC 取最老一批
+    （避免 >100 条时跳项），响应内倒为 feed 的新→旧顺序；next_after 供客户端循环。"""
+    db = DbManager()
+    watermark = db.timeline.get_or_init_watermark(user_id)
+    lower = max(after or 0, watermark)
+    rows = db.timeline.page_unread_after(user_id, lower, limit + 1)
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    # page_unread_after 已排除回执，此处全部 unread
+    events, users = _serialize_rows(rows, watermark, set())
+    events.reverse()  # rowid ASC（最老在前）→ feed 新→旧
+
+    next_after = None
+    if has_more and rows:
+        next_after = rows[-1][0]  # 本批已消费的最大 rowid
+    return {"events": events, "users": users, "next_after": next_after}
+
+
+class ReadEventsIn(BaseModel):
+    event_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+@router.post("/api/timeline/read")
+def timeline_read(
+    body: ReadEventsIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """上报逐卡已读回执；remaining 为该用户剩余未读事件数。未知/重复/已撤回 id 安全忽略。"""
+    db = DbManager()
+    remaining = db.timeline.mark_read_events(user_id, body.event_ids)
+    return {"ok": True, "remaining": remaining}
 
 
 # —— 侧边栏导航数据源（原导航主页 entries.json，唯一入口维护点）——

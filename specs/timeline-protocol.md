@@ -77,6 +77,17 @@
 - 排序 `received_at DESC, id DESC`；**keyset 游标分页**（硬删除下 offset 分页会错位，**MUST NOT** 用 offset）。
 - 渲染降级顺序：`actor.qq` 存在 → 解析昵称头像；否则查绑定表（v1 无绑定表）→ 「未绑定玩家」。
 - 事件卡片 `display.title`/`description` 中占位符按「占位符解析」约束逐一代换（同批按 user_id 去重解析）。
+- 事件响应统一新增整数 `seq`（即 `timeline_events` 的 rowid，单调插入序）与 `unread: bool`；向后翻页 `next_cursor` 仍是 `received_at|id`，仅用于旧页无限滚动。
+
+## Constraint: 未读/已读状态（每用户）
+
+- 每用户持久化两层状态：`timeline_user_watermarks`（rowid 单调基线）+ `timeline_read_events`（基线后逐事件已读回执）。**未读 = 事件 rowid > 基线 position 且 `(user_id, event_id)` 无回执**；MUST NOT 用 `received_at`/`id` 组合做新旧比较（秒级精度 + 随机 uuid 不反映真实到达顺序）。
+- 首次访问把当时已有历史视为已读：基线惰性初始化为当前最大 rowid；空时间线基线为 0，随后首个事件为未读。
+- `GET /api/timeline/poll?after=<rowid>`（可省略）：返回 `{"count": N}`，N = rowid > max(after, 基线) 且无回执的事件数；不解析昵称、不返回卡片，供 30 秒轻量轮询。
+- `GET /api/timeline/new?after=<rowid>&limit=<1..100>`：返回比 max(after, 基线) 更新且无回执的事件（`{"events", "users", "next_after"}`）；数据库按 rowid ASC 取最老一批，响应内倒为新→旧；有更多数据时 `next_after` 为本批已消费的最大 seq，客户端 MUST 循环拉取，不得假设单批覆盖全部。
+- `POST /api/timeline/read` body `{"event_ids": [...]}`（1–100 个）：上报已读回执，返回 `{"ok": true, "remaining": N}`；未知/重复/已撤回 id 安全忽略。仅当该用户所有基线后事件均有回执时才推进基线（推进到 `max(现有, 当前 MAX(rowid))`，防撤回导致回退）并清理旧回执。
+- 三个读状态端点鉴权均为用户登录密钥（`get_current_user_id`）；无 token 401，`after`/`limit` 非法 422。
+- 前端行为：30 秒轮询 `poll` 驱动「查看 N 条新事件」pill（仅统计本页面打开后尚未插入 feed 的事件）；卡片进入视口后完全离开才上报已读；未读卡以 `unread: true` 渲染高亮，首访历史不高亮。
 
 ## Constraint: 卡片媒体（`data.images`）
 
@@ -97,7 +108,7 @@
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
-| `forum` | `webapp/forum` | 发帖 / 编辑 / 评论 / 投票关闭 | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回；编辑=撤回旧事件并按同 key 重发最新内容，不产生新事件） |
+| `forum` | `webapp/forum` | 发帖 / 编辑 / 评论 / 投票关闭 | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回；编辑=撤回旧事件并按同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `tools` | `webapp/tools` | 提交 / 删除工具链接 | `tools_link:<tool_id>`（删除时按同 key 撤回事件） |
 
 > `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。

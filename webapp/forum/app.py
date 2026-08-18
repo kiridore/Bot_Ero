@@ -319,7 +319,8 @@ def update_post(
     )
     if not ok:
         raise HTTPException(status_code=403, detail="只能编辑自己的帖子")
-    # 编辑后撤回旧事件并以同 key 重发最新内容（同工具箱先例）：时间线卡片标题/节选保持最新，不产生新事件
+    # 编辑后撤回旧事件并以同 key 重发最新内容：重发行带新 rowid/新 received_at，
+    # 按新事件重新入列计算未读（同 key 用于下次编辑/删除时按已知 key 撤回当前卡片）
     retract_event(source="forum", dedup_key=f"forum_post:{post_id}")
     _emit_post_event(db.forum.get_post(post_id))
     return {"ok": True}

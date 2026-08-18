@@ -441,6 +441,24 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "ON timeline_events (received_at DESC, id DESC)"
     )
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS timeline_user_watermarks (
+            user_id TEXT PRIMARY KEY,
+            position INTEGER NOT NULL
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS timeline_read_events (
+            user_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            PRIMARY KEY (user_id, event_id),
+            FOREIGN KEY (event_id) REFERENCES timeline_events(id) ON DELETE CASCADE
+        );
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_timeline_read_events_event "
+        "ON timeline_read_events (event_id)"
+    )
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS forum_posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             author_user_id TEXT NOT NULL,
