@@ -65,12 +65,13 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_create_match_deadline(self):
-        p = self._run("/活动 创建 匹配 中秋 2026-09-15 20:00")
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        p = self._run(f"/活动 创建 匹配 中秋 {d}")
         p.handle()
         self.assertIn("中秋", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
         self.assertEqual(act["type"], "match")
-        self.assertEqual(act["deadline"], "2026-09-15 20:00:00")
+        self.assertEqual(act["deadline"], d + ":00")
 
     def test_join_and_start_relay(self):
         self._run("/活动 创建 接龙 端午接龙").handle()
@@ -97,7 +98,8 @@ class TestCommands(unittest.TestCase):
         self.assertIn("创建人", _sent_text(p))
 
     def test_match_needs_two(self):
-        self._run("/活动 创建 匹配 中秋 2026-09-15 20:00").handle()
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 匹配 中秋 {d}").handle()
         self._run("/活动 加入", user_id=123456).handle()
         p = self._run("/活动 开始", user_id=123456)
         p.handle()
@@ -159,12 +161,13 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_create_match_with_description(self):
-        p = self._run("/活动 创建 匹配 中秋 圆桌交换礼物 2026-09-15 20:00")
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        p = self._run(f"/活动 创建 匹配 中秋 圆桌交换礼物 {d}")
         p.handle()
         self.assertIn("圆桌交换礼物", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
         self.assertEqual(act["description"], "圆桌交换礼物")
-        self.assertEqual(act["deadline"], "2026-09-15 20:00:00")
+        self.assertEqual(act["deadline"], d + ":00")
 
     def test_create_relay_no_description_compat(self):
         p = self._run("/活动 创建 接龙 t 2天")
@@ -175,22 +178,26 @@ class TestCommands(unittest.TestCase):
 
     def test_create_relay_with_deadlines(self):
         """新语法：报名截止 + 活动截止 + 限时 关键字。"""
-        p = self._run("/活动 创建 接龙 端午 自由创作 报名截止 2026-08-10 20:00 截止 2026-08-20 20:00 限时 2天")
+        sd = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+        dl = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d %H:%M")
+        p = self._run(f"/活动 创建 接龙 端午 自由创作 报名截止 {sd} 截止 {dl} 限时 2天")
         p.handle()
         self.assertIn("报名截止", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
         self.assertEqual(act["description"], "自由创作")
-        self.assertEqual(act["signup_deadline"], "2026-08-10 20:00:00")
-        self.assertEqual(act["deadline"], "2026-08-20 20:00:00")
+        self.assertEqual(act["signup_deadline"], sd + ":00")
+        self.assertEqual(act["deadline"], dl + ":00")
         self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_create_match_with_signup_deadline(self):
-        p = self._run("/活动 创建 匹配 中秋 圆桌礼物 报名截止 2026-08-10 20:00 截止 2026-09-15 20:00")
+        sd = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+        dl = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d %H:%M")
+        p = self._run(f"/活动 创建 匹配 中秋 圆桌礼物 报名截止 {sd} 截止 {dl}")
         p.handle()
         act = self.db.activity.get_active_activity(GID)
         self.assertEqual(act["description"], "圆桌礼物")
-        self.assertEqual(act["signup_deadline"], "2026-08-10 20:00:00")
-        self.assertEqual(act["deadline"], "2026-09-15 20:00:00")
+        self.assertEqual(act["signup_deadline"], sd + ":00")
+        self.assertEqual(act["deadline"], dl + ":00")
 
     def test_create_param_duplicate(self):
         p = self._run("/活动 创建 接龙 t 限时 2天 限时 3天")
@@ -212,7 +219,8 @@ class TestCommands(unittest.TestCase):
         self.assertIsNone(self.db.activity.get_active_activity(GID))
 
     def test_create_past_signup_deadline_rejected(self):
-        p = self._run("/活动 创建 匹配 中秋 报名截止 2000-01-01 00:00 截止 2026-12-31 20:00")
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        p = self._run(f"/活动 创建 匹配 中秋 报名截止 2000-01-01 00:00 截止 {d}")
         p.handle()
         self.assertIn("晚于当前时间", _sent_text(p))
         self.assertIsNone(self.db.activity.get_active_activity(GID))
@@ -259,7 +267,8 @@ class TestCommands(unittest.TestCase):
 
     def test_status_open_shows_signup_order(self):
         """报名期显示报名序号而非 seq（seq 开始时才生成）。"""
-        self._run("/活动 创建 匹配 中秋 2026-09-15 20:00").handle()
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 匹配 中秋 {d}").handle()
         self._run("/活动 加入", user_id=123456).handle()
         self._run("/活动 加入", user_id=234567).handle()
         p = self._run("/活动 状态")

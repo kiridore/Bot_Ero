@@ -32,7 +32,8 @@ def _setup(db, type_):
     aid = db.activity.create_activity(
         GID, type_, "t", None, "1",
         hours_per_user=24.0 if type_ == "relay" else None,
-        deadline=None if type_ == "relay" else "2026-09-15 20:00:00",
+        deadline=(None if type_ == "relay"
+                  else (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")),
     )
     for uid, nick in (("100", "A"), ("200", "B")):
         db.activity.add_member(aid, uid, nick)
@@ -118,8 +119,9 @@ class TestTimer(unittest.TestCase):
 
     def test_signup_deadline_insufficient_cancels(self):
         """报名截止到点但人数不足（match <2）→ cancelled。"""
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
         aid = self.db.activity.create_activity(GID, "match", "t", None, "1",
-                                               deadline="2026-09-15 20:00:00",
+                                               deadline=d,
                                                signup_deadline="2000-01-01 00:00:00")
         self.db.activity.add_member(aid, "100", "A")
         self._plugin().handle()
