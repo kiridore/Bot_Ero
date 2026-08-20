@@ -416,3 +416,8 @@ main {
     margin-left: 0;
   }
 }
+
+.tl-images img,
+img.forum-img {
+  cursor: zoom-in;
+}

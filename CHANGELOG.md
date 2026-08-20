@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.17.0] - 2026-08-20
+
+### 新增
+
+- **时间线/议事厅图片灯箱**：时间线事件图片与议事厅帖子正文图片支持点击在当前页放大预览（Twitter 式灯箱），加载中有 spinner，ESC / 点击背景 / 右上角按钮均可关闭；新增共享组件 `/shared/lightbox.js`
+
 ## [1.16.1] - 2026-08-18
 
 ### 修复

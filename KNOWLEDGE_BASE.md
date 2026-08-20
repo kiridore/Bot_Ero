@@ -63,7 +63,7 @@
 │   ├── trpg/                  ← 跑团规则（rules.py）与角色派生计算（character.py）
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
-│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css/motion.css/motion.js 动效层）；Web 主题统一为报纸风（token 全站唯一来源 core/web/static/gallery.css，动效 token --motion-fast/base/slow/--spring/--ease/--reveal-dist）
+│   ├── web/static/            ← Web 共享静态（auth.js/gallery.css/profile.css/motion.css/motion.js 动效层/lightbox.js 共享图片灯箱：点击 .tl-images a 或 img.forum-img 在当前页放大，复用 .lightbox 样式）；Web 主题统一为报纸风（token 全站唯一来源 core/web/static/gallery.css，动效 token --motion-fast/base/slow/--spring/--ease/--reveal-dist）
 │   ├── timeline_client.py     ← 社区时间线事件发送助手（emit_event/retract_event，best-effort）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 47 个已注册插件
