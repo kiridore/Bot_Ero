@@ -1,6 +1,6 @@
 # 网页应用部署文档（Caddy + systemd + DNS）
 
-本文档是 BotEro 网页端在 VPS 上的部署参考。11 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`、`live`、`timeline`、`forum`、`tools`、`weekly`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。
+本文档是 BotEro 网页端在 VPS 上的部署参考。11 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`、`live`、`timeline`、`forum`、`tools`、`weekly`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。**全站登录门控（1.18.0 起）**：除白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，未登录访问页面一律 302 重定向到 `/login?next=…`，API 与图片媒体返回 401；凭证支持 `Authorization: Bearer <key>` 头或根域 cookie `botero_key` 任一。
 
 ## 1. URL 方案
 
@@ -9,12 +9,14 @@
 | 时间线主页 | `/`（登录可见；`webapp/static/timeline.html`，侧边栏导航数据 `webapp/timeline/entries.json`） |
 | 议事厅 | `/forum` `/forum/{id}` `/forum/new` `/forum/tags`（长文/公告/投票/评论；详见 `docs/archive/superpowers/specs/2026-08-10-forum-design.md`） |
 | 图库 | `/gallery` |
-
 | 留言簿 | `/guestbook` |
 | 个人中心 | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） |
 | 跑团 | `/trpg`（`/trpg/char/{user_id}/{char_id}`） |
 | 闹钟 | `/alarms` |
 | 活动 | `/activities`（`/activities/{activity_id}`） |
+| 直播 | `/live`（SRS HTTP-FLV 播放） |
+| 工具箱 | `/tools`（链接收藏卡片） |
+| 登录页 | `/login`（门控白名单内，未登录可访问；`next` 参数记住来源） |
 | 周报 | `/weekly`（最新期重定向）`/weekly/{week_key}`（报纸详情页；API 为 `/api/weekly`） |
 | API/静态/媒体 | `/api/*` `/static/*` `/shared/*` `/thumb/*` `/media/*` `/archive/*`（根路径，全局唯一） |
 
@@ -85,7 +87,7 @@ systemctl enable --now botero-web
 
 ## 5. 环境变量清单
 
-全部 `BOTERO_*` 变量（定义于 `core/config.py`，bot 与 webapp 共用）：
+全部 `BOTERO_*` 变量（定义于 `core/config.py`，bot 与 webapp 共用；例外 `BOTERO_LIVE_FLV_URL` 定义于 `webapp/live/app.py`）：
 
 | 变量 | 默认值 | 用途 |
 |------|--------|------|
@@ -108,6 +110,8 @@ systemctl enable --now botero-web
 | `BOTERO_AUTH_SALT_OLD` | 空 | 历史盐列表（逗号分隔，写于 `scripts/botero.env`）。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
 | `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 网页打卡单次最大图片数 |
 | `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
+| `BOTERO_FORUM_IMAGES_ROOT` | `<仓库>/server_data/forum_images` | 议事厅正文图片存储目录（公开读取，uuid 文件名不可枚举） |
+| `BOTERO_FORUM_IMAGE_MAX_BYTES` | `10485760` | 议事厅正文单图最大字节数（JPG/PNG/WebP/GIF） |
 | `BOTERO_TIMELINE_URL` | `http://127.0.0.1:8765` | Event Server 基地址（bot 插件发送时间线事件的目标） |
 | `BOTERO_EVENT_TOKEN` | `BotEro-Timeline-ChangeMe` | 系统间事件令牌（bot 发送与 webapp 校验共用；**单一来源 `scripts/botero.env`**，生产建议改为随机值） |
 | `BOTERO_MESSAGE_LOG_DB_PATH` | `<仓库>/server_data/message_log.db` | 群消息日志独立库路径（周报数据源，永久保留） |
@@ -118,25 +122,28 @@ systemctl enable --now botero-web
 
 时间线主页文件位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp` 在根路径 `/` 提供，无需 Caddy 单独托管，**登录后可见**（数据 API `GET /api/timeline` 需登录密钥，未登录 401）。侧边栏功能导航数据源为 `webapp/timeline/entries.json`，是主页**唯一**的入口维护点：增删分区入口、改 `url`、改展示名称/描述都在此文件完成（含议事厅）。BotEro 分区入口的 `url` 为同源路径（`/gallery`、`/profile` 等）；第三方服务（狼人杀、MC 等）仍为完整外部 URL。侧边栏提供与全站一致的登录状态（`auth.js`）。
 
-## 7. 启动顺序与验证
+## 7. 事件发送方接入
 
 事件发送方接入：bot 插件经 `core/timeline_client.py` 发送（`BOTERO_TIMELINE_URL` + `BOTERO_EVENT_TOKEN`，见第 5 节环境变量）；v1 发送方为打卡与周常任务，回滚联动删除。协议见 `specs/timeline-protocol.md`。
 
-## 7. 启动顺序与验证
+## 8. 启动顺序与验证
 
 1. 首次部署：`git clone` 仓库到 VPS（如 `/home/dore/onebot/Bot_Ero`），配置 DNS 与 Caddyfile；
 2. 更新代码：`git pull` 后重启服务；
 3. 启动：`./scripts/botero-services.sh start`（首次部署先 `enable --now botero-web` 设为开机自启）；
-4. 验证：主页与各分区路径均应返回 HTTP 200：
+4. 验证（**全站登录门控**下未登录应得到 302 → `/login`，带凭证应 200）：
    ```bash
-   curl -s -o /dev/null -w "主页: %{http_code}\n" https://littlero.tech/
-   for p in /gallery /guestbook /profile /trpg /alarms /activities; do
+   # 未登录：主页与各分区页面应返回 302（重定向到 /login）
+   curl -s -o /dev/null -w "主页(未登录): %{http_code}\n" https://littlero.tech/
+   for p in /gallery /guestbook /profile /trpg /alarms /activities /forum /tools /weekly; do
      echo "$p: $(curl -s -o /dev/null -w '%{http_code}' https://littlero.tech$p)"
    done
+   # 带密钥（QQ 号 + 盐 → HMAC，见 /图库密钥）：应返回 200
+   curl -s -o /dev/null -w "主页(已登录): %{http_code}\n" -H "Authorization: Bearer <登录密钥>" https://littlero.tech/
    ```
    `ps` 中 uvicorn 应只剩 1 个 web 进程。
 
-## 8. 已知限制
+## 9. 已知限制
 
-- **单 origin 登录共享**：全部页面同源，登录态存于该 origin 的 localStorage（`auth.js` 同时保留根域 cookie 写入，兼容旧缓存），任一分区登录后其余分区免重复登录。
+- **单 origin 登录共享**：全部页面同源，登录态存于该 origin 的 localStorage，根域 cookie `botero_key` 是页面门控的导航凭据（页面跳转带不了 `Authorization` 头），任一分区登录后其余分区免重复登录；页内 fetch 401 由 `/shared/auth.js` 全局拦截并跳回 `/login`。
 - **SQLite 两写者**：`data.db` 仅剩 bot（`main.py`）与 webapp 两个写者，均为 WAL + `busy_timeout=5000`；高并发写场景（如打卡高峰期）仍可能偶发 `database is locked`，出现时重试即可。
