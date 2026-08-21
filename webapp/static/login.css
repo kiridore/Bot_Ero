@@ -1,0 +1,63 @@
+/* 登录页布局（表单元素样式复用 gallery.css 的 .login-* 全局类） */
+.login-main {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-card {
+  width: min(400px, 100%);
+  padding: 2.25rem 2rem 2rem;
+  text-align: center;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.login-card form {
+  text-align: left;
+}
+
+.login-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+
+.login-sub {
+  margin: 0 0 1.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.login-card input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+}
+
+.login-card input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.login-actions {
+  justify-content: center;
+}
+
+.login-actions button.primary {
+  min-width: 9rem;
+  padding: 0.55rem 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.login-actions button.primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}

@@ -57,12 +57,15 @@ const dlg = window.GalleryAuth.ensureLoginDialog();
 check("无 dialog 时自动注入", dlg.id === "loginDialog" && bodyEl.children.some((c) => c.id === "loginDialog"));
 check("已有 dialog 时复用", window.GalleryAuth.ensureLoginDialog() === dlg);
 
-// 3. 已登录 → user-chip
+// 3. 已登录 → user-chip + 退出按钮
 els.authArea2 = makeEl("div");
 window.GalleryAuth.save({ user_id: "123", display_name: "<埃洛>", token: "k" });
 window.GalleryAuth.renderAuth(els.authArea2);
-check("已登录渲染 user-chip", els.authArea2.children.length === 1 && els.authArea2.children[0].className === "user-chip");
+check("已登录渲染 user-chip", els.authArea2.children[0].className === "user-chip");
 check("display_name 转义", els.authArea2.children[0].children[1].innerHTML.includes("&lt;埃洛&gt;"));
+check("渲染退出按钮", els.authArea2.children.length === 2
+  && els.authArea2.children[1].className === "btn-logout"
+  && els.authArea2.children[1].textContent === "退出");
 
 // 4. 清除后恢复未登录
 window.GalleryAuth.clear();

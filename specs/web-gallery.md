@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-16 (小埃周报：新增第 11 个模块 `weekly`，`/weekly` 报纸页面 + `/api/weekly` 归档 API；模块清单补全 weekly 共 11 个)
+> 最后更新: 2026-08-21 (全站登录门控：新增 `/login` 独立登录页；`login_guard` 中间件对全部路由统一鉴权（Bearer 头或 `botero_key` cookie 双通道），未登录页面 302 / API 与媒体 401；auth.js 全局 401 拦截 + 退出按钮)
 
 ---
 
@@ -84,8 +84,10 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 ```python
 # webapp/app.py（唯一 FastAPI 入口）
 app = FastAPI(title="BotEro Web", version="1.0.0")
+# login_guard HTTP 中间件：全局登录门控（见「HMAC 认证」章的「全局登录门控」约束）
 # POST /api/auth/login + GET /api/auth/me（唯一一份）
 # GET / → webapp/static/timeline.html（时间线社区主页，登录可见）
+# GET /login → webapp/static/login.html（独立登录页，门控白名单内）
 app.include_router(gallery_router)       # from webapp.gallery.app import router as ...
 app.include_router(guestbook_router)
 app.include_router(profile_router)
@@ -160,20 +162,33 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 ```
 
 **登录模型:**
-- 密钥即 token：`Authorization: Bearer <key>` 传输，无服务端 session
+- 密钥即 token：`Authorization: Bearer <key>` 或根域 cookie `botero_key`（`core/web/auth_deps.py::AUTH_COOKIE_NAME`）任一凭证；无服务端 session
 - 全站共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有分区通用；**盐值单一来源为 `scripts/botero.env`**（bot 生成密钥与 webapp 验证密钥共用，改盐只改该文件）
-- 前端 token 存 localStorage（**单 origin 共享**——任一分区登录后其余分区免重复登录；`core/web/static/auth.js` 同时保留根域 cookie 写入，兼容旧缓存）
-- **依赖注入:** `Depends(get_current_user_id)`（必须登录）/ `Depends(get_optional_user_id)`（可选登录），定义在 `core/web/auth_deps.py`
+- 前端 token 存 localStorage（**单 origin 共享**——任一分区登录后其余分区免重复登录；`core/web/static/auth.js` 同时写根域 cookie，作为服务端页面门控凭据）
+- **依赖注入:** `Depends(get_current_user_id)`（必须登录）/ `Depends(get_optional_user_id)`（可选登录），定义在 `core/web/auth_deps.py`，两依赖均双通道兜底（header 优先，缺失读 cookie）
+
+### Constraint: 全局登录门控（`webapp/app.py` 的 `login_guard` HTTP 中间件）
+
+- **MUST:** 白名单之外的**全部路由**（页面、API、媒体，含各模块 router 与页面 FileResponse）一律要求登录，任何新模块**不得**自行绕过或另建门控；凭证双通道：`Authorization: Bearer` 头或 `botero_key` cookie（页面导航带不了 header，cookie 是页面门控凭据）
+- **白名单（唯一放行集）**：`/login`、`/api/auth/login`、`/static/*`、`/shared/*`、`/api/timeline/events*`（bot 事件上报，携带独立事件令牌，由路由 `_require_event_token` 校验，非用户登录）
+- 未登录响应语义：页面路径 → `302 /login?next=<原路径+查询串>`（URL 编码）；`/api/*` 与媒体路径（`/thumb/`、`/media/`、`/forum/media/`、`/archive/`）→ `401 JSON`（`<img>` 子资源不跟随重定向）
+- `/login` 页面（`webapp/static/login.html` + `login.js`）：密钥表单登录（复用 `GalleryAuth.login`），`next` 仅接受单个 `/` 开头的站内相对路径（防开放重定向），默认 `/`；带有效会话进入登录页时自动跳回 `next`（会话自愈，覆盖「cookie 被清但 localStorage 仍有效」）
+- 前端配套（`core/web/static/auth.js`，HTML 引用一律带 `?v=` 缓存版本号，当前 `?v=3`）：
+  - 全局包装 `window.fetch`：同源响应 401 且非 `/api/auth/login`、非登录页自身 → 清会话并跳 `/login?next=当前路径`（页内会话失效的统一出口）
+  - `renderAuth`：登录按钮跳转 `/login`（不再弹窗）；用户 chip 旁「退出」按钮（`clear()` 双清后回登录页）
+  - 页面各自的 `requireAuth`/登录弹窗为休眠兜底（服务端门控保证未登录用户到不了页面），**MUST NOT** 新增依赖弹窗的登录入口
 
 ---
 
 ## Constraint: API 路由（按模块归属）
 
+> 除登录相关外，所有 API 先经全局门控（白名单与语义见「全局登录门控」）；下表「认证」列描述路由处理器的身份使用方式——「可选/否」表示处理器本身可匿名，但未登录请求已在门控层被 401 拦截，实际到达处理器的请求必已登录。
+
 ### 认证（唯一一份，`webapp/app.py`）
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| `POST` | `/api/auth/login` | 否 | 登录，返回 token |
+| `POST` | `/api/auth/login` | 否（门控白名单） | 登录，返回 token |
 | `GET` | `/api/auth/me` | 必须 | 当前用户信息 |
 
 ### 图库（`gallery` 模块）
@@ -283,6 +298,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 | 模块 | 路径 |
 |--------|------|
+| `webapp/app.py` | `/login` 独立登录页（门控白名单，密钥表单 + `next` 回跳 + 会话自愈） |
 | `timeline` | `/` 时间线社区主页（登录可见；侧边栏导航 + 无限滚动 feed + 30s 新事件轮询 pill + 逐卡未读/已读高亮） |
 | `gallery` | `/gallery` 图库主页 |
 | `profile` | `/profile` 个人主页；`/profile/checkin` 网页打卡；`/profile/shop` 积分商店；`/profile/settings` 称号设置 |
@@ -406,8 +422,8 @@ with _connect() as conn:
 
 ```
 core/web/static/
-  auth.js       ← 认证 token 管理（单 origin localStorage 共享；保留根域 cookie 写入兼容旧缓存）
-  gallery.css   ← 图库样式
+  auth.js       ← 认证 token 管理（单 origin localStorage 共享 + 根域 cookie 作为页面门控凭据；全局 fetch 401 拦截跳 /login；goLogin/logout/renderAuth（登录按钮 + 用户 chip + 退出按钮）；HTML 引用带 ?v= 缓存版本号）
+  gallery.css   ← 图库样式（含 .btn-logout）
   profile.css   ← 个人中心样式
 ```
 
@@ -415,6 +431,7 @@ core/web/static/
 
 ```
 webapp/static/
+  login.html + login.js + login.css        ← 独立登录页（密钥表单 + next 回跳 + 会话自愈）
   index.html + gallery.js                       ← 图库主页（瀑布流 + 无限滚动）
   profile.html/js、checkin.html/js、shop.html/js、settings.html/js
   trpg.html/js（车卡管理）、char_view.html/js（只读查看）、trpg.css
@@ -427,7 +444,7 @@ webapp/static/
 时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/gallery.css` 的报纸风 token）。
 
 - 原生 JavaScript，无框架
-- 认证 token 通过 `Authorization: Bearer <token>` 传递
+- 认证 token 通过 `Authorization: Bearer <token>` 头传递，服务端同时接受根域 cookie `botero_key`（页面门控/无 header 请求的凭据）
 - 同源引用一律用根相对路径（如 profile 的媒体 URL 为 `/media/...`、分区间跳转 `/gallery` 等），不内链其他分区绝对路径
 
 ---

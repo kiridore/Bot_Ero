@@ -177,6 +177,23 @@ body {
   font-size: 0.75rem;
 }
 
+.btn-logout {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-logout:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(176, 83, 63, 0.08);
+}
+
 .login-dialog {
   border: none;
   border-radius: var(--radius-md);

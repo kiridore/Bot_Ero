@@ -6,6 +6,10 @@ let cookieStore = {};
 global.location = {
   get hostname() { return fakeHost; },
   get protocol() { return fakeProto; },
+  origin: "https://gallery.littlero.tech",
+  pathname: "/forum",
+  search: "",
+  href: "",
 };
 global.document = {
   get cookie() {
@@ -33,6 +37,8 @@ global.localStorage = (() => {
 
 const fs = require("fs");
 global.window = {};
+// fetch 打桩：auth.js 挂载 401 拦截包装时捕获本 mock
+global.window.fetch = async () => ({ status: 401 });
 eval(fs.readFileSync("core/web/static/auth.js", "utf8"));
 
 // 1. cookieDomain: 生产子域 → .littlero.tech
@@ -58,7 +64,38 @@ assertEq(window.GalleryAuth.headers().Authorization, "Bearer abc:def", "header �
 window.GalleryAuth.clear();
 assertEq(readCookie("botero_key"), "", "cookie 清除");
 assertEq(window.GalleryAuth.load(), null, "localStorage 清除后未登录");
-console.log("ALL PASS");
+
+// 以下为异步断言（401 拦截），完成后统一输出
+(async () => {
+  // 7. 同源 API 401 → 清会话并跳登录页（next 含查询串）
+  location.pathname = "/forum";
+  location.search = "?tag=公告";
+  location.href = "";
+  window.GalleryAuth.save({ user_id: "123", token: "abc:def" });
+  const res = await window.fetch("/api/forum/posts");
+  assertEq(res.status, 401, "401 响应原样返回");
+  assertEq(location.href, "/login?next=" + encodeURIComponent("/forum?tag=公告"), "401 跳登录页带 next");
+  assertEq(window.GalleryAuth.load(), null, "401 后清会话");
+
+  // 8. /api/auth/login 的 401 是密钥错误，不拦截
+  location.href = "";
+  await window.fetch("/api/auth/login");
+  assertEq(location.href, "", "登录 API 401 不跳转");
+
+  // 9. 外域 URL 不拦截
+  location.href = "";
+  await window.fetch("https://qq.example/avatar");
+  assertEq(location.href, "", "外域 401 不跳转");
+
+  // 10. 登录页自身不拦截（防自跳循环）
+  location.pathname = "/login";
+  location.search = "";
+  location.href = "";
+  await window.fetch("/api/auth/me");
+  assertEq(location.href, "", "登录页不拦截");
+
+  console.log("ALL PASS");
+})();
 
 function assertEq(actual, expected, name) {
   if (actual !== expected) {

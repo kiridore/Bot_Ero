@@ -66,6 +66,16 @@ const GalleryAuth = {
     return Boolean(this.token());
   },
 
+  goLogin() {
+    const next = location.pathname + location.search;
+    location.href = "/login" + (next && next !== "/" ? "?next=" + encodeURIComponent(next) : "");
+  },
+
+  logout() {
+    this.clear();
+    location.href = "/login";
+  },
+
   _escape(s) {
     return String(s).replace(/[&<>"']/g, (c) => (
       { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
@@ -120,14 +130,7 @@ const GalleryAuth = {
       btn.type = "button";
       btn.className = "btn-login";
       btn.textContent = "登录";
-      btn.addEventListener("click", () => {
-        if (typeof window.openLoginDialog === "function") {
-          window.openLoginDialog();
-          return;
-        }
-        const dlg = this.ensureLoginDialog();
-        if (dlg && typeof dlg.showModal === "function") dlg.showModal();
-      });
+      btn.addEventListener("click", () => this.goLogin());
       el.appendChild(btn);
       return;
     }
@@ -143,7 +146,12 @@ const GalleryAuth = {
       `<strong>${this._escape(session.display_name || session.user_id)}</strong>` +
       `<br><span class="uid">${this._escape(session.user_id)}</span>`;
     link.append(img, wrap);
-    el.appendChild(link);
+    const logoutBtn = document.createElement("button");
+    logoutBtn.type = "button";
+    logoutBtn.className = "btn-logout";
+    logoutBtn.textContent = "退出";
+    logoutBtn.addEventListener("click", () => this.logout());
+    el.append(link, logoutBtn);
   },
 
   async login(key) {
@@ -176,3 +184,22 @@ const GalleryAuth = {
 };
 
 window.GalleryAuth = GalleryAuth;
+
+// 全局 401 拦截：页内会话失效（密钥作废/换盐）统一清会话并跳登录页。
+// 登录页自身不拦截（防自跳循环）；/api/auth/login 的 401 是密钥错误，交由表单提示。
+(function () {
+  if (typeof window.fetch !== "function") return;
+  const rawFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    return rawFetch(input, init).then((res) => {
+      if (res.status !== 401 || location.pathname === "/login") return res;
+      const url = typeof input === "string" ? input : (input && input.url) || "";
+      const sameOrigin = url.startsWith("/") || url.startsWith(location.origin);
+      if (sameOrigin && !url.startsWith("/api/auth/login")) {
+        GalleryAuth.clear();
+        GalleryAuth.goLogin();
+      }
+      return res;
+    });
+  };
+})();

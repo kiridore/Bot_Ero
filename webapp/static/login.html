@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录 · 小埃社区</title>
+  <link rel="stylesheet" href="/shared/gallery.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/static/login.css" />
+</head>
+<body>
+  <main class="login-main">
+    <section class="login-card" data-reveal>
+      <h1 class="login-title">小埃社区</h1>
+      <p class="login-sub">登录后继续访问</p>
+      <form id="loginForm">
+        <p class="login-hint">请向机器人私聊发送 <code>/图库密钥</code> 获取密钥</p>
+        <input type="password" id="loginKey" placeholder="粘贴登录密钥" autocomplete="off" required />
+        <p class="login-error hidden" id="loginError"></p>
+        <div class="login-actions">
+          <button type="submit" class="primary" id="loginSubmit">登录</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="/shared/auth.js?v=3"></script>
+  <script src="/shared/motion.js"></script>
+  <script src="/static/login.js"></script>
+</body>
+</html>

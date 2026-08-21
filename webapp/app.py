@@ -1,14 +1,15 @@
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from core.auth import verify_login_key
 from core.onebot_client import resolve_avatar_url, resolve_display_name
-from core.web.auth_deps import get_current_user_id
+from core.web.auth_deps import AUTH_COOKIE_NAME, get_current_user_id
 from webapp import STATIC_DIR
 
 from webapp.gallery.app import router as gallery_router
@@ -26,6 +27,31 @@ from webapp.weekly.app import router as weekly_router
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
 
 app = FastAPI(title="BotEro Web", version="1.0.0")
+
+# —— 全局登录门控 ——
+# 白名单：登录页/登录 API/静态资源；/api/timeline/events* 为 bot 事件上报
+# （携带独立事件令牌，由路由自身 _require_event_token 校验，不走用户登录）
+_PUBLIC_PATHS = {"/login", "/api/auth/login"}
+_PUBLIC_PREFIXES = ("/static/", "/shared/", "/api/timeline/events")
+# 未登录时返回 401（而非 302）的路径：API 与媒体子资源（<img> 跟随 302 会把登录页 HTML 当图片渲染）
+_UNAUTHORIZED_PREFIXES = ("/api/", "/thumb/", "/media/", "/forum/media/", "/archive/")
+
+
+@app.middleware("http")
+async def login_guard(request: Request, call_next):
+    path = request.url.path
+    if request.method == "OPTIONS" or path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PREFIXES):
+        return await call_next(request)
+    authorization = request.headers.get("Authorization")
+    token = authorization[7:].strip() if authorization and authorization.startswith("Bearer ") else ""
+    if not token:
+        token = request.cookies.get(AUTH_COOKIE_NAME, "")
+    if verify_login_key(token) is None:
+        if path.startswith(_UNAUTHORIZED_PREFIXES):
+            return JSONResponse({"detail": "未登录"}, status_code=401)
+        next_url = path + (("?" + request.url.query) if request.url.query else "")
+        return RedirectResponse(f"/login?next={quote(next_url, safe='')}", status_code=302)
+    return await call_next(request)
 
 
 class LoginIn(BaseModel):
@@ -67,6 +93,12 @@ def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
 @app.get("/")
 def home():
     return FileResponse(STATIC_DIR / "timeline.html")
+
+
+# 登录页（门控白名单内，未登录可访问）
+@app.get("/login")
+def login_page():
+    return FileResponse(STATIC_DIR / "login.html")
 
 
 app.include_router(gallery_router)
