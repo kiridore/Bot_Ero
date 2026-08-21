@@ -18,24 +18,25 @@
 
 | 常量 | 文件:行号 | 值 |
 |------|----------|-----|
-| WebSocket URL | `main.py:14` | `ws://127.0.0.1:3001` |
-| WS Token | `main.py:15` | `123456` |
-| 默认群号 | `core/context.py:14` | `296470819` |
+| 当前版本 | `core/config.py:10` | `BOTERO_VERSION`（单一来源，随 CHANGELOG 同步） |
+| WebSocket URL | `main.py:28` | `ws://127.0.0.1:3001` |
+| WS Token | `main.py:29` | `123456` |
+| 默认群号 | `core/context.py:16` | `296470819` |
 | 超级用户 | `core/base.py:12` | `[1057613133]` |
 | Bot QQ | `core/base.py:13` | `"3915014383"` |
 | Bot 昵称 | `core/base.py:11` | `"小埃同学"` |
-| 下载代理 | `core/utils.py:53-55` | `127.0.0.1:7890` |
-| Python 数据路径 | `core/context.py:10` | `"./server_data"` |
-| OneBot 数据路径 | `core/context.py:9` | `"/app/llonebot/server_data"` |
-| API 超时 | `core/api.py:43` | 30 秒 |
+| 下载代理 | `core/utils.py:83-85` | `127.0.0.1:7890` |
+| Python 数据路径 | `core/context.py:12` | `"./server_data"` |
+| OneBot 数据路径 | `core/context.py:11` | `"/app/llonebot/server_data"` |
+| API 超时 | `core/api.py:44` | 30 秒 |
 | 周边界偏移 | `core/utils.py:13-21` | 8 小时 (08:00) |
-| 重连延迟 | `main.py:67` | 5 秒 |
-| 系统插件（不可禁用） | `core/context.py:19-27` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome`, `message_logger` |
-| 插件命名 | `core/context.py:28-30` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
-| 群插件配置表 | `core/db/_base.py:290-295` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
-| 私聊配置 group_id | `core/context.py:40` | `0` |
-| 最大装备称号数 | `plugins/title.py:394` | 3 |
-| 群头衔最大长度 | `plugins/set_group_title.py:32` | 10 字符 |
+| 重连延迟 | `main.py:95` | 5 秒 |
+| 系统插件（不可禁用） | `core/context.py:19-28` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome`, `message_logger` |
+| 插件命名 | `core/context.py:61-62` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
+| 群插件配置表 | `core/db/_base.py:352-357` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
+| 私聊配置 group_id | `core/context.py:68` | `0` |
+| 最大装备称号数 | `plugins/title/__init__.py:106` | 3 |
+| 群头衔最大长度 | `plugins/set_group_title/__init__.py:20` | 10 字符 |
 | 年补卡上限 | `plugins/remedy_checkin/__init__.py:14` | 4 次 |
 | 周补卡费用 | `plugins/remedy_checkin/__init__.py:47` | 4 积分 |
 | 单日补卡费用 | `plugins/remedy_checkin/__init__.py:98` | 2 积分 |
@@ -107,6 +108,7 @@
 | `/商店 [商品id]` | 浏览/兑换商品 | 任何人 |
 | `/兑换码 <兑换码>` | 使用兑换码兑换奖励 | 任何人 |
 | `/称号 [子命令]` | 称号管理 | 任何人 |
+| `/称号一览` | 查看已解锁称号 | 任何人 |
 | `/创建游戏 <类型> [人数]` | 群聊创建游戏房间，类型：卧底（默认6人） | 任何人 |
 | `/开始 <房间号>` | 群聊开始游戏 | 任何人 |
 | `/加入 <房间号>` | 私聊加入游戏房间 | 任何人 |
@@ -128,6 +130,7 @@
 | `小埃同学` | 召唤 bot | 任何人 |
 | `/补卡 YYYY-MM-DD` | 周补卡（4 积分） | 任何人 |
 | `/单日补卡 YYYY-MM-DD` | 单日补卡（2 积分） | 任何人 |
+| `/周常` | 查看本周任务进度 | 任何人 |
 | `/撤回打卡` | 撤回本周打卡 | 任何人 |
 | `/群头衔 [文本]` | 设置群头衔 | 任何人 |
 | 回复 + `/加精` | 设精华消息 | 群管理员 |

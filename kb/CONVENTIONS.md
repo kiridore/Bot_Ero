@@ -6,7 +6,7 @@
 
 ## 硬性约束
 
-- **禁止 async/await** — 纯同步，多线程
+- **禁止 async/await** — bot 进程纯同步、多线程（例外：webapp/FastAPI 的 middleware/route 用 async 是合法的，不要把两套风格混进同一进程）
 - **禁止 f-string SQL** — 必须用 `?` 参数化查询
 - **禁止相对导入** — 插件间用绝对导入
 - **match() 禁止副作用** — 不发消息、不写数据库
@@ -65,7 +65,7 @@ logger.exception("...")  # 自动附带 traceback
 ## 已知技术债
 
 - `user_id` 在数据库中类型不一致（TEXT vs INTEGER），跨表查询需 CAST
-- 无配置文件，所有设置硬编码在源码中
+- 配置半环境变量化：路径/盐/端口/开关等约 30 个 `BOTERO_*` 环境变量集中在 `core/config.py`，`scripts/botero.env` 是部署侧单一来源；但 WS 地址/token、默认群号、超级用户、下载代理等仍硬编码在源码（见 `kb/QUICK_REFERENCE.md` 硬编码常量表）
 - 无迁移框架，Schema 演化依赖手动 PRAGMA + ALTER
 - 无测试框架，`test/` 下是临时测试脚本
 - 部分旧表 (user_title_state, group_alarms repeat_y/m/d) 已被新设计取代但未删除

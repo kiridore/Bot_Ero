@@ -1,6 +1,6 @@
 # 数据库 Schema
 
-> 全部 20+ 张表的结构与约束
+> `data.db` 全部 44 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
 >
 > 参见 `specs/database.md` 获取更简化的概述
 
@@ -306,6 +306,22 @@ CREATE TABLE activity_members (
 
 ---
 
+## 时间线
+
+### `timeline_events`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | TEXT | PRIMARY KEY | 事件 id（发送方生成，含随机 uuid） |
+| `source` | TEXT | NOT NULL, UNIQUE(source, id), UNIQUE(source, dedup_key) | 事件来源（checkin/forum/tools/timeline…，见 `specs/timeline-protocol.md`） |
+| `received_at` | TEXT | NOT NULL | 入库时间（keyset 分页游标 `received_at DESC, id DESC`） |
+| `actor_id` | TEXT | NOT NULL | 行为主体（`{id:<user_id>}` 占位符解析昵称/头像） |
+| `actor_qq` | TEXT | | 预留绑定外部账号 |
+| `target_type` / `target_url` | TEXT | | 卡片链接 |
+| `title` | TEXT | NOT NULL | 卡片标题 |
+| `description` / `data` | TEXT | | 描述 / 附加 JSON（图片等） |
+| `dedup_key` | TEXT | | 去重键（粒度=业务动作实例，重发同 key 撤回） |
+
 ## 时间线（未读/已读状态）
 
 ### `timeline_user_watermarks`
@@ -362,6 +378,152 @@ CREATE TABLE activity_members (
 
 期号 = `SELECT COUNT(*) FROM weekly_reports WHERE group_id=? AND week_key <= ?`。
 
+## 谁是卧底统计
+
+### `user_game_stats`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `user_id` | TEXT | PRIMARY KEY | 用户 QQ 号 |
+| `total_games` | INTEGER | NOT NULL DEFAULT 0 | 累计参加场数 |
+| `total_wins` | INTEGER | NOT NULL DEFAULT 0 | 累计获胜场数 |
+| `civilian_wins` | INTEGER | NOT NULL DEFAULT 0 | 平民方获胜场数 |
+| `spy_wins` | INTEGER | NOT NULL DEFAULT 0 | 卧底方获胜场数 |
+
+累计成就称号（301-309）的判定数据源，读写 `plugins/who_is_spy/`。
+
+## 议事厅
+
+DDL 全部在 `core/db/_base.py`，业务读写 `core/db/forum.py`；`user_id` 均为 TEXT（web 侧 `get_current_user_id` 直写）。
+
+### `forum_posts`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 帖子 id（时间线事件 key `forum_post:{id}`） |
+| `author_user_id` | TEXT | NOT NULL | 作者 QQ 号 |
+| `type` | TEXT | NOT NULL | `article` / `notice` / `poll` |
+| `title` | TEXT | NOT NULL | 标题 |
+| `body_json` | TEXT | NOT NULL DEFAULT '' | Tiptap 富文本 JSON |
+| `status` | TEXT | NOT NULL DEFAULT 'open' | open / deleted |
+| `pinned` | INTEGER | NOT NULL DEFAULT 0 | 置顶（列表排序 `pinned DESC, id DESC`） |
+| `created_at` / `updated_at` | TEXT | NOT NULL | 时间戳 |
+| `notified_at` | TEXT | | 群通知时刻（`forum_notify` 取 `IS NULL` 的发通知） |
+| `poll_anonymous` | INTEGER | NOT NULL DEFAULT 0 | 投票匿名 |
+| `poll_deadline` | TEXT | | 投票截止（过期自动关闭） |
+
+### `forum_polls`（多子投票，1.15.0）
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 子投票 id |
+| `post_id` | INTEGER | NOT NULL, FK→forum_posts ON DELETE CASCADE | 所属帖子 |
+| `title` | TEXT | NOT NULL DEFAULT '' | 子投票问题 |
+| `allow_multi` | INTEGER | NOT NULL DEFAULT 0 | 0=单选（一人一票）/ 1=多选（可投多个选项，同选项不重复） |
+| `ord` | INTEGER | NOT NULL | 展示顺序 |
+
+> 旧列 `forum_posts.poll_allow_multi` 已废弃；旧库经 `_migrate_forum_polls` 自动迁移（选项重挂子投票、投票重映射、唯一约束改 `(poll_id, option_id, user_id)`）。
+
+### `forum_poll_options`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 选项 id |
+| `poll_id` | INTEGER | NOT NULL, FK→forum_polls ON DELETE CASCADE | 所属子投票 |
+| `text` | TEXT | NOT NULL | 选项文案 |
+| `ord` | INTEGER | NOT NULL | 展示顺序 |
+
+### `forum_poll_votes`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `poll_id` | INTEGER | NOT NULL, UNIQUE(poll_id, option_id, user_id) | 子投票 |
+| `option_id` | INTEGER | NOT NULL, FK→forum_poll_options ON DELETE CASCADE | 选项 |
+| `user_id` | TEXT | NOT NULL | 投票人 |
+| `created_at` | TEXT | NOT NULL | 时间戳 |
+
+### `forum_comments`（两级嵌套回复链，1.20.0）
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 评论 id（时间线事件 key `forum_comment:{id}`） |
+| `post_id` | INTEGER | NOT NULL, FK→forum_posts ON DELETE CASCADE | 所属帖子 |
+| `author_user_id` | TEXT | NOT NULL | 作者 |
+| `body_text` | TEXT | NOT NULL | 纯文本 |
+| `status` | TEXT | NOT NULL DEFAULT 'open' | open / deleted（软删占位：有存活回复的删除保留占位与回复链） |
+| `parent_id` | INTEGER | ALTER 加列 | 直接回复目标（顶层评论为 NULL） |
+| `root_id` | INTEGER | ALTER 加列 | 所属顶层评论（分组键；回复的回复仍指顶层，UI 标注「回复 @某人」） |
+| `created_at` | TEXT | NOT NULL | 时间戳 |
+| `edited_at` | TEXT | ALTER 加列 | 编辑时间（显示「已编辑」） |
+
+> 分页：顶层评论 `id DESC` keyset，replies 串内 `id ASC`；回复目标不存在/跨帖/已软删 → 400。
+
+### `forum_tags` / `forum_post_tags`
+
+```sql
+CREATE TABLE forum_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE forum_post_tags (
+    post_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (post_id, tag_id),
+    FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES forum_tags(id) ON DELETE CASCADE
+);
+```
+
+> tag 列表仅返回被引用 tag（count>0）；删帖/编辑后引用归零的悬空 tag 自动删除。
+
+## 工具箱
+
+DDL 在 `core/db/_base.py`，读写 `core/db/tools.py`；图片解析兜底 `webapp/tools/icon.py`。
+
+### `tools_links`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 卡片 id |
+| `title` / `description` / `url` / `domain` | TEXT | NOT NULL | 链接信息（domain 供图标解析） |
+| `created_by` | TEXT | NOT NULL | 提交者 QQ 号（仅本人可编辑/删除） |
+| `created_at` | TEXT | NOT NULL | 时间戳 |
+| `click_count` | INTEGER | NOT NULL DEFAULT 0 | 点击统计（公开计数） |
+
+### `tools_tags` / `tools_link_tags`
+
+```sql
+CREATE TABLE tools_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE tools_link_tags (
+    link_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (link_id, tag_id),
+    FOREIGN KEY (link_id) REFERENCES tools_links(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tools_tags(id) ON DELETE CASCADE
+);
+```
+
+> tag 提交时逗号分隔自由创建（create-or-get），每链接 ≤10 个、每个 ≤20 字；页面展示 tag 云（全部 tag 及使用数量）。
+
+### `tools_icon_cache`
+
+| 列 | 类型 | 约束 | 说明 |
+|----|------|------|------|
+| `domain` | TEXT | PRIMARY KEY | 域名 |
+| `bytes` | BLOB | | 图标二进制（服务端抓首页 `<link rel=icon>` 解析） |
+| `content_type` | TEXT | | MIME |
+| `fetched_at` | TEXT | NOT NULL | 抓取时间 |
+| `not_found` | INTEGER | NOT NULL DEFAULT 0 | 无图标负缓存（7 天） |
+
 ## 抽奖流水（周报统计用）
 
 ### `lottery_draw_log`
@@ -380,7 +542,7 @@ CREATE TABLE activity_members (
 
 ## 重要约束
 
-- **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER；例外：web 侧由 `get_current_user_id` 直接写入的新表（如 `timeline_user_watermarks`/`timeline_read_events`）用 TEXT，与 `forum_posts.author_user_id` 一致。
+- **user_id 类型不一致:** `user_assets`/`user_titles` 等旧表用 TEXT，`checkin_records`/抽奖等新表用 INTEGER。新增表统一用 INTEGER；例外：web 侧由 `get_current_user_id` 直接写入的新表（如 `timeline_*`/`forum_*`/`tools_*`/`user_game_stats`）用 TEXT，与 `forum_posts.author_user_id` 一致。
 - **无迁移框架:** Schema 演化通过在 `DbManager.__init__()` 中 `PRAGMA table_info` + `ALTER TABLE ADD COLUMN` 手动执行
 - **不用 DROP COLUMN / ALTER COLUMN**（旧版 SQLite 不支持）
 - **事务:** 多步原子操作用 `BEGIN IMMEDIATE` + try/except/rollback

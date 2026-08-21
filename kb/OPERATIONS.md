@@ -12,8 +12,7 @@
 python main.py
 ```
 
-依赖: `websocket-client` `requests` `Pillow` `jieba`（周报热词分词）
-可选: `psutil` (系统监控) `GitPython` (更新) `openai` (LLM，已弃用)
+依赖清单见根目录 `requirements.txt`（`pip install -r requirements.txt`）：核心 `websocket-client` `requests` `Pillow`，可选 `jieba`（周报热词）、`psutil`（系统监控）、`GitPython`（更新）、`openai`（LLM，已弃用）。
 
 ### Web 应用部署
 
@@ -23,7 +22,17 @@ python -m webapp
 
 > 登录密钥盐经 `scripts/botero.env` 单一来源注入（bot 的 `main.py` 启动时自动加载该文件；webapp 生产环境经 systemd `EnvironmentFile`）。无需手动 export，改盐只改该文件。
 
-单进程承载导航主页（`/`）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` `/weekly`），Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
+单进程承载时间线社区主页（`/`，timeline 模块页面，登录可见）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` `/weekly`）+ 独立登录页 `/login`，Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
+
+### 全站登录门控（1.18.0 起）
+
+`webapp/app.py` 的 `login_guard` 中间件对全部路由做登录检查：
+
+- **白名单**（无需登录）：`/login`、`/api/auth/login`、`/static/*`、`/shared/*`、`/api/timeline/events*`（bot 事件上报走独立事件令牌自鉴权）
+- **未登录访问**：页面（含 `/`）302 → `/login?next=…`（`next` 仅接受站内相对路径，防开放重定向，登录后跳回）；API 与图片媒体（`/api/` `/thumb/` `/media/` `/forum/media/` `/archive/` 前缀）返回 401
+- **凭证双通道**：`Authorization: Bearer <key>` 头 或 根域 cookie `botero_key` 任一即可（页面导航带不了 header，cookie 是页面门控凭据；`core/web/auth_deps.py` 的依赖注入同样 cookie 兜底）
+- **登录页**：`/login`（报纸风独立页，`login.html`/`login.js`）；cookie 丢失但会话仍有效时自动跳回（会话自愈）
+- **退出**：各页用户卡片旁「退出」按钮，客户端清会话回登录页；`/shared/auth.js` 全局拦截同源 fetch 401，失效自动清会话跳 `/login`
 
 周报新增 env：`BOTERO_MESSAGE_LOG_DB_PATH`（默认 `server_data/message_log.db`）、`BOTERO_WEB_BASE_URL`（默认 `https://littlero.tech`，周报通知链接前缀）、`BOTERO_WEEKLY_NOTIFY`（`1` 开启周报群通知，默认 `0` 关闭；首周测试期保持关闭）。
 
@@ -153,5 +162,13 @@ forward(messages)     # [{"type": "node", "data": {"content": [...]}}]
 | 1.7 | 定时插件系统、修复丢失图片 |
 | 1.8 | 单日补卡、更多积分消费、称号系统 |
 | 1.9 | 社区时间线、议事厅、兑换码、Web 单进程收敛 |
-| 2.0 | 计划: 时间线事件治理、外部系统绑定、议事厅迭代、时间线增强（详见 `roadmap.md`；旧日志/事件队列/LLM 计划已废弃） |
-| 2.1 | 未定义 |
+| 1.10 – 1.12 | 工具箱模块、议事厅正文图片、全站零依赖动效层、时间线报头动效 |
+| 1.13 | 议事厅帖子编辑/删除、悬空 tag 清理、富文本渲染修复 |
+| 1.14 | 小埃周报（message_logger + weekly 模块）、抽奖流水 |
+| 1.15 | 议事厅投票单选/多选 + 多子投票 |
+| 1.16 | 时间线实时轮询 + 逐卡未读已读（读状态 API） |
+| 1.17 | 时间线/议事厅图片灯箱 |
+| 1.18 | 全站登录门控、独立登录页、登录态双通道 |
+| 1.19 – 1.20 | 未读高亮渐变褪回、称号文案调整、议事厅评论两级嵌套回复链/编辑/软删 |
+
+> 后续方向见 `roadmap.md`（2.0 计划：时间线事件治理、外部系统绑定、议事厅/时间线/工具箱迭代、webapp 工程化）。

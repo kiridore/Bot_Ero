@@ -69,11 +69,11 @@
 | 40 | `monitor` | `monitor/` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
 | 41 | `update` | `update/` | `/更新` | super_user() | git pull + os.execv 重启 |
 | 42 | `shop_manual_refresh` | `redeem_shop/` | `/刷新商店` | admin_user() | 手动刷新商店 |
-| 43 | `group_manager` | `group_manager/` | CommandPlugin `/群插件列表`/`/启用插件`/`/禁用插件`/`/全局插件列表`/`/全局启用`/`/全局禁用` | super_user() | 管理各群插件启用状态 |
+| 43 | `group_manager` | `group_manager/` | CommandPlugin `/插件`/`/功能包`，参数 `<名称\|列表> [off\|关闭] [群号]` | super_user() | 管理各群插件/功能包启用状态 |
 
 ## 功能包
 
-定义在 `core/feature_packs/`：
+定义在 `core/feature_packs.py`：
 
 | 功能包 | 包含插件 | 说明 |
 |--------|---------|------|
@@ -123,5 +123,5 @@ core.utils (on_quest_trigger, on_quest_rollback)
 
 | 目录/文件 | 状态 | 说明 |
 |-----------|------|------|
-| `robot/` | 废弃 | 空目录，无需整理 |
 | `core/llm/` | 已弃用 | LLM 对话子系统，代码完整但未集成 |
+| `plugins/message_stats/` | 残留 | 仅剩 `__pycache__`，无注册插件，未列入目录 |
