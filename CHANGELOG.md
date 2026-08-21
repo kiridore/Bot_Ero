@@ -66,6 +66,7 @@
 
 ### 文档
 
+- **规范文档同步**：`specs/architecture.md` 依赖树补全 `core/db/`（17 个业务 manager）、`core/web/`、`core/config.py`、`core/auth.py` 等模块，`plugin_pool` 代码段更新为含插件启用检查与框架层异常捕获的真实实现，入口点补 `scripts/botero.env` 环境注入步骤；`specs/conventions.md` 修正「无根级 requirements.txt」的失效声明（依赖清单已存在）、去掉重复的 print 禁令、硬编码常量章节注明 `BOTERO_*` 环境变量化现状；`specs/web-gallery.md` 两处静态资源清单补 `nav.js`/`lightbox.js`/`icons.js` 与 forum/tools/weekly 静态文件（共 49 个）；`specs/README.md` 更新 web-gallery 领域描述并注明 `llms.txt` 为上游文档镜像而非 spec
 - **知识库全量同步**：修复 `KNOWLEDGE_BASE.md` 总索引的编辑残损行与模块数（10→11），目录树补 `scripts/`、`docs/`、`core/web/` 与 `nav.js`/`icons.js`；`kb/DATABASE.md` 补议事厅 7 表（多子投票/两级嵌套评论）、工具箱 4 表、`timeline_events`、`user_game_stats`（表数 20+ → 44+1）；`kb/OPERATIONS.md` 新增全站登录门控章节、版本表补 1.10–1.20；`kb/GAMEPLAY.md` 修正抽奖概率（0 积分 31%、普通 12%、稀有 5%、传说 4%）与卧底指令名；`kb/QUICK_REFERENCE.md` 批量刷新失效的 file:line 引用并补 `/周常`、`/称号一览`；`kb/PLUGIN_CATALOG.md` 修正 `/插件` 指令与功能包路径
 - **提交规范新增分块要求**：一个 commit 只承载一个逻辑变更，无关改动（功能/修复/测试/文档）必须拆开提交；同一逻辑变更的配套文件（代码+测试+spec+菜单+CHANGELOG+KB）仍在同一 commit。`specs/conventions.md` 新增 §Commit 提交分块，`commit-msg` 钩子对单次暂存 >12 个文件输出分块提示（警告不阻断）
 - **归档 superpowers 文档**：不再使用 superpowers skill 开发，将 `docs/superpowers/`（7 篇设计文档 + 10 篇实施计划）整体归档至 `docs/archive/superpowers/`，删除 `.superpowers/` 工作目录，并同步更新 CLAUDE.md / KNOWLEDGE_BASE.md / specs/timeline-protocol.md / docs/web-apps-deployment.md 中的引用路径

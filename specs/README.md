@@ -30,10 +30,12 @@
 | [`architecture.md`](architecture.md) | 系统架构与事件流 | 理解系统 |
 | [`onebot-protocol.md`](onebot-protocol.md) | OneBot v11 协议 | 消息收发 |
 | [`plugin-catalog.md`](plugin-catalog.md) | 全部插件注册表 | 查重、了解现有功能 |
-| [`llm-subsystem.md`](llm-subsystem.md) | LLM 子系统 | LLM 功能开发 |
-| [`web-gallery.md`](web-gallery.md) | Web 打卡图库 | Web 端开发 |
+| [`llm-subsystem.md`](llm-subsystem.md) | LLM 子系统（已弃用） | 了解遗留设计，勿新增依赖 |
+| [`web-gallery.md`](web-gallery.md) | Web 应用（单进程 webapp：11 模块 + 全站登录门控） | Web 端开发 |
 | [`image-generation.md`](image-generation.md) | 图片生成 | 热度图/档案卡 |
 | [`timeline-protocol.md`](timeline-protocol.md) | 社区时间线事件协议 | 时间线事件发送/接收 |
+
+> `llms.txt` 不是 spec：它是 LLOneBot 上游文档索引的镜像（编辑 OneBot 协议代码前按 `onebot-protocol.md` §权威上游文档 fetch 对应单页）。
 
 ## 阅读顺序（新开发者）
 

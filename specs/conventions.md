@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [database.md](database.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-06-29
+> 最后更新: 2026-08-22
 
 本文档记录项目中**不在代码中显式声明**但必须遵守的约定和隐式知识。新开发者（含 AI）最容易在这里犯错。
 
@@ -143,7 +143,6 @@ logger.exception("异常（自动附带 traceback）")
 - 日志格式: `[bot] %(asctime)s - %(levelname)s - %(message)s`
 - 日志级别: `INFO`
 - **MUST NOT** 使用 `print()` 代替 logger
-- **MUST NOT** 使用 `print()` 代替 logger
 - `main.py` 的 `plugin_pool()` 已在框架层统一 catch 插件异常并记录 `logger.exception()`；插件 `handle()` 不再强制自行 try/except（但复杂子逻辑仍建议有自己的错误处理）
 
 ---
@@ -170,7 +169,7 @@ if TYPE_CHECKING:
 **MUST NOT:**
 - 使用相对导入（`from . import ...` / `from .. import ...`）
 - 从 `plugins` 导入另一个插件的类实例（导入纯函数/数据是可以的）
-- 跨包做循环导入（如 `plugins` ↔ `gallery` 之间不要互相导入）
+- 跨包做循环导入（如 `plugins` ↔ `webapp` 之间不要互相导入）
 
 ---
 
@@ -205,17 +204,18 @@ def handle(self):
 
 ## Constraint: 添加依赖
 
-项目**没有** `pyproject.toml` 或根级 `requirements.txt`。
+项目**没有** `pyproject.toml` / `setup.py`；根目录 `requirements.txt` 是 bot 全量依赖清单（`pip install -r requirements.txt`），`webapp/requirements.txt` 是 webapp 子集。
 
 当前依赖：
-- **机器人:** `websocket-client`, `requests`, `Pillow`
-- **LLM:** `openai`
+- **机器人核心:** `websocket-client`, `requests`, `Pillow`
+- **周报热词:** `jieba`
+- **LLM（已弃用）:** `openai`
 - **更新:** `GitPython`
 - **系统监控:** `psutil`（可选，MonitorPlugin 会自动降级）
-- **Web 应用:** 见 `webapp/requirements.txt`
+- **Web 应用:** `fastapi`, `uvicorn`, `python-multipart` 等（见 `webapp/requirements.txt`）
 
 **添加新依赖的流程:**
-1. 在对应的 requirements.txt 中添加
+1. 在根 `requirements.txt` 添加（webapp 专用依赖同步进 `webapp/requirements.txt`）
 2. 在本文件中记录
 3. 考虑做可选依赖（如同 `psutil` 的处理方式）
 
@@ -246,7 +246,7 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 | 机器人 QQ | `core/base.py` | `"3915014383"` |
 | 下载代理 | `core/utils.py` | `127.0.0.1:7890` |
 
-目前无配置文件，修改这些值需直接编辑源码。
+以上六个值仍硬编码在源码，修改需直接编辑（精确 file:line 见 `kb/QUICK_REFERENCE.md` 硬编码常量表）。路径/盐/端口/开关类配置已环境变量化：约 30 个 `BOTERO_*` 变量集中读入 `core/config.py`，部署侧单一来源 `scripts/botero.env`。
 
 ---
 

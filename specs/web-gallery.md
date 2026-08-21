@@ -60,7 +60,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | `core/database_manager.py` + `core/db/` | `DbManager` 统一数据库访问（WAL + busy_timeout=5000；checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook 各业务 manager） |
 | `core/character_store.py` / `core/user_settings.py` | 角色卡/个人设置 JSON 存储（原子写 tmp + os.replace） |
 | `core/trpg/` | 跑团规则与角色派生计算 |
-| `core/web/static/` | 共享静态（auth.js / gallery.css / profile.css / motion.css / motion.js），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
+| `core/web/static/` | 共享静态（auth.js / nav.js / gallery.css / profile.css / motion.css / motion.js / lightbox.js / icons.js），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
 
 - Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，全站唯一来源），禁止在子应用样式文件引入新的硬编码颜色。
 
@@ -427,22 +427,30 @@ with _connect() as conn:
 ```
 core/web/static/
   auth.js       ← 认证 token 管理（单 origin localStorage 共享 + 根域 cookie 作为页面门控凭据；全局 fetch 401 拦截跳 /login；goLogin/logout/renderAuth（登录按钮 + 用户 chip + 退出按钮）；HTML 引用带 ?v= 缓存版本号）
-  gallery.css   ← 图库样式（含 .btn-logout）
+  nav.js        ← 站点导航条（全站共享，当前分区高亮；部署时改 NAV_HOME_URL）
+  gallery.css   ← 报纸风主题 token 全站唯一来源（含 .btn-logout）
   profile.css   ← 个人中心样式
+  motion.css / motion.js ← 全站动效层（见下节）
+  lightbox.js   ← 共享图片灯箱（时间线 .tl-images a 与议事厅 img.forum-img 点击放大）
+  icons.js      ← 自托管 lucide SVG 图标（工具箱操作按钮等）
 ```
 
-全部模块静态合并为**单一目录 `webapp/static/`**（文件名全局唯一，以 `/static` 挂载，由 `webapp/app.py` mount）：
+全部模块静态合并为**单一目录 `webapp/static/`**（49 个文件，文件名全局唯一，以 `/static` 挂载，由 `webapp/app.py` mount）：
 
 ```
 webapp/static/
   login.html + login.js + login.css        ← 独立登录页（密钥表单 + next 回跳 + 会话自愈）
-  index.html + gallery.js                       ← 图库主页（瀑布流 + 无限滚动）
+  index.html + gallery.js                       ← 图库主页 /gallery（瀑布流 + 无限滚动）
   profile.html/js、checkin.html/js、shop.html/js、settings.html/js
   trpg.html/js（车卡管理）、char_view.html/js（只读查看）、trpg.css
   guestbook.html/js、guestbook.css
   alarms.html/js、alarms.css
   activities.html/js、activities_detail.html/js
   live.html/live.js/mpegts.min.js             ← 直播间（mpegts.js 1.7.3 内置，与 SRS 官方播放器同款；flv.js 1.6.2 与该 SRS 实例不兼容已弃用）
+  timeline.html + timeline.js + timeline.css  ← 时间线社区主页（根路径 /）
+  forum.html/js/css、forum_detail.html/js、forum_new.html/js、forum_tags.html/js ← 议事厅（/forum）
+  tools.html/js/css                            ← 工具箱（/tools）
+  weekly.html/js/css                           ← 周报（/weekly）
 ```
 
 时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/gallery.css` 的报纸风 token）。

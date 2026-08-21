@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [onebot-protocol.md](onebot-protocol.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-06-29
+> 最后更新: 2026-08-22
 
 ---
 
@@ -45,9 +45,10 @@
 ## Constraint: 入口点 (main.py)
 
 `main.py` 是唯一入口，负责：
-1. 建立 WebSocket 连接到 OneBot 服务端
-2. 注册 `on_message` 回调
-3. 掉线自动重连
+1. **环境注入**：加载 `scripts/botero.env`（`os.environ.setdefault`，必须在 import core 之前——`core.config` 在 import 时读取环境变量；进程已有环境变量优先）
+2. 建立 WebSocket 连接到 OneBot 服务端
+3. 注册 `on_message` 回调
+4. 掉线自动重连
 
 ```python
 # 配置（硬编码）
@@ -92,14 +93,26 @@ def on_message(_, message):
         t.start()
 ```
 
-`plugin_pool()` 遍历所有已注册插件：
+`plugin_pool()` 遍历所有已注册插件（框架层统一 try/except，插件异常不会静默死线程）：
 
 ```python
 def plugin_pool(context, event_type):
+    group_id = context.get("group_id")
     for plugin_cls in runtime_context.plugin_registry:
+        if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
+            continue   # 系统插件始终启用；群/私聊按 group_plugin_config 表判断
+        # 跑团录制期间跳过非跑团功能包插件
+        if group_id is not None and runtime_context.is_group_recording(group_id):
+            if not runtime_context.is_plugin_allowed_during_recording(
+                runtime_context.plugin_key(plugin_cls)
+            ):
+                continue
         plugin = plugin_cls(context)
-        if plugin.match(event_type):
-            plugin.handle()
+        try:
+            if plugin.match(event_type):
+                plugin.handle()
+        except Exception:
+            logger.exception("插件 %s 处理失败", plugin_cls.__name__)
 ```
 
 **关键属性:**
@@ -132,21 +145,32 @@ def resolve_event_type(context):
 ## Constraint: 模块依赖关系
 
 ```
-main.py
+main.py（启动先加载 scripts/botero.env → 再 import core）
  ├── core.api          (WS_APP, Echo 单例)
- ├── core.context      (plugin_registry, 路径常量)
+ ├── core.context      (plugin_registry, SYSTEM_PLUGINS, 路径常量)
  ├── core.logger       (全局 logger)
  └── plugins           (触发自动发现 → 注册所有插件)
        └── core.base    (Plugin, CommandPlugin, TimedHeartbeatPlugin)
            ├── core.event      (Event 包装器)
            ├── core.api        (ApiWrapper — 每个插件实例一个)
            ├── core.cq         (消息段构造器)
-           └── core.database_manager  (DbManager — 每个插件实例一个)
-                └── core.context (路径常量)
+           └── core.database_manager  (DbManager — 每个插件实例一个；统一 DB_PATH + WAL + busy_timeout)
+                └── core.db/*  (按业务拆分的表管理层：checkin/points/shop/lottery/titles/
+                                alarm/immortal/quest/activity/guestbook/redeem/timeline/
+                                forum/tools/weekly/message_log/purge_user，DDL 集中在 _base.py)
 
-core.llm.*            ← LLM 子系统（独立分层，见 llm-subsystem.md）
-core.gen_image.*      ← 图片生成（独立，见 image-generation.md）
-webapp/*     ← Web 应用（单进程，见 web-gallery.md）
+core.config            ← 全部 BOTERO_* 环境变量读取（bot 与 webapp 共用）
+core.auth              ← make_login_key / verify_login_key（HMAC 登录密钥）
+core.title_defs        ← TITLE_DEFS 导入时快照（bot 与 webapp 各自加载）
+core.feature_packs     ← 功能包定义（/功能包 批量开关）
+core.onebot_client     ← resolve_display_name / resolve_avatar_url（web 侧昵称头像解析）
+core.timeline_client   ← emit_event / retract_event（bot 侧时间线上报，best-effort）
+core.character_store / core.user_settings ← JSON 存储（trpg_chars/ 与 user_settings/）
+core.trpg/*            ← 跑团规则与角色派生计算
+core.llm.*             ← LLM 子系统（已弃用，见 llm-subsystem.md）
+core.gen_image.*       ← 图片生成（独立，见 image-generation.md）
+core.web/              ← Web 共享层（auth_deps.py 登录依赖注入 + static/ 共享静态）
+webapp/*               ← Web 应用（单进程 11 模块，见 web-gallery.md）
 ```
 
 **循环导入:** 目前存在以下循环关系（已知，不轻易打破）:
