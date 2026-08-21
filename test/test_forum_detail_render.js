@@ -6,11 +6,17 @@ function makeEl(tag) {
   return {
     tagName: tag, id: "", className: "", textContent: "", innerHTML: "",
     children: [], attributes: {}, style: {}, dataset: {}, href: undefined,
-    value: "", disabled: false, hidden: undefined,
+    value: "", disabled: false, hidden: undefined, parentNode: null, _ls: {},
     setAttribute(k, v) { this.attributes[k] = v; if (k === "href") this.href = v; },
-    addEventListener() {},
-    appendChild(c) { this.children.push(c); return c; },
-    append(...cs) { this.children.push(...cs); },
+    addEventListener(t, fn) { (this._ls[t] = this._ls[t] || []).push(fn); },
+    fire(t, ev) { (this._ls[t] || []).forEach((f) => f(ev || { target: this, preventDefault() {} })); },
+    remove() { this._removed = true; },
+    replaceWith(el) { this._replacedBy = el; },
+    closest() { return null; },
+    focus() {},
+    appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+    append(...cs) { cs.forEach((c) => { c.parentNode = this; }); this.children.push(...cs); },
+    insertBefore(c) { c.parentNode = this; this.children.push(c); return c; },
     querySelector() { return null; },
     querySelectorAll() { return []; },
     showModal() { this.open = true; },
@@ -23,7 +29,7 @@ let fail = 0;
 function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!ok) fail++; }
 
 // 每次场景重建全局 DOM 并 eval 真实脚本
-function runScenario(sessionUid, authorUid, payloadOverride) {
+function runScenario(sessionUid, authorUid, payloadOverride, commentsOverride) {
   const els = {};
   global.location = {
     hostname: "127.0.0.1", protocol: "http:", search: "", href: "http://127.0.0.1/forum/1",
@@ -33,7 +39,9 @@ function runScenario(sessionUid, authorUid, payloadOverride) {
   global.document = {
     createElement: (t) => makeEl(t),
     createDocumentFragment: () => makeEl("fragment"),
-    getElementById: (id) => els[id] || null,
+    getElementById: (id) => els[id]
+      || (els.commentForm ? els.commentForm.parentNode.children.find((c) => c.id === id) : null)
+      || null,
     body: { appendChild(c) { els[c.id] = c; } },
     head: { appendChild() {} },
     cookie: "",
@@ -54,6 +62,7 @@ function runScenario(sessionUid, authorUid, payloadOverride) {
     els[id] = makeEl("div");
     els[id].id = id;
   });
+  els.commentForm.parentNode = makeEl("div");
 
   const postPayload = Object.assign({
     id: 1, type: "post", title: "测试帖", body_json: "", status: "open",
@@ -63,7 +72,10 @@ function runScenario(sessionUid, authorUid, payloadOverride) {
   }, payloadOverride || {});
   global.fetch = async (url) => {
     const u = String(url);
-    if (u.includes("/comments")) return { ok: true, status: 200, json: async () => ({ items: [], next_cursor: null }) };
+    if (u.includes("/comments")) return {
+      ok: true, status: 200,
+      json: async () => commentsOverride || { items: [], next_cursor: null, total: 0 },
+    };
     if (u.includes("/api/forum/posts/")) return { ok: true, status: 200, json: async () => postPayload };
     return { ok: false, status: 404, json: async () => ({}) };
   };
@@ -117,6 +129,68 @@ function runScenario(sessionUid, authorUid, payloadOverride) {
   check("标题渲染为 <h2>", html.includes("<h2>小标题</h2>"));
   check("列表渲染为 ul/li/p", html.includes("<ul><li><p>列表项</p></li></ul>"));
   check("正文 HTML 仍被转义（防 XSS）", html.includes("&lt;b&gt;原样&lt;/b&gt;&amp;"));
+
+  // 场景 5：评论线程渲染 — 顶层 + 缩进回复串 + 占位 + 操作按钮显隐
+  const A_UID = "1057613133", B_UID = "3915014383";
+  const threadPayload = {
+    items: [
+      {
+        id: 1, post_id: 1, author_user_id: A_UID, body_text: "顶层评论", status: "open",
+        created_at: "2026-08-14 10:00:00", edited_at: null, parent_id: null, root_id: null,
+        author_name: "作者", author_avatar: "",
+        replies: [
+          {
+            id: 2, post_id: 1, author_user_id: B_UID, body_text: "直接回复", status: "open",
+            created_at: "2026-08-14 10:01:00", edited_at: null, parent_id: 1, root_id: 1,
+            author_name: "路人", author_avatar: "",
+          },
+          {
+            id: 3, post_id: 1, author_user_id: A_UID, body_text: "回复的回复", status: "open",
+            created_at: "2026-08-14 10:02:00", edited_at: "2026-08-14 10:03:00", parent_id: 2, root_id: 1,
+            author_name: "作者", author_avatar: "", reply_to_user_id: B_UID, reply_to_name: "路人",
+          },
+          {
+            id: 4, post_id: 1, author_user_id: B_UID, body_text: "", status: "deleted",
+            created_at: "2026-08-14 10:04:00", edited_at: null, parent_id: 2, root_id: 1,
+            author_name: "路人", author_avatar: "", reply_to_user_id: B_UID, reply_to_name: "路人",
+          },
+        ],
+      },
+    ],
+    next_cursor: null, total: 3,
+  };
+  const els5 = runScenario(B_UID, A_UID, null, threadPayload);
+  await new Promise((r) => setTimeout(r, 120));
+  const top5 = els5.commentsList.children[0];
+  const replies5 = els5.commentsList.children[1];
+  check("顶层评论渲染", top5 && top5.dataset.commentId === 1 && top5.children[1].textContent === "顶层评论");
+  check("回复串容器渲染", replies5 && replies5.className === "forum-comment-replies"
+    && replies5.children.length === 3);
+  const rr5 = replies5.children[1];
+  const rrMetaText = rr5.children[0].children[0];
+  check("回复的回复标注 @目标", rrMetaText.children.some((c) => c.className === "forum-reply-to" && c.textContent === " · 回复 @路人"));
+  check("已编辑标记", rrMetaText.children.some((c) => c.className === "is-edited"));
+  const delBody = replies5.children[2].children[1];
+  check("软删占位文案", delBody.textContent === "该评论已删除");
+  const topActions5 = top5.children[0].children.filter((c) => c.className === "forum-comment-actions")[0];
+  check("非作者只见「回复」按钮", topActions5 && topActions5.children.length === 1 && topActions5.children[0].textContent === "回复");
+  const ownActions5 = replies5.children[0].children[0].children.filter((c) => c.className === "forum-comment-actions")[0];
+  check("本人评论可见回复/编辑/删除", ownActions5 && ownActions5.children.map((b) => b.textContent).join(",") === "回复,编辑,删除");
+  check("total 评论计数", els5.commentCount.textContent === "(3)");
+
+  // 场景 6：点「回复」→ 底部表单出现回复 chip
+  topActions5.children[0].fire("click");
+  const chip = els5.commentForm.parentNode.children.find((c) => c.id === "replyChip");
+  check("回复 chip 出现并显示目标", chip && chip.children[0].textContent === "回复 @作者：");
+  chip.children[1].fire("click");
+  check("点 × 清除回复目标", chip._removed === true);
+
+  // 场景 7：未登录 → 无任何评论操作按钮
+  const els7 = runScenario(null, A_UID, null, threadPayload);
+  await new Promise((r) => setTimeout(r, 120));
+  const top7 = els7.commentsList.children[0];
+  const acts7 = top7.children[0].children.filter((c) => c.className === "forum-comment-actions")[0];
+  check("未登录无操作按钮", acts7 && acts7.children.length === 0);
 
   process.exit(fail ? 1 : 0);
 })();

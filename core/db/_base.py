@@ -531,6 +531,20 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_forum_comments_post "
         "ON forum_comments (post_id, id DESC)"
     )
+    # 评论两级嵌套：parent_id=直接回复目标，root_id=所属顶层评论（分组键），edited_at=编辑时间
+    cur.execute("PRAGMA table_info(forum_comments)")
+    _fc_cols = [row[1] for row in cur.fetchall()]
+    for _col, _ddl in (
+        ("parent_id", "ALTER TABLE forum_comments ADD COLUMN parent_id INTEGER"),
+        ("root_id", "ALTER TABLE forum_comments ADD COLUMN root_id INTEGER"),
+        ("edited_at", "ALTER TABLE forum_comments ADD COLUMN edited_at TEXT"),
+    ):
+        if _col not in _fc_cols:
+            cur.execute(_ddl)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_forum_comments_root "
+        "ON forum_comments (root_id, id)"
+    )
     cur.execute("""
         CREATE TABLE IF NOT EXISTS forum_tags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

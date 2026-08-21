@@ -598,8 +598,11 @@ if column in ALLOWED_COLUMNS:
 | `post_id` | INTEGER | NOT NULL, FK→forum_posts(id) CASCADE | 所属帖子 |
 | `author_user_id` | TEXT | NOT NULL | 评论人 QQ 号 |
 | `body_text` | TEXT | NOT NULL | 评论纯文本（无 Markdown） |
-| `status` | TEXT | NOT NULL DEFAULT 'open' | `'open'` / `'deleted'` |
+| `status` | TEXT | NOT NULL DEFAULT 'open' | `'open'` / `'deleted'`（软删占位：仍有存活回复时删除置此态并清空正文，回复链保留；无存活回复的删除为物理 DELETE） |
 | `created_at` | TEXT | NOT NULL | `"YYYY-MM-DD HH:MM:SS"` |
+| `parent_id` | INTEGER | 可空 | 直接回复目标评论 id（两级嵌套：顶层为 NULL；无自引用 FK——SQLite `ALTER TABLE ADD COLUMN` 不支持，合法性由 `ForumManager.create_comment` 应用层校验：存在/同帖/非 deleted） |
+| `root_id` | INTEGER | 可空 | 所属顶层评论 id（分组键；回复的回复仍指向同一顶层，两级封顶；索引 `idx_forum_comments_root (root_id, id)`） |
+| `edited_at` | TEXT | 可空 | 最后编辑时间（NULL=从未编辑） |
 
 #### `forum_tags`
 | 列 | 类型 | 约束 | 说明 |

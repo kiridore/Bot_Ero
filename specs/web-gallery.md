@@ -291,6 +291,10 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`BOTERO_FORUM_IMAGE_MAX_BYTES`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
 | `PATCH` | `/api/forum/posts/{id}` | 必须 | 编辑自己的帖子（`title`/`body_json`/`tags` 可改，`tags` 整体替换；类型与投票结构不可改；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并按 `forum_post:{id}` 同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `DELETE` | `/api/forum/posts/{id}` | 必须 | 删除自己的帖子（级联删除评论/选项/投票/标签关联；非本人 → 403；成功后按 `forum_post:{id}` 撤回时间线事件） |
+| `GET` | `/api/forum/posts/{id}/comments` | 必须 | 评论线程列表（两级：顶层 `id DESC` keyset 分页（`cursor`/`limit≤100`），每条附 `replies[]`（`id ASC` 串内正序）；每项含 `parent_id`/`root_id`/`edited_at`/`status`，回复的回复附 `reply_to_user_id`/`reply_to_name`；仍有存活回复的软删项以 `status:'deleted'` 占位返回；响应含 `total`（open 状态总数）与 `next_cursor`（下一页顶层起点）） |
+| `POST` | `/api/forum/posts/{id}/comments` | 必须 | 发评论/回复（`{"body_text": 1..2000, "parent_id": 评论id|null}`；`parent_id` 须为同帖存活评论否则 400（不存在/跨帖/软删占位均拒），两级封顶：回复的回复 `root_id` 仍指向顶层；成功按 `forum_comment:{id}` 发时间线事件） |
+| `PATCH` | `/api/forum/comments/{comment_id}` | 必须 | 编辑自己的评论（`{"body_text": 1..2000}`；非本人 → 403，不存在/已软删 → 404；成功后撤回旧时间线事件并按 `forum_comment:{id}` 同 key 重发最新内容（语义同帖子编辑：重新入列计未读）；返回 `{"ok", "comment"}`，`comment.edited_at` 记录最后编辑时间） |
+| `DELETE` | `/api/forum/comments/{comment_id}` | 必须 | 删除自己的评论（仍有存活回复 → 软删占位（`status='deleted'`、正文清空、回复链与子事件保留）；无存活回复 → 物理 DELETE；非本人 → 403；成功后按 `forum_comment:{id}` 撤回自身时间线事件） |
 
 ### 页面路由（FileResponse）
 

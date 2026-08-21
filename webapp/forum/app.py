@@ -156,6 +156,11 @@ class PostUpdateIn(BaseModel):
 
 class CommentCreateIn(BaseModel):
     body_text: str = Field(min_length=1, max_length=2000)
+    parent_id: int | None = None  # 回复目标评论 id；None=顶层评论
+
+
+class CommentUpdateIn(BaseModel):
+    body_text: str = Field(min_length=1, max_length=2000)
 
 
 class VoteIn(BaseModel):
@@ -347,17 +352,36 @@ def list_comments(
     limit: int = Query(default=30, ge=1, le=100),
 ):
     db = DbManager()
-    rows = db.forum.list_comments(post_id, cursor=cursor, limit=limit)
-    has_more = len(rows) > limit
-    rows = rows[:limit]
+    threads, has_more, total = db.forum.list_comment_threads(post_id, cursor=cursor, limit=limit)
+    # 批量解析昵称/头像（同请求内去重，避免重复 OneBot 调用）
+    author_cache: dict[str, dict] = {}
+
+    def _fields(uid: str) -> dict:
+        if uid not in author_cache:
+            author_cache[uid] = _author_fields(uid)
+        return author_cache[uid]
+
+    parent_author = {c["id"]: c["author_user_id"] for t in threads for c in [t, *t["replies"]]}
+
+    def _shape(c: dict) -> dict:
+        item = {k: c[k] for k in
+                ("id", "post_id", "author_user_id", "body_text", "status",
+                 "created_at", "edited_at", "parent_id", "root_id")}
+        item.update(_fields(c["author_user_id"]))
+        if c["parent_id"] is not None and c["parent_id"] != c["root_id"]:
+            uid = parent_author.get(c["parent_id"])
+            if uid:
+                item["reply_to_user_id"] = uid
+                item["reply_to_name"] = _fields(uid).get("author_name") or uid
+        return item
+
     items = []
-    for r in rows:
-        item = {"id": r[0], "post_id": r[1], "author_user_id": r[2],
-                "body_text": r[3], "created_at": r[4], "status": r[5]}
-        item.update(_author_fields(item["author_user_id"]))
+    for t in threads:
+        item = _shape(t)
+        item["replies"] = [_shape(r) for r in t["replies"]]
         items.append(item)
     next_cursor = items[-1]["id"] if has_more and items else None
-    return {"items": items, "next_cursor": next_cursor}
+    return {"items": items, "next_cursor": next_cursor, "total": total}
 
 
 @router.post("/api/forum/posts/{post_id}/comments")
@@ -370,12 +394,34 @@ def create_comment(
     post = db.forum.get_post(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="帖子不存在")
-    cid = db.forum.create_comment(post_id, user_id, body.body_text.strip())
-    db.conn.commit()
-    comment = {"id": cid, "post_id": post_id, "author_user_id": user_id,
-               "body_text": body.body_text.strip(), "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    comment = db.forum.create_comment(post_id, user_id, body.body_text.strip(), body.parent_id)
+    if comment is None:
+        raise HTTPException(status_code=400, detail="回复目标评论不存在或不可回复")
     _emit_comment_event(comment, post)
-    return {"ok": True, "id": cid}
+    return {"ok": True, "id": comment["id"]}
+
+
+@router.patch("/api/forum/comments/{comment_id}")
+def update_comment(
+    comment_id: int,
+    body: CommentUpdateIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    db = DbManager()
+    comment = db.forum.get_comment(comment_id)
+    if not comment or comment["status"] == "deleted":
+        raise HTTPException(status_code=404, detail="评论不存在")
+    if str(comment["author_user_id"]) != str(user_id):
+        raise HTTPException(status_code=403, detail="只能编辑自己的评论")
+    updated = db.forum.update_comment(comment_id, user_id, body.body_text.strip())
+    if not updated:
+        raise HTTPException(status_code=403, detail="只能编辑自己的评论")
+    # 编辑语义与帖子一致：撤回旧事件并按同 key 重发最新内容（重新入列计未读）
+    post = db.forum.get_post(updated["post_id"])
+    if post:
+        retract_event(source="forum", dedup_key=f"forum_comment:{comment_id}")
+        _emit_comment_event(updated, post)
+    return {"ok": True, "comment": updated}
 
 
 @router.delete("/api/forum/comments/{comment_id}")
@@ -384,9 +430,10 @@ def delete_comment(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     db = DbManager()
-    ok = db.forum.delete_comment(comment_id, user_id)
-    if not ok:
+    mode = db.forum.delete_comment(comment_id, user_id)
+    if not mode:
         raise HTTPException(status_code=403, detail="只能删除自己的评论")
+    # 软删占位时子回复事件保留（各自内容未变）
     retract_event(source="forum", dedup_key=f"forum_comment:{comment_id}")
     return {"ok": True}
 

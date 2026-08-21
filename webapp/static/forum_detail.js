@@ -81,6 +81,179 @@
     }
   }
 
+  // —— 评论线程渲染（顶层 + 缩进回复串，两级） ——
+
+  let replyTarget = null; // {id, name} | null；非空时 #commentForm 以回复模式提交
+
+  function currentSession() {
+    try { return GalleryAuth.load(); } catch (e) { return null; }
+  }
+
+  function setReplyTarget(c) {
+    replyTarget = c;
+    let chip = document.getElementById("replyChip");
+    if (!c) {
+      if (chip) chip.remove();
+      return;
+    }
+    if (!chip) {
+      chip = document.createElement("div");
+      chip.id = "replyChip";
+      chip.className = "forum-reply-chip";
+      commentForm.parentNode.insertBefore(chip, commentForm);
+    }
+    chip.innerHTML = "";
+    const label = document.createElement("span");
+    label.textContent = "回复 @" + c.name + "：";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "forum-reply-chip-cancel";
+    cancel.setAttribute("aria-label", "取消回复");
+    cancel.textContent = "×";
+    cancel.addEventListener("click", function () { setReplyTarget(null); });
+    chip.append(label, cancel);
+  }
+
+  function startInlineEdit(c, bodyEl) {
+    bodyEl.innerHTML = "";
+    const ta = document.createElement("textarea");
+    ta.rows = 3;
+    ta.maxLength = 2000;
+    ta.value = c.body_text;
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "forum-btn";
+    save.textContent = "保存";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "forum-btn forum-btn-secondary";
+    cancel.textContent = "取消";
+    const row = document.createElement("div");
+    row.className = "forum-edit-row";
+    row.append(save, cancel);
+    bodyEl.append(ta, row);
+    ta.focus();
+
+    cancel.addEventListener("click", function () {
+      renderCommentBody(c, bodyEl);
+    });
+    save.addEventListener("click", async function () {
+      const text = ta.value.trim();
+      if (!text) return;
+      const res = await fetch(`/api/forum/comments/${c.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
+        body: JSON.stringify({ body_text: text }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(function () { return {}; });
+        showMsg("编辑失败：" + (err.detail || res.status), false);
+        return;
+      }
+      const data = await res.json();
+      c.body_text = data.comment.body_text;
+      c.edited_at = data.comment.edited_at;
+      const item = bodyEl.closest(".forum-comment-item");
+      if (item) item.replaceWith(renderCommentItem(c, currentSession()));
+    });
+  }
+
+  function editedMark() {
+    const m = document.createElement("em");
+    m.className = "is-edited";
+    m.textContent = " · 已编辑";
+    return m;
+  }
+
+  function renderCommentBody(c, bodyEl) {
+    bodyEl.innerHTML = "";
+    if (c.status === "deleted") {
+      bodyEl.classList.add("is-deleted");
+      bodyEl.textContent = "该评论已删除";
+      return;
+    }
+    bodyEl.classList.remove("is-deleted");
+    bodyEl.textContent = c.body_text;
+  }
+
+  function buildCommentActions(c, session) {
+    const actions = document.createElement("span");
+    actions.className = "forum-comment-actions";
+    if (session) {
+      const reply = document.createElement("button");
+      reply.type = "button";
+      reply.textContent = "回复";
+      reply.addEventListener("click", function () {
+        setReplyTarget({ id: c.id, name: c.author_name || String(c.author_user_id) });
+        commentText.focus();
+      });
+      actions.appendChild(reply);
+    }
+    if (session && String(c.author_user_id) === String(session.user_id) && c.status !== "deleted") {
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "编辑";
+      edit.addEventListener("click", function () {
+        const item = actions.closest(".forum-comment-item");
+        const bodyEl = item && item.querySelector(".forum-comment-body");
+        if (bodyEl) startInlineEdit(c, bodyEl);
+      });
+      const del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "删除";
+      del.addEventListener("click", async function () {
+        if (!confirm("确定删除这条评论？有回复时将保留回复链。")) return;
+        const res = await fetch(`/api/forum/comments/${c.id}`, {
+          method: "DELETE",
+          headers: GalleryAuth.headers(),
+        });
+        if (res.ok) { loadComments(); return; }
+        if (res.status === 401) {
+          const dlg = GalleryAuth.ensureLoginDialog();
+          if (typeof dlg.showModal === "function") dlg.showModal();
+          return;
+        }
+        const err = await res.json().catch(function () { return {}; });
+        showMsg("删除失败：" + (err.detail || res.status), false);
+      });
+      actions.append(edit, del);
+    }
+    return actions;
+  }
+
+  function renderCommentItem(c, session) {
+    const div = document.createElement("div");
+    div.className = "forum-comment-item";
+    div.dataset.reveal = "";
+    div.dataset.commentId = c.id;
+    const meta = document.createElement("div");
+    meta.className = "forum-comment-meta";
+    if (c.author_avatar) {
+      const av = document.createElement("img");
+      av.className = "tl-avatar forum-avatar";
+      av.src = c.author_avatar;
+      av.alt = "";
+      av.onerror = function () { av.style.display = "none"; };
+      meta.appendChild(av);
+    }
+    const metaText = document.createElement("span");
+    metaText.textContent = (c.author_name || c.author_user_id) + " · " + fmtTime(c.created_at);
+    if (c.reply_to_name) {
+      const rt = document.createElement("span");
+      rt.className = "forum-reply-to";
+      rt.textContent = " · 回复 @" + c.reply_to_name;
+      metaText.appendChild(rt);
+    }
+    if (c.edited_at) metaText.appendChild(editedMark());
+    meta.appendChild(metaText);
+    meta.appendChild(buildCommentActions(c, session));
+    const body = document.createElement("div");
+    body.className = "forum-comment-body";
+    renderCommentBody(c, body);
+    div.append(meta, body);
+    return div;
+  }
+
   async function loadComments(cursor) {
     const params = new URLSearchParams({ limit: "30" });
     if (cursor) params.set("cursor", String(cursor));
@@ -90,31 +263,19 @@
     if (!res.ok) return;
     const data = await res.json();
     if (!cursor) commentsList.innerHTML = "";
+    const session = currentSession();
     (data.items || []).forEach(function (c) {
-      const div = document.createElement("div");
-      div.className = "forum-comment-item";
-      div.dataset.reveal = "";
-      const meta = document.createElement("div");
-      meta.className = "forum-comment-meta";
-      if (c.author_avatar) {
-        const av = document.createElement("img");
-        av.className = "tl-avatar forum-avatar";
-        av.src = c.author_avatar;
-        av.alt = "";
-        av.onerror = function () { av.style.display = "none"; };
-        meta.appendChild(av);
+      commentsList.appendChild(renderCommentItem(c, session));
+      if (c.replies && c.replies.length) {
+        const replies = document.createElement("div");
+        replies.className = "forum-comment-replies";
+        c.replies.forEach(function (r) {
+          replies.appendChild(renderCommentItem(r, session));
+        });
+        commentsList.appendChild(replies);
       }
-      const metaText = document.createElement("span");
-      metaText.textContent = (c.author_name || c.author_user_id) + " · " + fmtTime(c.created_at);
-      meta.appendChild(metaText);
-      const body = document.createElement("div");
-      body.className = "forum-comment-body";
-      body.textContent = c.body_text;
-      div.appendChild(meta);
-      div.appendChild(body);
-      commentsList.appendChild(div);
     });
-    commentCount.textContent = `(${data.items ? data.items.length : 0})`;
+    commentCount.textContent = `(${data.total != null ? data.total : 0})`;
     window.__nextCommentCursor = data.next_cursor;
     sentinel.textContent = data.next_cursor ? "加载更多评论…" : "";
   }
@@ -294,7 +455,7 @@
     const res = await fetch(`/api/forum/posts/${postId()}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
-      body: JSON.stringify({ body_text: text }),
+      body: JSON.stringify({ body_text: text, parent_id: replyTarget ? replyTarget.id : null }),
     });
     if (!res.ok) {
       const err = await res.json().catch(function () { return {}; });
@@ -302,6 +463,7 @@
       return;
     }
     commentText.value = "";
+    setReplyTarget(null);
     loadComments();
   });
 

@@ -163,39 +163,125 @@ class ForumManager:
 
     # —— Comments ——
 
-    def create_comment(self, post_id, author_user_id, body_text):
+    _COMMENT_COLS = ("id, post_id, author_user_id, body_text, status, created_at, "
+                     "edited_at, parent_id, root_id")
+
+    def get_comment(self, comment_id):
+        self.cur.execute(
+            f"SELECT {self._COMMENT_COLS} FROM forum_comments WHERE id = ?",
+            (comment_id,),
+        )
+        row = self.cur.fetchone()
+        return dict(zip(
+            ("id", "post_id", "author_user_id", "body_text", "status", "created_at",
+             "edited_at", "parent_id", "root_id"),
+            row,
+        )) if row else None
+
+    def create_comment(self, post_id, author_user_id, body_text, parent_id=None):
+        """创建评论；parent_id 指向同帖存活评论时为回复。返回新评论 dict 或 None（父非法）。"""
+        root_id = None
+        if parent_id is not None:
+            parent = self.get_comment(parent_id)
+            if not parent or parent["post_id"] != post_id or parent["status"] == "deleted":
+                return None
+            root_id = parent["root_id"] if parent["root_id"] is not None else parent["id"]
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.cur.execute(
-            "INSERT INTO forum_comments (post_id, author_user_id, body_text, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (post_id, author_user_id, body_text, now),
+            "INSERT INTO forum_comments (post_id, author_user_id, body_text, created_at, parent_id, root_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (post_id, author_user_id, body_text, now, parent_id, root_id),
         )
         cid = self.cur.lastrowid
         self.conn.commit()
-        return cid
+        return self.get_comment(cid)
 
-    def list_comments(self, post_id, cursor=None, limit=30):
-        sql = (
-            "SELECT id, post_id, author_user_id, body_text, created_at, status "
-            "FROM forum_comments WHERE post_id = ? AND status != 'deleted'"
+    def list_comment_threads(self, post_id, cursor=None, limit=30):
+        """两级线程：顶层评论 id DESC keyset 分页，每条附全部回复（id ASC）。
+        返回 (threads, has_more, total)；threads 元素 = 顶层 dict + 'replies' 列表。
+        软删占位（status='deleted' 但仍有存活回复）也会返回，前端渲染占位。"""
+        where = (
+            "post_id = ? AND parent_id IS NULL AND (status != 'deleted' OR EXISTS ("
+            "SELECT 1 FROM forum_comments c2 WHERE c2.root_id = forum_comments.id "
+            "AND c2.status != 'deleted'))"
         )
         params = [post_id]
         if cursor:
-            sql += " AND id < ?"
+            where += " AND id < ?"
             params.append(cursor)
-        sql += " ORDER BY id DESC LIMIT ?"
-        params.append(limit + 1)
-        self.cur.execute(sql, params)
-        return self.cur.fetchall()
+        self.cur.execute(
+            f"SELECT {self._COMMENT_COLS} FROM forum_comments "
+            f"WHERE {where} ORDER BY id DESC LIMIT ?",
+            (*params, limit + 1),
+        )
+        rows = self.cur.fetchall()
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        self.cur.execute(
+            "SELECT COUNT(*) FROM forum_comments WHERE post_id = ? AND status != 'deleted'",
+            (post_id,),
+        )
+        total = self.cur.fetchone()[0]
+        keys = ("id", "post_id", "author_user_id", "body_text", "status", "created_at",
+                "edited_at", "parent_id", "root_id")
+        threads = [dict(zip(keys, r), replies=[]) for r in rows]
+        if rows:
+            placeholders = ", ".join("?" for _ in rows)
+            self.cur.execute(
+                f"SELECT {self._COMMENT_COLS} FROM forum_comments "
+                f"WHERE root_id IN ({placeholders}) AND (status != 'deleted' OR EXISTS ("
+                "SELECT 1 FROM forum_comments c3 WHERE c3.parent_id = forum_comments.id "
+                "AND c3.status != 'deleted')) ORDER BY id ASC",
+                tuple(r[0] for r in rows),
+            )
+            replies = self.cur.fetchall()
+            by_root = {t["id"]: t["replies"] for t in threads}
+            for r in replies:
+                by_root.setdefault(r[8], []).append(dict(zip(keys, r)))
+        return threads, has_more, total
+
+    def update_comment(self, comment_id, author_user_id, body_text):
+        """编辑自己的评论：刷新 body_text 与 edited_at。成功返回新 dict，失败 None。"""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.cur.execute(
+            "UPDATE forum_comments SET body_text = ?, edited_at = ? "
+            "WHERE id = ? AND author_user_id = ? AND status != 'deleted'",
+            (body_text, now, comment_id, author_user_id),
+        )
+        if self.cur.rowcount == 0:
+            self.conn.commit()
+            return None
+        self.conn.commit()
+        return self.get_comment(comment_id)
 
     def delete_comment(self, comment_id, author_user_id):
+        """删除自己的评论。有存活回复时软删（占位保回复链），否则硬删。
+        返回 'hard' / 'soft' / None（非本人或不存在）。"""
         self.cur.execute(
-            "DELETE FROM forum_comments WHERE id = ? AND author_user_id = ?",
+            "SELECT id FROM forum_comments WHERE id = ? AND author_user_id = ? AND status != 'deleted'",
             (comment_id, author_user_id),
         )
-        ok = self.cur.rowcount > 0
+        if not self.cur.fetchone():
+            self.conn.commit()
+            return None
+        # 直接子回复（parent_id）或整串后代（root_id，顶层评论时覆盖孙回复）
+        self.cur.execute(
+            "SELECT COUNT(*) FROM forum_comments "
+            "WHERE (parent_id = ? OR root_id = ?) AND status != 'deleted'",
+            (comment_id, comment_id),
+        )
+        has_children = self.cur.fetchone()[0] > 0
+        if has_children:
+            self.cur.execute(
+                "UPDATE forum_comments SET status = 'deleted', body_text = '' WHERE id = ?",
+                (comment_id,),
+            )
+            mode = "soft"
+        else:
+            self.cur.execute("DELETE FROM forum_comments WHERE id = ?", (comment_id,))
+            mode = "hard"
         self.conn.commit()
-        return ok
+        return mode
 
     # —— Tags ——
 
