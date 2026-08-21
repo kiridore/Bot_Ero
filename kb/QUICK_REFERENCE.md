@@ -36,9 +36,9 @@
 | 私聊配置 group_id | `core/context.py:40` | `0` |
 | 最大装备称号数 | `plugins/title.py:394` | 3 |
 | 群头衔最大长度 | `plugins/set_group_title.py:32` | 10 字符 |
-| 年补卡上限 | `plugins/remedy_checkin.py:14` | 4 次 |
-| 周补卡费用 | `plugins/remedy_checkin.py:55` | 6 积分 |
-| 单日补卡费用 | `plugins/remedy_checkin.py:106` | 2 积分 |
+| 年补卡上限 | `plugins/remedy_checkin/__init__.py:14` | 4 次 |
+| 周补卡费用 | `plugins/remedy_checkin/__init__.py:47` | 4 积分 |
+| 单日补卡费用 | `plugins/remedy_checkin/__init__.py:98` | 2 积分 |
 
 ## 常用路径
 
@@ -126,7 +126,7 @@
 | `/闹钟 ...` | 闹钟管理 | 任何人 |
 | `/图库密钥` | Web 图库登录密钥 | 任何人（私聊） |
 | `小埃同学` | 召唤 bot | 任何人 |
-| `/补卡 YYYY-MM-DD` | 周补卡（6 积分） | 任何人 |
+| `/补卡 YYYY-MM-DD` | 周补卡（4 积分） | 任何人 |
 | `/单日补卡 YYYY-MM-DD` | 单日补卡（2 积分） | 任何人 |
 | `/撤回打卡` | 撤回本周打卡 | 任何人 |
 | `/群头衔 [文本]` | 设置群头衔 | 任何人 |

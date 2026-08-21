@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.20.1] - 2026-08-22
+
+### 修复
+
+- **菜单周补卡费用文案**：`/菜单` 中周补卡标注「6点」改为「4点」，与实际扣费（`plugins/remedy_checkin` 中 `cost = 4`）一致
+
 ## [1.20.0] - 2026-08-22
 
 ### 新增
