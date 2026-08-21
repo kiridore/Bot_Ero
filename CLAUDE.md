@@ -14,19 +14,19 @@ BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机�
 # 启动机器人主程序
 python main.py
 
-# 启动 Web 应用（单进程承载导航主页 + 6 功能分区，默认 8765，Caddy 全量反代）
+# 启动 Web 应用（单进程承载时间线社区主页 + 11 个功能模块，默认 8765，Caddy 全量反代）
 python -m webapp
 
 # 本地调试：直接按路径访问 http://127.0.0.1:8765/<分区>
-#   /          时间线（社区主页，登录可见）  /gallery  /guestbook  /profile(/checkin /shop /settings)
-#   /trpg(/char/...)  /alarms  /activities  /live
+#   /          时间线（社区主页，登录门控，未登录 302 → /login）  /login  独立登录页
+#   /gallery  /guestbook  /profile(/checkin /shop /settings)  /trpg(/char/...)
+#   /alarms  /activities  /live  /forum(/new /tags /{id})  /tools  /weekly
 python -m webapp --port 8765
 ```
 
-- 机器人依赖：`websocket-client`、`requests`、`Pillow`
-- Web 应用依赖：见 `webapp/requirements.txt`（fastapi、uvicorn、requests、Pillow、python-multipart）
+- 依赖统一装根目录 `requirements.txt`（bot 核心 `websocket-client`/`requests`/`Pillow` + webapp + jieba 等；webapp 子集见 `webapp/requirements.txt`）
 - 部署参考：`docs/web-apps-deployment.md`
-- 本项目无 `pyproject.toml` 或 `setup.py`，无测试框架，无 lint 配置
+- 本项目无 `pyproject.toml` 或 `setup.py`，无测试框架；`pyrightconfig.json` 存在但被 gitignore
 
 ## 架构
 
@@ -52,8 +52,13 @@ OneBot 服务端 ──WebSocket──> main.py
 | `api.py` | `ApiWrapper` 通过 WebSocket 调用 OneBot API（send_msg / get_image / set_essence_msg 等），使用 echo 机制实现异步请求-响应匹配；`Echo` 类维护一个 deque 队列 |
 | `cq.py` | OneBot 消息段构造器：`text()`、`image()`、`at()`、`reply()`、`forward()` 等，返回 dict 格式的消息段 |
 | `context.py` | 全局运行时状态：`plugin_registry`（插件类列表）、`script_start_time`、`DEFAULT_GROUP_ID`、路径配置 |
-| `database_manager.py` | SQLite 数据访问层（`data.db`），管理打卡、积分、称号、抽奖、商店、闹钟、留言簿等全部持久化 |
+| `database_manager.py` | SQLite 数据访问层（`data.db`），统一 DB_PATH + WAL + busy_timeout=5000；各业务表的 DDL 集中在 `core/db/_base.py`，读写按域拆分在 `core/db/`（checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook/redeem/timeline/forum/tools/weekly/message_log） |
+| `config.py` | 全部 `BOTERO_*` 环境变量读取（bot 与 webapp 共用；部署侧单一来源 `scripts/botero.env`） |
+| `auth.py` | `make_login_key` / `verify_login_key`（HMAC 登录密钥） |
 | `utils.py` | 工具函数：日期计算、积分操作、图片下载、`register_plugin` 装饰器 |
+| `onebot_client.py` | `resolve_display_name` / `resolve_avatar_url`（web 侧 QQ 昵称/头像解析） |
+| `title_defs.py` | `TITLE_DEFS` 导入时快照（改称号定义后需重启 bot 与 webapp 两个进程） |
+| `feature_packs.py` | 功能包定义（`/功能包` 批量开关） |
 | `timeline_client.py` | 社区时间线事件发送助手（`emit_event`/`retract_event`，best-effort 不阻塞主流程） |
 
 ### 插件系统
@@ -75,7 +80,8 @@ OneBot 服务端 ──WebSocket──> main.py
 注册 11 个模块
 
 include 11 个模块 router
-- 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（25 个文件，文件名全局唯一）
+- 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（49 个文件，文件名全局唯一），共享层 `core/web/static/` 以 `/shared` 挂载（auth.js / nav.js / motion.css/js / lightbox.js / icons.js / gallery.css / profile.css）
+- **全站登录门控**（1.18.0 起）：`webapp/app.py::login_guard` 中间件——白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，页面 302 → `/login?next=…`，API 与图片媒体 401；凭证 `Authorization: Bearer` 头或根域 cookie `botero_key` 任一
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
 - 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`（**单一来源 `scripts/botero.env`**：bot 启动加载 + webapp systemd EnvironmentFile）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
 - 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
