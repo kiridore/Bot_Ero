@@ -272,6 +272,25 @@
   background: var(--accent-soft);
 }
 
+/* 未读卡被看到后：停留片刻再由高亮渐变回正常（时长须与 timeline.js UNREAD_FADE_DURATION_MS 一致）。
+   动画独立于已读上报播放到结束；动画期间 animation 优先级高于上面 hover 底色，不会重新点亮。 */
+@keyframes tl-unread-fade {
+  from { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  to   { background: transparent; box-shadow: inset 3px 0 0 transparent; }
+}
+
+.tl-item.tl-unread.tl-fading {
+  animation: tl-unread-fade 1.5s var(--ease) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-item.tl-unread.tl-fading {
+    animation: none; /* 直接跳变正常；类清理由 timeline.js 定时器兜底 */
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
 /* 会话新事件 pill（置顶粘性，复用全站 token，reduced-motion 无动画） */
 .tl-new-events {
   position: sticky;

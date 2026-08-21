@@ -299,7 +299,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 模块 | 路径 |
 |--------|------|
 | `webapp/app.py` | `/login` 独立登录页（门控白名单，密钥表单 + `next` 回跳 + 会话自愈） |
-| `timeline` | `/` 时间线社区主页（登录可见；侧边栏导航 + 无限滚动 feed + 30s 新事件轮询 pill + 逐卡未读/已读高亮） |
+| `timeline` | `/` 时间线社区主页（登录可见；侧边栏导航 + 无限滚动 feed + 30s 新事件轮询 pill + 逐卡未读高亮（渲染即上报已读、被看到后渐变褪回）） |
 | `gallery` | `/gallery` 图库主页 |
 | `profile` | `/profile` 个人主页；`/profile/checkin` 网页打卡；`/profile/shop` 积分商店；`/profile/settings` 称号设置 |
 | `trpg` | `/trpg` 车卡管理；`/trpg/char/{user_id}/{char_id}` 角色卡只读查看页 |

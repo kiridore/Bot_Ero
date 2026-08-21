@@ -87,7 +87,7 @@
 - `GET /api/timeline/new?after=<rowid>&limit=<1..100>`：返回比 max(after, 基线) 更新且无回执的事件（`{"events", "users", "next_after"}`）；数据库按 rowid ASC 取最老一批，响应内倒为新→旧；有更多数据时 `next_after` 为本批已消费的最大 seq，客户端 MUST 循环拉取，不得假设单批覆盖全部。
 - `POST /api/timeline/read` body `{"event_ids": [...]}`（1–100 个）：上报已读回执，返回 `{"ok": true, "remaining": N}`；未知/重复/已撤回 id 安全忽略。仅当该用户所有基线后事件均有回执时才推进基线（推进到 `max(现有, 当前 MAX(rowid))`，防撤回导致回退）并清理旧回执。
 - 三个读状态端点鉴权均为用户登录密钥（`get_current_user_id`）；无 token 401，`after`/`limit` 非法 422。
-- 前端行为：30 秒轮询 `poll` 驱动「查看 N 条新事件」pill（仅统计本页面打开后尚未插入 feed 的事件）；卡片进入视口后完全离开才上报已读；未读卡以 `unread: true` 渲染高亮，首访历史不高亮。
+- 前端行为：30 秒轮询 `poll` 驱动「查看 N 条新事件」pill（仅统计本页面打开后尚未插入 feed 的事件）；未读卡以 `unread: true` 渲染高亮，首访历史不高亮；卡片**渲染（加载）即批量上报已读回执**（300ms 防抖，1–100/批，失败保留待提交、pagehide keepalive 兜底）。未读高亮仅为视觉提示，与已读上报解耦：卡片**首次进入视口**后停留约 0.8s，再以约 1.5s 渐变褪回正常样式（时长与 timeline.css `tl-unread-fade` 一致），渐变由 JS 定时器保证必定走到清理、不因上报成功/失败中断；`prefers-reduced-motion` 下跳过动画直接呈正常样式。
 
 ## Constraint: 卡片媒体（`data.images`）
 

@@ -1,7 +1,7 @@
 // 最小 DOM stub 验证时间线前端（timeline.js）：
 // 登录门禁（401 → 登录对话框）、占位符替换、未绑定降级、详情按钮、侧边栏导航、
-// 30s 轮询「查看 N 条新事件」pill（去重 prepend/滚动）、逐卡未读/已读（enter→exit 批量回执、
-// >100 分批 drain、失败保留、pagehide 兜底、401 停止/重登重建）
+// 30s 轮询「查看 N 条新事件」pill（去重 prepend/滚动）、逐卡未读（渲染即批量回执、
+// >100 分批 drain、失败保留、pagehide 兜底、401 停止/重登重建）、高亮被看到后渐变褪回（独立于上报）
 const fs = require("fs");
 
 function makeEl(tag) {
@@ -43,7 +43,7 @@ function makeEl(tag) {
   });
   el.classList = {
     add(c) { el._classes.add(c); },
-    remove(c) { el._classes.delete(c); },
+    remove(...cs) { cs.forEach((c) => el._classes.delete(c)); },
     contains(c) { return el._classes.has(c); },
   };
   return el;
@@ -212,6 +212,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("首次加载注册唯一 30s timer",
         intervals.length === 1 && intervals[0].ms === 30000 && intervals[0].cleared === false);
 
+  // 3.5 渲染即已读：未读卡加载后经 300ms 防抖自动批量上报，已读卡不包含
+  await wait(400);
+  check("渲染即自动上报未读卡", readRequests.length === 1
+        && (readRequests[0].event_ids || []).includes("checkin:1"));
+  check("已读卡不在回执中", (readRequests[0].event_ids || []).every((id) => id === "checkin:1"));
+  check("上报成功不影响高亮（视觉独立于上报）", c1.classList.contains("tl-unread"));
+
   // 4. 轮询 2 条新事件 → pill 出现，feed 与位置不变；再次轮询 0 → pill 隐藏
   pollResult = { count: 2 };
   intervals[0].fn();
@@ -239,6 +246,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(80);
 
   // 6. 点击 pill：多页拉新、去重、一次 prepend、更新 topCursor、滚动定位
+  readFail = true; // 本批新卡的渲染即上报将失败，供第 8 节验证失败保留与 pagehide 兜底
   const eNew1 = {
     seq: 6, id: "checkin:new1", source: "checkin", received_at: "2026-08-10 15:00:00", unread: true,
     actor: { id: "123456", qq: "123456", display_name: "小明", avatar_url: "" },
@@ -267,37 +275,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("多页拉取次数", fetchedUrls.filter((u) => u.includes("/api/timeline/new")).length
         === urlCountBefore + 2);
 
-  // 7. 逐卡已读：初始离开不上报；只进入不上报；enter→exit 批量上报并移除高亮
-  const readCount0 = readRequests.length;
-  fireIO(c1, false); // 初始未相交
-  await wait(350); // 防抖窗口
-  check("初始离开不上报", readRequests.length === readCount0);
-  fireIO(c1, true); // 进入
-  await wait(80);
-  check("只进入不上报", readRequests.length === readCount0);
-  fireIO(c1, false); // 完全离开 → 已读
-  await wait(350);
-  check("enter→exit 上报已读", readRequests.length === readCount0 + 1
-        && (readRequests[readCount0].event_ids || []).includes("checkin:1"));
-  check("成功移除未读高亮", !c1.classList.contains("tl-unread"));
-  check("已读后停止观察", !ioInstances.some((i) => i.targets.has(c1)));
+  // 7. 未读高亮渐变：未被看到前保持高亮；首次进入视口 → one-shot 停止观察 →
+  //    停留约 0.8s 后加 tl-fading 渐变 → 再约 1.5s 后清理两类并完全回普通态
+  check("进入视口前保持高亮", c1.classList.contains("tl-unread") && !c1.classList.contains("tl-fading"));
+  fireIO(c1, true); // 首次进入视口
+  check("首次进入即停止观察（one-shot）", !ioInstances.some((i) => i.targets.has(c1)));
+  await wait(400); // 停留期内（< 800ms）
+  check("停留期内高亮未褪", c1.classList.contains("tl-unread") && !c1.classList.contains("tl-fading"));
+  await wait(500); // 累计 900ms ≥ 800ms 停留
+  check("停留期满开始渐变", c1.classList.contains("tl-unread") && c1.classList.contains("tl-fading"));
+  await wait(1600); // 渐变 1500ms + 余量
+  check("渐变结束清理两类", !c1.classList.contains("tl-unread") && !c1.classList.contains("tl-fading"));
 
-  // 8. 失败保留高亮与待提交；pagehide 兜底重提
-  readFail = true;
-  const nc1 = newFrag.children[0]; // prepend 后最上方的未读新卡（checkin:new2）
-  const nc1Id = nc1.dataset.eventId;
-  fireIO(nc1, true);
-  fireIO(nc1, false);
-  await wait(350);
-  check("失败保留未读高亮", nc1.classList.contains("tl-unread"));
+  // 8. 上报失败：pending 保留且视觉不受影响；pagehide 兜底重提
   readFail = false;
   const readCount1 = readRequests.length;
   (global.window._listeners.pagehide || []).forEach((fn) => fn());
   await wait(50);
-  check("pagehide 兜底重提", readRequests.length === readCount1 + 1
-        && (readRequests[readCount1].event_ids || []).includes(nc1Id));
+  check("pagehide 兜底重提", readRequests.length === readCount1 + 1);
+  const retriedIds = (readCount1 < readRequests.length && readRequests[readCount1].event_ids) || [];
+  check("重提包含失败卡", retriedIds.includes("checkin:new1") && retriedIds.includes("checkin:new2"));
+  check("失败不改变高亮（视觉独立于上报）",
+        newFrag.children.every((c) => c.classList.contains("tl-unread")));
 
-  // 9. >100 张新卡：成功响应后循环 drain，直到待提交清空
+  // 9. >100 张未读新卡：渲染即入队，成功响应后循环 drain，直到待提交清空
   const bigEvents = [];
   for (let i = 0; i < 120; i++) {
     bigEvents.push({
@@ -315,16 +316,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const bigFrag = els.feed.children[0];
   check("批量新卡一次 prepend", bigFrag.children.length === 120);
   const readCount2 = readRequests.length;
-  for (const card of bigFrag.children) { fireIO(card, true); fireIO(card, false); }
-  await wait(350); // 批次 1（100）
-  await wait(350); // 批次 2（20 + 遗留 new1）
+  await wait(350); // 批次 1（100，含 pagehide 未清除的 new1/new2）
+  await wait(350); // 批次 2（22）
   const drainBatches = readRequests.slice(readCount2);
   const drainSizes = drainBatches.map((b) => (b.event_ids || []).length);
   check(">100 分批 drain 至清空",
-        drainSizes.length === 2 && drainSizes[0] === 100 && drainSizes[1] === 21, JSON.stringify(drainSizes));
+        drainSizes.length === 2 && drainSizes[0] === 100 && drainSizes[1] === 22, JSON.stringify(drainSizes));
   const allDrainIds = drainBatches.flatMap((b) => b.event_ids || []);
   check("drain 无重复 id", new Set(allDrainIds).size === allDrainIds.length);
-  check("drain 后无残留高亮", bigFrag.children.every((c) => !c.classList.contains("tl-unread")));
+  check("drain 不清除未看卡片高亮（视觉独立于上报）",
+        bigFrag.children.every((c) => c.classList.contains("tl-unread")));
 
   // 10. poll 401：停止 timer + 登录框；重新登录清空状态并只重建一个 timer
   poll401 = true;

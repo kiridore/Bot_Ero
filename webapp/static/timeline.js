@@ -1,5 +1,5 @@
 /* 社区时间线（社区主页）：侧边栏导航 + 登录态 + 无限滚动 feed + 30s 新事件轮询
-   （Twitter 式「查看 N 条新事件」pill）+ 逐卡持久未读/已读（服务端 rowid 水印 + 回执）。 */
+   （Twitter 式「查看 N 条新事件」pill）+ 逐卡未读高亮（渲染即上报已读回执，被看到后高亮渐变褪回）。 */
 (function () {
   "use strict";
 
@@ -7,6 +7,8 @@
   const POLL_MS = 30000;
   const READ_BATCH = 100;
   const READ_DEBOUNCE_MS = 300;
+  const UNREAD_FADE_DELAY_MS = 800; // 未读卡被看到后高亮停留时长
+  const UNREAD_FADE_DURATION_MS = 1500; // 高亮渐变时长（须与 timeline.css tl-unread-fade 的 1.5s 一致）
   const UNBOUND = "未绑定玩家";
   const feed = document.getElementById("feed");
   const sentinel = document.getElementById("sentinel");
@@ -25,7 +27,7 @@
   let newCount = 0; // pill 计数（会话内未插入新事件）
 
   let unreadObserver = null; // 未读卡视口观察器（与 sentinel 独立）
-  let unreadPending = new Map(); // 已读待提交：event_id -> 卡片元素
+  let unreadPending = new Set(); // 已读待提交：event_id（渲染即入队，视觉渐变独立进行）
   let unreadFlushTimer = null;
   let unreadRequestInFlight = false;
 
@@ -172,10 +174,12 @@
 
     if (ev.unread) {
       item.classList.add("tl-unread");
+      queueRead(item); // 渲染（加载）即上报已读；高亮仅为视觉提示，与上报结果解耦
       ensureUnreadObserver();
       if (unreadObserver) {
-        item._tlRead = { seen: false };
-        unreadObserver.observe(item);
+        unreadObserver.observe(item); // 首次进入视口才触发渐变（屏下卡片被看到前保持高亮）
+      } else {
+        scheduleUnreadFade(item); // 无观察器兜底：渲染后即渐变
       }
     }
     return item;
@@ -255,28 +259,38 @@
     io.observe(sentinel);
   }
 
-  /* —— 逐卡未读/已读：进入视口记录，完全离开才上报（滚动离开才消失）—— */
+  /* —— 逐卡未读/已读：渲染即 queueRead 上报回执；观察器仅作渐变的视觉触发器 —— */
   function ensureUnreadObserver() {
     if (unreadObserver || !("IntersectionObserver" in window)) return;
     unreadObserver = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
         const el = entry.target;
-        const st = el._tlRead;
-        if (!st) return;
-        if (entry.isIntersecting) {
-          st.seen = true; // 任意部分首次进入视口
-        } else if (st.seen) {
-          // 进入后完全离开视口 → 已读
-          queueRead(el);
-        }
+        if (el._tlRead) return; // 已调度渐变
+        unreadObserver.unobserve(el); // one-shot：首次进入视口即触发
+        scheduleUnreadFade(el);
       });
     }, { threshold: 0 });
+  }
+
+  /* 未读卡被看到后：先停留 UNREAD_FADE_DELAY_MS，再渐变 UNREAD_FADE_DURATION_MS 褪回正常并清理。
+     纯视觉时序，独立于已读上报必定走完（reduced-motion 下动画禁用，由本定时器跳变清理）。 */
+  function scheduleUnreadFade(el) {
+    if (el._tlRead) return;
+    el._tlRead = {};
+    el._tlRead.fadeTimer = setTimeout(function () {
+      el.classList.add("tl-fading");
+      el._tlRead.cleanupTimer = setTimeout(function () {
+        el.classList.remove("tl-unread", "tl-fading");
+        delete el._tlRead;
+      }, UNREAD_FADE_DURATION_MS);
+    }, UNREAD_FADE_DELAY_MS);
   }
 
   function queueRead(el) {
     const id = el.dataset.eventId;
     if (!id || unreadPending.has(id)) return;
-    unreadPending.set(id, el);
+    unreadPending.add(id);
     scheduleReadFlush();
   }
 
@@ -288,9 +302,7 @@
   async function flushReadPending() {
     unreadFlushTimer = null;
     if (unreadRequestInFlight || unreadPending.size === 0) return;
-    const batch = [...unreadPending.entries()].slice(0, READ_BATCH);
-    const ids = batch.map(function (e) { return e[0]; });
-    const els = batch.map(function (e) { return e[1]; });
+    const ids = [...unreadPending].slice(0, READ_BATCH);
     unreadRequestInFlight = true;
     try {
       const res = await fetch("/api/timeline/read", {
@@ -306,13 +318,7 @@
       }
       if (!res.ok) throw new Error("已读提交失败 " + res.status);
       ids.forEach(function (id) { unreadPending.delete(id); });
-      els.forEach(function (el) {
-        el.classList.remove("tl-unread");
-        if (unreadObserver) {
-          unreadObserver.unobserve(el);
-          delete el._tlRead;
-        }
-      });
+      // 渐变动画独立于已读上报播放到结束，成功后不做任何 DOM/observer 清理
       // 成功后立即循环发送剩余批次，避免 >100 张新卡时剩余 id 滞留到 pagehide
       if (unreadPending.size > 0) scheduleReadFlush();
     } catch (err) {
@@ -325,7 +331,7 @@
 
   window.addEventListener("pagehide", function () {
     if (unreadPending.size === 0) return;
-    const ids = [...unreadPending.keys()].slice(0, READ_BATCH);
+    const ids = [...unreadPending].slice(0, READ_BATCH);
     try {
       fetch("/api/timeline/read", {
         method: "POST",
