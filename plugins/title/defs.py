@@ -46,7 +46,7 @@ TITLE_DEFS = {
     42: {"id": 42, "name": "稳", "rarity": "rare", "description": "一切似乎都在掌控之中。", "unlock_type": "lottery"},
     43: {"id": 43, "name": "光之战士", "rarity": "rare", "description": "倾听，感受，思考", "unlock_type": "lottery"},
     44: {"id": 44, "name": "伟大的黑魔法师", "rarity": "rare", "description": "对，伟大的黑魔法师！", "unlock_type": "lottery"},
-    45: {"id": 45, "name": "永远不死", "rarity": "rare", "description": "我死不了了", "unlock_type": "lottery"},
+    45: {"id": 45, "name": "永远不死", "rarity": "rare", "description": "永生者", "unlock_type": "lottery"},
     46: {"id": 46, "name": "享受者", "rarity": "rare", "description": "享受一切", "unlock_type": "lottery"},
     47: {"id": 47, "name": "骑士", "rarity": "rare", "description": "自由骑士的誓约", "unlock_type": "lottery"},
     48: {"id": 48, "name": "战士", "rarity": "rare", "description": "责任与使命", "unlock_type": "lottery"},
@@ -54,11 +54,11 @@ TITLE_DEFS = {
     50: {"id": 50, "name": "绝枪战士", "rarity": "rare", "description": "枪刃启程", "unlock_type": "lottery"},
 
     # legendary
-    51: {"id": 51, "name": "我还没有睡饱", "rarity": "legendary", "description": "定型文", "unlock_type": "lottery"},
+    51: {"id": 51, "name": "睡觉", "rarity": "legendary", "description": "Zzzz", "unlock_type": "lottery"},
     52: {"id": 52, "name": "重生之境", "rarity": "legendary", "description": "2.0", "unlock_type": "lottery"},
     53: {"id": 53, "name": "苍穹之禁城", "rarity": "legendary", "description": "3.0", "unlock_type": "lottery"},
     54: {"id": 54, "name": "最好的学生", "rarity": "legendary", "description": "<<最好的学生>>", "unlock_type": "lottery"},
-    55: {"id": 55, "name": "人人网", "rarity": "legendary", "description": "你人人网", "unlock_type": "lottery"},
+    55: {"id": 55, "name": "板油", "rarity": "legendary", "description": "板油还不可以休息哦", "unlock_type": "lottery"},
     56: {"id": 56, "name": "母肥", "rarity": "legendary", "description": "谁不喜欢母肥呢", "unlock_type": "lottery"},
     57: {"id": 57, "name": "男精", "rarity": "legendary", "description": "谁不喜欢男精呢", "unlock_type": "lottery"},
     58: {"id": 58, "name": "龙娘", "rarity": "legendary", "description": "谁不喜欢龙娘呢", "unlock_type": "lottery"},
