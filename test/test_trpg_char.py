@@ -1,6 +1,6 @@
 """测试 DND 5E 角色卡插件。
 
-运行: python test/test_trpg_char.py
+运行: pytest test/test_trpg_char.py
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from plugins.trpg_char import character as char_logic
 from plugins.trpg_char import rules
-from plugins.trpg_char import TrpgCharPlugin
+from plugins.trpg_char import TrpgCharPlugin, WEB_TRPG_URL
 from test.helper import MockApiWrapper, make_group_message, make_private_message
 
 
@@ -125,22 +125,22 @@ class TestTrpgCharPlugin(unittest.TestCase):
             p.handle()
         out = _sent_text(p)
         self.assertIn("还没有角色卡", out)
-        self.assertIn("/profile/trpg", out)
+        self.assertIn(WEB_TRPG_URL, out)
 
     def test_create_redirects_to_web(self):
         p = self._plugin("/角色 创建")
         p.handle()
-        self.assertIn("/profile/trpg", _sent_text(p))
+        self.assertIn(WEB_TRPG_URL, _sent_text(p))
 
     def test_edit_redirects_to_web(self):
         p = self._plugin("/角色 编辑 hp 10")
         p.handle()
-        self.assertIn("/profile/trpg", _sent_text(p))
+        self.assertIn(WEB_TRPG_URL, _sent_text(p))
 
     def test_abandon_redirects_to_web(self):
         p = self._plugin("/角色 放弃")
         p.handle()
-        self.assertIn("/profile/trpg", _sent_text(p))
+        self.assertIn(WEB_TRPG_URL, _sent_text(p))
 
     def test_list(self):
         p = self._plugin("/角色 列表")
