@@ -9,6 +9,7 @@
 ### 变更
 
 - **共享样式文件更名**：`core/web/static/gallery.css` → `base.css`（引用路径 `/shared/gallery.css` → `/shared/base.css`）——该文件实为全站基础样式（报纸风 token 唯一来源 + 共享组件 + 全站滚动条），旧名易误解为图库页专属；仅命名与引用同步，行为不变
+- **README 同步当前架构**：已注册插件数 43 → 47、Web 功能模块 6/8 → 11（补时间线/议事厅/工具箱/周报/登录页分区），快速开始改用 `pip install -r requirements.txt`（旧三包示例缺 GitPython 等模块级依赖），补全站登录门控说明与 `scripts/botero.env` 单一来源；仅文档修正
 
 ## [1.21.0] - 2026-08-22
 
