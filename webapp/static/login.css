@@ -1,4 +1,4 @@
-/* 登录页布局（表单元素样式复用 gallery.css 的 .login-* 全局类） */
+/* 登录页布局（表单元素样式复用 base.css 的 .login-* 全局类） */
 .login-main {
   min-height: 100vh;
   display: flex;

@@ -1,4 +1,4 @@
-/* 社区时间线（社区主页）—— 报纸风 token 全部来自 /shared/gallery.css :root */
+/* 社区时间线（社区主页）—— 报纸风 token 全部来自 /shared/base.css :root */
 
 /* —— 报头（恢复自旧导航主页 masthead）—— */
 .masthead {
@@ -225,7 +225,7 @@
 /* —— 主栏 —— */
 .tl-main {
   min-width: 0;
-  /* gallery.css 全局 main { margin: 0 auto; max-width: 1600px; padding: 12px 16px 3rem }
+  /* base.css 全局 main { margin: 0 auto; max-width: 1600px; padding: 12px 16px 3rem }
      必须清零：grid 项上的 auto 外边距会覆盖 justify-self: stretch，
      使本列收缩到内容宽度并居中 → 卡片随内容变窄。 */
   margin: 0;

@@ -64,7 +64,7 @@
 │   ├── utils.py               ← 工具函数、QUEST_DEFS
 │   ├── gen_image/             ← 图片生成（热度图/档案卡）
 │   ├── web/                   ← Web 共享层（auth_deps.py 登录依赖注入唯一权威副本 + static/ 共享静态）
-│   ├── web/static/            ← 共享静态（auth.js 认证 token 管理 + 全局 fetch 401 拦截跳 /login + goLogin/logout/renderAuth（登录按钮/用户 chip/退出按钮），HTML 引用带 ?v= 版本号；nav.js 站点导航条（当前分区高亮）；gallery.css/profile.css（报纸风主题 token 全站唯一来源）；motion.css/motion.js 动效层（--motion-fast/base/slow/--spring/--ease/--reveal-dist）；lightbox.js 共享图片灯箱：点击 .tl-images a 或 img.forum-img 在当前页放大，复用 .lightbox 样式；icons.js 自托管 lucide SVG 图标）
+│   ├── web/static/            ← 共享静态（auth.js 认证 token 管理 + 全局 fetch 401 拦截跳 /login + goLogin/logout/renderAuth（登录按钮/用户 chip/退出按钮），HTML 引用带 ?v= 版本号；nav.js 站点导航条（当前分区高亮）；base.css/profile.css（报纸风主题 token 全站唯一来源）；motion.css/motion.js 动效层（--motion-fast/base/slow/--spring/--ease/--reveal-dist）；lightbox.js 共享图片灯箱：点击 .tl-images a 或 img.forum-img 在当前页放大，复用 .lightbox 样式；icons.js 自托管 lucide SVG 图标）
 │   ├── timeline_client.py     ← 社区时间线事件发送助手（emit_event/retract_event，best-effort）
 │   └── logger.py              ← 日志
 ├── plugins/                   ← 47 个已注册插件

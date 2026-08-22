@@ -61,7 +61,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 
 ## Web 应用（webapp）要点
 
-- 单进程承载 11 个模块（timeline 主页 `/`、gallery、guestbook、profile、trpg、alarms、activities、live、forum、tools、weekly），每模块 `app.py` 只导出 `router`，不创建 FastAPI 实例；静态合并 `webapp/static/`（文件名全局唯一）+ 共享层 `core/web/static/`（`/shared` 挂载：auth.js/nav.js/motion.css/js/lightbox.js/icons.js/gallery.css/profile.css）。
+- 单进程承载 11 个模块（timeline 主页 `/`、gallery、guestbook、profile、trpg、alarms、activities、live、forum、tools、weekly），每模块 `app.py` 只导出 `router`，不创建 FastAPI 实例；静态合并 `webapp/static/`（文件名全局唯一）+ 共享层 `core/web/static/`（`/shared` 挂载：auth.js/nav.js/motion.css/js/lightbox.js/icons.js/base.css/profile.css）。
 - **全站登录门控**：`webapp/app.py::login_guard` 中间件，白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，页面 302 → `/login?next=…`、API/媒体 401；凭证 `Authorization: Bearer` 头或根域 cookie `botero_key` 任一。
 - 认证依赖 `get_current_user_id`/`get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从那 import，**禁止各模块复制**。
 - 数据库共享 `core.database_manager.DbManager`（WAL + busy_timeout=5000）；**禁止**给 uvicorn 加 `--workers`（多 worker 重引入 SQLite 写竞争）。

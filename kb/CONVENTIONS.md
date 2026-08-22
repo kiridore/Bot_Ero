@@ -95,7 +95,7 @@ logger.exception("...")  # 自动附带 traceback
 
 ### 陷阱 1：全局 `main` 规则会让 grid 列收缩到内容宽（最难排查）
 
-`core/web/static/gallery.css` 有全局规则：
+`core/web/static/base.css` 有全局规则：
 
 ```css
 main { padding: 12px 16px 3rem; max-width: 1600px; margin: 0 auto; }

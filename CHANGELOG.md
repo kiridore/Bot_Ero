@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [未发布]
+
+### 变更
+
+- **共享样式文件更名**：`core/web/static/gallery.css` → `base.css`（引用路径 `/shared/gallery.css` → `/shared/base.css`）——该文件实为全站基础样式（报纸风 token 唯一来源 + 共享组件 + 全站滚动条），旧名易误解为图库页专属；仅命名与引用同步，行为不变
+
 ## [1.21.0] - 2026-08-22
 
 ### 优化

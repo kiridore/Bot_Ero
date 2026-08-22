@@ -60,16 +60,16 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | `core/database_manager.py` + `core/db/` | `DbManager` 统一数据库访问（WAL + busy_timeout=5000；checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook 各业务 manager） |
 | `core/character_store.py` / `core/user_settings.py` | 角色卡/个人设置 JSON 存储（原子写 tmp + os.replace） |
 | `core/trpg/` | 跑团规则与角色派生计算 |
-| `core/web/static/` | 共享静态（auth.js / nav.js / gallery.css / profile.css / motion.css / motion.js / lightbox.js / icons.js），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
+| `core/web/static/` | 共享静态（auth.js / nav.js / base.css / profile.css / motion.css / motion.js / lightbox.js / icons.js），各子应用以 `/shared` 挂载同一目录，**MUST NOT** 复制 |
 
-- Constraint: 全部子应用样式必须经由 `core/web/static/gallery.css` 的 `:root` token（报纸风数值，全站唯一来源），禁止在子应用样式文件引入新的硬编码颜色。
+- Constraint: 全部子应用样式必须经由 `core/web/static/base.css` 的 `:root` token（报纸风数值，全站唯一来源），禁止在子应用样式文件引入新的硬编码颜色。
 
 ## Constraint: 全站动效层（motion.css / motion.js）
 
 - **MUST:** 动效统一经由 `core/web/static/motion.css`（样式层：View Transitions 页面过渡、`[data-reveal]` 滚动揭示、`.entering`/`.motion-pop`、按压反馈）与 `core/web/static/motion.js`（`window.Motion`：`reveal`/`stagger`/`enter`/`animateNumber` + MutationObserver 批量交错接管），**MUST NOT** 在页面内自行硬编码动画 keyframes
 - **MUST:** 每个页面 HTML `<head>` 在页面自身 CSS 之前引用 `/shared/motion.css`；`</body>` 前、页面自身脚本之前引用 `/shared/motion.js`
 - **MUST:** 滚动揭示仅需给元素加 `data-reveal` 属性（可选 `data-reveal-delay` 毫秒）；JS 渲染的新内容批次自动交错（40ms/级、上限 300ms），观察器以视口下方 25% 为预揭示区（`rootMargin: 0 0 25% 0`），卡片提前进场、滚动到时须已完整可见，无需手动注册
-- **MUST:** 动画只作用于 transform/opacity，单次 ≤ 450ms，曲线一律使用 `--ease`/`--spring` token；动效 token（`--motion-*`/`--reveal-dist`）唯一来源 gallery.css `:root`，禁止硬编码
+- **MUST:** 动画只作用于 transform/opacity，单次 ≤ 450ms，曲线一律使用 `--ease`/`--spring` token；动效 token（`--motion-*`/`--reveal-dist`）唯一来源 base.css `:root`，禁止硬编码
 - **MUST:** `prefers-reduced-motion: reduce` 下全部动效禁用：motion.js 不注入 `js-motion`、不暴露 `window.Motion`（页面代码用 `window.Motion` 判空做渐进增强）；motion.css 媒体查询兜底关闭动画。JS 失败/不支持时内容 MUST 保持可见
 - View Transitions API（MPA 整页过渡）为渐进增强：Chrome/Edge/Safari 生效，Firefox 自动降级普通跳转，**MUST NOT** 为它加 polyfill
 - 装饰性氛围动效例外：时间线报头金线流动（timeline.css `masthead-flow`）允许对非布局属性 `background-position` 做长循环动画（2px 装饰元素，paint 成本可忽略）；**MUST** 在 reduced-motion 下关闭
@@ -428,7 +428,7 @@ with _connect() as conn:
 core/web/static/
   auth.js       ← 认证 token 管理（单 origin localStorage 共享 + 根域 cookie 作为页面门控凭据；全局 fetch 401 拦截跳 /login；goLogin/logout/renderAuth（登录按钮 + 用户 chip + 退出按钮）；HTML 引用带 ?v= 缓存版本号）
   nav.js        ← 站点导航条（全站共享，当前分区高亮；部署时改 NAV_HOME_URL）
-  gallery.css   ← 报纸风主题 token 全站唯一来源（含 .btn-logout）
+  base.css   ← 报纸风主题 token 全站唯一来源（含 .btn-logout）
   profile.css   ← 个人中心样式
   motion.css / motion.js ← 全站动效层（见下节）
   lightbox.js   ← 共享图片灯箱（时间线 .tl-images a 与议事厅 img.forum-img 点击放大）
@@ -453,7 +453,7 @@ webapp/static/
   weekly.html/js/css                           ← 周报（/weekly）
 ```
 
-时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/gallery.css` 的报纸风 token）。
+时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/base.css` 的报纸风 token）。
 
 - 原生 JavaScript，无框架
 - 认证 token 通过 `Authorization: Bearer <token>` 头传递，服务端同时接受根域 cookie `botero_key`（页面门控/无 header 请求的凭据）

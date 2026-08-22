@@ -1,6 +1,6 @@
 /* ============================================================
    全站动效层（零依赖）
-   - token 全部来自 gallery.css :root（--motion-* / --ease / --reveal-dist）
+   - token 全部来自 base.css :root（--motion-* / --ease / --reveal-dist）
    - 只动画 transform/opacity；prefers-reduced-motion 一键关闭
    - 滚动揭示依赖 <html>.js-motion（由 motion.js 注入）：
      JS 失败或不支持时内容保持可见（渐进增强）

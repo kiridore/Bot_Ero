@@ -80,7 +80,7 @@ OneBot 服务端 ──WebSocket──> main.py
 注册 11 个模块
 
 include 11 个模块 router
-- 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（49 个文件，文件名全局唯一），共享层 `core/web/static/` 以 `/shared` 挂载（auth.js / nav.js / motion.css/js / lightbox.js / icons.js / gallery.css / profile.css）
+- 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（49 个文件，文件名全局唯一），共享层 `core/web/static/` 以 `/shared` 挂载（auth.js / nav.js / motion.css/js / lightbox.js / icons.js / base.css / profile.css）
 - **全站登录门控**（1.18.0 起）：`webapp/app.py::login_guard` 中间件——白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，页面 302 → `/login?next=…`，API 与图片媒体 401；凭证 `Authorization: Bearer` 头或根域 cookie `botero_key` 任一
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
 - 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`（**单一来源 `scripts/botero.env`**：bot 启动加载 + webapp systemd EnvironmentFile）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）

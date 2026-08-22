@@ -2,7 +2,7 @@
   "use strict";
 
   // 共享灯箱：点击时间线事件图片 / 议事厅正文图片在当前页放大预览。
-  // 复用 gallery.css 中既有的 .lightbox 报纸风样式。
+  // 复用 base.css 中既有的 .lightbox 报纸风样式。
   var overlay = null;
 
   function close() {
