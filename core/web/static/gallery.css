@@ -42,6 +42,42 @@ body {
   font-family: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
 }
 
+/* —— 全站滚动条：报纸风直角细条。Chromium 走 ::-webkit-scrollbar（优先级更高），
+   Firefox/新标准走 html 上可继承的 scrollbar-*；hover 用 background-color 长属性，
+   避免简写重置 background-clip 使拇指变宽 —— */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--rule);
+  border: 2px solid transparent; /* 透明衬边：10px 槽内只显 6px 细条，不贴死边缘 */
+  background-clip: padding-box;
+  border-radius: 0; /* 报纸方块风：直角 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--line);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--ink);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .toolbar {
   position: sticky;
   top: 0;

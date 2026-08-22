@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.21.0] - 2026-08-22
+
+### 优化
+
+- **全站滚动条统一样式**：替换浏览器原生滚动条为报纸风直角细条（透明轨道、米色 6px 拇指，悬停加深、按下近墨色），页面滚动、时间线/周报侧栏、灯箱、评论区等所有滚动区域一致生效；Chromium 系走 `::-webkit-scrollbar`，Firefox 走标准 `scrollbar-color`/`scrollbar-width`
+
 ## [1.20.2] - 2026-08-22
 
 ### 修复
