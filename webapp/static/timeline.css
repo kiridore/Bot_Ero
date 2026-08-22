@@ -120,6 +120,10 @@
 .tl-sidebar {
   position: sticky;
   top: 1.5rem;
+  /* 视口高度上限（顶部 1.5rem sticky 偏移 + 底部 1.5rem 余量）：
+     高分屏缩放导致视口过矮时侧栏自身可滚，底部按钮不依赖滚到页面最底 */
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -457,5 +461,7 @@
 
   .tl-sidebar {
     position: static;
+    max-height: none;
+    overflow: visible;
   }
 }

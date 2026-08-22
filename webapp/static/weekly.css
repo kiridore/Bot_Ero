@@ -31,6 +31,9 @@
   position: sticky;
   top: 16px;
   align-self: start;
+  /* 与 .tl-sidebar 同理：视口过矮时侧栏自身可滚（top 16px + 底部 16px 余量） */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 .weekly-brand {
   display: block;
