@@ -207,11 +207,12 @@ def handle(self):
 项目**没有** `pyproject.toml` / `setup.py`；根目录 `requirements.txt` 是 bot 全量依赖清单（`pip install -r requirements.txt`），`webapp/requirements.txt` 是 webapp 子集。
 
 当前依赖：
-- **机器人核心:** `websocket-client`, `requests`, `Pillow`
+- **机器人核心:** `websocket-client`, `requests`, `Pillow`, `tzdata`（仅 Windows——系统无 IANA 时区库，`plugins/\immortal_lottery` 的 `ZoneInfo` 依赖）
 - **周报热词:** `jieba`
 - **LLM（已弃用）:** `openai`
 - **更新:** `GitPython`
 - **系统监控:** `psutil`（可选，MonitorPlugin 会自动降级）
+- **测试:** `pytest`（统一回归入口，隔离与布局见 `test/conftest.py` 头注释）
 - **Web 应用:** `fastapi`, `uvicorn`, `python-multipart` 等（见 `webapp/requirements.txt`）
 
 **添加新依赖的流程:**

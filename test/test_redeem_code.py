@@ -1,5 +1,5 @@
 """测试兑换码插件。
-运行: python test/test_redeem_code.py
+运行: pytest test/test_redeem_code.py
 """
 import os
 import sys

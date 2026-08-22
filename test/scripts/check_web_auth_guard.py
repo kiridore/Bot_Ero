@@ -1,7 +1,7 @@
 """全站登录门控行为测试：未登录 302/401、cookie 与 Bearer 双通道、白名单放行。
 
 使用临时 DB（全新 schema，不触碰 data.db）；OneBot 昵称/头像解析打桩避免真实网络。
-运行：python test/test_web_auth_guard.py
+独立进程运行: python test/scripts/check_web_auth_guard.py（pytest 由 test/test_webapp_api_suites.py 子进程纳入统一回归）
 """
 
 import os
@@ -14,7 +14,7 @@ from unittest.mock import patch
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

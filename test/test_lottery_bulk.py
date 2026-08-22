@@ -1,5 +1,5 @@
 """测试抽奖插件 /一键抽奖 与单抽回归。
-运行: python test/test_lottery_bulk.py
+运行: pytest test/test_lottery_bulk.py
 """
 import os
 import sys

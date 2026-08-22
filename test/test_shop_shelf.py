@@ -1,5 +1,5 @@
 """测试积分商店货架刷新（redeem_shop.logic.weekly_refresh_shop_shelf）。
-运行: python test/test_shop_shelf.py
+运行: pytest test/test_shop_shelf.py
 """
 import os
 import sqlite3

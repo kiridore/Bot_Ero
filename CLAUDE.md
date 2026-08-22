@@ -26,7 +26,7 @@ python -m webapp --port 8765
 
 - 依赖统一装根目录 `requirements.txt`（bot 核心 `websocket-client`/`requests`/`Pillow` + webapp + jieba 等；webapp 子集见 `webapp/requirements.txt`）
 - 部署参考：`docs/web-apps-deployment.md`
-- 本项目无 `pyproject.toml` 或 `setup.py`，无测试框架；`pyrightconfig.json` 存在但被 gitignore
+- 本项目无 `pyproject.toml` 或 `setup.py`；测试统一 pytest（项目根 `pytest` 一键回归，`test/conftest.py` 自动隔离数据路径到临时目录）；`pyrightconfig.json` 存在但被 gitignore
 
 ## 架构
 

@@ -1,5 +1,5 @@
 """测试活动群聊指令。
-运行: python test/test_activity_commands.py
+运行: pytest test/test_activity_commands.py
 """
 import os
 import sys

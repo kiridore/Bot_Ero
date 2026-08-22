@@ -2,7 +2,7 @@
 轮询/拉新分页、逐卡回执、追平推进水印、撤回联动（级联清理 + max 夹紧防回退）、
 用户隔离、鉴权与旧页 keyset 回归。
 
-运行: python test/test_timeline_unread.py
+独立进程运行: python test/scripts/check_timeline_unread.py（pytest 由 test/test_webapp_api_suites.py 子进程纳入统一回归）
 """
 import os
 import sqlite3
@@ -11,7 +11,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

@@ -1,6 +1,6 @@
 """测试 TRPG 会话录制插件。
 
-运行: python test/test_trpg_session.py
+运行: pytest test/test_trpg_session.py
 """
 
 from __future__ import annotations
@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -187,18 +188,17 @@ class TestTrpgSessionExport(unittest.TestCase):
     def setUp(self):
         runtime_context.recording_sessions.clear()
         runtime_context.last_completed.clear()
-        self.export_dir = "server_data/trpg_records/296470819"
+        # 导出目录重定向到临时目录（patch 插件常量），避免写删真实 server_data
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        patcher = patch("plugins.trpg_session.TRPG_RECORDS_ROOT", self._tmp.name)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.export_dir = os.path.join(self._tmp.name, "296470819")
 
     def tearDown(self):
         runtime_context.recording_sessions.clear()
         runtime_context.last_completed.clear()
-        if os.path.isdir(self.export_dir):
-            for root, dirs, files in os.walk(self.export_dir, topdown=False):
-                for f in files:
-                    os.remove(os.path.join(root, f))
-                for d in dirs:
-                    os.rmdir(os.path.join(root, d))
-            os.rmdir(self.export_dir)
 
     def test_export_while_recording_refused(self):
         runtime_context.recording_sessions[296470819] = {"start": None, "messages": [], "participants": {}}
@@ -283,18 +283,16 @@ class TestTrpgSessionListAndView(unittest.TestCase):
     def setUp(self):
         runtime_context.recording_sessions.clear()
         runtime_context.last_completed.clear()
-        self.export_dir = "server_data/trpg_records/296470819"
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        patcher = patch("plugins.trpg_session.TRPG_RECORDS_ROOT", self._tmp.name)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.export_dir = os.path.join(self._tmp.name, "296470819")
 
     def tearDown(self):
         runtime_context.recording_sessions.clear()
         runtime_context.last_completed.clear()
-        if os.path.isdir(self.export_dir):
-            for root, dirs, files in os.walk(self.export_dir, topdown=False):
-                for f in files:
-                    os.remove(os.path.join(root, f))
-                for d in dirs:
-                    os.rmdir(os.path.join(root, d))
-            os.rmdir(self.export_dir)
 
     def test_list_empty(self):
         ctx = make_group_message("/跑团记录 列表")

@@ -1,6 +1,6 @@
 """测试 core.character_store 角色 JSON 存储层。
 
-运行: python test/test_character_store.py
+运行: pytest test/test_character_store.py
 """
 
 from __future__ import annotations

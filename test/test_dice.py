@@ -1,6 +1,6 @@
 """测试 DicePlugin 示例。
 
-运行: python test/test_dice.py
+运行: pytest test/test_dice.py
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """测试 TRPG 骰子系统 (Sealdice 语法)。
 
-运行: python test/test_trpg.py
+运行: pytest test/test_trpg.py
 """
 
 from __future__ import annotations

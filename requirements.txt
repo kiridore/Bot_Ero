@@ -7,6 +7,8 @@
 websocket-client>=1.6.0
 requests>=2.31.0
 Pillow>=10.0.0
+# Windows 无系统 IANA 时区库，plugins/\immortal_lottery 的 ZoneInfo 依赖 pip 版 tzdata
+tzdata>=2024.1 ; sys_platform == "win32"
 
 # ---- LLM 子系统 (core/llm/) ----
 openai>=1.0.0
@@ -25,3 +27,6 @@ python-multipart>=0.0.9
 
 # ---- 周报热词 (plugins/weekly_report/) ----
 jieba
+
+# ---- 测试 (pytest 统一回归入口) ----
+pytest>=8.0.0

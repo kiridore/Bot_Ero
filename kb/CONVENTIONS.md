@@ -67,7 +67,7 @@ logger.exception("...")  # 自动附带 traceback
 - `user_id` 在数据库中类型不一致（TEXT vs INTEGER），跨表查询需 CAST
 - 配置半环境变量化：路径/盐/端口/开关等约 30 个 `BOTERO_*` 环境变量集中在 `core/config.py`，`scripts/botero.env` 是部署侧单一来源；但 WS 地址/token、默认群号、超级用户、下载代理等仍硬编码在源码（见 `kb/QUICK_REFERENCE.md` 硬编码常量表）
 - 无迁移框架，Schema 演化依赖手动 PRAGMA + ALTER
-- 无测试框架，`test/` 下是临时测试脚本
+- ~~无测试框架~~ 已统一 pytest（项目根 `pytest` 一键回归；`test/conftest.py` 收集前重定向全部数据路径到临时目录，脚本式集成套件在 `test/scripts/check_*.py` 经子进程纳入，node DOM 渲染用例一并纳入；`test_llm.py` 因真实调外部计费 API 被排除）
 - 部分旧表 (user_title_state, group_alarms repeat_y/m/d) 已被新设计取代但未删除
 - `core/api.py` 延迟导入 `plugins.title` 存在循环依赖
 - `webapp/__main__.py` 的 `--db` 参数不生效：`core.config.DB_PATH` 在模块首次 import 时冻结，`main()` 里设 env 太晚；需启动前注入 env（`BOTERO_DB_PATH=...`）
@@ -144,7 +144,7 @@ main { padding: 12px 16px 3rem; max-width: 1600px; margin: 0 auto; }
 ### 模式 3：浏览器不可用时的前端验证
 
 本环境 Chromium 缺系统库（libnspr4/libnss3，WSL2 无 sudo）无法 headless。替代：
-- 最小 DOM stub + node eval（`test/test_timeline_render.js`，复刻 `test_auth_render.js` 模式；eval 作用域隔离需 `global.X = window.X` 桥接）
+- 最小 DOM stub + node eval（`test/test_timeline_render.js`，复刻 `test_auth_render.js` 模式；eval 作用域隔离需 `global.X = window.X` 桥接）；已由 `test/test_dom_render_suites.py` 以子进程纳入 pytest 常规回归（含论坛 DOM 用例，新增 `test/test_*.js` 自动发现）
 - 线上/本地对比：`curl https://littlero.tech/static/<file> | md5sum` 与本地比对，排除部署/缓存差异（生产 css/js 与本地一致即可信任本地结论）
 
 ### 模式 4：测试隔离

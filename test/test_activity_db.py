@@ -1,5 +1,5 @@
 """测试活动数据访问层。
-运行: python test/test_activity_db.py
+运行: pytest test/test_activity_db.py
 """
 import os
 import sys

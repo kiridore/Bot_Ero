@@ -1,5 +1,5 @@
 """测试活动私聊提交与流转。
-运行: python test/test_activity_submit.py
+运行: pytest test/test_activity_submit.py
 """
 import os
 import sys

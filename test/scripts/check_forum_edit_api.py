@@ -1,7 +1,7 @@
 """议事厅编辑/删除 API 行为测试：作者权限、字段更新、时间线事件撤回+重发。
 
 使用临时 DB（全新 schema，不触碰 data.db），真实登录密钥走完整鉴权链路；
-时间线 emit/retract 打桩记录调用。运行：python test/test_forum_edit_api.py
+时间线 emit/retract 打桩记录调用。独立进程运行: python test/scripts/check_forum_edit_api.py（pytest 由 test/test_webapp_api_suites.py 子进程纳入统一回归）
 """
 
 import os
@@ -13,7 +13,7 @@ from unittest.mock import patch
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

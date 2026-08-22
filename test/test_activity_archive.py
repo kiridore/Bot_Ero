@@ -1,5 +1,5 @@
 """测试活动归档。
-运行: python test/test_activity_archive.py
+运行: pytest test/test_activity_archive.py
 """
 import os
 import sys

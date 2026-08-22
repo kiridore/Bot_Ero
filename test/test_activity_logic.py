@@ -1,5 +1,5 @@
 """测试活动纯逻辑（环/链/超时）。
-运行: python test/test_activity_logic.py
+运行: pytest test/test_activity_logic.py
 """
 import sys
 import random

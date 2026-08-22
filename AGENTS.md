@@ -24,7 +24,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 ## Toolchain reality
 
 - **No build system:** 无 `pyproject.toml`/`setup.py`。两个入口：`python main.py`（bot）、`python -m webapp`（Web，默认 8765 端口）。依赖装根目录 `requirements.txt`（webapp 子集在 `webapp/requirements.txt`）。
-- **No test framework, lint, or formatter.** `test/` 是 ad-hoc 脚本：Python 的用 `python test/<name>.py`（临时 DB 隔离须启动前注入 `BOTERO_DB_PATH=...` 环境变量），前端渲染测试是 `node test/test_*_render.js`（最小 DOM stub）。
+- **测试统一入口 pytest，无 lint/formatter.** 项目根 `pytest` 一键全量回归（`pytest.ini` + `test/conftest.py`，conftest 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录，**绝不触碰真实 `data.db`/`server_data`**）。布局：`test/test_*.py` 进程内用例（unittest 风格）；`test/scripts/check_*.py` 脚本式集成套件（依赖独立进程拿全新临时 DB，仍可 `python test/scripts/check_<name>.py` 单跑，由 `test/test_webapp_api_suites.py` 子进程纳入回归，新增自动发现）；`test/test_*.js` node 最小 DOM stub 渲染用例（含论坛 DOM 回归，由 `test/test_dom_render_suites.py` 子进程纳入，需 node）。`test_llm.py` 真实调外部计费 API，被 conftest `collect_ignore` 排除出常规回归。
 - `pyrightconfig.json` 被 gitignore——不要在 CI/自动化中依赖它。
 - 环境变量单一来源 `scripts/botero.env`：`main.py` 启动时 `os.environ.setdefault` 注入（必须在 import core 之前）；webapp 生产经 systemd `EnvironmentFile` 读同一文件。约 30 个 `BOTERO_*` 变量集中在 `core/config.py`。
 - **Git hooks:** clone 后执行 `git config core.hooksPath .githooks` 启用 Conventional Commits 校验（commit-msg 钩子对 >12 个文件的暂存输出分块提示，警告不阻断）。

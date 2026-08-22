@@ -1,5 +1,5 @@
 """测试活动心跳（超时跳过/截止结束）。
-运行: python test/test_activity_timer.py
+运行: pytest test/test_activity_timer.py
 """
 import os
 import sys

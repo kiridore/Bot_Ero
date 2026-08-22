@@ -4,8 +4,10 @@
 `python test/test_llm.py`
 
 注意：
-该脚本会真实调用 LLM API，请确保已配置 `DEEPSEEK_API_KEY`，
-并注意接口消耗与网络连通性。
+- 该脚本会真实调用 LLM API，请确保已配置 `DEEPSEEK_API_KEY`，
+  并注意接口消耗与网络连通性。
+- LLM 子系统已弃用：本文件被 `test/conftest.py` 的 `collect_ignore` 排除出
+  pytest 常规回归（外部计费 API 依赖），仅按需手动单独运行。
 """
 
 from __future__ import annotations

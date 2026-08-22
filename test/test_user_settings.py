@@ -1,6 +1,6 @@
 """测试 core.user_settings 通用个人设置模块。
 
-运行: python test/test_user_settings.py
+运行: pytest test/test_user_settings.py
 """
 
 from __future__ import annotations

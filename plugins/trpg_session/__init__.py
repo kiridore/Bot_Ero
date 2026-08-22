@@ -11,6 +11,9 @@ from core.utils import register_plugin, download_image
 from core import character_store as store
 import core.context as runtime_context
 
+# 跑团记录导出根目录（模块级常量，测试 patch 到临时目录避免写真实 server_data）
+TRPG_RECORDS_ROOT = "server_data/trpg_records"
+
 
 @register_plugin
 class TrpgSessionPlugin(Plugin):
@@ -208,7 +211,7 @@ class TrpgSessionPlugin(Plugin):
             return
 
         start_str = recording["start"].strftime("%Y-%m-%d_%H-%M-%S")
-        folder_name = f"server_data/trpg_records/{group_id}/{start_str}"
+        folder_name = f"{TRPG_RECORDS_ROOT}/{group_id}/{start_str}"
         imgs_dir = f"{folder_name}/imgs"
 
         try:
@@ -318,7 +321,7 @@ class TrpgSessionPlugin(Plugin):
             self.api.send_msg(text("跑团记录只能在群聊中使用"))
             return
 
-        rec_dir = f"server_data/trpg_records/{group_id}"
+        rec_dir = f"{TRPG_RECORDS_ROOT}/{group_id}"
         if not os.path.isdir(rec_dir):
             self.api.send_msg(text("暂无保存的跑团记录"))
             return
@@ -351,7 +354,7 @@ class TrpgSessionPlugin(Plugin):
             self.api.send_msg(text("请输入有效编号，格式：/跑团记录 #数字"))
             return
 
-        rec_dir = f"server_data/trpg_records/{group_id}"
+        rec_dir = f"{TRPG_RECORDS_ROOT}/{group_id}"
         if not os.path.isdir(rec_dir):
             self.api.send_msg(text("暂无保存的跑团记录"))
             return

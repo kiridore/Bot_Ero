@@ -2,6 +2,7 @@
 data.db
 pyrightconfig.json
 __pycache__/
+.pytest_cache/
 backup
 test/gen_image_output/
 server_data
