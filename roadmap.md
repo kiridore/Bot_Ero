@@ -138,6 +138,6 @@
 - [ ] 图标缓存治理：tools_icon_cache 过期清理、负缓存有效期观察
 
 ## webapp 工程化与动效收尾
-- [ ] 统一测试框架：引入 pytest，test/ ad-hoc 脚本收敛，论坛 DOM 测试纳入常规回归
+- [x] 统一测试框架：引入 pytest，test/ ad-hoc 脚本收敛，论坛 DOM 测试纳入常规回归
 - [ ] 动效预揭示区长列表行为浏览器端实测（当前仅行为级验证，未做视觉验证）
 - [ ] 评估 `content-visibility: auto` 降低长列表渲染开销

@@ -8,6 +8,7 @@
 
 ### 变更
 
+- **统一测试框架 pytest**：项目根 `pytest` 一键全量回归——`test/conftest.py` 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录（回归绝不触碰真实 `data.db`/`server_data`）；5 个脚本式 webapp 集成套件（论坛编辑/评论线程/投票、时间线未读、全站登录门控）迁至 `test/scripts/check_*.py` 由子进程包装器纳入（各自独立进程拿全新临时 DB，仍可单跑）；node 最小 DOM stub 渲染用例（含论坛列表/详情/新建/预填 4 个 DOM 用例）一并纳入常规回归，新增用例自动发现；跑团记录插件导出路径提取常量 `TRPG_RECORDS_ROOT`（行为不变），其测试不再写删真实 `server_data/`；触碰真实库的数据脚本 `db_oper`/`sort_image` 迁出 `test/` 至 `scripts/`；`test_llm.py`（真实调外部计费 API）排除出常规回归；修复 `test_trpg_char` 4 处过期断言（`/profile/trpg` → 当前 `WEB_TRPG_URL`，3.0 路径分区迁移遗留）；补 Windows 依赖 `tzdata`
 - **共享样式文件更名**：`core/web/static/gallery.css` → `base.css`（引用路径 `/shared/gallery.css` → `/shared/base.css`）——该文件实为全站基础样式（报纸风 token 唯一来源 + 共享组件 + 全站滚动条），旧名易误解为图库页专属；仅命名与引用同步，行为不变
 - **README 同步当前架构**：已注册插件数 43 → 47、Web 功能模块 6/8 → 11（补时间线/议事厅/工具箱/周报/登录页分区），快速开始改用 `pip install -r requirements.txt`（旧三包示例缺 GitPython 等模块级依赖），补全站登录门控说明与 `scripts/botero.env` 单一来源；仅文档修正
 
