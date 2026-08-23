@@ -68,6 +68,15 @@ class MessageLogManager:
         self.conn.commit()
         return inserted
 
+    def earliest_sent_at(self, group_id: int) -> str | None:
+        """返回该群最早一条消息的 sent_at（无消息返回 None）。"""
+        self.cur.execute(
+            "SELECT MIN(sent_at) FROM messages WHERE group_id = ?",
+            (int(group_id),),
+        )
+        row = self.cur.fetchone()
+        return row[0] if row and row[0] else None
+
     def get_week(self, group_id: int, start: str, end: str) -> list[dict]:
         """返回 [start, end) 周界内的群消息（按发送时间升序）。"""
         self.cur.execute(

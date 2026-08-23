@@ -120,6 +120,21 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         if db.weekly.get(week_key, group_id) is not None:
             return
 
+        # 周报只覆盖消息日志从头记录的完整周：日志最早一条消息晚于周起点，
+        # 说明该周处于功能上线之前/上线当周（启动补偿会触发），跳过不出报
+        mlog = MessageLogManager()
+        try:
+            earliest = mlog.earliest_sent_at(group_id)
+        finally:
+            mlog.close()
+        if earliest is None or earliest > start:
+            from core.logger import logger
+
+            logger.info(
+                "周报 %s 跳过：消息日志未覆盖该周起点（earliest=%s）", week_key, earliest
+            )
+            return
+
         data = self._aggregate(db, group_id, week_key, start, end)
         db.weekly.upsert(week_key, group_id, data)
 
