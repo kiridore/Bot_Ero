@@ -198,19 +198,27 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         imm = db.cur.fetchone()
         if imm:
             period_key, digits, pool = imm[0], str(imm[1]), int(imm[2] or 0)
-            jackpot_hit = False
-            db.cur.execute(
-                "SELECT user_id, digits FROM immortal_lottery_bets WHERE group_id = ? AND period_key = ?",
-                (int(group_id), str(period_key)),
-            )
-            for _uid, bet in db.cur.fetchall():
-                if sum(1 for i in range(4) if digits[i] == str(bet)[i]) >= 3:
-                    jackpot_hit = True
-                    break
+            hits = [
+                (uid, str(bet))
+                for _bid, uid, bet in db.immortal.list_bets(int(group_id), str(period_key))
+                if sum(1 for i in range(4) if digits[i] == str(bet)[i]) >= 3
+            ]
+            if hits:
+                hit_names = "、".join(f"{_name(uid)}（{bet}）" for uid, bet in hits)
+                return {
+                    "kind": "immortal_jackpot",
+                    "title": "仙人彩大奖落定",
+                    "body": f"本期开奖号码 {digits}，{hit_names} 命中大奖！",
+                    "stats": [
+                        {"label": "开奖号码", "value": digits},
+                        {"label": "大奖得主", "value": hit_names},
+                        {"label": "奖池", "value": pool},
+                    ],
+                }
             return {
                 "kind": "immortal_jackpot",
-                "title": "仙人彩大奖落定" if jackpot_hit else "仙人彩奖池滚存",
-                "body": f"本期开奖号码 {digits}，奖池 {pool} 积分。",
+                "title": "仙人彩奖池滚存",
+                "body": f"本期开奖号码 {digits}，无人命中大奖，奖池滚存。",
                 "stats": [{"label": "开奖号码", "value": digits}, {"label": "奖池", "value": pool}],
             }
 
@@ -339,7 +347,7 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         unlucky = db.lottery.weekly_unlucky_from_log(start, end)
 
         db.cur.execute(
-            "SELECT winning_digits, bet_total FROM immortal_lottery_results"
+            "SELECT period_key, winning_digits, bet_total FROM immortal_lottery_results"
             " WHERE group_id = ? AND drawn_at >= ? AND drawn_at < ?"
             " ORDER BY drawn_at DESC LIMIT 1",
             (int(GROUP_ID), start, end),
@@ -347,25 +355,20 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         imm = db.cur.fetchone()
         immortal = None
         if imm:
-            digits = str(imm[0])
-            pool = int(imm[1] or 0)
-            winners = 0
-            db.cur.execute(
-                "SELECT period_key FROM immortal_lottery_results"
-                " WHERE group_id = ? AND drawn_at >= ? AND drawn_at < ?"
-                " ORDER BY drawn_at DESC LIMIT 1",
-                (int(GROUP_ID), start, end),
-            )
-            pk_row = db.cur.fetchone()
-            if pk_row:
-                period_key = str(pk_row[0])
-                db.cur.execute(
-                    "SELECT digits FROM immortal_lottery_bets WHERE group_id = ? AND period_key = ?",
-                    (int(GROUP_ID), period_key),
-                )
-                for (bet,) in db.cur.fetchall():
-                    if sum(1 for i in range(4) if digits[i] == str(bet)[i]) >= 2:
-                        winners += 1
+            period_key = str(imm[0])
+            digits = str(imm[1])
+            pool = int(imm[2] or 0)
+            tier_names = {4: "一等奖(4A)", 3: "二等奖(3A)", 2: "三等奖(2A)"}
+            winners = []
+            for _bid, uid, bet in db.immortal.list_bets(int(GROUP_ID), period_key):
+                a = sum(1 for i in range(4) if digits[i] == str(bet)[i])
+                if a >= 2:
+                    winners.append({
+                        "user_id": int(uid),
+                        "name": _name(int(uid)),
+                        "digits": str(bet),
+                        "tier": tier_names[a],
+                    })
             immortal = {"digits": digits, "pool": pool, "winners": winners}
 
         lucky = [

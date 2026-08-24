@@ -10,11 +10,13 @@ from typing import Optional
 
 from core.base import Plugin
 from core.cq import at, text
+from core.onebot_client import resolve_display_name
 from core.utils import register_plugin
 
 from .helpers import (
     _DIGITS4,
     _allocate_tier_pool,
+    _bets_by_user,
     _count_a,
     _in_betting_window,
     _now_bj,
@@ -22,6 +24,13 @@ from .helpers import (
     _period_monday_for_display,
     _sunday_draw_period_monday,
 )
+
+
+def _name(uid: int) -> str:
+    try:
+        return resolve_display_name(str(uid))
+    except Exception:
+        return str(uid)
 
 
 @register_plugin
@@ -112,6 +121,12 @@ class ImmortalLotteryPlugin(Plugin):
             f"周期（周一）起点：{pk}",
             f"本期累计投注：{pts} 积分（{bets} 注，{users} 人参与）",
             f"滚存奖池：一等奖 {c4} / 二等奖 {c3} / 三等奖 {c2}",
+        ]
+        if bets:
+            lines.append(f"本期注单（{bets} 注 / {users} 人）：")
+            for uid, digits_list in _bets_by_user(self.dbmanager.immortal.list_bets(gid, pk)):
+                lines.append(f"  · {_name(uid)}：{'、'.join(digits_list)}")
+        lines += [
             "",
             "下注期：每周一 00:00–周五 23:59（北京时间）",
             "开奖：每周日 20:00 自动开奖",
@@ -288,11 +303,18 @@ class ImmortalLotteryPlugin(Plugin):
                 line2 += "（" + "；".join(extra2) + "）"
             lines.append(line2 + "。")
 
+        if bets:
+            by_user = _bets_by_user(bets)
+            lines.append("")
+            lines.append(f"本期注单（{bet_total} 注 / {len(by_user)} 人）：")
+            for uid, digits_list in by_user:
+                lines.append(f"  · {_name(uid)}：{'、'.join(digits_list)}")
+
         if pay_detail:
             lines.append("")
             lines.append("中奖发放（整数积分；余数滚存；不足每人 1 分时按下注顺序）：")
-            for _uid, amt, label in pay_detail:
-                lines.append(f"  · {label} → {amt} 积分")
+            for uid, amt, label in pay_detail:
+                lines.append(f"  · {_name(uid)} {label} → {amt} 积分")
 
         msg = "\n".join(lines)
         self.api.call_api("send_group_msg", {"group_id": int(group_id), "message": (text(msg),)})

@@ -14,6 +14,10 @@ function makeEl(tag) {
     appendChild(c) { this.children.push(c); return c; },
     append(...cs) { cs.forEach((c) => this.children.push(c)); },
   };
+  Object.defineProperty(el, "innerHTML", {
+    get() { return el._html || ""; },
+    set(v) { el._html = v; el.children.length = 0; },
+  });
   return el;
 }
 
@@ -37,7 +41,7 @@ global.GalleryAuth = {
 
 const detailPayload = {
   period: { issue: 1, start: "2026-08-17", end: "2026-08-24", total_messages: 15103, total_chars: 116654 },
-  headline: { kind: "immortal_jackpot", title: "仙人彩奖池滚存", body: "本期开奖号码 6573，奖池 7 积分。", stats: [{ label: "开奖号码", value: "6573" }] },
+  headline: { kind: "immortal_jackpot", title: "仙人彩大奖落定", body: "本期开奖号码 6573，仙人大帝（6573） 命中大奖！", stats: [{ label: "开奖号码", value: "6573" }, { label: "大奖得主", value: "仙人大帝（6573）" }, { label: "奖池", value: 7 }] },
   checkin: {
     total: 21, users: 3, daily_avg: 3.0, remedy: 1,
     full_week: [{ user_id: 1, name: "全勤侠" }],
@@ -48,7 +52,13 @@ const detailPayload = {
     top: { user_id: 2, name: "抽卡之王", count: 40 },
     lucky: [{ user_id: 3, name: "欧皇", hit: "points_10" }],
     unlucky: { user_id: 4, name: "非酋", zero_streak: 23 },
-    immortal: { digits: "6573", pool: 7, winners: 0 },
+    immortal: {
+      digits: "6573", pool: 7,
+      winners: [
+        { user_id: 99, name: "仙人大帝", tier: "一等奖(4A)", digits: "6573" },
+        { user_id: 98, name: "半仙", tier: "三等奖(2A)", digits: "6500" },
+      ],
+    },
   },
   voices: {
     quotes: [{ user_id: 5, name: "语录侠", text: "这是一条足够长的语录内容。", at: "2026-08-18 12:00" }],
@@ -117,7 +127,9 @@ function allText(node) {
   const sections = paper.children.filter((c) => c.className === "weekly-section");
   check("渲染 5 个板块", sections.length === 5, `实际 ${sections.length}`);
   const titles = sections.map((s) => s.children[0].children[1].textContent);
-  check("头版标题", titles[0] === "仙人彩奖池滚存");
+  check("头版标题", titles[0] === "仙人彩大奖落定");
+  check("头版大奖得主卡片", allText(sections[0]).includes("大奖得主")
+        && allText(sections[0]).includes("仙人大帝"));
   check("二版标题（打卡与抽奖）", titles[1] === "打卡与抽奖");
   check("三版标题（语录热梗热词）", titles[2] === "语录 · 热梗 · 热词");
   check("四版标题（群像观察）", titles[3] === "活跃柱状图与榜单");
@@ -132,6 +144,8 @@ function allText(node) {
   check("全勤榜渲染", allText(sections[1]).includes("全勤侠"));
   check("抽卡之王渲染", allText(sections[1]).includes("抽卡之王"));
   check("仙人彩结算渲染", allText(sections[1]).includes("仙人彩"));
+  check("仙人彩中奖明细渲染", allText(sections[1]).includes("仙人大帝 一等奖(4A) 6573")
+        && allText(sections[1]).includes("半仙 三等奖(2A) 6500"));
   check("打卡群像墙图片", findAll(sections[1], "weekly-image-card").length === 1);
 
   // 4. 三版：语录/热梗/热词
@@ -154,6 +168,14 @@ function allText(node) {
 
   // 7. 全页不应出现 undefined 文本
   check("无 undefined 文本", !allText(paper).includes("undefined"));
+
+  // 8. 旧版周报归档兼容：immortal.winners 为数字（1.21.x 及之前格式）
+  detailPayload.lottery.immortal.winners = 2;
+  domContentLoaded();
+  await wait(100);
+  const sections2 = els.weeklyPaper.children.filter((c) => c.className === "weekly-section");
+  check("重渲染替换而非叠加", sections2.length === 5, `实际 ${sections2.length}`);
+  check("旧版 winners 数字兼容（中奖 N 注）", allText(sections2[1]).includes("中奖 2 注"));
 
   process.exit(fail ? 1 : 0);
 })();

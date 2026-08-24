@@ -195,7 +195,14 @@ function renderCheckin(c, l) {
     right.appendChild(el("p", "", `非酋：${l.unlucky.name}（最长 ${l.unlucky.zero_streak} 连零）`));
   }
   if (l.immortal) {
-    right.appendChild(el("p", "", `仙人彩：开奖 ${l.immortal.digits} / 奖池 ${l.immortal.pool} / 中奖 ${l.immortal.winners} 注`));
+    right.appendChild(el("p", "", `仙人彩：开奖 ${l.immortal.digits} / 奖池 ${l.immortal.pool}`));
+    if (Array.isArray(l.immortal.winners)) {
+      l.immortal.winners.forEach((w) => {
+        right.appendChild(el("p", "", `${w.name} ${w.tier} ${w.digits}`));
+      });
+    } else if (l.immortal.winners > 0) {
+      right.appendChild(el("p", "", `中奖 ${l.immortal.winners} 注`));
+    }
   }
   grid.appendChild(right);
   sec.appendChild(grid);

@@ -176,3 +176,86 @@ class TestTriggerWiring(unittest.TestCase):
             self.plugin.handle()
         self.assertTrue(weekly_report._boot_checked)
         self.assertEqual(self.db.weekly.list(int(GROUP_ID)), [])
+
+
+class TestImmortalInReport(unittest.TestCase):
+    """仙人彩中奖明细进周报：winners 按奖级列中奖人/号码；有人 ≥3A 时头条为大奖落定。"""
+
+    def setUp(self):
+        mlog = MessageLogManager()
+        mlog.cur.execute("DELETE FROM messages")
+        mlog.insert(int(GROUP_ID), 10001, 1, EARLIEST, "功能上线当晚的消息")
+        mlog.insert(int(GROUP_ID), 10001, 2, "2026-08-20 12:00:00", "结算周内的消息")
+        mlog.conn.commit()
+        mlog.close()
+
+        self.plugin = WeeklyReportPlugin(make_group_message("meta"))
+        self.plugin.api = MockApiWrapper(make_group_message("meta"))
+        self.db = self.plugin.dbmanager
+        self.db.cur.execute("DELETE FROM weekly_reports")
+        self.db.cur.execute("DELETE FROM immortal_lottery_results")
+        self.db.cur.execute("DELETE FROM immortal_lottery_bets")
+
+        # 开奖号码 6573（周日 20:00，落在本周报期内）
+        self.db.cur.execute(
+            "INSERT INTO immortal_lottery_results (group_id, period_key, winning_digits, bet_total, drawn_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (int(GROUP_ID), "2026-08-17", "6573", 4, "2026-08-23 20:00:00"),
+        )
+        self.db.cur.executemany(
+            "INSERT INTO immortal_lottery_bets"
+            " (group_id, period_key, user_id, digits, bet_bj_date, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (int(GROUP_ID), "2026-08-17", 301, "6573", "2026-08-17", "2026-08-17 09:00:00"),  # 4A 一等奖
+                (int(GROUP_ID), "2026-08-17", 302, "6578", "2026-08-18", "2026-08-18 09:00:00"),  # 3A 二等奖
+                (int(GROUP_ID), "2026-08-17", 303, "6500", "2026-08-19", "2026-08-19 09:00:00"),  # 2A 三等奖
+                (int(GROUP_ID), "2026-08-17", 304, "1234", "2026-08-20", "2026-08-20 09:00:00"),  # 未中
+            ],
+        )
+        self.db.conn.commit()
+
+    def tearDown(self):
+        self.db.cur.execute("DELETE FROM weekly_reports")
+        self.db.cur.execute("DELETE FROM immortal_lottery_results")
+        self.db.cur.execute("DELETE FROM immortal_lottery_bets")
+        self.db.conn.commit()
+
+    def test_immortal_winners_detail_in_report(self):
+        self.plugin._generate_week("2026-08-17 08:00:00", "2026-08-24 08:00:00")
+        row = self.db.weekly.get("2026-08-17", int(GROUP_ID))
+        self.assertIsNotNone(row)
+        data = row["data_json"]
+
+        immortal = data["lottery"]["immortal"]
+        self.assertEqual(immortal["digits"], "6573")
+        self.assertEqual({w["tier"] for w in immortal["winners"]},
+                         {"一等奖(4A)", "二等奖(3A)", "三等奖(2A)"})
+        by_user = {w["user_id"]: w for w in immortal["winners"]}
+        self.assertEqual(by_user[301]["digits"], "6573")
+        self.assertEqual(by_user[302]["digits"], "6578")
+        self.assertEqual(by_user[303]["digits"], "6500")
+        self.assertNotIn(304, by_user)
+        for w in immortal["winners"]:
+            self.assertTrue(w["name"])  # 名字解析降级为 QQ 号字符串，但非空
+
+        headline = data["headline"]
+        self.assertEqual(headline["title"], "仙人彩大奖落定")
+        self.assertIn("6573", headline["body"])
+        stat_labels = [s["label"] for s in headline["stats"]]
+        self.assertIn("大奖得主", stat_labels)
+
+    def test_immortal_rolled_over_when_no_jackpot(self):
+        # 仅一注未中：头条滚存、winners 为空列表
+        self.db.cur.execute("DELETE FROM immortal_lottery_bets")
+        self.db.cur.execute(
+            "INSERT INTO immortal_lottery_bets"
+            " (group_id, period_key, user_id, digits, bet_bj_date, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (int(GROUP_ID), "2026-08-17", 304, "1234", "2026-08-17", "2026-08-17 09:00:00"),
+        )
+        self.db.conn.commit()
+        self.plugin._generate_week("2026-08-17 08:00:00", "2026-08-24 08:00:00")
+        data = self.db.weekly.get("2026-08-17", int(GROUP_ID))["data_json"]
+        self.assertEqual(data["headline"]["title"], "仙人彩奖池滚存")
+        self.assertEqual(data["lottery"]["immortal"]["winners"], [])

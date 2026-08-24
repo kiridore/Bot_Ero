@@ -46,6 +46,18 @@ def _count_a(secret: str, guess: str) -> int:
     return sum(1 for i in range(4) if secret[i] == guess[i])
 
 
+def _bets_by_user(bets: list[tuple]) -> list[tuple[int, list[str]]]:
+    """按人聚合注单：[(uid, [号码, ...])]，人按首次下注顺序、号码保留下注先后。"""
+    order: list[int] = []
+    grouped: dict[int, list[str]] = {}
+    for _bid, uid, dg in bets:
+        if uid not in grouped:
+            grouped[uid] = []
+            order.append(uid)
+        grouped[uid].append(dg)
+    return [(uid, grouped[uid]) for uid in order]
+
+
 def _allocate_tier_pool(
     pool: int,
     ordered_winners: list[tuple[int, str]],
