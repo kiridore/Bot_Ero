@@ -85,9 +85,15 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         global _boot_checked
         if event_type != "meta":
             return False
+        # should_run_on_heartbeat 非幂等（首次判定即消费当分钟去重标记），
+        # handle 不得重复查询判定定时触发——决策只能由 match 经实例属性传入
         if not _boot_checked:
-            return True  # 启动补偿：首个 meta 触发一次补漏
-        return self.should_run_on_heartbeat(event_type)
+            self._trigger = "boot"  # 启动补偿：首个 meta 触发一次补漏
+            return True
+        if self.should_run_on_heartbeat(event_type):
+            self._trigger = "scheduled"
+            return True
+        return False
 
     def handle(self):
         try:
@@ -100,16 +106,14 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
     # ------------------------------------------------------------------
     def _handle(self):
         global _boot_checked
-        scheduled = self.should_run_on_heartbeat("meta")
-
-        if not _boot_checked:
+        trigger = getattr(self, "_trigger", None)
+        if trigger == "boot":
             try:
                 start, end = _last_week_bounds()
                 self._generate_week(start, end)
             finally:
                 _boot_checked = True
-
-        if scheduled:
+        elif trigger == "scheduled":
             start, end = _last_week_bounds()
             self._generate_week(start, end)
 
