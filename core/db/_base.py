@@ -286,9 +286,21 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             group_id INTEGER NOT NULL PRIMARY KEY,
             carry_4a INTEGER NOT NULL DEFAULT 0,
             carry_3a INTEGER NOT NULL DEFAULT 0,
-            carry_2a INTEGER NOT NULL DEFAULT 0
+            carry_2a INTEGER NOT NULL DEFAULT 0,
+            carry_total INTEGER NOT NULL DEFAULT 0
         );
     """)
+    # 迁移：1.22 及之前按奖级三列独立滚存，并入单一总池后停用旧列
+    cur.execute("PRAGMA table_info(immortal_lottery_carry)")
+    _carry_cols = [row[1] for row in cur.fetchall()]
+    if "carry_total" not in _carry_cols:
+        cur.execute(
+            "ALTER TABLE immortal_lottery_carry ADD COLUMN carry_total INTEGER NOT NULL DEFAULT 0"
+        )
+        cur.execute(
+            "UPDATE immortal_lottery_carry"
+            " SET carry_total = carry_4a + carry_3a + carry_2a, carry_4a = 0, carry_3a = 0, carry_2a = 0"
+        )
     cur.execute("""
         CREATE TABLE IF NOT EXISTS immortal_lottery_results (
             group_id INTEGER NOT NULL,

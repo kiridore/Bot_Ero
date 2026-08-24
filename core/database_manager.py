@@ -47,5 +47,8 @@ class DbManager:
         self.weekly = WeeklyReportManager(self.conn)
 
     def __del__(self):
-        self.conn.commit()
-        self.conn.close()
+        try:
+            self.conn.commit()
+            self.conn.close()
+        except sqlite3.Error:
+            pass

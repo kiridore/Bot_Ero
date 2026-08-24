@@ -186,9 +186,10 @@ CREATE INDEX idx_group_alarms_due ON group_alarms (fired, fire_at);
 ```sql
 CREATE TABLE immortal_lottery_carry (
     group_id INTEGER NOT NULL PRIMARY KEY,
-    carry_4a INTEGER NOT NULL DEFAULT 0,
-    carry_3a INTEGER NOT NULL DEFAULT 0,
-    carry_2a INTEGER NOT NULL DEFAULT 0
+    carry_4a INTEGER NOT NULL DEFAULT 0,   -- 1.22 及之前按奖级独立滚存，迁移后停用恒 0
+    carry_3a INTEGER NOT NULL DEFAULT 0,   -- 同上
+    carry_2a INTEGER NOT NULL DEFAULT 0,   -- 同上
+    carry_total INTEGER NOT NULL DEFAULT 0 -- 单一总奖池滚存（旧三列之和已并入）
 );
 
 CREATE TABLE immortal_lottery_results (

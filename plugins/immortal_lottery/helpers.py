@@ -46,6 +46,45 @@ def _count_a(secret: str, guess: str) -> int:
     return sum(1 for i in range(4) if secret[i] == guess[i])
 
 
+# 单一总奖池下各奖级的「拿走比例」：开奖按 4A → 3A → 2A 逐级从当前池派发，
+# 池单调缩小且比例递减，保证高奖级单注奖金恒大于低奖级（不会倒挂）。
+_TIER_RATE_PCT = {4: 40, 3: 15, 2: 5}
+
+
+def _payout_tier(
+    pool: int,
+    ordered_winners: list[tuple[int, str]],
+    rate_pct: int,
+    prize_name: str,
+) -> tuple[list[tuple[int, int, str]], list[tuple[int, int]], int]:
+    """
+    单奖级按当时总池比例派发：n 注合计拿走 pool * (1-(1-r)^n)，奖级内均分，
+    均分余数留池。只派发整数积分；合计不足 n 分时按下注先后各发 1 分至耗尽。
+    返回 (展示明细, 实际加分的 (uid, amt) 列表, 实际派发总额)。
+    """
+    n = len(ordered_winners)
+    if n == 0 or pool <= 0:
+        return [], [], 0
+    total_take = pool * (100 ** n - (100 - rate_pct) ** n) // 100 ** n
+    detail: list[tuple[int, int, str]] = []
+    payouts: list[tuple[int, int]] = []
+
+    if total_take < n:
+        for i, (uid, dg) in enumerate(ordered_winners):
+            amt = 1 if i < total_take else 0
+            detail.append((uid, amt, f"{prize_name} {dg}"))
+            if amt > 0:
+                payouts.append((uid, amt))
+        return detail, payouts, total_take
+
+    base = total_take // n
+    for uid, dg in ordered_winners:
+        detail.append((uid, base, f"{prize_name} {dg}"))
+        if base > 0:
+            payouts.append((uid, base))
+    return detail, payouts, base * n
+
+
 def _bets_by_user(bets: list[tuple]) -> list[tuple[int, list[str]]]:
     """按人聚合注单：[(uid, [号码, ...])]，人按首次下注顺序、号码保留下注先后。"""
     order: list[int] = []
@@ -56,41 +95,3 @@ def _bets_by_user(bets: list[tuple]) -> list[tuple[int, list[str]]]:
             order.append(uid)
         grouped[uid].append(dg)
     return [(uid, grouped[uid]) for uid in order]
-
-
-def _allocate_tier_pool(
-    pool: int,
-    ordered_winners: list[tuple[int, str]],
-    prize_name: str,
-) -> tuple[list[tuple[int, int, str]], list[tuple[int, int]], int]:
-    """
-    只派发整数积分；无法整除的余数滚入该奖级下期池。
-    若奖池不足以使每位中奖注至少分到 1 分，则按下注先后各发 1 分直至耗尽。
-    返回 (展示明细, 实际加分的 (uid, amt) 列表, 滚入下期该奖级的余数)。
-    """
-    n = len(ordered_winners)
-    if n == 0:
-        return [], [], pool
-    if pool <= 0:
-        return [], [], 0
-
-    detail: list[tuple[int, int, str]] = []
-    payouts: list[tuple[int, int]] = []
-
-    if pool < n:
-        for i, (uid, dg) in enumerate(ordered_winners):
-            amt = 1 if i < pool else 0
-            label = f"{prize_name} {dg}"
-            detail.append((uid, amt, label))
-            if amt > 0:
-                payouts.append((uid, amt))
-        return detail, payouts, 0
-
-    base = pool // n
-    rem = pool % n
-    for uid, dg in ordered_winners:
-        label = f"{prize_name} {dg}"
-        detail.append((uid, base, label))
-        if base > 0:
-            payouts.append((uid, base))
-    return detail, payouts, rem

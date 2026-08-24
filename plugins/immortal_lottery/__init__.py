@@ -15,11 +15,12 @@ from core.utils import register_plugin
 
 from .helpers import (
     _DIGITS4,
-    _allocate_tier_pool,
+    _TIER_RATE_PCT,
     _bets_by_user,
     _count_a,
     _in_betting_window,
     _now_bj,
+    _payout_tier,
     _period_key_from_monday,
     _period_monday_for_display,
     _sunday_draw_period_monday,
@@ -111,7 +112,7 @@ class ImmortalLotteryPlugin(Plugin):
         pk = self._current_period_key()
         issue = self.dbmanager.immortal.issue_code(gid, pk)
         st = self.dbmanager.immortal.period_stats(gid, pk)
-        c4, c3, c2 = self.dbmanager.immortal.carry(gid)
+        c = self.dbmanager.immortal.carry(gid)
         pts = int(st.get("bet_points", 0))
         users = int(st.get("distinct_users", 0))
         bets = int(st.get("bet_count", 0))
@@ -120,7 +121,7 @@ class ImmortalLotteryPlugin(Plugin):
             f"期号：{issue}",
             f"周期（周一）起点：{pk}",
             f"本期累计投注：{pts} 积分（{bets} 注，{users} 人参与）",
-            f"滚存奖池：一等奖 {c4} / 二等奖 {c3} / 三等奖 {c2}",
+            f"滚存总奖池：{c} 积分（开奖时并入本期总池）",
         ]
         if bets:
             lines.append(f"本期注单（{bets} 注 / {users} 人）：")
@@ -131,6 +132,7 @@ class ImmortalLotteryPlugin(Plugin):
             "下注期：每周一 00:00–周五 23:59（北京时间）",
             "开奖：每周日 20:00 自动开奖",
             "每注 1 积分；每人每天最多 1 注。",
+            "中奖按当时总池比例拿走：一等奖 40% / 二等奖 15% / 三等奖 5%；未派发部分全部滚入下期总奖池。",
             "发送 /仙人彩 四位数字 或 下注 四位数字 参与。",
         ]
         self.api.send_msg(text("\n".join(lines)))
@@ -175,13 +177,7 @@ class ImmortalLotteryPlugin(Plugin):
         issue = db.immortal.issue_code(group_id, period_key)
         bets = db.immortal.list_bets(group_id, period_key)
         bet_total = len(bets)
-        p1 = bet_total * 60 // 100
-        p2 = bet_total * 25 // 100
-        p3 = bet_total - p1 - p2
-        c4, c3, c2 = db.immortal.carry(group_id)
-        pool_4 = c4 + p1
-        pool_3 = c3 + p2
-        pool_2 = c2 + p3
+        pool = bet_total + db.immortal.carry(group_id)
 
         winning = "".join(str(random.randint(0, 9)) for _ in range(4))
 
@@ -197,47 +193,23 @@ class ImmortalLotteryPlugin(Plugin):
             elif a == 2:
                 tier2.append((uid, dg))
 
-        nc4 = len(tier4)
-        nc3 = len(tier3)
-        nc2 = len(tier2)
-
         payouts: list[tuple[int, int]] = []
         pay_detail: list[tuple[int, int, str]] = []
-        rem4 = rem3 = rem2 = 0
-        paid4 = paid3 = paid2 = 0
-
-        if nc4 == 0:
-            new_c4 = pool_4
-        elif pool_4 <= 0:
-            new_c4 = 0
-        else:
-            d4, p4, rem4 = _allocate_tier_pool(pool_4, tier4, "一等奖(4A)")
-            pay_detail.extend(d4)
-            payouts.extend(p4)
-            paid4 = sum(a for _u, a in p4)
-            new_c4 = rem4
-
-        if nc3 == 0:
-            new_c3 = pool_3
-        elif pool_3 <= 0:
-            new_c3 = 0
-        else:
-            d3, p3, rem3 = _allocate_tier_pool(pool_3, tier3, "二等奖(3A)")
-            pay_detail.extend(d3)
-            payouts.extend(p3)
-            paid3 = sum(a for _u, a in p3)
-            new_c3 = rem3
-
-        if nc2 == 0:
-            new_c2 = pool_2
-        elif pool_2 <= 0:
-            new_c2 = 0
-        else:
-            d2, p2, rem2 = _allocate_tier_pool(pool_2, tier2, "三等奖(2A)")
-            pay_detail.extend(d2)
-            payouts.extend(p2)
-            paid2 = sum(a for _u, a in p2)
-            new_c2 = rem2
+        pool_left = pool
+        takes: dict[int, int] = {}
+        for a, tier, prize_name in (
+            (4, tier4, "一等奖(4A)"),
+            (3, tier3, "二等奖(3A)"),
+            (2, tier2, "三等奖(2A)"),
+        ):
+            if not tier:
+                continue
+            detail, pay, take = _payout_tier(pool_left, tier, _TIER_RATE_PCT[a], prize_name)
+            pay_detail.extend(detail)
+            payouts.extend(pay)
+            takes[a] = take
+            pool_left -= take
+        new_carry = pool_left
 
         drawn_at = _now_bj().strftime("%Y-%m-%d %H:%M:%S")
         try:
@@ -247,9 +219,7 @@ class ImmortalLotteryPlugin(Plugin):
                 winning,
                 bet_total,
                 drawn_at,
-                new_c4,
-                new_c3,
-                new_c2,
+                new_carry,
                 payouts,
             )
         except Exception:
@@ -262,46 +232,23 @@ class ImmortalLotteryPlugin(Plugin):
             f"期号：{issue}",
             f"本期周期（周一）：{period_key}",
             f"开奖号码：{winning}",
-            f"本期投注：{bet_total} 积分",
-            f"各奖级池（本期分成 + 滚存）：一等奖 {pool_4} / 二等奖 {pool_3} / 三等奖 {pool_2}",
+            f"总奖池（本期投注 {bet_total} + 滚存）：{pool} 积分",
             "",
         ]
-        if nc4 == 0:
-            lines.append(f"一等奖无人中奖，{pool_4} 积分滚入下期一等奖池。")
-        else:
-            extra4: list[str] = []
-            if pool_4 > 0 and pool_4 < nc4:
-                extra4.append("奖池不足每人 1 分，已按下注先后各发 1 分至耗尽")
-            if rem4 > 0:
-                extra4.append(f"均分余数 {rem4} 分滚入下期一等奖池")
-            line4 = f"一等奖(4A)：{nc4} 注，奖池 {pool_4}，实际派发 {paid4} 积分"
-            if extra4:
-                line4 += "（" + "；".join(extra4) + "）"
-            lines.append(line4 + "。")
-        if nc3 == 0:
-            lines.append(f"二等奖无人中奖，{pool_3} 积分滚入下期二等奖池。")
-        else:
-            extra3: list[str] = []
-            if pool_3 > 0 and pool_3 < nc3:
-                extra3.append("奖池不足每人 1 分，已按下注先后各发 1 分至耗尽")
-            if rem3 > 0:
-                extra3.append(f"均分余数 {rem3} 分滚入下期二等奖池")
-            line3 = f"二等奖(3A)：{nc3} 注，奖池 {pool_3}，实际派发 {paid3} 积分"
-            if extra3:
-                line3 += "（" + "；".join(extra3) + "）"
-            lines.append(line3 + "。")
-        if nc2 == 0:
-            lines.append(f"三等奖无人中奖，{pool_2} 积分滚入下期三等奖池。")
-        else:
-            extra2: list[str] = []
-            if pool_2 > 0 and pool_2 < nc2:
-                extra2.append("奖池不足每人 1 分，已按下注先后各发 1 分至耗尽")
-            if rem2 > 0:
-                extra2.append(f"均分余数 {rem2} 分滚入下期三等奖池")
-            line2 = f"三等奖(2A)：{nc2} 注，奖池 {pool_2}，实际派发 {paid2} 积分"
-            if extra2:
-                line2 += "（" + "；".join(extra2) + "）"
-            lines.append(line2 + "。")
+        for a, tier, prize_name in (
+            (4, tier4, "一等奖(4A)"),
+            (3, tier3, "二等奖(3A)"),
+            (2, tier2, "三等奖(2A)"),
+        ):
+            rate = _TIER_RATE_PCT[a]
+            n = len(tier)
+            if n == 0:
+                lines.append(f"{prize_name}无人中奖，{rate}% 份额留在总奖池。")
+                continue
+            take = takes.get(a, 0)
+            note = "（池浅不足均分，按下注先后各 1 分至耗尽）" if take < n else ""
+            lines.append(f"{prize_name}：{n} 注，按当时总池 {rate}% 拿走 {take} 积分，人均约 {take // n}{note}。")
+        lines.append(f"派发后剩余 {new_carry} 积分滚入下期总奖池。")
 
         if bets:
             by_user = _bets_by_user(bets)

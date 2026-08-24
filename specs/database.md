@@ -267,9 +267,10 @@ with _connect() as conn:
 | 列 | 类型 | 约束 | 说明 |
 |----|------|------|------|
 | `group_id` | INTEGER | PRIMARY KEY | 群号 |
-| `carry_4a` | INTEGER | DEFAULT 0 | 4A 奖池累积 |
-| `carry_3a` | INTEGER | DEFAULT 0 | 3A 奖池累积 |
-| `carry_2a` | INTEGER | DEFAULT 0 | 2A 奖池累积 |
+| `carry_4a` | INTEGER | DEFAULT 0 | 旧 4A 独立滚存（迁移后停用恒 0） |
+| `carry_3a` | INTEGER | DEFAULT 0 | 旧 3A 独立滚存（迁移后停用恒 0） |
+| `carry_2a` | INTEGER | DEFAULT 0 | 旧 2A 独立滚存（迁移后停用恒 0） |
+| `carry_total` | INTEGER | DEFAULT 0 | 单一总奖池滚存（旧三列之和已并入，1.23 起） |
 
 #### `immortal_lottery_results`
 | 列 | 类型 | 约束 | 说明 |

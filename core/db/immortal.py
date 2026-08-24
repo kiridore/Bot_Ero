@@ -52,27 +52,20 @@ class ImmortalManager:
         if commit:
             self.conn.commit()
 
-    def carry(self, group_id: int) -> tuple[int, int, int]:
+    def carry(self, group_id: int) -> int:
+        """单一总奖池滚存（旧三列已迁移并入 carry_total）。"""
         self.cur.execute(
-            "SELECT carry_4a, carry_3a, carry_2a FROM immortal_lottery_carry WHERE group_id = ?",
+            "SELECT carry_total FROM immortal_lottery_carry WHERE group_id = ?",
             (int(group_id),),
         )
         row = self.cur.fetchone()
-        if not row:
-            return (0, 0, 0)
-        return (int(row[0] or 0), int(row[1] or 0), int(row[2] or 0))
+        return 0 if not row else int(row[0] or 0)
 
-    def set_carry(
-        self, group_id: int, carry_4a: int, carry_3a: int, carry_2a: int, commit: bool = True
-    ):
+    def set_carry(self, group_id: int, carry_total: int, commit: bool = True):
         self.ensure_carry(group_id, commit=False)
         self.cur.execute(
-            """
-            UPDATE immortal_lottery_carry
-            SET carry_4a = ?, carry_3a = ?, carry_2a = ?
-            WHERE group_id = ?
-            """,
-            (int(carry_4a), int(carry_3a), int(carry_2a), int(group_id)),
+            "UPDATE immortal_lottery_carry SET carry_total = ? WHERE group_id = ?",
+            (int(carry_total), int(group_id)),
         )
         if commit:
             self.conn.commit()
@@ -103,9 +96,7 @@ class ImmortalManager:
         winning_digits: str,
         bet_total: int,
         drawn_at: str,
-        new_carry_4a: int,
-        new_carry_3a: int,
-        new_carry_2a: int,
+        new_carry_total: int,
         payouts,
     ) -> bool:
         gid = int(group_id)
@@ -134,12 +125,8 @@ class ImmortalManager:
                 (gid,),
             )
             self.cur.execute(
-                """
-                UPDATE immortal_lottery_carry
-                SET carry_4a = ?, carry_3a = ?, carry_2a = ?
-                WHERE group_id = ?
-                """,
-                (int(new_carry_4a), int(new_carry_3a), int(new_carry_2a), gid),
+                "UPDATE immortal_lottery_carry SET carry_total = ? WHERE group_id = ?",
+                (int(new_carry_total), gid),
             )
             for uid, amt in payouts:
                 a = int(amt)
@@ -190,7 +177,8 @@ class ImmortalManager:
             SELECT DISTINCT group_id FROM immortal_lottery_bets WHERE period_key = ?
             UNION
             SELECT group_id FROM immortal_lottery_carry
-            WHERE COALESCE(carry_4a, 0) + COALESCE(carry_3a, 0) + COALESCE(carry_2a, 0) > 0
+            WHERE COALESCE(carry_total, 0) > 0
+               OR COALESCE(carry_4a, 0) + COALESCE(carry_3a, 0) + COALESCE(carry_2a, 0) > 0
             """,
             (str(period_key),),
         )
