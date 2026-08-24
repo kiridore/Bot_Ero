@@ -141,7 +141,7 @@ function renderHeadline(d) {
   document.getElementById("weeklyPaper").appendChild(sec);
 }
 
-function renderCheckin(c) {
+function renderCheckin(c, l) {
   const sec = el("section", "weekly-section");
   sec.appendChild(sectionTitle("二版 · 打卡战报", "打卡与抽奖"));
   const grid = el("div", "weekly-two-col");
@@ -181,7 +181,6 @@ function renderCheckin(c) {
 
   const right = el("div", "weekly-col");
   right.appendChild(el("h3", "weekly-col-title", "抽奖战报"));
-  const l = d.lottery || {};
   const kpis2 = el("div", "weekly-kpis");
   kpis2.appendChild(kpi("总抽数", l.total_draws));
   kpis2.appendChild(kpi("人均抽数", l.per_user));
@@ -337,7 +336,7 @@ async function render() {
   if (!data) return;
   renderHeader(data);
   renderHeadline(data);
-  renderCheckin(data);
+  renderCheckin(data.checkin || {}, data.lottery || {});
   renderVoices(data.voices || {});
   renderActivity(data.activity || {});
   renderTrivia(data.trivia || {});
