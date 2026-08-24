@@ -8,3 +8,6 @@ test/gen_image_output/
 server_data
 data.db-shm
 data.db-wal
+
+# 本地工具目录
+.zcode
