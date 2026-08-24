@@ -59,7 +59,7 @@ class ForumManager:
     def get_post(self, post_id):
         self.cur.execute(
             "SELECT id, author_user_id, type, title, body_json, status, pinned, "
-            "created_at, updated_at, notified_at, poll_anonymous, poll_deadline "
+            "created_at, updated_at, notified_at, poll_anonymous, poll_deadline, view_count "
             "FROM forum_posts WHERE id = ? AND status != 'deleted'",
             (post_id,),
         )
@@ -68,7 +68,8 @@ class ForumManager:
             return None
         post = dict(zip(
             ("id", "author_user_id", "type", "title", "body_json", "status", "pinned",
-             "created_at", "updated_at", "notified_at", "poll_anonymous", "poll_deadline"),
+             "created_at", "updated_at", "notified_at", "poll_anonymous", "poll_deadline",
+             "view_count"),
             row,
         ))
         return {
@@ -76,6 +77,22 @@ class ForumManager:
             "tags": self.get_post_tag_names(post_id),
         }
 
+    def register_view(self, post_id):
+        """浏览计数原子自增。返回最新计数；帖子不存在/已删返回 None。"""
+        self.cur.execute(
+            "UPDATE forum_posts SET view_count = view_count + 1 "
+            "WHERE id = ? AND status != 'deleted'",
+            (post_id,),
+        )
+        if self.cur.rowcount == 0:
+            self.conn.commit()
+            return None
+        self.cur.execute(
+            "SELECT view_count FROM forum_posts WHERE id = ?", (post_id,)
+        )
+        views = int(self.cur.fetchone()[0])
+        self.conn.commit()
+        return views
 
     def update_post(self, post_id, author_user_id, title=None, body_json=None, tag_ids=None):
         """编辑帖子。仅作者可调用；type/polls 不可改；tag_ids=None 表示不动，[] 表示清空。"""
@@ -121,7 +138,7 @@ class ForumManager:
     def list_posts(self, tag=None, type_=None, cursor=None, limit=20):
         """列表：置顶优先，再按时间倒序。tag: 按 tag 名精确过滤。cursor: 上次返回的 last_id（用于下一页）。"""
         cols = ("id", "author_user_id", "type", "title", "status", "pinned",
-                "created_at", "updated_at", "poll_deadline")
+                "created_at", "updated_at", "poll_deadline", "view_count")
         sql = f"SELECT {', '.join(cols)} FROM forum_posts WHERE status != 'deleted'"
         params = []
         if type_:

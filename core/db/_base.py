@@ -483,7 +483,8 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             updated_at TEXT NOT NULL,
             notified_at TEXT,
             poll_anonymous INTEGER NOT NULL DEFAULT 0,
-            poll_deadline TEXT
+            poll_deadline TEXT,
+            view_count INTEGER NOT NULL DEFAULT 0
         );
     """)
     cur.execute(
@@ -494,6 +495,11 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_forum_posts_notified "
         "ON forum_posts (notified_at) WHERE notified_at IS NULL"
     )
+    # 浏览量：详情页 GET 计数列（存量库补列，默认 0）
+    cur.execute("PRAGMA table_info(forum_posts)")
+    _fp_cols = [row[1] for row in cur.fetchall()]
+    if "view_count" not in _fp_cols:
+        cur.execute("ALTER TABLE forum_posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS forum_polls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

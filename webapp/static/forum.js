@@ -103,6 +103,7 @@
         }
         const metaText = document.createElement("span");
         metaText.textContent = (it.author_name || it.author_user_id) + " · " + fmtTime(it.created_at) +
+          " · " + (Number(it.view_count) || 0) + " 次浏览" +
           (it.poll_deadline ? " · 截止 " + it.poll_deadline : "");
         meta.appendChild(metaText);
         div.appendChild(meta);

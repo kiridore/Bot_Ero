@@ -189,7 +189,7 @@ def list_posts(
     next_cursor = rows[-1][0] if has_more and rows else None
     items = []
     for r in rows:
-        cols = ("id", "author_user_id", "type", "title", "status", "pinned", "created_at", "updated_at", "poll_deadline")
+        cols = ("id", "author_user_id", "type", "title", "status", "pinned", "created_at", "updated_at", "poll_deadline", "view_count")
         item = dict(zip(cols, r))
         item.update(_author_fields(item["author_user_id"]))
         items.append(item)
@@ -275,9 +275,10 @@ def get_post(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     db = DbManager()
-    post = db.forum.get_post(post_id)
-    if not post:
+    # 浏览计数：每次详情 GET 自增 1（含编辑页预填加载），返回值含本次浏览
+    if db.forum.register_view(post_id) is None:
         raise HTTPException(status_code=404, detail="帖子不存在")
+    post = db.forum.get_post(post_id)
     post.update(_author_fields(post["author_user_id"]))
     # 投票帖：附带每个子投票的选项票数 + 当前用户已投选项
     if post["type"] == "poll":

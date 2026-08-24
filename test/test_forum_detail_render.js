@@ -68,7 +68,7 @@ function runScenario(sessionUid, authorUid, payloadOverride, commentsOverride) {
     id: 1, type: "post", title: "测试帖", body_json: "", status: "open",
     author_user_id: authorUid, author_name: "作者", author_avatar: "",
     created_at: "2026-08-14 10:00:00", updated_at: "2026-08-14 10:00:00",
-    tags: [], polls: [],
+    tags: [], polls: [], view_count: 5,
   }, payloadOverride || {});
   global.fetch = async (url) => {
     const u = String(url);
@@ -94,6 +94,7 @@ function runScenario(sessionUid, authorUid, payloadOverride, commentsOverride) {
   const els1 = runScenario("1057613133", "1057613133");
   await new Promise((r) => setTimeout(r, 120));
   check("作者查看：postActions 显示（按钮已接线）", els1.postActions.hidden === false);
+  check("详情 meta 显示浏览量", els1.postMeta.innerHTML.includes("5 次浏览"));
 
   // 场景 2：他人查看 → 隐藏
   const els2 = runScenario("3915014383", "1057613133");

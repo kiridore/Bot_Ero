@@ -563,6 +563,7 @@ if column in ALLOWED_COLUMNS:
 | `notified_at` | TEXT | | bot 群消息已发时刻（NULL=待发） |
 | `poll_anonymous` | INTEGER | NOT NULL DEFAULT 0 | 投票匿名（不展示投票人昵称） |
 | `poll_deadline` | TEXT | | 投票截止时间（作用于整帖全部子投票；`NULL`=无截止） |
+| `view_count` | INTEGER | NOT NULL DEFAULT 0 | 浏览量：详情 GET +1（含编辑页预填加载；1.24.0 新增，存量库 `init_schema` 自动 `ALTER` 补列回填 0） |
 
 > 旧版 `forum_posts.poll_allow_multi` 已废弃：单选/多选改由 `forum_polls.allow_multi` 承载（每个子投票各自单选/多选）。存量库该列保留但不使用（不读不写），新库不再创建。
 

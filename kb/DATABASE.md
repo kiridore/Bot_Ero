@@ -412,6 +412,7 @@ DDL 全部在 `core/db/_base.py`，业务读写 `core/db/forum.py`；`user_id` �
 | `notified_at` | TEXT | | 群通知时刻（`forum_notify` 取 `IS NULL` 的发通知） |
 | `poll_anonymous` | INTEGER | NOT NULL DEFAULT 0 | 投票匿名 |
 | `poll_deadline` | TEXT | | 投票截止（过期自动关闭） |
+| `view_count` | INTEGER | NOT NULL DEFAULT 0 | 浏览量：详情 GET +1（含编辑预填加载；1.24.0 新增，存量库 ALTER 补列回填 0） |
 
 ### `forum_polls`（多子投票，1.15.0）
 

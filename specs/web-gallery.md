@@ -288,6 +288,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/forum/tags` | 必须 | 全部被引用 tag 及使用数量（`{"tags": [{"id","name","created_at","post_count"}]}`；仅返回至少被一个帖子引用的 tag，删帖/编辑移除引用后悬空 tag 自动清理，不再出现「引用(0)」） |
+| `GET` | `/api/forum/posts` | 必须 | 帖子列表（`tag`/`type` 可选过滤，置顶优先 + `id` 倒序 keyset 分页），每项含 `view_count`（浏览量） |
+| `GET` | `/api/forum/posts/{id}` | 必须 | 帖子详情（投票帖附子投票票数与当前用户已投）；每次 GET 浏览量 `view_count` +1（含编辑页预填加载，按请求次数计不按人去重），返回值含本次浏览后的最新计数；不存在/已删 → 404 |
 | `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`BOTERO_FORUM_IMAGE_MAX_BYTES`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
 | `PATCH` | `/api/forum/posts/{id}` | 必须 | 编辑自己的帖子（`title`/`body_json`/`tags` 可改，`tags` 整体替换；类型与投票结构不可改；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并按 `forum_post:{id}` 同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `DELETE` | `/api/forum/posts/{id}` | 必须 | 删除自己的帖子（级联删除评论/选项/投票/标签关联；非本人 → 403；成功后按 `forum_post:{id}` 撤回时间线事件） |
