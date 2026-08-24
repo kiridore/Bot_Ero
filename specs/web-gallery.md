@@ -434,7 +434,7 @@ core/web/static/
   profile.css   ← 个人中心样式
   motion.css / motion.js ← 全站动效层（见下节）
   lightbox.js   ← 共享图片灯箱（时间线 .tl-images a 与议事厅 img.forum-img 点击放大）
-  icons.js      ← 自托管 lucide SVG 图标（工具箱操作按钮等）
+  icons.js      ← 自托管 lucide SVG 图标（工具箱操作按钮、议事厅浏览量等）
 ```
 
 全部模块静态合并为**单一目录 `webapp/static/`**（49 个文件，文件名全局唯一，以 `/static` 挂载，由 `webapp/app.py` mount）：

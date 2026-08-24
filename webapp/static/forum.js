@@ -103,9 +103,13 @@
         }
         const metaText = document.createElement("span");
         metaText.textContent = (it.author_name || it.author_user_id) + " · " + fmtTime(it.created_at) +
-          " · " + (Number(it.view_count) || 0) + " 次浏览" +
           (it.poll_deadline ? " · 截止 " + it.poll_deadline : "");
         meta.appendChild(metaText);
+        const views = document.createElement("span");
+        views.className = "forum-views";
+        views.title = "浏览次数";
+        views.innerHTML = GalleryIcons.svgHTML("eye") + "<span>" + (Number(it.view_count) || 0) + "</span>";
+        meta.appendChild(views);
         div.appendChild(meta);
         frag.appendChild(div);
       });

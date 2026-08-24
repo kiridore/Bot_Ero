@@ -44,6 +44,20 @@
   color: var(--ink-soft);
 }
 
+/* 浏览量：眼睛图标 + 数字（与工具箱点击计数同款） */
+.forum-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+  vertical-align: -1px;
+}
+
+.forum-views svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
 .forum-tags {
   display: flex;
   flex-wrap: wrap;

@@ -408,7 +408,7 @@
       ? `<img class="tl-avatar forum-avatar" src="${esc(post.author_avatar)}" alt="" onerror="this.style.display='none'"> `
       : "";
     metaEl.innerHTML = `${esc(post.type)} · ${avHtml}${esc(post.author_name || post.author_user_id)} · ${fmtTime(post.created_at)}` +
-      ` · ${Number(post.view_count) || 0} 次浏览` +
+      ` · <span class="forum-views" title="浏览次数">${GalleryIcons.svgHTML("eye")}<span>${Number(post.view_count) || 0}</span></span>` +
       (post.tags && post.tags.length ? ` · ${post.tags.map(function (t) { return `<a class="forum-link" href="/forum?tag=${encodeURIComponent(t)}">${esc(t)}</a>`; }).join(" · ")}` : "");
     // 正文：Tiptap JSON 渲染（仅 post/announce）
     if (post.body_json && post.body_json.trim()) {

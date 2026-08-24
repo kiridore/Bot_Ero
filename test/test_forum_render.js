@@ -69,6 +69,10 @@ const authSrc = fs.readFileSync("core/web/static/auth.js", "utf8");
 eval(authSrc);
 global.GalleryAuth = window.GalleryAuth;
 
+const iconsSrc = fs.readFileSync("core/web/static/icons.js", "utf8");
+eval(iconsSrc);
+global.GalleryIcons = window.GalleryIcons;
+
 const forumSrc = fs.readFileSync("webapp/static/forum.js", "utf8");
 eval(forumSrc);
 
@@ -97,10 +101,13 @@ function findLink(el) {
   const meta0 = items[0] && items[0].children[1];
   check("meta 显示作者昵称（非裸 id）", meta0 && meta0.children[1].textContent.includes("埃洛Erodis"));
   check("meta 含作者头像 img", meta0 && meta0.children[0] && meta0.children[0].tagName.toUpperCase() === "IMG");
-  check("meta 含浏览量", meta0 && meta0.children[1].textContent.includes("12 次浏览"));
+  const views0 = meta0 && meta0.children[2];
+  check("浏览量为眼睛图标 + 数字", views0 && views0.className === "forum-views" && views0.title === "浏览次数"
+    && views0.innerHTML.includes("<svg") && views0.innerHTML.includes(">12<"));
   const meta1 = items[1] && items[1].children[1];
-  check("无头像时降级为昵称文本（无 img）", meta1 && meta1.children.length === 1 && meta1.children[0].textContent.includes("小埃同学"));
-  check("浏览量为 0 也显示", meta1 && meta1.children[0].textContent.includes("0 次浏览"));
+  check("无头像时降级为昵称文本（无 img）", meta1 && meta1.children.length === 2 && meta1.children[0].textContent.includes("小埃同学"));
+  const views1 = meta1 && meta1.children[1];
+  check("浏览量为 0 也显示（图标）", views1 && views1.innerHTML.includes("<svg") && views1.innerHTML.includes(">0<"));
   const meta2 = items[2] && items[2].children[1];
   check("昵称缺失时降级回 id（含截止时间）", meta2 && meta2.children[1].textContent.includes("1171676207") && meta2.children[1].textContent.includes("截止"));
   check("sentinel 文案", els.sentinel.textContent.includes("已经到底"));
