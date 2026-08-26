@@ -24,6 +24,9 @@ class RemedyCheckinPlugin(CommandPlugin):
             return
 
         super_mode = self.cmd in ("/超级补卡", "/超級補卡")
+        if super_mode and not self.admin_user():
+            self.api.send_msg(text("超级补卡是管理员指令喵！"))
+            return
 
         if self.cmd in ("/单日补卡", "/單日補卡"):
             self.handle_single_day_remedy()
@@ -38,9 +41,15 @@ class RemedyCheckinPlugin(CommandPlugin):
 
             user_id = self.bot_event.user_id
             if len(self.args) > 1:
-                user_id = self.args[1] # 特殊补卡指令可以给其他人补卡
+                if not self.admin_user():
+                    self.api.send_msg(text("给别人补卡是管理员指令喵！"))
+                    return
+                user_id = self.args[1] # 管理员可以给其他人补卡
 
             start, end = get_monday_to_monday(dt)
+            if datetime.strptime(end, "%Y-%m-%d %H:%M:%S") > datetime.now():
+                self.api.send_msg(text("{}-{}这一周还没过完，只能补已经结束的一周喵".format(start.split(" ")[0], end.split(" ")[0])))
+                return
             rows = self.dbmanager.checkin.search_user_range(user_id, start, end)
 
             cost = 4
@@ -82,6 +91,9 @@ class RemedyCheckinPlugin(CommandPlugin):
 
         day_start = day.strftime("%Y-%m-%d 08:00:00")
         day_end = (day + timedelta(days=1)).strftime("%Y-%m-%d 08:00:00")
+        if datetime.strptime(day_end, "%Y-%m-%d %H:%M:%S") > datetime.now():
+            self.api.send_msg(text("{}这一天还没过完，不能补喵".format(self.args[0])))
+            return
         user_id = self.bot_event.user_id
 
         rows = self.dbmanager.checkin.search_user_range(user_id, day_start, day_end)
