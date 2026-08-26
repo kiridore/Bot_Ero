@@ -47,21 +47,19 @@ class LotteryPlugin(CommandPlugin):
         """
         draw_count = self.dbmanager.lottery.draw_count(user_id, today)
         free_daily = draw_count == 0
-        points = self.dbmanager.points.get(user_id)
         payment_exempt = False
         if not free_daily:
             rem = self.dbmanager.shop.waiver_remaining(user_id)
             if rem > 0:
                 if random.random() < 0.3:
                     payment_exempt = True
-                if not payment_exempt and points < self.COST:
-                    return {"ok": False, "points": points}
+                if not payment_exempt and not self.dbmanager.points.spend(user_id, self.COST):
+                    return {"ok": False, "points": self.dbmanager.points.get(user_id)}
                 self.dbmanager.shop.pop_waiver(user_id)
             else:
-                if points < self.COST:
-                    return {"ok": False, "points": points}
+                if not self.dbmanager.points.spend(user_id, self.COST):
+                    return {"ok": False, "points": self.dbmanager.points.get(user_id)}
             if not payment_exempt:
-                utils.add_user_point(self.dbmanager, user_id, -self.COST)
                 self.dbmanager.lottery.add_spent(user_id, self.COST)
         self.dbmanager.lottery.add_draw(user_id, today, 1)
         # ponytail: silent quest trigger, users check progress via /周常

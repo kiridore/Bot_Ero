@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from core import utils
 from core.base import CommandPlugin
 from core.cq import text
 from core.utils import get_monday_to_monday
@@ -49,16 +48,14 @@ class RemedyCheckinPlugin(CommandPlugin):
             if len(rows) == 0:
                 if not super_mode and not self._check_remedy_limit(user_id, dt.year):
                     return
-                points = self.dbmanager.points.get(user_id)
-                if points >= cost or super_mode:
+                if super_mode or self.dbmanager.points.spend(user_id, cost):
                     success_msg = "{}-{}原来没有打卡吗？真拿你没办法……\n*涂写*好了帮你补上了喵，一共消费{}点数，谢谢惠顾喵"
                     self.api.send_msg(text(success_msg.format(start.split(" ")[0], end.split(" ")[0], cost)))
                     self.dbmanager.checkin.remedy_week(user_id, start.split(" ")[0])
                     if not super_mode:
-                        utils.add_user_point(self.dbmanager, user_id, cost * -1)
                         self.dbmanager.checkin.add_remedy_used(dt.year, user_id, 1)
                 else:
-                    self.api.send_msg(text("补卡当然不是免费的喵!\n你现在现在点数是：{}\n补卡需要{}点喵".format(points, cost)))
+                    self.api.send_msg(text("补卡当然不是免费的喵!\n你现在现在点数是：{}\n补卡需要{}点喵".format(self.dbmanager.points.get(user_id), cost)))
             else:
                 self.api.send_msg(text("上当了喵！{}-{}你已经打过卡了喵！".format(start.split(" ")[0], end.split(" ")[0])))
 
@@ -96,13 +93,10 @@ class RemedyCheckinPlugin(CommandPlugin):
             return
 
         cost = 2
-        points = self.dbmanager.points.get(user_id)
-        if points < cost:
-            self.api.send_msg(text("补卡当然不是免费的喵!\n你现在点数是：{}\n单日补卡需要{}点喵".format(points, cost)))
+        if not self.dbmanager.points.spend(user_id, cost):
+            self.api.send_msg(text("补卡当然不是免费的喵!\n你现在点数是：{}\n单日补卡需要{}点喵".format(self.dbmanager.points.get(user_id), cost)))
             return
-
         self.dbmanager.checkin.remedy_day(user_id, self.args[0])
-        utils.add_user_point(self.dbmanager, user_id, cost * -1)
         self.dbmanager.checkin.add_remedy_used(day.year, user_id, 1)
         self.api.send_msg(text("{} 已补卡成功喵，一共消费{}点数".format(self.args[0], cost)))
 

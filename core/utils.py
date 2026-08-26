@@ -30,8 +30,8 @@ def day_of_year(date_str):
     return dt.timetuple().tm_yday  # 获取一年中的第几天
 
 def add_user_point(db:DbManager, user_id:int, offer:int):
-        point = db.points.get(user_id)
-        db.points.set(user_id, point + offer)
+        # 单语句原子加减，避免并发事件线程 get+set 互相覆盖
+        db.points.adjust(user_id, offer)
 
 def get_image_from_backup(user_id, image):
     python_user_folder = f"{context.python_data_path}/record_images/{user_id}/"

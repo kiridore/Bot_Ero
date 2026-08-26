@@ -43,6 +43,18 @@ class PointsManager:
         if commit:
             self.conn.commit()
 
+    def spend(self, user_id, cost: int, commit: bool = True) -> bool:
+        """条件原子扣减：余额足够则扣并返回 True，否则不动返回 False。"""
+        user_id = str(user_id)
+        cost = int(cost)
+        self.cur.execute("""
+            UPDATE user_assets SET points = points - ?
+            WHERE user_id = ? AND points >= ?
+        """, (cost, user_id, cost))
+        if commit:
+            self.conn.commit()
+        return self.cur.rowcount > 0
+
     def leaderboard(self, limit=10):
         self.cur.execute("""
             SELECT user_id, points
