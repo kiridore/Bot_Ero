@@ -103,7 +103,8 @@ def remove_player(room_id: str, user_id: int) -> str:
                 new_creator = list(room["players"].keys())[0]
                 old_alias = room["players"][new_creator]["alias"]
                 room["creator_id"] = new_creator
-            return f"已退出房间 {room_id}，房主已转移给 {old_alias}"
+                return f"已退出房间 {room_id}，房主已转移给 {old_alias}"
+            return f"已退出房间 {room_id}"
         room["players"][uid]["alive"] = False
     return "已退出房间（游戏中退出，自动视为弃权出局）"
 
