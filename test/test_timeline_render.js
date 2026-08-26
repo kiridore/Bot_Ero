@@ -250,7 +250,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const eNew1 = {
     seq: 6, id: "checkin:new1", source: "checkin", received_at: "2026-08-10 15:00:00", unread: true,
     actor: { id: "123456", qq: "123456", display_name: "小明", avatar_url: "" },
-    target: null, title: "新事件一", description: null, data: null,
+    target: null,
+    title: '新事件一<img src=x onerror=alert(1)>"&', description: "<b>加粗描述</b>", data: null,
   };
   const eNew2 = {
     seq: 7, id: "checkin:new2", source: "checkin", received_at: "2026-08-10 15:01:00", unread: true,
@@ -274,6 +275,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("新卡滚动定位", els.feed.firstElementChild._scrolled === true);
   check("多页拉取次数", fetchedUrls.filter((u) => u.includes("/api/timeline/new")).length
         === urlCountBefore + 2);
+
+  const xssCard = newFrag.children[1]; // eNew1 的卡片
+  const xssTitle = xssCard.children.find((c) => c.className === "tl-title");
+  const xssDesc = xssCard.children.find((c) => c.className === "tl-desc");
+  check("标题 XSS 已转义", xssTitle._html.includes("&lt;img") && !xssTitle._html.includes("<img "));
+  check("描述 XSS 已转义", xssDesc._html.includes("&lt;b&gt;") && !xssDesc._html.includes("<b>"));
+  check("引号转义", xssTitle._html.includes("&quot;&amp;"));
 
   // 7. 未读高亮渐变：未被看到前保持高亮；首次进入视口 → one-shot 停止观察 →
   //    停留约 0.8s 后加 tl-fading 渐变 → 再约 1.5s 后清理两类并完全回普通态

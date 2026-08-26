@@ -102,7 +102,7 @@
   }
 
   function substitute(text, users) {
-    return text.replace(/\{id:(\d+)\}/g, function (_, uid) {
+    return esc(text).replace(/\{id:(\d+)\}/g, function (_, uid) {
       const u = users[uid];
       if (!u) return UNBOUND;
       return '<span class="tl-user">' + esc(u.name) + "</span>";
