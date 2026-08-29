@@ -8,6 +8,9 @@
 
 已约定键：
     privacy.char_public: bool  是否允许他人查看我的角色卡（缺省 True）
+    privacy.private_checkin_public: bool  私聊打卡是否展示在时间线（缺省 True）
+    privacy.checkin_image_public: bool  时间线打卡图片是否对他人清晰可见（缺省 True，
+                                        False=他人看高斯模糊图）
 """
 
 from __future__ import annotations
@@ -75,3 +78,13 @@ def update_settings(user_id, patch: dict) -> dict:
 
 def privacy_public(user_id) -> bool:
     return bool(get_settings(user_id).get("privacy", {}).get("char_public", True))
+
+
+def private_checkin_public(user_id) -> bool:
+    """私聊打卡是否展示在时间线（对他人）。缺省 True。"""
+    return bool(get_settings(user_id).get("privacy", {}).get("private_checkin_public", True))
+
+
+def checkin_image_public(user_id) -> bool:
+    """时间线打卡图片是否对他人清晰可见（False=高斯模糊）。缺省 True。"""
+    return bool(get_settings(user_id).get("privacy", {}).get("checkin_image_public", True))

@@ -209,7 +209,15 @@ function renderPage() {
       <span>允许他人查看我的角色卡</span>
       <input type="checkbox" id="charPublicToggle" ${userSettingsData.privacy.char_public === false ? "" : "checked"} />
     </label>
-    <p class="preview-hint">关闭后，其他用户无法在网页端查看你的角色卡（跑团车卡页）。</p>
+    <label class="privacy-row">
+      <span>私聊打卡显示在时间线上</span>
+      <input type="checkbox" id="optPrivateCheckinPublic" ${userSettingsData.privacy.private_checkin_public === false ? "" : "checked"} />
+    </label>
+    <label class="privacy-row">
+      <span>打卡图片对他人清晰可见（关闭后他人看到模糊图）</span>
+      <input type="checkbox" id="optCheckinImagePublic" ${userSettingsData.privacy.checkin_image_public === false ? "" : "checked"} />
+    </label>
+    <p class="preview-hint">关闭「私聊打卡显示在时间线上」后，其他用户在时间线看不到你的私聊打卡，你本人仍可见并带「仅自己可见」标记；关闭「打卡图片对他人清晰可见」后，其他用户看到的是高斯模糊图，你本人始终看到原图。</p>
   `;
   settingsMain.appendChild(privacySec);
 
@@ -220,6 +228,32 @@ function renderPage() {
         body: JSON.stringify({ privacy: { char_public: e.target.checked } }),
       });
       showToast(e.target.checked ? "已允许他人查看角色卡" : "已隐藏角色卡");
+    } catch (err) {
+      e.target.checked = !e.target.checked;
+      showToast(err.message, true);
+    }
+  });
+
+  document.getElementById("optPrivateCheckinPublic").addEventListener("change", async (e) => {
+    try {
+      userSettingsData = await apiFetch("/api/me/settings", {
+        method: "PUT",
+        body: JSON.stringify({ privacy: { private_checkin_public: e.target.checked } }),
+      });
+      showToast(e.target.checked ? "已开放私聊打卡展示" : "私聊打卡已仅自己可见");
+    } catch (err) {
+      e.target.checked = !e.target.checked;
+      showToast(err.message, true);
+    }
+  });
+
+  document.getElementById("optCheckinImagePublic").addEventListener("change", async (e) => {
+    try {
+      userSettingsData = await apiFetch("/api/me/settings", {
+        method: "PUT",
+        body: JSON.stringify({ privacy: { checkin_image_public: e.target.checked } }),
+      });
+      showToast(e.target.checked ? "打卡图片已对他人清晰展示" : "打卡图片已对他人模糊");
     } catch (err) {
       e.target.checked = !e.target.checked;
       showToast(err.message, true);
