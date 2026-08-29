@@ -53,7 +53,7 @@ class TestWebCheckinEmit(unittest.TestCase):
 
         # 桩 checkin_service 模块命名空间（实现须以模块级名引入这些依赖）
         self._orig = {name: getattr(checkin_service, name, None)
-                      for name in ("DbManager", "_load_title_helpers")}
+                      for name in ("DbManager", "_load_title_helpers", "emit_event", "ensure_thumbnail")}
         self._has_attr = {name: hasattr(checkin_service, name)
                           for name in ("emit_event", "ensure_thumbnail")}
         checkin_service.DbManager = lambda: self.db
