@@ -13,7 +13,7 @@ from webapp.gallery.repository import (
     list_user_ids,
     resolve_image_path,
 )
-from webapp.gallery.thumbnails import ensure_thumbnail
+from webapp.gallery.thumbnails import ensure_blurred, ensure_thumbnail
 from webapp import STATIC_DIR
 
 router = APIRouter()
@@ -131,10 +131,12 @@ def _resolve_and_guard(user_id: str, filename: str) -> Path:
 
 
 @router.get("/thumb/{user_id}/{filename}")
-def serve_thumb(user_id: str, filename: str):
+def serve_thumb(user_id: str, filename: str, blur: bool = Query(default=False)):
     source = _resolve_and_guard(user_id, filename)
     try:
         thumb = ensure_thumbnail(source)
+        if blur:
+            thumb = ensure_blurred(thumb)
     except OSError as exc:
         raise HTTPException(status_code=500, detail="缩略图生成失败") from exc
     return FileResponse(thumb, media_type="image/jpeg")

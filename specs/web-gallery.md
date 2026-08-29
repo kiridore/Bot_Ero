@@ -19,7 +19,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | 闹钟 | `alarms` | `/alarms` | 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
-| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ `entries.json` |
+| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ 打卡隐私读侧过滤（见「时间线打卡隐私」约束）+ `entries.json` |
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 | 周报 | `weekly` | `/weekly`（`/weekly/{week_key}`） | 群周报归档：`GET /api/weekly` 列表、`GET /api/weekly/{week_key}` 详情；报纸排版页面 |
@@ -365,6 +365,18 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 - `hit_dice` = `{level}d{职业骰}`
 
 ---
+
+## Constraint: 时间线打卡隐私（读侧动态可见性）
+
+打卡事件在**读侧**按「事件标记 × 作者设置 × 查看者身份」动态过滤，写入侧不拦截、历史事件不回填：
+
+- **事件标记**：`source=checkin` 事件 `data.private=true` 表示私聊/网页打卡（QQ 群聊打卡无此标记）。无标记的历史事件永远视为公开。
+- **作者设置**（`core/user_settings.py` JSON，每用户每页仅读一次）：
+  - `privacy.private_checkin_public`（缺省 `true`）：`false` 时该作者的 `data.private` 打卡事件**对他人完全隐藏**（`/api/timeline`、`/api/timeline/poll` 计数、`/api/timeline/new` 三端点同口径，pill 计数与实际卡片一致）；作者本人仍可见，事件 dict 附 `self_only: true`（前端渲染「仅自己可见」角标）。
+  - `privacy.checkin_image_public`（缺省 `true`）：`false` 时该作者全部打卡事件的图片 URL 对非作者查看者追加 `?blur=1`（已含 query 用 `&`）；作者本人始终原图。
+- **实现约束**：过滤在 Python 侧（作者设置存 JSON 文件，无法下推 SQL）；`feed` 逐页补取直到填满 limit 或取尽（连续隐藏事件带的补页上限 5 页）；`new` 的 `next_after` 取自含隐藏行的已消费批次（被过滤事件对查看者永不返回，直接跨过）；`poll` 经 `TimelineManager.rows_unread_after` 轻量行后同样过滤计数（上限 1000，仅驱动 pill）。
+- **模糊图端点**：`GET /thumb/{user_id}/{filename}?blur=1` 返回该缩略图的高斯模糊版（`thumbnails.ensure_blurred`，独立 `blur-` 前缀缓存文件，不覆盖缩略图本身；模糊对象是缩略图而非原图）。图库页 `/gallery` 不受此设置影响。
+- 已知边界：对某查看者永久隐藏的未读事件不会产生已读回执，`/api/timeline/read` 的 `remaining` 可能不为 0、水印不推进——客户端 pill/翻页均以游标为准，不受影响。
 
 ## Constraint: 服务层模式
 

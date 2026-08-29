@@ -116,20 +116,23 @@ class TimelineManager:
         )
         return {r[0] for r in self.cur.fetchall()}
 
-    def count_unread_after(self, user_id: str, lower_rowid: int) -> int:
-        """统计 rowid > lower_rowid 且该用户无回执的事件数（轮询轻量计数）。"""
+    def rows_unread_after(self, user_id: str, lower_rowid: int, limit: int = 1000) -> list[tuple]:
+        """轻量列（rowid/id/source/actor_id/actor_qq/data）取未读事件，供读侧
+        按作者设置做可见性过滤后计数。 ponytail: 上限 1000——仅驱动轮询 pill，
+        超出部分的少计无关紧要。"""
         self.cur.execute(
             """
-            SELECT COUNT(*) FROM timeline_events e
+            SELECT e.rowid, e.id, e.source, e.actor_id, e.actor_qq, e.data
+            FROM timeline_events e
             WHERE e.rowid > ?
               AND e.id NOT IN (
                   SELECT event_id FROM timeline_read_events WHERE user_id = ?
               )
+            ORDER BY e.rowid ASC LIMIT ?
             """,
-            (lower_rowid, user_id),
+            (lower_rowid, user_id, limit),
         )
-        row = self.cur.fetchone()
-        return int(row[0]) if row else 0
+        return self.cur.fetchall()
 
     def page_unread_after(self, user_id: str, lower_rowid: int, limit: int) -> list[tuple]:
         """按 rowid ASC 取 rowid > lower_rowid 且无回执的事件（最老一批，接口侧再倒序）。"""

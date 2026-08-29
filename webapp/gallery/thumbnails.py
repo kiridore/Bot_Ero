@@ -1,7 +1,7 @@
 import hashlib
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from webapp.gallery import config
 
@@ -48,3 +48,17 @@ def ensure_thumbnail(source: Path) -> Path:
             optimize=True,
         )
     return cache
+
+
+def ensure_blurred(thumb: Path) -> Path:
+    """缩略图的高斯模糊版（独立 blur- 前缀缓存，不覆盖缩略图本身）。
+    ponytail: 模糊缩略图而非原图——时间线展示尺寸即缩略图，防泄漏足够；
+    radius 12 为一眼不可辨的固定值，需要更强再配化。"""
+    blurred = thumb.parent / f"blur-{thumb.name}"
+    if blurred.is_file() and blurred.stat().st_mtime >= thumb.stat().st_mtime:
+        return blurred
+    with Image.open(thumb) as im:
+        _to_rgb(im).filter(ImageFilter.GaussianBlur(radius=12)).save(
+            blurred, "JPEG", quality=config.THUMB_JPEG_QUALITY
+        )
+    return blurred

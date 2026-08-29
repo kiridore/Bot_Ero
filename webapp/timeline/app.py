@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from core.config import TIMELINE_TOKEN
 from core.database_manager import DbManager
+from core import user_settings
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.web.auth_deps import get_current_user_id
 
@@ -28,6 +29,48 @@ _PAGE_SIZE_DEFAULT = 50
 _PAGE_SIZE_MAX = 100
 _RESOLVE_WORKERS = 16  # 昵称/头像并发解析线程数（OneBot HTTP 局域网，16 并发安全）
 UNBOUND_LABEL = "未绑定玩家"
+_FEED_FETCH_PAGES = 5  # ponytail: 跨隐藏事件连续带的补页上限，5×(limit+1) 条连续隐藏后该页少给，下轮翻页补上
+
+
+# —— 打卡隐私读侧过滤（作者 JSON 设置 × 事件 data.private，历史无标记=公开）——
+
+def _vis_full(row: tuple):
+    """page()/page_unread_after() 12 列行 → (eid, source, actor_key, data_raw)。"""
+    return row[1], row[2], str(row[5] or row[4]), row[10]
+
+
+def _vis_light(row: tuple):
+    """rows_unread_after() 6 列轻量行 → 同上。"""
+    return row[1], row[2], str(row[4] or row[3]), row[5]
+
+
+def _visibility_ctx(entries) -> dict:
+    """计算隐藏事件 id 集与需模糊图片的作者集。每作者每页只读一次设置。"""
+    hidden: set[str] = set()
+    blur_authors: set[str] = set()
+    actor_flags: dict[str, tuple[bool, bool]] = {}
+    for eid, source, actor_key, data_raw in entries:
+        if source != "checkin":
+            continue
+        if actor_key not in actor_flags:
+            actor_flags[actor_key] = (
+                user_settings.private_checkin_public(actor_key),
+                user_settings.checkin_image_public(actor_key),
+            )
+        private_public, image_public = actor_flags[actor_key]
+        if not image_public:
+            blur_authors.add(actor_key)  # 该作者全部打卡图对非作者模糊
+        if not private_public:
+            data = _loads(data_raw)
+            if isinstance(data, dict) and data.get("private"):
+                hidden.add(eid)
+    return {"hidden": hidden, "blur": blur_authors}
+
+
+def _visible_entry(entry: tuple, viewer_id, vis: dict) -> bool:
+    """隐藏事件仅作者本人可见。"""
+    eid, _source, actor_key, _data = entry
+    return not (eid in vis["hidden"] and actor_key != str(viewer_id))
 
 
 # —— 事件输入模型 ——
@@ -138,9 +181,12 @@ def delete_event(
     return {"ok": True, "deleted": deleted}
 
 
-def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str]):
+def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
+                     viewer_id: str | None = None, vis: dict | None = None):
     """两遍组装：收集需解析用户（actor + 占位符）→ 并发解析昵称/头像 → 事件 dict。
-    首列 rowid 作为 seq 暴露给客户端（顶部事件锚点）；unread = seq > 水印 且无回执。"""
+    首列 rowid 作为 seq 暴露给客户端（顶部事件锚点）；unread = seq > 水印 且无回执。
+    viewer_id/vis 提供时按作者隐私设置处理：被隐藏私聊打卡仅作者自见（self_only），
+    模糊作者的打卡图片对非作者改写 blur=1 URL。"""
     need: set[str] = set()
     unbound_keys: set[str] = set()
     for row in rows:
@@ -170,11 +216,23 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str]):
     for row in rows:
         (seq, eid, source, received_at, actor_id, actor_qq, target_type, target_url,
          title, description, data_raw, _dedup_key) = row
+        actor_key = str(actor_qq or actor_id)
         if actor_qq:
             name = users[str(actor_qq)]["name"]
             avatar = users[str(actor_qq)]["avatar"]
         else:
             name, avatar = UNBOUND_LABEL, ""
+        data = _loads(data_raw)
+        self_only = False
+        if vis is not None and viewer_id is not None and source == "checkin":
+            if eid in vis["hidden"] and actor_key == str(viewer_id):
+                self_only = True  # 被隐藏的私聊打卡：作者自见
+            if (actor_key in vis["blur"] and actor_key != str(viewer_id)
+                    and isinstance(data, dict) and isinstance(data.get("images"), list)):
+                data = dict(data)
+                data["images"] = [
+                    u + ("&" if "?" in u else "?") + "blur=1" for u in data["images"]
+                ]
         events.append({
             "seq": seq,
             "id": eid,
@@ -189,8 +247,9 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str]):
             "target": ({"type": target_type, "url": target_url} if target_url else None),
             "title": title,
             "description": description,
-            "data": _loads(data_raw),
+            "data": data,
             "unread": seq > watermark and eid not in read_ids,
+            **({"self_only": True} if self_only else {}),
         })
     return events, users
 
@@ -211,16 +270,38 @@ def timeline_feed(
 
     db = DbManager()
     watermark = db.timeline.get_or_init_watermark(user_id)
-    rows = db.timeline.page(cur, limit + 1)
-    has_more = len(rows) > limit
-    rows = rows[:limit]
+    # 可见性过滤在 Python 侧（作者设置存 JSON 文件，无法下推 SQL）；
+    # 逐页补取直到填满 limit 或取尽（隐藏事件连续带的补页上限见 _FEED_FETCH_PAGES）
+    vis_rows: list[tuple] = []
+    cur_pos = cur
+    has_more = False
+    batch: list[tuple] = []
+    for _ in range(_FEED_FETCH_PAGES):
+        need = limit + 1 - len(vis_rows)
+        batch = db.timeline.page(cur_pos, need)
+        if not batch:
+            break
+        vis = _visibility_ctx(_vis_full(r) for r in batch)
+        for r in batch:
+            if _visible_entry(_vis_full(r), user_id, vis):
+                vis_rows.append(r)
+        if len(vis_rows) > limit:
+            has_more = True
+            break
+        if len(batch) < need:  # 数据库取尽
+            has_more = False
+            break
+        cur_pos = (batch[-1][3], batch[-1][1])
+        has_more = True
+    vis_rows = vis_rows[:limit]
 
-    read_ids = db.timeline.read_event_ids(user_id, [r[1] for r in rows]) if rows else set()
-    events, users = _serialize_rows(rows, watermark, read_ids)
+    vis = _visibility_ctx(_vis_full(r) for r in vis_rows)
+    read_ids = db.timeline.read_event_ids(user_id, [r[1] for r in vis_rows]) if vis_rows else set()
+    events, users = _serialize_rows(vis_rows, watermark, read_ids, viewer_id=user_id, vis=vis)
 
     next_cursor = None
-    if has_more and rows:
-        last = rows[-1]
+    if has_more:
+        last = vis_rows[-1] if vis_rows else batch[-1]  # 全被过滤时用已取到的最后一条作续读游标
         next_cursor = f"{last[3]}|{last[1]}"
     return {"events": events, "users": users, "next_cursor": next_cursor}
 
@@ -234,7 +315,9 @@ def timeline_poll(
     db = DbManager()
     watermark = db.timeline.get_or_init_watermark(user_id)
     lower = max(after or 0, watermark)
-    count = db.timeline.count_unread_after(user_id, lower)
+    rows = db.timeline.rows_unread_after(user_id, lower)
+    vis = _visibility_ctx(_vis_light(r) for r in rows)
+    count = sum(1 for r in rows if _visible_entry(_vis_light(r), user_id, vis))
     return {"count": count}
 
 
@@ -249,17 +332,20 @@ def timeline_new(
     db = DbManager()
     watermark = db.timeline.get_or_init_watermark(user_id)
     lower = max(after or 0, watermark)
-    rows = db.timeline.page_unread_after(user_id, lower, limit + 1)
-    has_more = len(rows) > limit
-    rows = rows[:limit]
+    fetched = db.timeline.page_unread_after(user_id, lower, limit + 1)
+    has_more = len(fetched) > limit
+    fetched = fetched[:limit]
+    vis = _visibility_ctx(_vis_full(r) for r in fetched)
+    rows = [r for r in fetched if _visible_entry(_vis_full(r), user_id, vis)]
 
     # page_unread_after 已排除回执，此处全部 unread
-    events, users = _serialize_rows(rows, watermark, set())
+    events, users = _serialize_rows(rows, watermark, set(), viewer_id=user_id, vis=vis)
     events.reverse()  # rowid ASC（最老在前）→ feed 新→旧
 
+    # next_after 取自含隐藏行的已消费批次：被过滤的事件对查看者永不返回，直接跨过
     next_after = None
-    if has_more and rows:
-        next_after = rows[-1][0]  # 本批已消费的最大 rowid
+    if has_more and fetched:
+        next_after = fetched[-1][0]
     return {"events": events, "users": users, "next_after": next_after}
 
 
