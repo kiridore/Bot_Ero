@@ -245,13 +245,13 @@ class TestTrpgSessionExport(unittest.TestCase):
         self.assertTrue(os.path.isfile(f"{folder}/meta.json"))
         self.assertTrue(os.path.isfile(f"{folder}/record.md"))
 
-        with open(f"{folder}/meta.json", "r") as f:
+        with open(f"{folder}/meta.json", "r", encoding="utf-8") as f:
             meta = json.load(f)
         self.assertIn("participants", meta)
         self.assertIn("start", meta)
         self.assertIn("end", meta)
 
-        with open(f"{folder}/record.md", "r") as f:
+        with open(f"{folder}/record.md", "r", encoding="utf-8") as f:
             content = f.read()
         self.assertIn("玩家A", content)
         self.assertIn("小埃同学", content)
