@@ -129,6 +129,12 @@
     time.className = "tl-time";
     time.textContent = fmtTime(ev.received_at);
     head.append(img, name, time);
+    if (ev.self_only) { // 作者自见的被隐藏私聊打卡：卡片角落角标（textContent 直写，禁 innerHTML）
+      const badge = document.createElement("span");
+      badge.className = "tl-self-only";
+      badge.textContent = "仅自己可见";
+      item.appendChild(badge); // 绝对定位于卡片右上角，见 .tl-self-only
+    }
     item.appendChild(head);
 
     const title = document.createElement("p");

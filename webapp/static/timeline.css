@@ -261,9 +261,25 @@
 
 /* Twitter 式条目：无卡片边框/阴影/圆角，行间 1px 分割线，hover 仅轻微底色 */
 .tl-item {
+  position: relative; /* 供 tl-self-only 角标绝对定位 */
   padding: 1.05rem 0; /* 左右贴齐栏边，与栏头/分割线对齐 */
   border-bottom: 1px solid var(--rule);
   transition: background var(--motion-fast) var(--ease);
+}
+
+/* 仅自己可见：被隐藏私聊打卡对作者显示的角落角标（小号、低饱和，不抢内容） */
+.tl-self-only {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  pointer-events: none;
 }
 
 /* 持久未读卡：浅底 + 左侧标线（Twitter 新帖风格）；hover 保持未读态不被覆盖 */
