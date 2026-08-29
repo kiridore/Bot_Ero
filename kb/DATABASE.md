@@ -24,7 +24,8 @@ CREATE TABLE checkin_records (
     user_id INTEGER NOT NULL,
     checkin_date TEXT NOT NULL,     -- YYYY-MM-DD HH:MM:SS
     content TEXT NOT NULL,          -- 图片文件名 或 "remedy_checkin"
-    message_id INTEGER              -- QQ 消息 ID（ALTER 后加的列）
+    message_id INTEGER,             -- QQ 消息 ID（ALTER 后加的列）
+    is_private INTEGER DEFAULT 0    -- 1=私聊/网页打卡，0=群聊/补卡/历史行（ALTER 后加的列）
 );
 ```
 

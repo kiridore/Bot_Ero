@@ -40,7 +40,8 @@ class CheckinPlugin(CommandPlugin):
 
             # 先打卡（带上 message_id，便于撤回消息时撤销记录）
             msg_id = self.bot_event.message_id
-            self.dbmanager.checkin.insert(self.bot_event.user_id, img_list, msg_id)
+            is_private = self.bot_event.group_id is None  # 私聊打卡：落库 + 时间线事件双标记
+            self.dbmanager.checkin.insert(self.bot_event.user_id, img_list, msg_id, is_private=is_private)
 
             # 图片即时落盘：时间线事件引用的 /thumb/ URL 立即可用（08:00 备份任务兜底）
             for img in img_list:
@@ -74,7 +75,7 @@ class CheckinPlugin(CommandPlugin):
                         img.replace("{", "").replace("}", "").replace("-", ""),
                     )
                     for img in img_list
-                ]},
+                ], "private": is_private},
                 dedup_key="checkin:%s:%s:%s" % (
                     self.bot_event.user_id,
                     datetime.now().strftime("%Y-%m-%d"),

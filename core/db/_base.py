@@ -193,6 +193,8 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     _cols = [row[1] for row in cur.fetchall()]
     if "message_id" not in _cols:
         cur.execute("ALTER TABLE checkin_records ADD COLUMN message_id INTEGER")
+    if "is_private" not in _cols:
+        cur.execute("ALTER TABLE checkin_records ADD COLUMN is_private INTEGER DEFAULT 0")
     cur.execute("""
         INSERT OR IGNORE INTO user_equipped_titles (user_id, slot, title_id)
         SELECT user_id, 1, equipped_title

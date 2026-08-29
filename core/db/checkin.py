@@ -7,12 +7,12 @@ class CheckinManager:
         self.conn = conn
         self.cur = conn.cursor()
 
-    def insert(self, user_id, images, message_id=None):
+    def insert(self, user_id, images, message_id=None, is_private=False):
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for img in images:
             self.cur.execute(
-                "INSERT INTO checkin_records (user_id, checkin_date, content, message_id) VALUES (?, ?, ?, ?)",
-                (user_id, today_str, img, message_id)
+                "INSERT INTO checkin_records (user_id, checkin_date, content, message_id, is_private) VALUES (?, ?, ?, ?, ?)",
+                (user_id, today_str, img, message_id, 1 if is_private else 0)
             )
         self.conn.commit()
 

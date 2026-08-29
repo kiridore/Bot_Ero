@@ -65,6 +65,7 @@ with _connect() as conn:
 | `checkin_date` | TEXT | NOT NULL | 打卡日期，格式 `YYYY-MM-DD HH:MM:SS` |
 | `content` | TEXT | NOT NULL | 图片文件引用 |
 | `message_id` | INTEGER | | QQ 消息 ID（ALTER TABLE 后加的列，用于撤回支持） |
+| `is_private` | INTEGER | DEFAULT 0 | 1=私聊/网页打卡，0=群聊/补卡/历史行（ALTER TABLE 后加的列，供时间线隐私过滤与统计区分） |
 
 - 补救打卡标记：`content = "remedy_checkin"`
 - 日期格式始终为 `"YYYY-MM-DD HH:MM:SS"`（08:00 偏移在应用层应用）
