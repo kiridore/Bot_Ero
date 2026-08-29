@@ -82,7 +82,7 @@ const feedPayload = {
       actor: { id: "123456", qq: "123456", display_name: "小明", avatar_url: "http://a/1.png" },
       target: { type: "url", url: "https://littlero.tech/gallery" },
       title: "{id:123456} 完成打卡", description: "本周第 1 次",
-      data: { images: ["/thumb/123456/abc.image", "/thumb/123456/def.image"] },
+      data: { images: ["/thumb/123456/abc.image", "/thumb/123456/def.image?blur=1"] },
     },
     {
       seq: 4, id: "quest:2", source: "quest", received_at: "2026-08-10 13:00:00", unread: false,
@@ -370,6 +370,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("卡片1 图片条渲染", strip && strip.children.length === 2);
   check("卡片1 图片缩略图 URL", strip && strip.children[0].children[0].src === "/thumb/123456/abc.image");
   check("卡片1 原图链接 /thumb→/media", strip && strip.children[0].href === "/media/123456/abc.image");
+  check("模糊图点击打开模糊图不跳原图", strip && strip.children[1].href === "/thumb/123456/def.image?blur=1");
   const [r2, r3] = reFrag.children.slice(1);
   check("卡片2 未绑定 actor", r2.children[0].children[1].textContent === "未绑定玩家");
   check("卡片2 无 target 无详情按钮", !r2.children.some((c) => c.className === "tl-detail"));

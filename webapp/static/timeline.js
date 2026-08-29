@@ -155,7 +155,8 @@
       ev.data.images.forEach(function (src) {
         const s = String(src);
         const a = document.createElement("a");
-        a.href = s.startsWith("/thumb/") ? s.replace("/thumb/", "/media/") : s;
+        // 模糊图（blur=1）点击打开模糊图本身，不穿透到 /media/ 原图
+        a.href = s.includes("blur=1") ? s : (s.startsWith("/thumb/") ? s.replace("/thumb/", "/media/") : s);
         a.target = "_blank";
         a.rel = "noopener";
         const img = document.createElement("img");
