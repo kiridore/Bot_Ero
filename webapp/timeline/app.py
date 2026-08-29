@@ -280,6 +280,7 @@ def timeline_feed(
         need = limit + 1 - len(vis_rows)
         batch = db.timeline.page(cur_pos, need)
         if not batch:
+            has_more = False  # 空页必然取尽；沿用上一轮的 True 会令下方 batch[-1] 对空表取下标（P1）
             break
         vis = _visibility_ctx(_vis_full(r) for r in batch)
         for r in batch:

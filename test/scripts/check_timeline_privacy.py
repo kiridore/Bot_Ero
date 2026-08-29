@@ -171,6 +171,18 @@ page3 = client.get("/api/timeline", headers=CH,
 check("C 分页第 3 页取 a-group（跨过 a-priv）",
       [e["id"] for e in page3["events"]] == ["checkin:a-group"], str(page3))
 
+# —— 6. 全隐藏范围取尽：空页必须重置 has_more，不得 500（P1 回归）——
+# 两条比既有事件更旧的隐藏私聊打卡，cursor 限只取它们；
+# 修复前：第 1 批全被过滤且满批 → has_more=True，第 2 批空页 break 未重置 → batch[-1] IndexError → 500
+insert_event("checkin:a-priv-old1", A, "2026-08-19 08:00:01", data={"private": True}, dedup_key="pold1")
+insert_event("checkin:a-priv-old2", A, "2026-08-19 08:00:02", data={"private": True}, dedup_key="pold2")
+r_all_hidden = client.get("/api/timeline", headers=CH,
+                          params={"limit": 1, "cursor": "2026-08-20 09:00:01|checkin:a-priv"})
+check("全隐藏范围返回 200（修复前 500）", r_all_hidden.status_code == 200, r_all_hidden.text[:200])
+body_all_hidden = r_all_hidden.json()
+check("全隐藏范围 events 为空且无续读游标",
+      body_all_hidden["events"] == [] and body_all_hidden["next_cursor"] is None, str(body_all_hidden)[:200])
+
 _conn.close()
 print()
 print("PASS" if fail == 0 else f"{fail} FAILURES")
