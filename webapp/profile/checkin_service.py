@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import random
 import uuid
 from datetime import datetime, timedelta
 
 from core.database_manager import DbManager
+from core.timeline_client import emit_event
 from core.utils import add_user_point, get_monday_to_monday
+from webapp.gallery.thumbnails import ensure_thumbnail
 
 from core import config
 from webapp.profile.title_loader import load_title_module
+
+logger = logging.getLogger(__name__)
 
 _TITLE_MODULE_PATH = config.PROJECT_ROOT / "plugins" / "title.py"
 
@@ -81,7 +86,8 @@ def perform_checkin(user_id: str, image_names: list[str]) -> dict:
     before = db.checkin.search_user_range(user_id, start_date, end_date)
     is_first = len(before) == 0
 
-    db.checkin.insert(user_id, image_names, message_id=None)
+    # 网页打卡与私聊打卡同构：落库即标记私聊（时间线读侧按 data.private 过滤）
+    db.checkin.insert(user_id, image_names, message_id=None, is_private=True)
 
     checkin_luck_bonus = 0
     if db.shop.pop_luck(user_id):
@@ -166,6 +172,28 @@ def perform_checkin(user_id: str, image_names: list[str]) -> dict:
         summary_lines.extend(bonus_lines)
     if streak_res["current_weekly"] > 1:
         summary_lines.append(f"已连续打卡 {streak_res['current_weekly']} 周")
+
+    # 社区时间线事件（best-effort：结算已完成，缩略图/上传失败只影响预览，不回滚打卡）
+    try:
+        for name in image_names:
+            src = config.IMAGE_ROOT / str(user_id) / name
+            if src.is_file():
+                ensure_thumbnail(src)  # 首屏即可用 /thumb/ URL
+        emit_event(
+            source="checkin",
+            actor_id=user_id,
+            actor_qq=user_id,
+            title="{id:%s} 完成打卡" % user_id,
+            description="本周第 %d 次" % len(checkin_list),
+            data={"images": ["/thumb/%s/%s" % (user_id, n) for n in image_names], "private": True},
+            dedup_key="checkin:%s:%s:web-%s" % (
+                user_id,
+                datetime.now().strftime("%Y-%m-%d"),
+                uuid.uuid4().hex[:8],  # 每次网页打卡一条事件，与 bot 侧同前缀区分来源
+            ),
+        )
+    except Exception:
+        logger.exception("网页打卡时间线事件发送失败 user=%s", user_id)
 
     return {
         "success": True,
