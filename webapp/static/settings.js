@@ -13,6 +13,50 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// 打卡时间线显示状态（与 core/user_settings.py CHECKIN_DISPLAY_STATES 一致）：
+// show=显示 / blur=模糊显示 / text=仅打卡信息（不含图片）/ hidden=隐藏
+const CHECKIN_DISPLAY_OPTIONS = [
+  { value: "show", label: "显示" },
+  { value: "blur", label: "模糊显示" },
+  { value: "text", label: "仅打卡信息" },
+  { value: "hidden", label: "隐藏" },
+];
+
+function buildCheckinDisplayRow(title, groupName, settingKey, currentValue) {
+  const row = document.createElement("div");
+  row.className = "privacy-row privacy-row-options";
+  const label = document.createElement("span");
+  label.textContent = title;
+  row.appendChild(label);
+  CHECKIN_DISPLAY_OPTIONS.forEach((opt) => {
+    const radioLabel = document.createElement("label");
+    radioLabel.className = "radio-option";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = groupName;
+    input.value = opt.value;
+    input.checked = (currentValue || "show") === opt.value;
+    input.addEventListener("change", async (e) => {
+      try {
+        userSettingsData = await apiFetch("/api/me/settings", {
+          method: "PUT",
+          body: JSON.stringify({ privacy: { [settingKey]: e.target.value } }),
+        });
+        showToast(`${title}：${opt.label}`);
+      } catch (err) {
+        showToast(err.message, true);
+        renderPage(); // 回滚选中态到服务端值
+      }
+    });
+    radioLabel.appendChild(input);
+    const optText = document.createElement("span");
+    optText.textContent = opt.label;
+    radioLabel.appendChild(optText);
+    row.appendChild(radioLabel);
+  });
+  return row;
+}
+
 function openLoginDialog() {
   loginError.classList.add("hidden");
   loginDialog.showModal();
@@ -209,17 +253,25 @@ function renderPage() {
       <span>允许他人查看我的角色卡</span>
       <input type="checkbox" id="charPublicToggle" ${userSettingsData.privacy.char_public === false ? "" : "checked"} />
     </label>
-    <label class="privacy-row">
-      <span>私聊打卡显示在时间线上</span>
-      <input type="checkbox" id="optPrivateCheckinPublic" ${userSettingsData.privacy.private_checkin_public === false ? "" : "checked"} />
-    </label>
-    <label class="privacy-row">
-      <span>打卡图片对他人清晰可见（关闭后他人看到模糊图）</span>
-      <input type="checkbox" id="optCheckinImagePublic" ${userSettingsData.privacy.checkin_image_public === false ? "" : "checked"} />
-    </label>
-    <p class="preview-hint">关闭「私聊打卡显示在时间线上」后，其他用户在时间线看不到你的私聊打卡，你本人仍可见并带「仅自己可见」标记；关闭「打卡图片对他人清晰可见」后，其他用户看到的是高斯模糊图，你本人始终看到原图。</p>
   `;
   settingsMain.appendChild(privacySec);
+
+  privacySec.appendChild(buildCheckinDisplayRow(
+    "私聊/网页打卡在时间线上", "checkinDisplayPrivate", "checkin_display_private",
+    userSettingsData.privacy.checkin_display_private
+  ));
+  privacySec.appendChild(buildCheckinDisplayRow(
+    "群聊打卡在时间线上", "checkinDisplayGroup", "checkin_display_group",
+    userSettingsData.privacy.checkin_display_group
+  ));
+
+  const checkinHint = document.createElement("p");
+  checkinHint.className = "preview-hint";
+  checkinHint.textContent =
+    "打卡显示状态分私聊/网页与群聊两类设置：「模糊显示」时其他用户看到高斯模糊图；" +
+    "「仅打卡信息」时其他用户只看到打卡文字不显示图片；「隐藏」时其他用户看不到该类打卡。" +
+    "任何状态下你本人查看自己的打卡始终是原图与完整内容。";
+  privacySec.appendChild(checkinHint);
 
   document.getElementById("charPublicToggle").addEventListener("change", async (e) => {
     try {
@@ -228,32 +280,6 @@ function renderPage() {
         body: JSON.stringify({ privacy: { char_public: e.target.checked } }),
       });
       showToast(e.target.checked ? "已允许他人查看角色卡" : "已隐藏角色卡");
-    } catch (err) {
-      e.target.checked = !e.target.checked;
-      showToast(err.message, true);
-    }
-  });
-
-  document.getElementById("optPrivateCheckinPublic").addEventListener("change", async (e) => {
-    try {
-      userSettingsData = await apiFetch("/api/me/settings", {
-        method: "PUT",
-        body: JSON.stringify({ privacy: { private_checkin_public: e.target.checked } }),
-      });
-      showToast(e.target.checked ? "已开放私聊打卡展示" : "私聊打卡已仅自己可见");
-    } catch (err) {
-      e.target.checked = !e.target.checked;
-      showToast(err.message, true);
-    }
-  });
-
-  document.getElementById("optCheckinImagePublic").addEventListener("change", async (e) => {
-    try {
-      userSettingsData = await apiFetch("/api/me/settings", {
-        method: "PUT",
-        body: JSON.stringify({ privacy: { checkin_image_public: e.target.checked } }),
-      });
-      showToast(e.target.checked ? "打卡图片已对他人清晰展示" : "打卡图片已对他人模糊");
     } catch (err) {
       e.target.checked = !e.target.checked;
       showToast(err.message, true);
