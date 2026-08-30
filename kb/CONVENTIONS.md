@@ -61,6 +61,7 @@ logger.exception("...")  # 自动附带 traceback
 11. 新增插件 → 新群默认禁用，是否通知管理员手动启用？
 12. 新增系统插件 → 加入 `SYSTEM_PLUGINS` 了吗？（`core/context.py`）
 13. `plugin_pool` 修改 → `is_plugin_enabled` 检查是否有 `sqlite3.Error` 兜底？
+14. `DbManager()` 链式临时对象调用（如 `DbManager().activity.xxx()`）→ 禁止：临时对象无引用，`__del__` 可能在使用期间关闭连接；先绑定变量 `db = DbManager()` 再用
 
 ## 已知技术债
 
