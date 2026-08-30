@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>发起活动</title>
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/shared/profile.css" />
+  <style>
+    .form-card { background: var(--paper-card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; max-width: 640px; margin: 0 auto; }
+    .form-row { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+    .form-row > label { font-size: 14px; color: var(--ink); }
+    .form-row input[type=text], .form-row input[type=number], .form-row input[type=datetime-local], .form-row textarea {
+      padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; font-size: 14px;
+      background: transparent; color: inherit; font-family: inherit;
+    }
+    .radio-row { display: flex; gap: 18px; }
+    .radio-row label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+    .radio-row input { accent-color: var(--accent); }
+    .btn-primary { padding: 9px 18px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 14px; cursor: pointer; }
+    .btn-primary:disabled { opacity: .6; cursor: default; }
+    .btn-ghost { padding: 9px 18px; border: 1px solid var(--rule); border-radius: 8px; background: transparent; color: inherit; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+    .announce-box { white-space: pre-wrap; background: var(--paper-card); border: 1px dashed var(--rule); border-radius: 8px; padding: 12px; font-size: 14px; margin: 12px 0; }
+    .msg { font-size: 13px; margin-top: 8px; min-height: 18px; }
+    .msg.err { color: var(--red); }
+    .msg.ok { color: var(--gold); }
+    .muted { color: var(--ink-soft); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header class="toolbar profile-toolbar">
+    <div class="auth-area" id="authArea"></div>
+  </header>
+
+  <main class="profile-main">
+    <section id="createForm" class="form-card">
+      <h2>发起活动</h2>
+      <div class="form-row">
+        <label>类型</label>
+        <div class="radio-row">
+          <label><input type="radio" name="actType" value="relay" checked />接龙</label>
+          <label><input type="radio" name="actType" value="match" />匹配下家</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="title">标题 *</label>
+        <input type="text" id="title" maxlength="100" placeholder="如：端午自由创作" />
+      </div>
+      <div class="form-row">
+        <label for="description">描述</label>
+        <textarea id="description" rows="3" maxlength="500" placeholder="活动说明（可选）"></textarea>
+      </div>
+      <div class="form-row" id="hoursRow">
+        <label for="hours">每人限时（小时，默认 48）</label>
+        <input type="number" id="hours" min="0.5" step="0.5" value="48" />
+      </div>
+      <div class="form-row">
+        <label for="signupDeadline">报名截止（到点自动开始，可选）</label>
+        <input type="datetime-local" id="signupDeadline" />
+      </div>
+      <div class="form-row">
+        <label for="deadline">截止时间 <span id="deadlineMust" hidden style="color: var(--red)">（匹配必填）</span></label>
+        <input type="datetime-local" id="deadline" />
+      </div>
+      <button class="btn-primary" id="submitBtn">创建活动</button>
+      <p class="msg" id="msg"></p>
+      <p class="muted">创建成功后复制公告文案发到群里，大家回复「/活动 加入」报名。</p>
+    </section>
+
+    <section id="createOk" class="form-card" hidden>
+      <h2>创建成功</h2>
+      <p class="muted">把下面的公告复制到群里，通知大家报名：</p>
+      <div class="announce-box" id="announceBox"></div>
+      <button class="btn-primary" id="copyBtn">复制公告</button>
+      <p class="msg" id="copyMsg"></p>
+      <p style="margin-top: 16px">
+        <a class="btn-ghost" id="manageLink" href="#">前往管理页</a>
+        <a class="btn-ghost" href="/activities">返回活动列表</a>
+      </p>
+    </section>
+  </main>
+
+  <script src="/shared/auth.js?v=3"></script>
+  <script src="/shared/motion.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/activities_new.js"></script>
+</body>
+</html>

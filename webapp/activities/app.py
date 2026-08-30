@@ -258,6 +258,14 @@ def activities_page():
     return FileResponse(page)
 
 
+@router.get("/activities/new")
+def activity_new_page():
+    page = STATIC_DIR / "activities_new.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
+
+
 @router.get("/activities/{activity_id}")
 def activity_detail_page(activity_id: int):
     db = DbManager()

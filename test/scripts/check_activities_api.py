@@ -160,5 +160,11 @@ check("匹配 2 人开始 200", r.status_code == 200, r.text)
 r = client.patch("/api/activities/99999", headers=OH, json={"title": "x"})
 check("编辑不存在 404", r.status_code == 404)
 
+# —— 页面路由（登录门控由 middleware 处理，Bearer 可过）——
+r = client.get("/activities/new", headers=OH, follow_redirects=False)
+check("发起页 200", r.status_code == 200 and "text/html" in r.headers.get("content-type", ""))
+r = client.get("/activities/new", follow_redirects=False)
+check("发起页未登录 302", r.status_code == 302)
+
 print(f"\n{'ALL PASS' if fail == 0 else f'{fail} FAILED'}")
 sys.exit(1 if fail else 0)
