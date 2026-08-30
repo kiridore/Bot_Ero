@@ -23,6 +23,9 @@
 
 ### 变更
 
+- **时间线**：修复模糊打卡图点击穿透到原图（lightbox 遮罩层 pointer-events 未拦截，0eda894）
+- **周报**：群更新周报生成流程固化为可复用 skill（开发工具内部变更，e58d8c3）
+
 - **开发流程：多步任务计划先行固化**——新增 `specs/conventions.md` §开发计划先行 Constraint（多步开发任务动代码前 MUST 用 `superpowers:writing-plans` skill 写实施计划，存 `docs/superpowers/plans/`，单点小修豁免），`AGENTS.md` Toolchain reality 同步摘要
 - **修复 Windows 下跑团导出测试的编码失败**：`test_trpg_session` 导出用例读 meta.json/record.md 未显式指定 `encoding="utf-8"`，在 Windows 默认 GBK 环境抛 `UnicodeDecodeError`（源码读写本就 utf-8，纯测试侧修复；全量回归在 Windows 上首次全绿）
 - **统一测试框架 pytest**：项目根 `pytest` 一键全量回归——`test/conftest.py` 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录（回归绝不触碰真实 `data.db`/`server_data`）；5 个脚本式 webapp 集成套件（论坛编辑/评论线程/投票、时间线未读、全站登录门控）迁至 `test/scripts/check_*.py` 由子进程包装器纳入（各自独立进程拿全新临时 DB，仍可单跑）；node 最小 DOM stub 渲染用例（含论坛列表/详情/新建/预填 4 个 DOM 用例）一并纳入常规回归，新增用例自动发现；跑团记录插件导出路径提取常量 `TRPG_RECORDS_ROOT`（行为不变），其测试不再写删真实 `server_data/`；触碰真实库的数据脚本 `db_oper`/`sort_image` 迁出 `test/` 至 `scripts/`；`test_llm.py`（真实调外部计费 API）排除出常规回归；修复 `test_trpg_char` 4 处过期断言（`/profile/trpg` → 当前 `WEB_TRPG_URL`，3.0 路径分区迁移遗留）；补 Windows 依赖 `tzdata`
