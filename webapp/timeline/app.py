@@ -45,22 +45,23 @@ def _vis_light(row: tuple):
 
 
 def _visibility_ctx(entries) -> dict:
-    """计算隐藏事件 id 集与需模糊图片的作者集。每作者每页只读一次设置。"""
+    """计算隐藏事件 id 集与需模糊图片的作者集。每作者每页只读一次设置。
+
+    四态键（checkin_display）等价旧布尔语义：hidden ⇔ 旧 private_checkin_public=False；
+    任一类 blur ⇔ 旧 checkin_image_public=False（迁移后两类恒成对，等价旧全量模糊）。
+    text 态暂不展开（后续任务）。"""
     hidden: set[str] = set()
     blur_authors: set[str] = set()
-    actor_flags: dict[str, tuple[bool, bool]] = {}
+    actor_states: dict[str, dict[str, str]] = {}
     for eid, source, actor_key, data_raw in entries:
         if source != "checkin":
             continue
-        if actor_key not in actor_flags:
-            actor_flags[actor_key] = (
-                user_settings.private_checkin_public(actor_key),
-                user_settings.checkin_image_public(actor_key),
-            )
-        private_public, image_public = actor_flags[actor_key]
-        if not image_public:
-            blur_authors.add(actor_key)  # 该作者全部打卡图对非作者模糊
-        if not private_public:
+        if actor_key not in actor_states:
+            states = user_settings.checkin_display(actor_key)
+            actor_states[actor_key] = states
+            if "blur" in states.values():
+                blur_authors.add(actor_key)  # 该作者全部打卡图对非作者模糊
+        if actor_states[actor_key]["private"] == "hidden":
             data = _loads(data_raw)
             if isinstance(data, dict) and data.get("private"):
                 hidden.add(eid)

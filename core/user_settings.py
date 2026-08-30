@@ -8,9 +8,11 @@
 
 已约定键：
     privacy.char_public: bool  是否允许他人查看我的角色卡（缺省 True）
-    privacy.private_checkin_public: bool  私聊打卡是否展示在时间线（缺省 True）
-    privacy.checkin_image_public: bool  时间线打卡图片是否对他人清晰可见（缺省 True，
-                                        False=他人看高斯模糊图）
+    privacy.checkin_display_private: str  私聊/网页打卡在时间线的显示状态
+    privacy.checkin_display_group: str    群聊打卡在时间线的显示状态
+        取值 CHECKIN_DISPLAY_STATES（show|blur|text|hidden，缺省 show）；
+        旧布尔键 private_checkin_public / checkin_image_public 已废除，
+        checkin_display() 首次读取时懒迁移并回写删除（见该函数）
 """
 
 from __future__ import annotations
@@ -80,11 +82,44 @@ def privacy_public(user_id) -> bool:
     return bool(get_settings(user_id).get("privacy", {}).get("char_public", True))
 
 
-def private_checkin_public(user_id) -> bool:
-    """私聊打卡是否展示在时间线（对他人）。缺省 True。"""
-    return bool(get_settings(user_id).get("privacy", {}).get("private_checkin_public", True))
+CHECKIN_DISPLAY_STATES = ("show", "blur", "text", "hidden")
 
 
-def checkin_image_public(user_id) -> bool:
-    """时间线打卡图片是否对他人清晰可见（False=高斯模糊）。缺省 True。"""
-    return bool(get_settings(user_id).get("privacy", {}).get("checkin_image_public", True))
+def checkin_display(user_id) -> dict:
+    """打卡时间线显示状态（按类型）：{"private": state, "group": state}。
+
+    state ∈ show|blur|text|hidden；缺省 show。首次读取时懒迁移旧布尔键
+    （private_checkin_public / checkin_image_public）并回写删除——旧键已废除：
+        private_checkin_public=False → private=hidden；
+        checkin_image_public=False → 两类均 blur；同时命中时 private 取 hidden。
+    新键已存在时忽略旧键；非法值读取时回退 show（不回写纠正）。
+    """
+    uid = str(user_id)
+    with _lock_for(uid):
+        settings = _read(_settings_path(uid))
+        privacy = settings.get("privacy", {})
+        changed = False
+        if "checkin_display_private" not in privacy:
+            privacy["checkin_display_private"] = (
+                "hidden" if privacy.get("private_checkin_public") is False
+                else ("blur" if privacy.get("checkin_image_public") is False else "show")
+            )
+            changed = True
+        if "checkin_display_group" not in privacy:
+            privacy["checkin_display_group"] = (
+                "blur" if privacy.get("checkin_image_public") is False else "show"
+            )
+            changed = True
+        for legacy in ("private_checkin_public", "checkin_image_public"):
+            if legacy in privacy:
+                privacy.pop(legacy)
+                changed = True
+        if changed:
+            settings["privacy"] = privacy
+            _write(_settings_path(uid), settings)
+
+    def _valid(v):
+        return v if v in CHECKIN_DISPLAY_STATES else "show"
+
+    return {"private": _valid(privacy.get("checkin_display_private", "show")),
+            "group": _valid(privacy.get("checkin_display_group", "show"))}
