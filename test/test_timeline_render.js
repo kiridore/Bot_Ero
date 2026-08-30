@@ -95,6 +95,12 @@ const feedPayload = {
       target: null,
       title: "{id:999} 与 {id:123456} 组队", description: null, data: null,
     },
+    {
+      seq: 2, id: "checkin:4", source: "checkin", received_at: "2026-08-10 10:00:00", unread: false,
+      actor: { id: "123456", qq: "123456", display_name: "小明", avatar_url: "" },
+      target: null, title: "{id:123456} 完成打卡", description: "本周第 1 次", data: null,
+      images_hidden: true, // 仅文字态：非作者查看，图片被服务端剥离
+    },
   ],
   users: { "123456": { name: "小明", avatar: "http://a/1.png" } },
   next_cursor: null,
@@ -204,7 +210,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await window.GalleryAuth.login("test-key");
   await wait(100);
   const frag = els.feed.children[0];
-  check("登录后渲染卡片", Array.isArray(frag.children) && frag.children.length === 3);
+  check("登录后渲染卡片", Array.isArray(frag.children) && frag.children.length === 4);
   const [c1, c2, c3] = frag.children;
   check("未读卡有 tl-unread", c1.classList.contains("tl-unread"));
   check("已读卡无 tl-unread", !c2.classList.contains("tl-unread") && !c3.classList.contains("tl-unread"));
@@ -226,7 +232,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("poll 带 after=topCursor", fetchedUrls.some((u) => u.includes("/api/timeline/poll?after=5")));
   check("pill 显示查看 2 条新事件", els.tlNewEvents.textContent === "查看 2 条新事件");
   check("pill 可见", !els.tlNewEvents.classList.contains("hidden"));
-  check("轮询不改变 feed", els.feed.children.length === 1 && els.feed.children[0].children.length === 3);
+  check("轮询不改变 feed", els.feed.children.length === 1 && els.feed.children[0].children.length === 4);
   pollResult = { count: 0 };
   intervals[0].fn();
   await wait(80);
@@ -271,7 +277,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         && newFrag.children[0].dataset.eventId === "checkin:new2"
         && newFrag.children[1].dataset.eventId === "checkin:new1");
   check("重叠 id 去重（首屏卡不重复渲染）",
-        els.feed.children.length === 2 && els.feed.children[1].children.length === 3);
+        els.feed.children.length === 2 && els.feed.children[1].children.length === 4);
   check("点击后 pill 隐藏", els.tlNewEvents.classList.contains("hidden"));
   check("新卡滚动定位", els.feed.firstElementChild._scrolled === true);
   check("多页拉取次数", fetchedUrls.filter((u) => u.includes("/api/timeline/new")).length
@@ -358,7 +364,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         && intervals[intervals.length - 2].cleared === true);
   check("重登后 pill 清空隐藏", els.tlNewEvents.classList.contains("hidden"));
   const reFrag = els.feed.children[0];
-  check("重登后首屏重渲染", reFrag && reFrag.children.length === 3);
+  check("重登后首屏重渲染", reFrag && reFrag.children.length === 4);
 
   // 11. 原有渲染契约回归
   const [r1] = reFrag.children;
@@ -378,6 +384,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("卡片3 未知占位符降级未绑定", r3.children[1].innerHTML.includes("未绑定玩家"));
   check("卡片3 已知占位符仍替换", r3.children[1].innerHTML.includes("小明"));
   check("无模糊卡片无注释", !r3.children.some((c) => c.className === "tl-blur-note"));
+  const r4 = reFrag.children[3];
+  check("仅文字卡片有图片仅作者可见角注", r4 && r4.children.some((c) => c.className === "tl-text-note" && c.textContent === "图片仅作者可见"));
+  check("仅文字卡片无图片条", r4 && !r4.children.some((c) => c.className === "tl-images"));
+  check("模糊卡片无仅文字角注", !r1.children.some((c) => c.className === "tl-text-note"));
+  check("普通卡片无仅文字角注", !r3.children.some((c) => c.className === "tl-text-note"));
 
   process.exit(fail ? 1 : 0);
 })();

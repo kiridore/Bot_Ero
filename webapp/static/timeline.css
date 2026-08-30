@@ -296,6 +296,21 @@
   pointer-events: none;
 }
 
+/* 仅文字态打卡角注：作者开启「仅打卡信息」后，非作者查看时卡片右下角说明（与模糊角注互斥） */
+.tl-text-note {
+  position: absolute;
+  bottom: 0.4rem;
+  right: 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  pointer-events: none;
+}
+
 /* 持久未读卡：浅底 + 左侧标线（Twitter 新帖风格）；hover 保持未读态不被覆盖 */
 .tl-item.tl-unread {
   background: var(--accent-soft);

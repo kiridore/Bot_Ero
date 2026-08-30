@@ -176,6 +176,14 @@
       }
     }
 
+    // 仅文字态打卡（作者开启「仅打卡信息」）：非作者查看无图，右下角注明图片仅作者可见
+    if (ev.images_hidden) {
+      const note = document.createElement("span");
+      note.className = "tl-text-note";
+      note.textContent = "图片仅作者可见";
+      item.appendChild(note);
+    }
+
     if (ev.target && ev.target.url) {
       const a = document.createElement("a");
       a.className = "tl-detail";
