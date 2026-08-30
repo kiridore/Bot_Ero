@@ -378,7 +378,7 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 
 打卡事件在**读侧**按「事件标记 × 作者设置 × 查看者身份」动态过滤，写入侧不拦截、历史事件不回填：
 
-- **事件标记**：`source=checkin` 事件 `data.private=true` 表示私聊/网页打卡（QQ 群聊打卡无此标记）。无标记的历史事件永远视为公开。
+- **事件标记**：`source=checkin` 事件 `data.private=true` 表示私聊/网页打卡（QQ 群聊打卡无此标记）。无 `data.private` 标记的事件（含全部历史事件）视为群聊类型，由 `checkin_display_group` 状态管辖。
 - **作者设置**（`core/user_settings.py` JSON，每作者每页仅读一次）：按打卡类型四态独立设置，
   `privacy.checkin_display_private`（私聊/网页打卡）/ `privacy.checkin_display_group`（群聊打卡），
   值 ∈ `show|blur|text|hidden`，缺省 `show`：
