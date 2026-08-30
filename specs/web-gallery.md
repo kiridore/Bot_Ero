@@ -319,6 +319,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `alarms` | `/alarms` 闹钟管理 |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
 | `activities` | `/activities/new` 活动发起页（类型/标题/描述/每人限时/报名截止/截止；匹配必填截止；成功后展示可复制群公告文案）；登录门控 |
+| `activities` | `/activities/{activity_id}/manage` 活动管理页（仅创建人/超管，其余显示拒绝卡片）：open 编辑标题/描述/限时/报名截止/截止 + 开始/取消，running 编辑标题/描述/截止 + 提前结束，15s 轮询状态；open 常驻群公告文案复制；开始/结束借道心跳约 1 分钟生效 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖（`?id=` 编辑模式，类型/投票结构不可改）；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论，作者可见编辑/删除按钮）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
 | `tools` | `/tools` 工具箱（链接卡片网格 + tag 云（全部 tag 及使用数量，点击筛选）+ tag 徽标/筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，卡片 icon 浏览器直连默认路径、失败/超时转服务端解析兜底（favicon.ico → 首页 link rel=icon，入库缓存），头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可编辑/删除自己提交的链接） |

@@ -266,6 +266,17 @@ def activity_new_page():
     return FileResponse(page)
 
 
+@router.get("/activities/{activity_id}/manage")
+def activity_manage_page(activity_id: int):
+    db = DbManager()
+    if db.activity.get_activity(activity_id) is None:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    page = STATIC_DIR / "activities_manage.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
+
+
 @router.get("/activities/{activity_id}")
 def activity_detail_page(activity_id: int):
     db = DbManager()

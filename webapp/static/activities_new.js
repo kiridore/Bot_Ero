@@ -39,7 +39,8 @@
     showMsg("提交中…", true);
     try {
       const res = await fetch("/api/activities", {
-        method: "POST", headers: GalleryAuth.headers(),
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
         body: JSON.stringify(body),
       });
       const data = await res.json();
