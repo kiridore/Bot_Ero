@@ -153,7 +153,7 @@ class ActivityManager:
         """全部活动：进行中（open/running）在前且附成员列表，归档/取消在后。"""
         acts = self._rows(
             "SELECT a.id, a.type, a.title, a.description, a.status, a.group_id,"
-            " a.signup_deadline, a.deadline, a.hours_per_user, a.created_at, a.finished_at,"
+            " a.created_by, a.signup_deadline, a.deadline, a.hours_per_user, a.created_at, a.finished_at,"
             " (SELECT COUNT(*) FROM activity_members m WHERE m.activity_id = a.id) AS member_count,"
             " (SELECT COUNT(*) FROM activity_members m WHERE m.activity_id = a.id AND m.status = 'done') AS done_count"
             " FROM activities a"

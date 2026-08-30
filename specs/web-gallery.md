@@ -251,9 +251,15 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后 |
+| `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后；含 created_by |
 | `GET` | `/api/me/activities` | 必须 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
 | `GET` | `/api/activities/{id}` | 否 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL），不存在返回 404 |
+| `POST` | `/api/activities` | 必须 | 创建活动（type/title/description/hours_per_user/signup_deadline/deadline；匹配必带截止、日期须未来、每群唯一进行中）→ {ok,id,announce=可复制群公告文案}。群固定 DEFAULT_GROUP_ID，created_by=登录用户 |
+| `PATCH` | `/api/activities/{id}` | 必须 | 创建人/超管编辑：open 可改 标题/描述/每人限时/报名截止/截止，running 仅 标题/描述/截止；他字段 400，结束后 409 |
+| `POST` | `/api/activities/{id}/start` | 必须 | 仅 open；人数预检（接龙≥1 匹配≥2）后写 signup_deadline=now，bot 心跳 ≤60s 自动开始并通知（B1 方案，幂等） |
+| `POST` | `/api/activities/{id}/finish` | 必须 | 仅 running；写 deadline=now，bot 心跳 ≤60s 收尾（未交置 missed+归档+群公告） |
+| `POST` | `/api/activities/{id}/cancel` | 必须 | 仅 open；直接置 cancelled（与群内取消一致，无通知） |
+| `GET` | `/api/activities/{id}/announce` | 必须 | 创建人/超管获取群公告文案（单一来源生成） |
 | `GET` | `/archive/{id}/media/{filename}` | 否 | 活动作品图片（限制在 `ACTIVITY_ROOT` 内，防路径遍历） |
 
 ### 直播间（`live` 模块）
