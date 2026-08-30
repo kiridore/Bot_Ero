@@ -60,6 +60,8 @@ check("匹配缺截止 400", r.status_code == 400, r.text)
 r = client.post("/api/activities", headers=OH, json={
     "type": "relay", "title": "接龙一", "deadline": "2000-01-01 20:00"})
 check("过去截止 400", r.status_code == 400, r.text)
+r = client.post("/api/activities", headers=OH, json={"type": "relay", "title": "   "})
+check("纯空白标题 400", r.status_code == 400, r.text)
 r = client.post("/api/activities", headers=OH, json={
     "type": "relay", "title": "接龙一", "deadline": "not-a-date"})
 check("截止格式错 400", r.status_code == 400, r.text)
@@ -90,6 +92,8 @@ r = client.patch(f"/api/activities/{mid}", headers=OH, json={"hours_per_user": 0
 check("hours<=0 拒绝", r.status_code == 422, r.text)
 r = client.patch(f"/api/activities/{mid}", headers=OH, json={"deadline": "2000-01-01 20:00"})
 check("编辑过去截止 400", r.status_code == 400, r.text)
+r = client.patch(f"/api/activities/{mid}", headers=OH, json={"title": "   "})
+check("编辑空白标题 400", r.status_code == 400, r.text)
 r = client.patch(f"/api/activities/{mid}", headers=OH, json={"nope": 1})
 check("未知字段 422", r.status_code == 422, r.text)
 

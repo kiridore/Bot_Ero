@@ -110,6 +110,8 @@ def api_create_activity(body: ActivityCreateIn,
         raise HTTPException(status_code=409, detail="本群已有进行中的活动")
     if body.type == "match" and not body.deadline:
         raise HTTPException(status_code=400, detail="匹配活动必须设定截止时间")
+    if not body.title.strip():
+        raise HTTPException(status_code=400, detail="标题不能为空")
     deadline = _parse_future_deadline(body.deadline, "截止时间")
     signup_deadline = _parse_future_deadline(body.signup_deadline, "报名截止")
     hours = body.hours_per_user if body.type == "relay" else None  # 与插件创建一致：匹配不存限时
@@ -148,6 +150,8 @@ def api_edit_activity(activity_id: int, body: ActivityEditIn,
             detail="当前状态不能修改：" + "、".join(sorted(_FIELD_LABEL[k] for k in rejected)))
     fields = {}
     if body.title is not None:
+        if not body.title.strip():
+            raise HTTPException(status_code=400, detail="标题不能为空")
         fields["title"] = body.title.strip()
     if body.description is not None:
         fields["description"] = body.description

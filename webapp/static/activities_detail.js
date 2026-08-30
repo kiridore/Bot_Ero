@@ -61,7 +61,8 @@ async function loadDetail() {
   const nickOf = {};
   for (const m of act.members) nickOf[m.user_id] = m.nickname;
   const isRunning = act.status === "running";
-  const isOwner = session && myUid && String(act.created_by) === String(myUid);
+  // 1057613133=SUPER_USER，与 core/base.py 及 activities_manage.js 同步
+  const isOwner = session && myUid && (String(act.created_by) === String(myUid) || String(myUid) === "1057613133");
 
   const rows = [
     infoRow("标题", `<strong>${escapeHtml(act.title)}</strong>${statusBadge(act.status)}`

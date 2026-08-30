@@ -86,7 +86,8 @@ async function loadActiveActivities() {
           </span>`).join("")}
       </div>
     </a>
-    ${a.created_by != null && String(a.created_by) === String(myUid)
+    ${/* 1057613133=SUPER_USER，与 core/base.py 及 activities_manage.js 同步 */
+    a.created_by != null && (String(a.created_by) === String(myUid) || String(myUid) === "1057613133")
       ? `<a class="member-chip member-me" href="/activities/${a.id}/manage" style="text-decoration:none">⚙ 管理</a>`
       : ""}`.trim()).join("");
 }
