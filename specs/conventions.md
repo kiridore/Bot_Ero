@@ -251,6 +251,24 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ---
 
+## Constraint: 开发计划先行
+
+**多步开发任务在动代码之前 MUST 先产出书面实施计划**，使用 `superpowers:writing-plans` skill 编写。
+
+**适用范围：** 新功能、跨文件/跨模块改动、预计拆多个 commit 的任务。单点小修（一行 fix、纯文档、单文件微调）不强制，避免流程税。
+
+**MUST:**
+- 计划保存到 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`（历史计划同目录可参照）
+- 计划头部声明 Goal / Architecture / Tech Stack，并把设计决策（spec 要点）随计划携带
+- 按任务分块，每个任务包含：精确文件清单、失败测试先行（项目内为 `test/test_*.py` 或 `test/scripts/check_*.py`）、完整可落地代码、运行验证命令与预期输出、commit 步骤（遵循 §Commit 提交分块）
+- 执行时用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans` 逐任务实施
+
+**MUST NOT:**
+- 无计划直接开写多步任务
+- 计划中留 TBD / TODO / "稍后补充"等占位符
+
+---
+
 ## 常见 AI 错误预防清单
 
 以下错误在新功能开发中最常见，AI 辅助编程时务必检查：

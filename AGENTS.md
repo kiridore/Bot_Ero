@@ -30,6 +30,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **Git hooks:** clone 后执行 `git config core.hooksPath .githooks` 启用 Conventional Commits 校验（commit-msg 钩子对 >12 个文件的暂存输出分块提示，警告不阻断）。
 - **Commit 消息 MUST 中文** + Conventional Commits（如 `feat(任务): 新增周常全清称号`）。
 - **Commits MUST 按逻辑分块**：一个 commit = 一个逻辑变更；同一逻辑变更的配套文件（代码 + 行为测试 + spec + 菜单文本 + CHANGELOG + KNOWLEDGE_BASE）进**同一个** commit，无关改动拆开（`specs/conventions.md` §Commit 提交分块）。
+- **多步开发任务（新功能/跨文件改动/多 commit 任务）动代码前 MUST 先用 `superpowers:writing-plans` skill 写实施计划**，保存到 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`；单点小修（一行 fix/纯文档）不强制。细则与豁免边界见 `specs/conventions.md` §开发计划先行。
 
 ## Plugin auto-import magic
 
