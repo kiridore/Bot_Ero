@@ -79,16 +79,16 @@ async function loadActiveActivities() {
         ${a.deadline ? `截止：${a.deadline}` : ""}
       </div>
       ${a.type === "relay" && a.hours_per_user ? `<div class="muted">每人限时：${formatHours(a.hours_per_user)}</div>` : ""}
-      ${a.created_by != null && String(a.created_by) === String(myUid)
-        ? `<a class="member-chip member-me" href="/activities/${a.id}/manage" style="text-decoration:none">⚙ 管理</a>`
-        : ""}
       <div class="member-list">
         ${a.members.map(m => `
           <span class="member-chip ${m.user_id === myUid ? "member-me" : ""}" title="${escapeHtml(MEMBER_STATUS_LABEL[m.status] || m.status)}">
             ${m.seq}. ${escapeHtml(m.nickname)} ${MEMBER_STATUS_ICON[m.status] || ""}${m.user_id === myUid ? "（我）" : ""}
           </span>`).join("")}
       </div>
-    </a>`).join("");
+    </a>
+    ${a.created_by != null && String(a.created_by) === String(myUid)
+      ? `<a class="member-chip member-me" href="/activities/${a.id}/manage" style="text-decoration:none">⚙ 管理</a>`
+      : ""}`.trim()).join("");
 }
 
 async function loadArchiveActivities() {
