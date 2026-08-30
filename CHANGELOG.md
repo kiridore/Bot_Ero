@@ -4,12 +4,16 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [未发布]
+
+
 ## [1.26.1] - 2026-08-30
 
 ### 修复
 
 - **活动**：创建/编辑拒绝纯空白标题（原可通过校验后 strip 存空串，公告/列表显示「」）
 - **活动**：超管（SUPER_USER）在列表卡片与详情页可见「管理」入口（原先权限放行但界面无入口，需手输 URL）
+- **活动**：修复列表卡片「管理」链接嵌套在外层锚点内导致 HTML 解析拆散卡片布局（成员列表逸出卡片框，e1c784b）
 
 ## [1.26.0] - 2026-08-30
 
@@ -19,24 +23,30 @@
 - 活动：Web 端活动管理页（`/activities/{id}/manage`，仅创建人/超管）：报名期编辑参数、开始（借道机器人心跳约 1 分钟生效并通知全员）、取消；进行期延长截止、提前结束
 - 活动：活动列表/详情页对创建人显示管理入口
 
-## [未发布]
+### 修复
+
+- **时间线**：修复模糊打卡图点击穿透到原图（lightbox 遮罩层 pointer-events 未拦截，0eda894）
 
 ### 变更
 
-- **时间线**：修复模糊打卡图点击穿透到原图（lightbox 遮罩层 pointer-events 未拦截，0eda894）
-- **周报**：群更新周报生成流程固化为可复用 skill（开发工具内部变更，e58d8c3）
-
-- **开发流程：多步任务计划先行固化**——新增 `specs/conventions.md` §开发计划先行 Constraint（多步开发任务动代码前 MUST 用 `superpowers:writing-plans` skill 写实施计划，存 `docs/superpowers/plans/`，单点小修豁免），`AGENTS.md` Toolchain reality 同步摘要
 - **修复 Windows 下跑团导出测试的编码失败**：`test_trpg_session` 导出用例读 meta.json/record.md 未显式指定 `encoding="utf-8"`，在 Windows 默认 GBK 环境抛 `UnicodeDecodeError`（源码读写本就 utf-8，纯测试侧修复；全量回归在 Windows 上首次全绿）
-- **统一测试框架 pytest**：项目根 `pytest` 一键全量回归——`test/conftest.py` 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录（回归绝不触碰真实 `data.db`/`server_data`）；5 个脚本式 webapp 集成套件（论坛编辑/评论线程/投票、时间线未读、全站登录门控）迁至 `test/scripts/check_*.py` 由子进程包装器纳入（各自独立进程拿全新临时 DB，仍可单跑）；node 最小 DOM stub 渲染用例（含论坛列表/详情/新建/预填 4 个 DOM 用例）一并纳入常规回归，新增用例自动发现；跑团记录插件导出路径提取常量 `TRPG_RECORDS_ROOT`（行为不变），其测试不再写删真实 `server_data/`；触碰真实库的数据脚本 `db_oper`/`sort_image` 迁出 `test/` 至 `scripts/`；`test_llm.py`（真实调外部计费 API）排除出常规回归；修复 `test_trpg_char` 4 处过期断言（`/profile/trpg` → 当前 `WEB_TRPG_URL`，3.0 路径分区迁移遗留）；补 Windows 依赖 `tzdata`
-- **共享样式文件更名**：`core/web/static/gallery.css` → `base.css`（引用路径 `/shared/gallery.css` → `/shared/base.css`）——该文件实为全站基础样式（报纸风 token 唯一来源 + 共享组件 + 全站滚动条），旧名易误解为图库页专属；仅命名与引用同步，行为不变
-- **README 同步当前架构**：已注册插件数 43 → 47、Web 功能模块 6/8 → 11（补时间线/议事厅/工具箱/周报/登录页分区），快速开始改用 `pip install -r requirements.txt`（旧三包示例缺 GitPython 等模块级依赖），补全站登录门控说明与 `scripts/botero.env` 单一来源；仅文档修正
+- **周报**：群更新周报生成流程固化为可复用 skill（开发工具内部变更，e58d8c3）
+- **开发流程：多步任务计划先行固化**——新增 `specs/conventions.md` §开发计划先行 Constraint（多步开发任务动代码前 MUST 用 `superpowers:writing-plans` skill 写实施计划，存 `docs/superpowers/plans/`，单点小修豁免），`AGENTS.md` Toolchain reality 同步摘要
 
 ## [1.25.0] - 2026-08-26
 
 ### 新增
 
 - **打卡隐私设置**：个人设置页新增两个开关——「私聊打卡显示在时间线上」（关闭后他人不可见，作者仍可见并带「仅自己可见」角标）与「打卡图片对他人清晰可见」（关闭后他人在时间线看到高斯模糊图）；私聊/网页打卡在打卡表与时间线事件携带私聊标记，历史数据不受影响；网页端打卡自此也上传时间线
+
+### 变更
+
+- **统一测试框架 pytest**：项目根 `pytest` 一键全量回归——`test/conftest.py` 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录（回归绝不触碰真实 `data.db`/`server_data`）；5 个脚本式 webapp 集成套件（论坛编辑/评论线程/投票、时间线未读、全站登录门控）迁至 `test/scripts/check_*.py` 由子进程包装器纳入（各自独立进程拿全新临时 DB，仍可单跑）；node 最小 DOM stub 渲染用例（含论坛列表/详情/新建/预填 4 个 DOM 用例）一并纳入常规回归，新增用例自动发现；跑团记录插件导出路径提取常量 `TRPG_RECORDS_ROOT`（行为不变），其测试不再写删真实 `server_data/`；触碰真实库的数据脚本 `db_oper`/`sort_image` 迁出 `test/` 至 `scripts/`；`test_llm.py`（真实调外部计费 API）排除出常规回归；修复 `test_trpg_char` 4 处过期断言（`/profile/trpg` → 当前 `WEB_TRPG_URL`，3.0 路径分区迁移遗留）；补 Windows 依赖 `tzdata`
+- **共享样式文件更名**：`core/web/static/gallery.css` → `base.css`（引用路径 `/shared/gallery.css` → `/shared/base.css`）——该文件实为全站基础样式（报纸风 token 唯一来源 + 共享组件 + 全站滚动条），旧名易误解为图库页专属；仅命名与引用同步，行为不变
+
+### 文档
+
+- **README 同步当前架构**：已注册插件数 43 → 47、Web 功能模块 6/8 → 11（补时间线/议事厅/工具箱/周报/登录页分区），快速开始改用 `pip install -r requirements.txt`（旧三包示例缺 GitPython 等模块级依赖），补全站登录门控说明与 `scripts/botero.env` 单一来源；仅文档修正
 
 ## [1.24.5] - 2026-08-26
 
@@ -183,7 +193,7 @@
 - **forum 编辑语义变更**：编辑帖子重发的时间线事件按新事件重新入列并计算未读（撤回键仍为 `forum_post:{id}`，不变）
 - 新增数据表 `timeline_user_watermarks` / `timeline_read_events`（启动自动建表，无需迁移）
 
- - 2026-08-17
+## [1.15.0] - 2026-08-17
 
 ### 新增
 
