@@ -371,11 +371,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("卡片1 图片缩略图 URL", strip && strip.children[0].children[0].src === "/thumb/123456/abc.image");
   check("卡片1 原图链接 /thumb→/media", strip && strip.children[0].href === "/media/123456/abc.image");
   check("模糊图点击打开模糊图不跳原图", strip && strip.children[1].href === "/thumb/123456/def.image?blur=1");
+  check("模糊卡片右下角注释", r1.children.some((c) => c.className === "tl-blur-note" && c.textContent === "作者已开启图片模糊"));
   const [r2, r3] = reFrag.children.slice(1);
   check("卡片2 未绑定 actor", r2.children[0].children[1].textContent === "未绑定玩家");
   check("卡片2 无 target 无详情按钮", !r2.children.some((c) => c.className === "tl-detail"));
   check("卡片3 未知占位符降级未绑定", r3.children[1].innerHTML.includes("未绑定玩家"));
   check("卡片3 已知占位符仍替换", r3.children[1].innerHTML.includes("小明"));
+  check("无模糊卡片无注释", !r3.children.some((c) => c.className === "tl-blur-note"));
 
   process.exit(fail ? 1 : 0);
 })();

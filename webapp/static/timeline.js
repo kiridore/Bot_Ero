@@ -167,6 +167,13 @@
         strip.appendChild(a);
       });
       item.appendChild(strip);
+      // 作者开启图片模糊后，非作者查看时卡片右下角注释说明
+      if (ev.data.images.some(function (src) { return String(src).includes("blur=1"); })) {
+        const note = document.createElement("span");
+        note.className = "tl-blur-note";
+        note.textContent = "作者已开启图片模糊";
+        item.appendChild(note);
+      }
     }
 
     if (ev.target && ev.target.url) {

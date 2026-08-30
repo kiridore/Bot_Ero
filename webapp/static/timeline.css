@@ -278,6 +278,20 @@
   background: var(--paper-card);
   border: 1px solid var(--line);
   border-radius: 999px;
+  pointer-events: none;
+}
+
+/* 模糊打卡注释：作者开启图片模糊后，非作者查看时卡片右下角说明 */
+.tl-blur-note {
+  position: absolute;
+  bottom: 0.4rem;
+  right: 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
   padding: 0 0.5rem;
   pointer-events: none;
 }
