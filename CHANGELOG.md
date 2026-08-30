@@ -29,8 +29,6 @@
 - **开发流程：多步任务计划先行固化**——新增 `specs/conventions.md` §开发计划先行 Constraint（多步开发任务动代码前 MUST 用 `superpowers:writing-plans` skill 写实施计划，存 `docs/superpowers/plans/`，单点小修豁免），`AGENTS.md` Toolchain reality 同步摘要
 - **修复 Windows 下跑团导出测试的编码失败**：`test_trpg_session` 导出用例读 meta.json/record.md 未显式指定 `encoding="utf-8"`，在 Windows 默认 GBK 环境抛 `UnicodeDecodeError`（源码读写本就 utf-8，纯测试侧修复；全量回归在 Windows 上首次全绿）
 - **统一测试框架 pytest**：项目根 `pytest` 一键全量回归——`test/conftest.py` 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录（回归绝不触碰真实 `data.db`/`server_data`）；5 个脚本式 webapp 集成套件（论坛编辑/评论线程/投票、时间线未读、全站登录门控）迁至 `test/scripts/check_*.py` 由子进程包装器纳入（各自独立进程拿全新临时 DB，仍可单跑）；node 最小 DOM stub 渲染用例（含论坛列表/详情/新建/预填 4 个 DOM 用例）一并纳入常规回归，新增用例自动发现；跑团记录插件导出路径提取常量 `TRPG_RECORDS_ROOT`（行为不变），其测试不再写删真实 `server_data/`；触碰真实库的数据脚本 `db_oper`/`sort_image` 迁出 `test/` 至 `scripts/`；`test_llm.py`（真实调外部计费 API）排除出常规回归；修复 `test_trpg_char` 4 处过期断言（`/profile/trpg` → 当前 `WEB_TRPG_URL`，3.0 路径分区迁移遗留）；补 Windows 依赖 `tzdata`
-- **市场化改造计划文档**：新增 `docs/market-expansion-plan.md`——公开化方向决策（形态/平台/社区结构）、分域改造清单（账号/审核/运营后台/玩法泛化）、私域功能处置表（插件与 Web 模块逐项保留/重构/可选包/移除）、拉新功能优先级、大逃杀绘画打卡玩法设计（含 15 人社区手动内测路径）与分阶段路线，供人工审阅；纯规划文档，不含代码变更
-- **大逃杀玩法 v2 设计**：`docs/market-expansion-plan.md` 第 6 章重写——融合常驻生存模式（群即游戏、每周一画、不交则亡：状态机 + 三级死亡缓冲 + 段位头衔 + 续命道具经济）与季度锦标赛双模式，命名「绝地画室」并附可发布的规则公告；确立自动化硬约束（LLM 仅限自然语言、禁 AI 画作分析、无质量自动规则、违规仅管理员撤销），并修正原设计四条规则的冲突与歧义（复活时机、首周口径、回归通道、死亡螺旋）
 - **共享样式文件更名**：`core/web/static/gallery.css` → `base.css`（引用路径 `/shared/gallery.css` → `/shared/base.css`）——该文件实为全站基础样式（报纸风 token 唯一来源 + 共享组件 + 全站滚动条），旧名易误解为图库页专属；仅命名与引用同步，行为不变
 - **README 同步当前架构**：已注册插件数 43 → 47、Web 功能模块 6/8 → 11（补时间线/议事厅/工具箱/周报/登录页分区），快速开始改用 `pip install -r requirements.txt`（旧三包示例缺 GitPython 等模块级依赖），补全站登录门控说明与 `scripts/botero.env` 单一来源；仅文档修正
 
@@ -124,6 +122,15 @@
 
 - **菜单周补卡费用文案**：`/菜单` 中周补卡标注「6点」改为「4点」，与实际扣费（`plugins/remedy_checkin` 中 `cost = 4`）一致
 
+### 文档
+
+- **开发文档全量同步**：`AGENTS.md` 重写为 AI 代理自足入口——新增文档地图（CLAUDE / KNOWLEDGE_BASE / kb / specs / CHANGELOG / roadmap / 部署文档索引）、webapp 要点（11 模块、全站登录门控、auth_deps 唯一副本、禁 `--workers`）、知识库维护分工表；修正全部失效事实（插件数 6→11、`register_plugin`/WS 配置/代理等 file:line 引用、「handle() 必须 try/except」改为框架层统一捕获的现行为）；`CLAUDE.md` 同步修正功能分区数、静态文件数（25→49）、路由清单（补 /forum /tools /weekly /login）、登录门控说明，核心模块表补 `config.py`/`auth.py`/`db/`/`onebot_client.py`/`title_defs.py`/`feature_packs.py`
+- **路线图与部署文档同步**：`roadmap.md` 版本头 1.12.1 → 1.20.1，补 1.13–1.20 全部已交付里程碑；`docs/web-apps-deployment.md` 补全站登录门控说明与 `/login`、`/live`、`/tools` 路由行，验证命令改为未登录预期 302（原 200 判定已失效），环境变量表补 `BOTERO_FORUM_IMAGES_ROOT`/`BOTERO_FORUM_IMAGE_MAX_BYTES`，修复断开的 URL 表与重复章节号
+- **规范文档同步**：`specs/architecture.md` 依赖树补全 `core/db/`（17 个业务 manager）、`core/web/`、`core/config.py`、`core/auth.py` 等模块，`plugin_pool` 代码段更新为含插件启用检查与框架层异常捕获的真实实现，入口点补 `scripts/botero.env` 环境注入步骤；`specs/conventions.md` 修正「无根级 requirements.txt」的失效声明（依赖清单已存在）、去掉重复的 print 禁令、硬编码常量章节注明 `BOTERO_*` 环境变量化现状；`specs/web-gallery.md` 两处静态资源清单补 `nav.js`/`lightbox.js`/`icons.js` 与 forum/tools/weekly 静态文件（共 49 个）；`specs/README.md` 更新 web-gallery 领域描述并注明 `llms.txt` 为上游文档镜像而非 spec
+- **知识库全量同步**：修复 `KNOWLEDGE_BASE.md` 总索引的编辑残损行与模块数（10→11），目录树补 `scripts/`、`docs/`、`core/web/` 与 `nav.js`/`icons.js`；`kb/DATABASE.md` 补议事厅 7 表（多子投票/两级嵌套评论）、工具箱 4 表、`timeline_events`、`user_game_stats`（表数 20+ → 44+1）；`kb/OPERATIONS.md` 新增全站登录门控章节、版本表补 1.10–1.20；`kb/GAMEPLAY.md` 修正抽奖概率（0 积分 31%、普通 12%、稀有 5%、传说 4%）与卧底指令名；`kb/QUICK_REFERENCE.md` 批量刷新失效的 file:line 引用并补 `/周常`、`/称号一览`；`kb/PLUGIN_CATALOG.md` 修正 `/插件` 指令与功能包路径
+- **提交规范新增分块要求**：一个 commit 只承载一个逻辑变更，无关改动（功能/修复/测试/文档）必须拆开提交；同一逻辑变更的配套文件（代码+测试+spec+菜单+CHANGELOG+KB）仍在同一 commit。`specs/conventions.md` 新增 §Commit 提交分块，`commit-msg` 钩子对单次暂存 >12 个文件输出分块提示（警告不阻断）
+- **归档 superpowers 文档**：不再使用 superpowers skill 开发，将 `docs/superpowers/`（7 篇设计文档 + 10 篇实施计划）整体归档至 `docs/archive/superpowers/`，删除 `.superpowers/` 工作目录，并同步更新 CLAUDE.md / KNOWLEDGE_BASE.md / specs/timeline-protocol.md / docs/web-apps-deployment.md 中的引用路径（注：2026-08-30 起随「开发计划先行」流程重新启用 superpowers skills 与 docs/superpowers/plans/，见 [未发布]）
+
 ## [1.20.0] - 2026-08-22
 
 ### 新增
@@ -176,18 +183,7 @@
 - **forum 编辑语义变更**：编辑帖子重发的时间线事件按新事件重新入列并计算未读（撤回键仍为 `forum_post:{id}`，不变）
 - 新增数据表 `timeline_user_watermarks` / `timeline_read_events`（启动自动建表，无需迁移）
 
-## [未发布]
-
-### 文档
-
-- **开发文档全量同步**：`AGENTS.md` 重写为 AI 代理自足入口——新增文档地图（CLAUDE / KNOWLEDGE_BASE / kb / specs / CHANGELOG / roadmap / 部署文档索引）、webapp 要点（11 模块、全站登录门控、auth_deps 唯一副本、禁 `--workers`）、知识库维护分工表；修正全部失效事实（插件数 6→11、`register_plugin`/WS 配置/代理等 file:line 引用、「handle() 必须 try/except」改为框架层统一捕获的现行为）；`CLAUDE.md` 同步修正功能分区数、静态文件数（25→49）、路由清单（补 /forum /tools /weekly /login）、登录门控说明，核心模块表补 `config.py`/`auth.py`/`db/`/`onebot_client.py`/`title_defs.py`/`feature_packs.py`
-- **路线图与部署文档同步**：`roadmap.md` 版本头 1.12.1 → 1.20.1，补 1.13–1.20 全部已交付里程碑；`docs/web-apps-deployment.md` 补全站登录门控说明与 `/login`、`/live`、`/tools` 路由行，验证命令改为未登录预期 302（原 200 判定已失效），环境变量表补 `BOTERO_FORUM_IMAGES_ROOT`/`BOTERO_FORUM_IMAGE_MAX_BYTES`，修复断开的 URL 表与重复章节号
-- **规范文档同步**：`specs/architecture.md` 依赖树补全 `core/db/`（17 个业务 manager）、`core/web/`、`core/config.py`、`core/auth.py` 等模块，`plugin_pool` 代码段更新为含插件启用检查与框架层异常捕获的真实实现，入口点补 `scripts/botero.env` 环境注入步骤；`specs/conventions.md` 修正「无根级 requirements.txt」的失效声明（依赖清单已存在）、去掉重复的 print 禁令、硬编码常量章节注明 `BOTERO_*` 环境变量化现状；`specs/web-gallery.md` 两处静态资源清单补 `nav.js`/`lightbox.js`/`icons.js` 与 forum/tools/weekly 静态文件（共 49 个）；`specs/README.md` 更新 web-gallery 领域描述并注明 `llms.txt` 为上游文档镜像而非 spec
-- **知识库全量同步**：修复 `KNOWLEDGE_BASE.md` 总索引的编辑残损行与模块数（10→11），目录树补 `scripts/`、`docs/`、`core/web/` 与 `nav.js`/`icons.js`；`kb/DATABASE.md` 补议事厅 7 表（多子投票/两级嵌套评论）、工具箱 4 表、`timeline_events`、`user_game_stats`（表数 20+ → 44+1）；`kb/OPERATIONS.md` 新增全站登录门控章节、版本表补 1.10–1.20；`kb/GAMEPLAY.md` 修正抽奖概率（0 积分 31%、普通 12%、稀有 5%、传说 4%）与卧底指令名；`kb/QUICK_REFERENCE.md` 批量刷新失效的 file:line 引用并补 `/周常`、`/称号一览`；`kb/PLUGIN_CATALOG.md` 修正 `/插件` 指令与功能包路径
-- **提交规范新增分块要求**：一个 commit 只承载一个逻辑变更，无关改动（功能/修复/测试/文档）必须拆开提交；同一逻辑变更的配套文件（代码+测试+spec+菜单+CHANGELOG+KB）仍在同一 commit。`specs/conventions.md` 新增 §Commit 提交分块，`commit-msg` 钩子对单次暂存 >12 个文件输出分块提示（警告不阻断）
-- **归档 superpowers 文档**：不再使用 superpowers skill 开发，将 `docs/superpowers/`（7 篇设计文档 + 10 篇实施计划）整体归档至 `docs/archive/superpowers/`，删除 `.superpowers/` 工作目录，并同步更新 CLAUDE.md / KNOWLEDGE_BASE.md / specs/timeline-protocol.md / docs/web-apps-deployment.md 中的引用路径
-
-## [1.15.0] - 2026-08-17
+ - 2026-08-17
 
 ### 新增
 
