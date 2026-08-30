@@ -240,6 +240,16 @@ count_show = client.get("/api/timeline/poll", headers=CH).json().get("count")
 check("群聊 hidden 影响 poll 计数（差分=2）", count_show == count_hidden + 2,
       f"hidden={count_hidden} show={count_show}")
 
+# —— 8. text 态守卫：无图事件不产生 images_hidden 角标（P2 回归）——
+user_settings.update_settings(B, {"privacy": {"checkin_display_group": "text"}})
+insert_event("checkin:b-group3", B, "2026-08-21 10:00:02", data={"images": []}, dedup_key="q4")
+evss = feed_ids(CH)
+b_g3 = evss.get("checkin:b-group3") or {}
+check("text 态无图事件：C 可见且无 images_hidden 标记",
+      "checkin:b-group3" in evss and "images_hidden" not in b_g3, str(b_g3)[:160])
+check("text 态无图事件：data 不被改写",
+      (b_g3.get("data") or {}).get("images") == [], str(b_g3.get("data")))
+
 _conn.close()
 print()
 print("PASS" if fail == 0 else f"{fail} FAILURES")

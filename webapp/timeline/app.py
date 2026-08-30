@@ -190,7 +190,7 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
     首列 rowid 作为 seq 暴露给客户端（顶部事件锚点）；unread = seq > 水印 且无回执。
     viewer_id/vis 提供时按作者隐私设置处理：被隐藏打卡仅作者自见（self_only），
     模糊态打卡图片对非作者改写 blur=1 URL，text 态打卡对非作者剥离图片
-    并附 images_hidden: true。"""
+    并附 images_hidden: true（仅当事件本就含图；无图事件不加标记）。"""
     need: set[str] = set()
     unbound_keys: set[str] = set()
     for row in rows:
@@ -238,7 +238,7 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
                     data["images"] = [
                         u + ("&" if "?" in u else "?") + "blur=1" for u in data["images"]
                     ]
-                elif eid in vis["text"]:
+                elif eid in vis["text"] and isinstance(data.get("images"), list) and data["images"]:
                     data = dict(data)
                     data["images"] = []
                     images_hidden = True
