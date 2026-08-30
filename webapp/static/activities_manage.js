@@ -1,5 +1,4 @@
 (function () {
-  const TYPE_LABEL = { relay: "接龙", match: "匹配下家" };
   const STATUS_LABEL = { open: "报名中", running: "进行中", finished: "已结束", cancelled: "已取消" };
   const MEMBER_STATUS_ICON = { done: "✓", skipped: "跳过", missed: "未交", left: "退出", pending: "…" };
   const SUPER_USER_IDS = ["1057613133"];

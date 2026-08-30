@@ -61,9 +61,12 @@ async function loadDetail() {
   const nickOf = {};
   for (const m of act.members) nickOf[m.user_id] = m.nickname;
   const isRunning = act.status === "running";
+  const isOwner = session && myUid && String(act.created_by) === String(myUid);
 
   const rows = [
-    infoRow("标题", `<strong>${escapeHtml(act.title)}</strong>${statusBadge(act.status)}`),
+    infoRow("标题", `<strong>${escapeHtml(act.title)}</strong>${statusBadge(act.status)}`
+      + (isOwner && (act.status === "open" || act.status === "running")
+        ? ` <a href="/activities/${act.id}/manage">管理</a>` : "")),
     infoRow("类型", TYPE_LABEL[act.type] || act.type),
     infoRow("发起时间", escapeHtml(act.created_at || "-")),
     infoRow("报名结束", escapeHtml(act.signup_deadline || "—")),

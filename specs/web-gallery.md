@@ -251,7 +251,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后；含 created_by |
+| `GET` | `/api/activities` | 必须 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后；含 created_by |
 | `GET` | `/api/me/activities` | 必须 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
 | `GET` | `/api/activities/{id}` | 否 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL），不存在返回 404 |
 | `POST` | `/api/activities` | 必须 | 创建活动（type/title/description/hours_per_user/signup_deadline/deadline；匹配必带截止、日期须未来、每群唯一进行中）→ {ok,id,announce=可复制群公告文案}。群固定 DEFAULT_GROUP_ID，created_by=登录用户 |
@@ -317,7 +317,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `trpg` | `/trpg` 车卡管理；`/trpg/char/{user_id}/{char_id}` 角色卡只读查看页 |
 | `guestbook` | `/guestbook` 留言簿 |
 | `alarms` | `/alarms` 闹钟管理 |
-| `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404 |
+| `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404；创建人卡片/详情带管理入口，列表页带发起入口 |
 | `activities` | `/activities/new` 活动发起页（类型/标题/描述/每人限时/报名截止/截止；匹配必填截止；成功后展示可复制群公告文案）；登录门控 |
 | `activities` | `/activities/{activity_id}/manage` 活动管理页（仅创建人/超管，其余显示拒绝卡片）：open 编辑标题/描述/限时/报名截止/截止 + 开始/取消，running 编辑标题/描述/截止 + 提前结束，15s 轮询状态；open 常驻群公告文案复制；开始/结束借道心跳约 1 分钟生效 |
 | `live` | `/live` 直播间（mpegts.js 播放 `live.littlero.tech/live/livestream.flv`，未开播遮罩 + 点击播放 + 10s 状态轮询；不支持 MSE 的浏览器提示降级；观众面板 25s 心跳 + 15s 列表刷新，登录显示昵称） |
