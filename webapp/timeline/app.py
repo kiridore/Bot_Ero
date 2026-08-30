@@ -45,27 +45,29 @@ def _vis_light(row: tuple):
 
 
 def _visibility_ctx(entries) -> dict:
-    """计算隐藏事件 id 集与需模糊图片的作者集。每作者每页只读一次设置。
+    """打卡事件四态可见性上下文：hidden（仅作者自见）/ blur（图 URL 改写）/ text（对非作者剥图）。
 
-    四态键（checkin_display）等价旧布尔语义：hidden ⇔ 旧 private_checkin_public=False；
-    任一类 blur ⇔ 旧 checkin_image_public=False（迁移后两类恒成对，等价旧全量模糊）。
-    text 态暂不展开（后续任务）。"""
+    事件粒度：类型 = data.private ? private : group，态取自作者 checkin_display()[类型]，
+    同作者两类可各自独立成态；每作者每页只读一次设置。"""
     hidden: set[str] = set()
-    blur_authors: set[str] = set()
+    blur_ids: set[str] = set()
+    text_ids: set[str] = set()
     actor_states: dict[str, dict[str, str]] = {}
     for eid, source, actor_key, data_raw in entries:
         if source != "checkin":
             continue
         if actor_key not in actor_states:
-            states = user_settings.checkin_display(actor_key)
-            actor_states[actor_key] = states
-            if "blur" in states.values():
-                blur_authors.add(actor_key)  # 该作者全部打卡图对非作者模糊
-        if actor_states[actor_key]["private"] == "hidden":
-            data = _loads(data_raw)
-            if isinstance(data, dict) and data.get("private"):
-                hidden.add(eid)
-    return {"hidden": hidden, "blur": blur_authors}
+            actor_states[actor_key] = user_settings.checkin_display(actor_key)
+        data = _loads(data_raw)
+        is_private = isinstance(data, dict) and bool(data.get("private"))
+        state = actor_states[actor_key]["private" if is_private else "group"]
+        if state == "hidden":
+            hidden.add(eid)
+        elif state == "blur":
+            blur_ids.add(eid)
+        elif state == "text":
+            text_ids.add(eid)
+    return {"hidden": hidden, "blur": blur_ids, "text": text_ids}
 
 
 def _visible_entry(entry: tuple, viewer_id, vis: dict) -> bool:
@@ -186,8 +188,9 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
                      viewer_id: str | None = None, vis: dict | None = None):
     """两遍组装：收集需解析用户（actor + 占位符）→ 并发解析昵称/头像 → 事件 dict。
     首列 rowid 作为 seq 暴露给客户端（顶部事件锚点）；unread = seq > 水印 且无回执。
-    viewer_id/vis 提供时按作者隐私设置处理：被隐藏私聊打卡仅作者自见（self_only），
-    模糊作者的打卡图片对非作者改写 blur=1 URL。"""
+    viewer_id/vis 提供时按作者隐私设置处理：被隐藏打卡仅作者自见（self_only），
+    模糊态打卡图片对非作者改写 blur=1 URL，text 态打卡对非作者剥离图片
+    并附 images_hidden: true。"""
     need: set[str] = set()
     unbound_keys: set[str] = set()
     for row in rows:
@@ -225,15 +228,20 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
             name, avatar = UNBOUND_LABEL, ""
         data = _loads(data_raw)
         self_only = False
+        images_hidden = False
         if vis is not None and viewer_id is not None and source == "checkin":
             if eid in vis["hidden"] and actor_key == str(viewer_id):
-                self_only = True  # 被隐藏的私聊打卡：作者自见
-            if (actor_key in vis["blur"] and actor_key != str(viewer_id)
-                    and isinstance(data, dict) and isinstance(data.get("images"), list)):
-                data = dict(data)
-                data["images"] = [
-                    u + ("&" if "?" in u else "?") + "blur=1" for u in data["images"]
-                ]
+                self_only = True  # 被隐藏的打卡：作者自见
+            if actor_key != str(viewer_id) and isinstance(data, dict):
+                if eid in vis["blur"] and isinstance(data.get("images"), list):
+                    data = dict(data)
+                    data["images"] = [
+                        u + ("&" if "?" in u else "?") + "blur=1" for u in data["images"]
+                    ]
+                elif eid in vis["text"]:
+                    data = dict(data)
+                    data["images"] = []
+                    images_hidden = True
         events.append({
             "seq": seq,
             "id": eid,
@@ -251,6 +259,7 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
             "data": data,
             "unread": seq > watermark and eid not in read_ids,
             **({"self_only": True} if self_only else {}),
+            **({"images_hidden": True} if images_hidden else {}),
         })
     return events, users
 

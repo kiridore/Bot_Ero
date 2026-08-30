@@ -1,6 +1,8 @@
 """时间线打卡隐私读侧行为测试：私聊打卡按作者设置对他人隐藏（作者自见 + self_only）、
 打卡图片按作者设置对他人高斯模糊（blur=1 URL 改写 + /thumb?blur=1 端点）、
-feed/poll/new 三端点同口径过滤、含隐藏事件的 keyset 分页推进。
+feed/poll/new 三端点同口径过滤、含隐藏事件的 keyset 分页推进；
+四态化（show/blur/text/hidden 按打卡类型）：text 剥图 + images_hidden、
+blur/hidden 按事件类型独立生效、群聊 hidden 三端点过滤 + 作者自见。
 
 独立进程运行: python test/scripts/check_timeline_privacy.py（pytest 由 test/test_webapp_api_suites.py 子进程纳入统一回归）
 """
@@ -182,6 +184,61 @@ check("全隐藏范围返回 200（修复前 500）", r_all_hidden.status_code =
 body_all_hidden = r_all_hidden.json()
 check("全隐藏范围 events 为空且无续读游标",
       body_all_hidden["events"] == [] and body_all_hidden["next_cursor"] is None, str(body_all_hidden)[:200])
+
+# —— 7. 四态显示：text 剥图 + images_hidden；blur 按类型；群聊 hidden 按类型 ——
+B = "1122334455"  # 新作者：直接用新四态键（不掺入旧键迁移场景）
+BH = {"Authorization": "Bearer " + make_login_key(int(B)), "Content-Type": "application/json"}
+insert_event("checkin:b-priv", B, "2026-08-21 09:00:01",
+             data={"private": True, "images": ["/thumb/%s/bp1.jpg" % B]}, dedup_key="q1")
+insert_event("checkin:b-group", B, "2026-08-21 09:00:02",
+             data={"images": ["/thumb/%s/bg1.jpg" % B, "/thumb/%s/bg2.jpg" % B]}, dedup_key="q2")
+user_settings.update_settings(B, {"privacy": {
+    "checkin_display_private": "text",
+    "checkin_display_group": "blur",
+}})
+
+evss = feed_ids(CH)
+b_priv = evss.get("checkin:b-priv") or {}
+check("text 态：C 可见 B 私聊打卡", "checkin:b-priv" in evss)
+check("text 态：C 视角图片被剥离", (b_priv.get("data") or {}).get("images") == [], str(b_priv.get("data")))
+check("text 态：事件带 images_hidden=true", b_priv.get("images_hidden") is True, str(b_priv)[:160])
+check("text 态：无 self_only", not b_priv.get("self_only"))
+b_group = evss.get("checkin:b-group") or {}
+b_imgs = (b_group.get("data") or {}).get("images") or []
+check("blur 态按类型：C 视角 B 群聊图全带 blur=1",
+      bool(b_imgs) and all("blur=1" in u for u in b_imgs), str(b_imgs))
+check("blur 态不产生 images_hidden", "images_hidden" not in b_group)
+
+evss = feed_ids(BH)
+b_priv = evss.get("checkin:b-priv") or {}
+check("作者自见：B 私聊打卡原图",
+      (b_priv.get("data") or {}).get("images") == ["/thumb/%s/bp1.jpg" % B], str(b_priv.get("data")))
+check("作者自见：无 blur/无 images_hidden/无 self_only",
+      "images_hidden" not in b_priv and not b_priv.get("self_only"))
+b_group = evss.get("checkin:b-group") or {}
+check("作者自见：B 群聊打卡原图无 blur",
+      (b_group.get("data") or {}).get("images") == ["/thumb/%s/bg1.jpg" % B, "/thumb/%s/bg2.jpg" % B])
+
+# 群聊 hidden：feed/new 对他人过滤 + 作者自见 self_only
+user_settings.update_settings(B, {"privacy": {"checkin_display_group": "hidden"}})
+insert_event("checkin:b-group2", B, "2026-08-21 10:00:01", data={"images": []}, dedup_key="q3")
+evss = feed_ids(CH)
+check("群聊 hidden：C 看不到 B 群聊打卡",
+      "checkin:b-group" not in evss and "checkin:b-group2" not in evss)
+new_ids = [e["id"] for e in client.get("/api/timeline/new?limit=50", headers=CH).json().get("events", [])]
+check("群聊 hidden：C new 不含 B 群聊打卡",
+      "checkin:b-group" not in new_ids and "checkin:b-group2" not in new_ids, str(new_ids))
+evss = feed_ids(BH)
+check("群聊 hidden：B 自见群聊打卡带 self_only",
+      bool((evss.get("checkin:b-group") or {}).get("self_only"))
+      and bool((evss.get("checkin:b-group2") or {}).get("self_only")))
+
+# poll 差分：群聊从 hidden → show，计数恰增 2（b-group/b-group2 均未读无回执）
+count_hidden = client.get("/api/timeline/poll", headers=CH).json().get("count")
+user_settings.update_settings(B, {"privacy": {"checkin_display_group": "show"}})
+count_show = client.get("/api/timeline/poll", headers=CH).json().get("count")
+check("群聊 hidden 影响 poll 计数（差分=2）", count_show == count_hidden + 2,
+      f"hidden={count_hidden} show={count_show}")
 
 _conn.close()
 print()
