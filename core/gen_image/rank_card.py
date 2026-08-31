@@ -9,6 +9,7 @@ from typing import Optional
 from PIL import Image, ImageDraw
 
 from core import context
+from core.config import NICKNAME
 from core.gen_image.avatar_helper import raster_circle_avatar_on_rgb
 from core.gen_image.fonts import load_font, text_width, truncate_text
 
@@ -34,7 +35,7 @@ RANK_SIZE = 16
 NAME_SIZE = 16
 DETAIL_SIZE = 14
 FOOTER_SIZE = 12
-FOOTER_TEXT = "Power by 小埃同学"
+FOOTER_TEXT = f"Power by {NICKNAME}"
 FOOTER_PAD_TOP = 16
 FOOTER_PAD_BOTTOM = 14
 # 前三名奖牌色：金银铜，其余主文字色

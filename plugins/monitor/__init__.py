@@ -3,6 +3,7 @@ from datetime import datetime
 
 import core.context as context
 from core.base import Plugin
+from core.config import NICKNAME
 from core.cq import text
 from core.utils import register_plugin
 
@@ -37,7 +38,7 @@ class MonitorPlugin(Plugin):
         secs = sec % 60
 
         lines = [
-            "小埃同学已经运行了:",
+            f"{NICKNAME}已经运行了:",
             f"{days}天 {hours}小时 {minutes}分钟 {secs}秒",
             "",
             "磁盘",

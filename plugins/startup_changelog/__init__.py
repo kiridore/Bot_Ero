@@ -3,6 +3,7 @@ import subprocess
 
 import core.context as runtime_context
 from core.base import Plugin
+from core.config import NICKNAME
 from core.cq import text
 from core.utils import register_plugin
 
@@ -22,7 +23,7 @@ class StartupChangelogPlugin(Plugin):
         if runtime_context.startup_changelog_sent:
             return
 
-        msg = "早上好！小埃同学开机啦"
+        msg = f"早上好！{NICKNAME}开机啦"
 
         self.api.send_msg(text(msg))
         runtime_context.startup_changelog_sent = True
