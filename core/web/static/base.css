@@ -1,4 +1,4 @@
-/* 全站基础样式 base.css：报纸风主题 token（全站唯一来源）+ 共享组件与全站滚动条；子应用样式一律引用，禁止硬编码颜色 */
+/* 全站基础样式 base.css：报纸风主题 token（全站唯一来源）+ 主题覆盖（:root[data-theme="dark"] 夜间 / "mono" 上班摸鱼，theme.js 按 localStorage 切换）+ 共享组件与全站滚动条；子应用样式一律引用，禁止硬编码颜色 */
 :root {
   --paper: #f5efe0;
   --paper-card: #fbf7ec;
@@ -491,4 +491,67 @@ main {
 .tl-images img,
 img.forum-img {
   cursor: zoom-in;
+}
+
+/* ============ 主题覆盖：夜间模式（暖暗色调，图片保持原样） ============ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #211e19;
+  --paper-card: #2b2721;
+  --ink: #e6ddc9;
+  --ink-soft: #a89d85;
+  --line: #6b6350;
+  --rule: #4d463a;
+  --accent: #8fae97;
+  --accent-soft: #2f362d;
+  --accent-ink: #bad1c0;
+  --gold: #cfb87c;
+  --green: #86b38b;
+  --red: #d08770;
+  --gray: #7d7668;
+  --paper-top: #26211a;
+  --paper-bottom: #1b1813;
+  --paper-dots: rgba(230, 221, 201, 0.045);
+  --toolbar-bg: rgba(43, 39, 33, 0.94);
+  --tooltip-bg: rgba(8, 10, 14, 0.92);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.35), 0 16px 32px rgba(0, 0, 0, 0.4);
+  --heat-0: #332e26;
+  --heat-1: #3c5a41;
+  --heat-2: #4d7a52;
+  --heat-3: #69996e;
+  --heat-4: #8cc291;
+  --heat-neg: #8a6a3a;
+}
+
+/* ============ 主题覆盖：上班摸鱼（低饱和灰白，灰化图片降低显眼度） ============ */
+:root[data-theme="mono"] {
+  --paper: #f1f1ef;
+  --paper-card: #fafaf8;
+  --ink: #3b3b3b;
+  --ink-soft: #787878;
+  --line: #9c9c9a;
+  --rule: #c6c6c4;
+  --accent: #8a8a86;
+  --accent-soft: #e9e9e7;
+  --accent-ink: #575755;
+  --gold: #9c9c98;
+  --green: #8f8f8b;
+  --red: #a4a4a1;
+  --gray: #b1b1ad;
+  --paper-top: #f5f5f3;
+  --paper-bottom: #ececea;
+  --paper-dots: rgba(59, 59, 59, 0.03);
+  --toolbar-bg: rgba(250, 250, 248, 0.94);
+  --heat-0: #e7e7e5;
+  --heat-1: #cfcfcd;
+  --heat-2: #b1b1af;
+  --heat-3: #8b8b89;
+  --heat-4: #60605e;
+  --heat-neg: #cacac6;
+}
+
+:root[data-theme="mono"] img {
+  filter: grayscale(1);
 }

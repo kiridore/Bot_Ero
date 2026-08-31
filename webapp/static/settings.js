@@ -22,6 +22,58 @@ const CHECKIN_DISPLAY_OPTIONS = [
   { value: "hidden", label: "隐藏" },
 ];
 
+// 网页配色（本浏览器 localStorage，经 theme.js 的 window.BoteroTheme 读写，不走服务端 API）
+const THEME_OPTIONS = [
+  { value: "", label: "报纸风（默认）" },
+  { value: "mono", label: "上班摸鱼" },
+  { value: "dark", label: "夜间模式" },
+];
+
+function renderThemeSection() {
+  const sec = document.createElement("section");
+  sec.className = "settings-section";
+  const head = document.createElement("div");
+  head.className = "section-head";
+  head.innerHTML = "<h2>网页配色</h2>";
+  sec.appendChild(head);
+
+  const row = document.createElement("div");
+  row.className = "privacy-row privacy-row-options";
+  const label = document.createElement("span");
+  label.textContent = "全站配色";
+  row.appendChild(label);
+
+  const current = (window.BoteroTheme && BoteroTheme.get()) || "";
+  THEME_OPTIONS.forEach((opt) => {
+    const radioLabel = document.createElement("label");
+    radioLabel.className = "radio-option";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "siteTheme";
+    input.value = opt.value;
+    input.checked = current === opt.value;
+    input.addEventListener("change", (e) => {
+      if (!e.target.checked || !window.BoteroTheme) return;
+      BoteroTheme.set(opt.value);
+      showToast(`配色已切换：${opt.label}`);
+    });
+    radioLabel.appendChild(input);
+    const optText = document.createElement("span");
+    optText.textContent = opt.label;
+    radioLabel.appendChild(optText);
+    row.appendChild(radioLabel);
+  });
+  sec.appendChild(row);
+
+  const hint = document.createElement("p");
+  hint.className = "preview-hint";
+  hint.textContent =
+    "配色保存在当前浏览器（更换设备需重新选择）：「上班摸鱼」为低饱和灰白风并灰化图片；" +
+    "「夜间模式」为暗色底，图片均保持原样。";
+  sec.appendChild(hint);
+  return sec;
+}
+
 function buildCheckinDisplayRow(title, groupName, settingKey, currentValue) {
   const row = document.createElement("div");
   row.className = "privacy-row privacy-row-options";
@@ -272,6 +324,7 @@ function renderPage() {
     "「仅打卡信息」时其他用户只看到打卡文字不显示图片；「隐藏」时其他用户看不到该类打卡。" +
     "任何状态下你本人查看自己的打卡始终是原图与完整内容。";
   privacySec.appendChild(checkinHint);
+  settingsMain.appendChild(renderThemeSection());
 
   document.getElementById("charPublicToggle").addEventListener("change", async (e) => {
     try {

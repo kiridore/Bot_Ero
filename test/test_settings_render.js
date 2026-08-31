@@ -92,6 +92,12 @@ global.GalleryAuth = {
   refreshMe: async () => ({}),
 };
 global.window = { addEventListener() {} };
+
+let themeNow = "";
+const themeSets = [];
+const fakeTheme = { get: () => themeNow, set: (v) => { themeSets.push(v); themeNow = v; } };
+global.window.BoteroTheme = fakeTheme;
+global.BoteroTheme = fakeTheme;
 global.confirm = () => true;
 
 eval(fs.readFileSync("webapp/static/settings.js", "utf8"));
@@ -115,6 +121,11 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   check("空 privacy 私聊组默认 show", checkedOf("checkinDisplayPrivate") === "show");
   check("空 privacy 群聊组默认 show", checkedOf("checkinDisplayGroup") === "show");
   check("角色卡开关默认勾选（未被波及）", isChecked("charPublicToggle"));
+
+  // 0. 网页配色：3 个 radio，默认选中"报纸风"
+  const themeRadios = radiosOf("siteTheme");
+  check("配色组渲染 3 个 radio", themeRadios.length === 3);
+  check("配色组默认选中报纸风", checkedOf("siteTheme") === "");
 
   // 2. checkin_display_private="text"：私聊组 text 选中，群聊组仍 show
   const mark2 = ALL_ELS.length; // 记录批次切点：loadSettings 重渲染后只看新创建的元素
@@ -140,6 +151,18 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   check("PUT 仅含 checkin_display_group 单键",
         puts.length === 1 && puts[0].privacy.checkin_display_group === "hidden"
         && Object.keys(puts[0].privacy).length === 1);
+
+  // 4. 触发配色 mono radio：走本地 BoteroTheme.set，不 PUT 任何 API
+  const putsBefore = puts.length;
+  const monoRadio = radiosOf("siteTheme").filter((e) => e.value === "mono")[0];
+  if (monoRadio && (monoRadio._listeners.change || []).length) {
+    monoRadio.checked = true;
+    radiosOf("siteTheme").forEach((e) => { if (e !== monoRadio) e.checked = false; });
+    await monoRadio._listeners.change.shift()({ target: monoRadio });
+    await wait(50);
+  }
+  check("配色切换调用 BoteroTheme.set(mono)", themeSets.length === 1 && themeSets[0] === "mono");
+  check("配色切换不触发 API PUT", puts.length === putsBefore);
 
   process.exit(fail ? 1 : 0);
 })();
