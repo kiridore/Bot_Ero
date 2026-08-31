@@ -61,7 +61,7 @@
   height: 72px;
   border-radius: 50%;
   object-fit: cover;
-  background: rgba(44, 42, 36, 0.06);
+  background: var(--tint);
 }
 
 .profile-header h2 {
@@ -131,12 +131,12 @@
   cursor: pointer;
 }
 
-.heatmap-cell.level-0 { background: #e2d9ba; }
-.heatmap-cell.level-1 { background: #c0d8b2; }
-.heatmap-cell.level-2 { background: #97ba89; }
-.heatmap-cell.level-3 { background: #6b9670; }
-.heatmap-cell.level-4 { background: #3a6646; }
-.heatmap-cell.level--1 { background: #bd9457; }
+.heatmap-cell.level-0 { background: var(--heat-0); }
+.heatmap-cell.level-1 { background: var(--heat-1); }
+.heatmap-cell.level-2 { background: var(--heat-2); }
+.heatmap-cell.level-3 { background: var(--heat-3); }
+.heatmap-cell.level-4 { background: var(--heat-4); }
+.heatmap-cell.level--1 { background: var(--heat-neg); }
 .heatmap-cell:hover { outline: 1px solid var(--accent); }
 
 .heatmap-legend {
@@ -237,7 +237,7 @@
 }
 
 .day-dialog::backdrop {
-  background: rgba(44, 42, 36, 0.45);
+  background: var(--tint-strong);
 }
 
 .day-dialog-header {
@@ -274,7 +274,7 @@
   width: 100%;
   border-radius: 6px;
   cursor: zoom-in;
-  background: rgba(44, 42, 36, 0.06);
+  background: var(--tint);
 }
 
 .day-dialog-grid .empty {
@@ -453,7 +453,7 @@
 }
 
 .settings-toast.error {
-  background: rgba(176, 83, 63, 0.12);
+  background: var(--red-tint-strong);
   color: var(--red);
 }
 
@@ -532,7 +532,7 @@
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  background: rgba(44, 42, 36, 0.06);
+  background: var(--tint);
 }
 
 .preview-name {
@@ -675,7 +675,7 @@
 }
 
 .checkin-success-dialog::backdrop {
-  background: rgba(44, 42, 36, 0.45);
+  background: var(--tint-strong);
 }
 
 .success-dialog-body {

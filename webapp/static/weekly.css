@@ -77,7 +77,7 @@
   background: var(--paper, #faf6ec);
   border: 1px solid var(--ink, #222);
   padding: 24px;
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.08);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 8%, transparent);
 }
 .weekly-paper-header {
   border-bottom: 3px double var(--ink, #222);
@@ -215,7 +215,7 @@
   aspect-ratio: 3 / 4;
   object-fit: cover;
   display: block;
-  background: #eee;
+  background: var(--tint);
 }
 .weekly-image-caption {
   font-size: 12px;
@@ -257,7 +257,7 @@
 .weekly-word.tier-2 { font-size: 18px; }
 .weekly-word.tier-3 { font-size: 24px; }
 .weekly-word.tier-4 { font-size: 32px; }
-.weekly-word.top { color: #a67c00; }
+.weekly-word.top { color: var(--gold); }
 .weekly-word-count {
   font-size: 10px;
   color: var(--ink-soft, #555);
@@ -278,7 +278,7 @@
   fill: var(--ink, #222);
 }
 .weekly-bar.peak {
-  fill: #a67c00;
+  fill: var(--gold);
 }
 .weekly-bar-num,
 .weekly-bar-label {

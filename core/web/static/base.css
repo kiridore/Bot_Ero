@@ -13,6 +13,24 @@
   --green: #4a7c4f;
   --red: #b0533f;
   --gray: #a8a294;
+  --paper-top: #f8f3e6;
+  --paper-bottom: #f1ead8;
+  --paper-dots: rgba(44, 42, 36, 0.035);
+  --toolbar-bg: rgba(251, 247, 236, 0.94);
+  --tooltip-bg: rgba(10, 12, 16, 0.88);
+  --overlay-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  /* 派生淡染色：color-mix 基于 token，主题换色自动跟随 */
+  --tint: color-mix(in srgb, var(--ink) 6%, transparent);
+  --tint-strong: color-mix(in srgb, var(--ink) 45%, transparent);
+  --red-tint: color-mix(in srgb, var(--red) 8%, transparent);
+  --red-tint-strong: color-mix(in srgb, var(--red) 12%, transparent);
+  /* 打卡热力图色阶（level-0..4 及补卡 level--1） */
+  --heat-0: #e2d9ba;
+  --heat-1: #c0d8b2;
+  --heat-2: #97ba89;
+  --heat-3: #6b9670;
+  --heat-4: #3a6646;
+  --heat-neg: #bd9457;
   --shadow-sm: 0 1px 2px rgba(44, 42, 36, 0.08), 0 2px 6px rgba(44, 42, 36, 0.05);
   --shadow-md: 0 2px 4px rgba(44, 42, 36, 0.08), 0 8px 20px rgba(44, 42, 36, 0.09);
   --shadow-lg: 0 4px 8px rgba(44, 42, 36, 0.1), 0 16px 32px rgba(44, 42, 36, 0.12);
@@ -35,8 +53,8 @@ body {
   min-height: 100vh;
   background-color: var(--paper);
   background-image:
-    radial-gradient(rgba(44, 42, 36, 0.035) 1px, transparent 1px),
-    linear-gradient(180deg, #f8f3e6 0%, var(--paper) 40%, #f1ead8 100%);
+    radial-gradient(var(--paper-dots) 1px, transparent 1px),
+    linear-gradient(180deg, var(--paper-top) 0%, var(--paper) 40%, var(--paper-bottom) 100%);
   background-size: 22px 22px, 100% 100%;
   color: var(--ink);
   font-family: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
@@ -87,7 +105,7 @@ html {
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1.25rem;
-  background: rgba(251, 247, 236, 0.94);
+  background: var(--toolbar-bg);
   backdrop-filter: blur(8px);
   border-bottom: 2px solid var(--line);
 }
@@ -205,7 +223,7 @@ html {
   height: 28px;
   border-radius: 50%;
   object-fit: cover;
-  background: rgba(44, 42, 36, 0.06);
+  background: var(--tint);
 }
 
 .user-chip .uid {
@@ -227,7 +245,7 @@ html {
 .btn-logout:hover {
   color: var(--red);
   border-color: var(--red);
-  background: rgba(176, 83, 63, 0.08);
+  background: var(--red-tint);
 }
 
 .login-dialog {
@@ -242,7 +260,7 @@ html {
 }
 
 .login-dialog::backdrop {
-  background: rgba(44, 42, 36, 0.45);
+  background: var(--tint-strong);
 }
 
 .login-dialog h2 {
@@ -361,14 +379,14 @@ main {
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--overlay-shadow);
 }
 
 .card img {
   display: block;
   width: 100%;
   height: auto;
-  background: rgba(44, 42, 36, 0.06);
+  background: var(--tint);
 }
 
 .card .meta {
@@ -397,7 +415,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 12, 16, 0.88);
+  background: var(--tooltip-bg);
   padding: 1rem;
   opacity: 1;
   transition: opacity var(--motion-base) var(--ease);

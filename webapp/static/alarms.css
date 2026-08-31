@@ -60,7 +60,7 @@
 
 .alarm-type-btn.active,
 .weekday-btn.active {
-  background: rgba(95, 122, 104, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
   border-color: var(--accent);
   color: var(--accent-soft);
 }
