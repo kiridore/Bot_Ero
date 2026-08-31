@@ -26,6 +26,6 @@ class BackupPlugin(TimedHeartbeatPlugin):
         safe_pct = (total - error_cnt) / total * 100 if total else 100.0
 
         if safe_pct < 100:
-            self.api.send_msg(*[at(uid) for uid in SUPER_USER], text(f"数据校验成功率：{safe_pct:.2f}%"))
+            self.api.send_msg(*[at(uid) for uid in SUPER_USER], text(f"警告！数据校验成功率：{safe_pct:.2f}%"))
         else:
-            self.api.send_msg(text(f"数据校验成功率：{safe_pct:.2f}%"))
+            self.api.send_msg(text(f"数据备份成功喵，数据校验成功率：{safe_pct:.2f}%"))
