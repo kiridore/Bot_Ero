@@ -1,5 +1,7 @@
 from core.base import CommandPlugin
-from core.cq import text
+from core.cq import image, text
+from core.logger import logger
+from core.gen_image import RankRow, fetch_avatar_cached, render_rank_card, save_rank_png
 from plugins.title import get_title_def
 
 
@@ -34,7 +36,7 @@ class LeaderboardPlugin(CommandPlugin):
             self.api.send_msg(text("当前还没有积分数据喵~"))
             return
 
-        lines = []
+        entries = []  # (排名, user_id, 展示名, 积分)
         for index, (user_id, points) in enumerate(top_rows, start=1):
             member_name = str(user_id)
             try:
@@ -45,7 +47,22 @@ class LeaderboardPlugin(CommandPlugin):
             title_prefix = self._format_title_prefix(user_id)
             if title_prefix:
                 member_name = f"{title_prefix}{member_name}"
-            lines.append(f"{index}. {member_name} - {points}分")
+            entries.append((index, user_id, member_name, points))
 
-        content = "积分排行榜 TOP10\n" + "\n".join(lines)
-        self.api.send_msg(text(content))
+        try:
+            rows = [
+                RankRow(
+                    rank=rank,
+                    name=name,
+                    detail=f"{points}分",
+                    avatar=fetch_avatar_cached(self.api, int(user_id)),
+                )
+                for rank, user_id, name, points in entries
+            ]
+            img = render_rank_card("积分排行榜", f"TOP {len(rows)}", rows)
+            _, send_path = save_rank_png("points_rank", img)
+            self.api.send_msg(image("file://" + send_path))
+        except Exception:
+            logger.exception("积分排行榜图片生成失败，回退纯文本")
+            lines = [f"{rank}. {name} - {points}分" for rank, _, name, points in entries]
+            self.api.send_msg(text("积分排行榜 TOP10\n" + "\n".join(lines)))
