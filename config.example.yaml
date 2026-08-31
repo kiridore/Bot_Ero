@@ -1,0 +1,63 @@
+# BotEro 统一配置文件 —— bot（main.py）与 webapp 共用，部署侧单一来源。
+# 使用：cp config.example.yaml config.yaml 后填写真实值；本文件不进 git。
+# 定位：默认项目根 config.yaml；可用环境变量 BOTERO_CONFIG 指向其他路径（仅此一个环境变量）。
+# 修改后需重启对应进程生效。
+
+bot:
+  qq: "3915014383"            # Bot 的 QQ 号（必须加引号保持字符串）
+  nickname: 小埃同学           # 机器人昵称
+  super_users: [1057613133]   # 超级用户 QQ 号列表
+  default_group: 296470819    # 默认群号（无群上下文时发送目标）
+  ws_url: ws://127.0.0.1:3001   # OneBot v11 WebSocket 地址
+  ws_token: "123456"            # WS 鉴权 token
+  download_proxy: "http://127.0.0.1:7890"  # 图片下载代理；留空 "" 直连
+  llonebot_data_path: /app/llonebot/server_data  # OneBot API 调用看到的路径（容器内）
+  python_data_path: ./server_data               # Python 文件 I/O 用的路径
+  onebot_qq_volume: ""      # docker 卷路径（裸机部署留空）
+
+onebot:
+  http_url: http://192.168.0.103:3000  # OneBot HTTP（拉取 QQ 昵称）
+  token: "123456"
+
+# 数据路径（可选，缺省即下列布局；相对路径按项目根解析）
+paths:
+  db: data.db
+  message_log_db: server_data/message_log.db
+  images: server_data/record_images
+  trpg_chars: server_data/trpg_chars
+  user_settings: server_data/user_settings
+  activity: server_data/activity_archive
+  forum_images: server_data/forum_images
+
+webapp:
+  host: 0.0.0.0
+  port: 8765
+
+auth:
+  salt: ChangeMe-Random-Salt    # 登录密钥盐（HMAC）：bot 生成密钥与 webapp 验证共用
+  old_salts: []                 # 换盐后把旧盐加进此列表，旧密钥继续有效（无感迁移）
+
+timeline:
+  url: http://127.0.0.1:8765   # Event Server 基地址
+  token: ChangeMe-Timeline-Token  # 系统间事件令牌（与用户登录密钥不同）
+
+weekly:
+  web_base_url: https://littlero.tech  # 周报通知链接前缀
+  notify: true                          # 周报出版通知（群消息 + 时间线事件）
+
+uploads:
+  checkin_max_images: 9
+  checkin_max_bytes: 10485760       # 10MB
+  forum_image_max_bytes: 10485760   # 10MB
+
+thumbs:
+  cache_dir: server_data/thumb_cache
+  max_width: 480
+  max_height: 720
+  jpeg_quality: 82
+
+live:
+  flv_url: https://live.littlero.tech/live/livestream.flv
+
+tools:
+  icon_proxy: ""    # 工具箱图标抓取代理；留空不走代理

@@ -1,9 +1,9 @@
 """脚本式集成套件回归：子进程运行 ``test/scripts/check_*.py``。
 
 这些套件是模块级顺序执行的长链路行为测试（webapp API + 全新临时 DB + 真实
-FastAPI TestClient），依赖**独立进程**才能各自拿到干净的 ``BOTERO_DB_PATH``
-（``core.config`` 首次 import 冻结路径，见 test/conftest.py 说明），因此不能
-作为 pytest 用例进程内收集，由本模块以子进程方式纳入统一回归。
+FastAPI TestClient），依赖**独立进程**才能各自拿到干净的 ``BOTERO_CONFIG``
+（各自生成临时 config.yaml，``core.config`` 首次 import 冻结配置，见 test/conftest.py
+说明），因此不能作为 pytest 用例进程内收集，由本模块以子进程方式纳入统一回归。
 
 新增套件只需放入 ``test/scripts/check_*.py``（模块级自校验、失败时退出码非 0），
 本模块自动发现，无需登记。

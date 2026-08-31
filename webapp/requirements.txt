@@ -3,3 +3,6 @@ uvicorn[standard]>=0.27.0
 requests>=2.31.0
 Pillow>=10.0.0
 python-multipart>=0.0.9
+
+# 统一配置文件
+PyYAML>=6.0
