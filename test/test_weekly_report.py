@@ -19,7 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.base import TimedHeartbeatPlugin
+from core.base import BOT_QQ, TimedHeartbeatPlugin
 from core.config import GROUP_ID
 from core.db.message_log import MessageLogManager
 from plugins.weekly_report import WeeklyReportPlugin
@@ -83,8 +83,11 @@ class TestGenerateWeekCoverageGate(unittest.TestCase):
         self.db = self.plugin.dbmanager
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
+        self._emit = patch.object(weekly_report, "emit_event")
+        self._emit.start()
 
     def tearDown(self):
+        self._emit.stop()
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
 
@@ -141,8 +144,11 @@ class TestTriggerWiring(unittest.TestCase):
         self.db = self.plugin.dbmanager
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
+        self._emit = patch.object(weekly_report, "emit_event")
+        self._emit.start()
 
     def tearDown(self):
+        self._emit.stop()
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
         weekly_report._boot_checked = True
@@ -214,8 +220,11 @@ class TestImmortalInReport(unittest.TestCase):
             ],
         )
         self.db.conn.commit()
+        self._emit = patch.object(weekly_report, "emit_event")
+        self._emit.start()
 
     def tearDown(self):
+        self._emit.stop()
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.cur.execute("DELETE FROM immortal_lottery_results")
         self.db.cur.execute("DELETE FROM immortal_lottery_bets")
@@ -259,3 +268,66 @@ class TestImmortalInReport(unittest.TestCase):
         data = self.db.weekly.get("2026-08-17", int(GROUP_ID))["data_json"]
         self.assertEqual(data["headline"]["title"], "仙人彩奖池滚存")
         self.assertEqual(data["lottery"]["immortal"]["winners"], [])
+
+
+class TestPublishNotifications(unittest.TestCase):
+    """周报出版通知（2026-08-31 需求）：开关开启时群消息 + 时间线事件
+    （actor=bot 本体、站内相对 target_url、dedup_key=weekly_report:<week_key>）；
+    关闭时双静默；幂等跳过不重发。"""
+
+    def setUp(self):
+        mlog = MessageLogManager()
+        mlog.cur.execute("DELETE FROM messages")
+        mlog.insert(int(GROUP_ID), 10001, 1, EARLIEST, "功能上线当晚的消息")
+        mlog.insert(int(GROUP_ID), 10001, 2, "2026-08-20 12:00:00", "结算周内的消息")
+        mlog.conn.commit()
+        mlog.close()
+
+        weekly_report._boot_checked = True
+        self.plugin = WeeklyReportPlugin(make_group_message("meta"))
+        self.plugin.api = MockApiWrapper(make_group_message("meta"))
+        self.db = self.plugin.dbmanager
+        self.db.cur.execute("DELETE FROM weekly_reports")
+        self.db.conn.commit()
+
+    def tearDown(self):
+        self.db.cur.execute("DELETE FROM weekly_reports")
+        self.db.conn.commit()
+        weekly_report._boot_checked = True
+
+    def test_enabled_notifies_group_and_timeline(self):
+        with patch.object(weekly_report, "WEEKLY_NOTIFY_ENABLED", True), \
+             patch.object(weekly_report, "emit_event") as m_emit:
+            self.plugin._generate_week("2026-08-17 08:00:00", "2026-08-24 08:00:00")
+
+        # 群通知：一条，含期号与链接
+        self.assertEqual(len(self.plugin.api.sent_messages), 1)
+        sent = self.plugin.api.sent_messages[0][1][0]["data"]["text"]
+        self.assertIn("第 1 期《小埃周报》已出版", sent)
+        self.assertIn("weekly/2026-08-17", sent)
+
+        # 时间线事件：actor=bot，站内相对 target_url，每期一条 dedup_key
+        m_emit.assert_called_once()
+        kw = m_emit.call_args.kwargs
+        self.assertEqual(kw["source"], "weekly_report")
+        self.assertEqual(kw["actor_id"], BOT_QQ)
+        self.assertEqual(kw["actor_qq"], BOT_QQ)
+        self.assertEqual(kw["title"], "第 1 期《小埃周报》已出版")
+        self.assertIn("条消息", kw["description"])
+        self.assertEqual(kw["target_url"], "/weekly/2026-08-17")
+        self.assertEqual(kw["dedup_key"], "weekly_report:2026-08-17")
+
+    def test_disabled_sends_nothing(self):
+        with patch.object(weekly_report, "WEEKLY_NOTIFY_ENABLED", False), \
+             patch.object(weekly_report, "emit_event") as m_emit:
+            self.plugin._generate_week("2026-08-17 08:00:00", "2026-08-24 08:00:00")
+        self.assertEqual(self.plugin.api.sent_messages, [])
+        m_emit.assert_not_called()
+
+    def test_idempotent_skip_does_not_renotify(self):
+        with patch.object(weekly_report, "WEEKLY_NOTIFY_ENABLED", True), \
+             patch.object(weekly_report, "emit_event") as m_emit:
+            self.plugin._generate_week("2026-08-17 08:00:00", "2026-08-24 08:00:00")
+            self.plugin._generate_week("2026-08-17 08:00:00", "2026-08-24 08:00:00")
+        self.assertEqual(len(self.plugin.api.sent_messages), 1)
+        m_emit.assert_called_once()

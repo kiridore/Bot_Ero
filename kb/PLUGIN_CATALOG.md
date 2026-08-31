@@ -59,7 +59,7 @@
 | 37 | `weekly_quest_reset` | `weekly_quest/` | 每周一 08:00 | 清理过期任务进度 |
 | 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配截止结束 |
 | 44 | `forum_notify` | `forum_notify/` | 每分钟（meta 心跳） | 议事厅新帖群通知 + 过期投票自动关闭 |
-| 47 | `weekly_report` | `weekly_report/` | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档（首周通知默认关闭；仅日志覆盖到的完整周出报，启动补漏不越过日志起点） |
+| 47 | `weekly_report` | `weekly_report/` | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档；出版后默认群通知 + 时间线事件（`BOTERO_WEEKLY_NOTIFY` 可关）；仅日志覆盖到的完整周出报，启动补漏不越过日志起点 |
 
 ## 管理/超级用户
 

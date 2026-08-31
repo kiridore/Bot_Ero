@@ -34,7 +34,7 @@ python -m webapp
 - **登录页**：`/login`（报纸风独立页，`login.html`/`login.js`）；cookie 丢失但会话仍有效时自动跳回（会话自愈）
 - **退出**：各页用户卡片旁「退出」按钮，客户端清会话回登录页；`/shared/auth.js` 全局拦截同源 fetch 401，失效自动清会话跳 `/login`
 
-周报新增 env：`BOTERO_MESSAGE_LOG_DB_PATH`（默认 `server_data/message_log.db`）、`BOTERO_WEB_BASE_URL`（默认 `https://littlero.tech`，周报通知链接前缀）、`BOTERO_WEEKLY_NOTIFY`（`1` 开启周报群通知，默认 `0` 关闭；首周测试期保持关闭）。
+周报新增 env：`BOTERO_MESSAGE_LOG_DB_PATH`（默认 `server_data/message_log.db`）、`BOTERO_WEB_BASE_URL`（默认 `https://littlero.tech`，周报通知链接前缀）、`BOTERO_WEEKLY_NOTIFY`（周报出版通知，默认 `1` 开启，群消息 + 时间线事件同开同关；置 `0` 关闭）。
 
 > **称号定义变更后需重启 webapp：** `plugins/title/defs.py` 由 `core/title_defs.py` 在**进程导入时快照加载**一次（`TITLE_DEFS: dict = _load()`），网页端个人主页的称号目录（含总数与进度条）读该快照。新增/修改/删除称号后必须 `sudo systemctl restart botero-web`（或 `./scripts/botero-services.sh restart`），否则页面停留在旧称号列表（新解锁的称号也不显示）。
 

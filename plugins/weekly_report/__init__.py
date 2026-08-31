@@ -7,9 +7,10 @@ import random
 import re
 from datetime import datetime, timedelta
 
-from core.base import TimedHeartbeatPlugin
+from core.base import BOT_QQ, TimedHeartbeatPlugin
 from core.config import GROUP_ID, WEB_BASE_URL, WEEKLY_NOTIFY_ENABLED
 from core.cq import text
+from core.timeline_client import emit_event
 from core.db.message_log import MessageLogManager
 from core.onebot_client import resolve_display_name
 from core.utils import get_monday_to_monday, register_plugin
@@ -146,6 +147,18 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
             issue = data["period"]["issue"]
             url = f"{WEB_BASE_URL}/weekly/{week_key}"
             self.api.send_msg(text(f"📰 第 {issue} 期《小埃周报》已出版\n{url}"))
+            emit_event(
+                source="weekly_report",
+                actor_id=BOT_QQ,
+                actor_qq=BOT_QQ,
+                title=f"第 {issue} 期《小埃周报》已出版",
+                description=(
+                    f"本周 {data['period']['total_messages']} 条消息 · "
+                    f"{data['period']['total_chars']} 字"
+                ),
+                target_url=f"/weekly/{week_key}",
+                dedup_key=f"weekly_report:{week_key}",
+            )
 
     # ------------------------------------------------------------------
     def _aggregate(self, db, group_id: int, week_key: str, start: str, end: str) -> dict:

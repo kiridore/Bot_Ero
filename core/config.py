@@ -7,7 +7,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.28.1"
+BOTERO_VERSION = "1.29.0"
 
 def _path_from_env(key: str, default: Path) -> Path:
     raw = os.environ.get(key)
@@ -42,7 +42,7 @@ GROUP_ID = int(os.environ.get("BOTERO_GROUP_ID", "296470819"))
 
 # 小埃周报：Web 基址（群通知链接）与通知开关
 WEB_BASE_URL = os.environ.get("BOTERO_WEB_BASE_URL", "https://littlero.tech").rstrip("/")
-WEEKLY_NOTIFY_ENABLED = os.environ.get("BOTERO_WEEKLY_NOTIFY", "0") == "1"
+WEEKLY_NOTIFY_ENABLED = os.environ.get("BOTERO_WEEKLY_NOTIFY", "1") == "1"
 
 THUMB_CACHE_DIR = _path_from_env(
     "BOTERO_THUMB_CACHE",

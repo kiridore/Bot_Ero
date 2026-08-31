@@ -116,7 +116,7 @@ systemctl enable --now botero-web
 | `BOTERO_EVENT_TOKEN` | `BotEro-Timeline-ChangeMe` | 系统间事件令牌（bot 发送与 webapp 校验共用；**单一来源 `scripts/botero.env`**，生产建议改为随机值） |
 | `BOTERO_MESSAGE_LOG_DB_PATH` | `<仓库>/server_data/message_log.db` | 群消息日志独立库路径（周报数据源，永久保留） |
 | `BOTERO_WEB_BASE_URL` | `https://littlero.tech` | 周报群通知链接的 Web 基址 |
-| `BOTERO_WEEKLY_NOTIFY` | `0` | 周报群通知开关（`1` 开启；首周测试期默认关闭） |
+| `BOTERO_WEEKLY_NOTIFY` | `1` | 周报出版通知开关（群消息 + 时间线事件；置 `0` 关闭） |
 
 > 旧变量 `BOTERO_GALLERY_URL`（图库域基地址）已删除：单 origin 后媒体 URL 为同源根相对路径，无需跨域基地址。
 
