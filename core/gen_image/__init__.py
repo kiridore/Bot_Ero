@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.gen_image.avatar_helper import fetch_avatar_cached
 from core.gen_image.models import PersonalRecordStats
 from core.gen_image.profile_card import build_personal_record_image, save_personal_record_png
 from core.gen_image.year_heatmap import render_year_heatmap
@@ -7,6 +8,7 @@ from core.gen_image.year_heatmap import render_year_heatmap
 __all__ = [
     "PersonalRecordStats",
     "build_personal_record_image",
+    "fetch_avatar_cached",
     "gen_personal_record_card",
     "gen_year_heatmap",
     "render_year_heatmap",

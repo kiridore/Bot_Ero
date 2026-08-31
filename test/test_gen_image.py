@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -159,6 +161,75 @@ class TestGenImage(unittest.TestCase):
         path = Path(path_str)
         self.assertIn("personal_records", path_str.replace("\\", "/"))
         self._assert_png_file(path)
+
+
+@unittest.skipUnless(PILImage is not None, "需要安装 Pillow（pip install pillow）")
+class TestFetchAvatarCachedLogic(unittest.TestCase):
+    """不依赖网络与真实 server_data：patch 下载源与缓存目录。"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="avatar_cache_test_")
+        self.addCleanup(self._tmp.cleanup)
+        self.cache_root = Path(self._tmp.name)
+
+    def _avatar_bytes(self, color=(200, 30, 30), size=(64, 48)):
+        im = PILImage.new("RGB", size, color)
+        buf = BytesIO()
+        im.save(buf, format="PNG")
+        return buf.getvalue()
+
+    def _write_source(self, data: bytes) -> str:
+        src = self.cache_root / "avatar_src.png"
+        src.write_bytes(data)
+        return str(src)
+
+    def _patch_cache(self):
+        from core.gen_image import avatar_helper
+        return patch.object(avatar_helper.context, "python_data_path", self._tmp.name)
+
+    def test_download_success_writes_cache(self):
+        from core.gen_image.avatar_helper import fetch_avatar_cached
+
+        payload = self._avatar_bytes()
+        url = "file://" + self._write_source(payload)  # 本地文件当下载源
+
+        class _Api:
+            def get_qq_avatar(self, user_id):
+                return url
+
+        with self._patch_cache():
+            im = fetch_avatar_cached(_Api(), 987001)
+        self.assertIsNotNone(im)
+        cache = self.cache_root / "avatar_cache" / "987001.png"
+        self.assertTrue(cache.is_file())
+        with PILImage.open(cache) as loaded:
+            self.assertEqual(loaded.size, (64, 48))
+
+    def test_download_failure_falls_back_to_cache(self):
+        from core.gen_image.avatar_helper import fetch_avatar_cached
+
+        cache = self.cache_root / "avatar_cache" / "987002.png"
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_bytes(self._avatar_bytes((30, 200, 30)))
+
+        class _Api:
+            def get_qq_avatar(self, user_id):
+                return ""  # 模拟 API 失败
+
+        with self._patch_cache():
+            im = fetch_avatar_cached(_Api(), 987002)
+        self.assertIsNotNone(im)
+        self.assertEqual(im.size, (64, 48))
+
+    def test_total_failure_returns_none(self):
+        from core.gen_image.avatar_helper import fetch_avatar_cached
+
+        class _Api:
+            def get_qq_avatar(self, user_id):
+                raise RuntimeError("api down")
+
+        with self._patch_cache():
+            self.assertIsNone(fetch_avatar_cached(_Api(), 987003))
 
 
 if __name__ == "__main__":
