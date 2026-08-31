@@ -4,12 +4,9 @@ After=network.target
 
 [Service]
 WorkingDirectory=/home/dore/onebot/Bot_Ero
-EnvironmentFile=/home/dore/onebot/Bot_Ero/scripts/botero.env
-Environment=BOTERO_DB_PATH=/home/dore/onebot/Bot_Ero/data.db
-Environment=BOTERO_GALLERY_PORT=8765
-# 直播状态探测直连本机 SRS（webapp 与 SRS 同机部署时避免公网 hairpin 回环，
-# 否则 /api/live/status 会超时误报「未开播」）；异地部署时删除此行改用公网默认值
-Environment=BOTERO_LIVE_FLV_URL=http://127.0.0.1:18080/live/livestream.flv
+# 配置单一来源 config.yaml（项目根）：db/端口/直播流地址等全部读自该文件。
+# 注意：原 BOTERO_LIVE_FLV_URL=http://127.0.0.1:18080/live/livestream.flv 的
+# 本机 SRS 直连覆盖，迁移后在 config.yaml 的 live.flv_url 填同一值。
 ExecStart=/usr/bin/python3 -m webapp
 Restart=always
 

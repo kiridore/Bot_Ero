@@ -1,6 +1,7 @@
 .idea
 data.db
 pyrightconfig.json
+config.yaml
 __pycache__/
 .pytest_cache/
 backup
