@@ -553,5 +553,6 @@ img.forum-img {
 }
 
 :root[data-theme="mono"] img {
-  filter: grayscale(1);
+  /* ponytail: 灰化阈值 0.85——保留少量饱和度，全黑白观感太怪；想更素就调高 */
+  filter: grayscale(0.85);
 }
