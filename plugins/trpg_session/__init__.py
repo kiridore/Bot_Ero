@@ -4,7 +4,7 @@ import time
 import re
 from datetime import datetime
 
-from core.base import Plugin, BOT_QQ
+from core.base import Plugin, BOT_QQ, NICKNAME
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin, download_image
@@ -221,7 +221,7 @@ class TrpgSessionPlugin(Plugin):
             roles = recording.get("roles", {})
             participants = list(recording["participants"].values())
             if not any(p["user_id"] == str(BOT_QQ) for p in participants):
-                participants.append({"nickname": "小埃同学", "user_id": str(BOT_QQ)})
+                participants.append({"nickname": NICKNAME, "user_id": str(BOT_QQ)})
 
             # 参与者加上角色和索引
             for p in participants:

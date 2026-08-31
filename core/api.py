@@ -105,17 +105,17 @@ class ApiWrapper:
         if group_id and msg_id and runtime_context.is_group_recording(group_id):
             session = runtime_context.get_recording_session(group_id)
             if session:
-                from core.base import BOT_QQ
+                from core.base import BOT_QQ, NICKNAME
                 entry = {
                     "type": "bot",
-                    "nickname": "小埃同学",
+                    "nickname": NICKNAME,
                     "user_id": str(BOT_QQ),
                     "message": list(message),
                     "time": int(datetime.now().timestamp()),
                 }
                 session["messages"].append(entry)
                 if str(BOT_QQ) not in session["participants"]:
-                    session["participants"][str(BOT_QQ)] = {"nickname": "小埃同学", "user_id": str(BOT_QQ)}
+                    session["participants"][str(BOT_QQ)] = {"nickname": NICKNAME, "user_id": str(BOT_QQ)}
 
         return msg_id
 

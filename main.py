@@ -1,32 +1,16 @@
-import os
 import time
 import threading
 import json as json_
-from pathlib import Path
-
-# 统一环境注入：bot 与 webapp 共用 scripts/botero.env（BOTERO_AUTH_SALT 等单一来源）。
-# 必须在导入 core 之前执行（core.config 在 import 时读取环境变量）；进程已有环境变量优先。
-_ENV_FILE = Path(__file__).resolve().parent / "scripts" / "botero.env"
-if _ENV_FILE.is_file():
-    for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
-        _line = _line.strip()
-        if not _line or _line.startswith("#") or "=" not in _line:
-            continue
-        _key, _, _value = _line.partition("=")
-        os.environ.setdefault(_key.strip(), _value.strip())
 
 from datetime import datetime
 from core import api
+from core.config import WS_URL, WS_TOKEN
 from core.logger import logger
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 runtime_context.migrate_group_plugin_config()
 
 import websocket  # pyright: ignore[reportMissingImports]
-
-# WS_URL = "ws://192.168.0.103:3001"   # 本机调试用
-WS_URL = "ws://127.0.0.1:3001"   # WebSocket 地址
-token = 123456
 
 
 # 往获取到的context中插入额外的信息
@@ -84,7 +68,7 @@ if __name__ == "__main__":
     api.echo = api.Echo()
     api.WS_APP = websocket.WebSocketApp(
         WS_URL,
-        header=[f"Authorization: Bearer {token}"],
+        header=[f"Authorization: Bearer {WS_TOKEN}"],
         on_message=on_message,
         on_open=lambda _: logger.debug("连接成功......"),
     )

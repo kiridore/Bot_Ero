@@ -56,10 +56,12 @@ class TestTimer(unittest.TestCase):
         self.conn = sqlite3.connect(DB_PATH)
         init_schema(self.conn, self.conn.cursor())
         self.db = _Db(self.conn)
+        self._old_python_data_path = context.python_data_path
         context.python_data_path = "/tmp/test_activity_archive_timer"
         ActivityTimerPlugin._last_scan = {}
 
     def tearDown(self):
+        context.python_data_path = self._old_python_data_path
         self.conn.close()
 
     def _plugin(self):
