@@ -41,7 +41,7 @@ class TestBackupSummary(unittest.TestCase):
         self.assertEqual(len(msgs), 1)
         node = msgs[0][1][0]
         self.assertEqual(node["type"], "text")
-        self.assertEqual(node["data"]["text"], "数据校验成功率：100.00%")
+        self.assertEqual(node["data"]["text"], "数据备份成功喵，数据校验成功率：100.00%")
 
     def test_below_100_ats_super_user_first(self):
         msgs = _run(["exists", "error"])
@@ -49,13 +49,13 @@ class TestBackupSummary(unittest.TestCase):
         first = msgs[0][1][0]
         self.assertEqual(first["type"], "at")
         self.assertEqual(first["data"]["qq"], SUPER_USER[0])
-        self.assertEqual(msgs[0][1][1]["data"]["text"], "数据校验成功率：50.00%")
+        self.assertEqual(msgs[0][1][1]["data"]["text"], "警告！数据校验成功率：50.00%")
 
     def test_empty_records_is_100_no_at(self):
         msgs = _run([])
         self.assertEqual(len(msgs), 1)
         self.assertEqual(msgs[0][1][0]["type"], "text")
-        self.assertEqual(msgs[0][1][0]["data"]["text"], "数据校验成功率：100.00%")
+        self.assertEqual(msgs[0][1][0]["data"]["text"], "数据备份成功喵，数据校验成功率：100.00%")
 
 
 if __name__ == "__main__":
