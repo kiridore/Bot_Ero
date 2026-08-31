@@ -214,7 +214,7 @@ class ForumManager:
         return self.get_comment(cid)
 
     def list_comment_threads(self, post_id, cursor=None, limit=30):
-        """两级线程：顶层评论 id DESC keyset 分页，每条附全部回复（id ASC）。
+        """两级线程：顶层评论 id ASC keyset 分页（时间正序），每条附全部回复（id ASC）。
         返回 (threads, has_more, total)；threads 元素 = 顶层 dict + 'replies' 列表。
         软删占位（status='deleted' 但仍有存活回复）也会返回，前端渲染占位。"""
         where = (
@@ -224,11 +224,11 @@ class ForumManager:
         )
         params = [post_id]
         if cursor:
-            where += " AND id < ?"
+            where += " AND id > ?"
             params.append(cursor)
         self.cur.execute(
             f"SELECT {self._COMMENT_COLS} FROM forum_comments "
-            f"WHERE {where} ORDER BY id DESC LIMIT ?",
+            f"WHERE {where} ORDER BY id ASC LIMIT ?",
             (*params, limit + 1),
         )
         rows = self.cur.fetchall()

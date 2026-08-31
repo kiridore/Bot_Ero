@@ -169,10 +169,22 @@ with patch("webapp.forum.app.emit_event") as m_emit, patch("webapp.forum.app.ret
     y1 = r.json()["id"]
     client.delete(f"/api/forum/comments/{x1}", headers=BH)
     g = client.get(f"/api/forum/posts/{pid2}/comments", headers=AH).json()
-    replies = g["items"][0]["replies"]
+    replies = next(t for t in g["items"] if t["id"] == t2)["replies"]
     check("软删回复以占位形式留在串内",
           len(replies) == 2 and replies[0]["id"] == x1 and replies[0]["status"] == "deleted")
     check("占位后的回复可见", replies[1]["id"] == y1)
+
+    # —— 顶层排序：时间正序（从旧到新）+ keyset 翻页（独立帖，不干扰计数）——
+    r = client.post("/api/forum/posts", headers=AH, json={"type": "post", "title": "排序测试帖"})
+    pid3 = r.json()["id"]
+    ids = [client.post(f"/api/forum/posts/{pid3}/comments", headers=AH,
+                      json={"body_text": f"顶层{i}"}).json()["id"] for i in range(1, 4)]
+    g = client.get(f"/api/forum/posts/{pid3}/comments", headers=AH).json()
+    check("顶层按时间正序（从旧到新）", [t["id"] for t in g["items"]] == ids)
+    g = client.get(f"/api/forum/posts/{pid3}/comments?limit=2", headers=AH).json()
+    check("正序翻页第一页", [t["id"] for t in g["items"]] == ids[:2] and g["next_cursor"] == ids[1])
+    g2 = client.get(f"/api/forum/posts/{pid3}/comments?limit=2&cursor={g['next_cursor']}", headers=AH).json()
+    check("正序翻页第二页", [t["id"] for t in g2["items"]] == ids[2:] and g2["next_cursor"] is None)
 
 print()
 print("PASS" if fail == 0 else f"{fail} FAILURES")

@@ -459,7 +459,7 @@ DDL 全部在 `core/db/_base.py`，业务读写 `core/db/forum.py`；`user_id` �
 | `created_at` | TEXT | NOT NULL | 时间戳 |
 | `edited_at` | TEXT | ALTER 加列 | 编辑时间（显示「已编辑」） |
 
-> 分页：顶层评论 `id DESC` keyset，replies 串内 `id ASC`；回复目标不存在/跨帖/已软删 → 400。
+> 分页：顶层评论 `id ASC` keyset（时间正序，从旧到新），replies 串内 `id ASC`；回复目标不存在/跨帖/已软删 → 400。
 
 ### `forum_tags` / `forum_post_tags`
 
