@@ -1,6 +1,5 @@
-import os
-
 from core.base import Plugin
+from core.config import WEB_BASE_URL
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
@@ -8,7 +7,7 @@ from core.utils import register_plugin
 from core import character_store as store
 from . import character as char_logic
 
-WEB_TRPG_URL = os.environ.get("BOTERO_WEB_URL", "https://littlero.tech/trpg")
+WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
 
 
 @register_plugin

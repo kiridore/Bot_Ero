@@ -49,9 +49,9 @@ After=network.target
 
 [Service]
 WorkingDirectory=/home/dore/onebot/Bot_Ero
-EnvironmentFile=/home/dore/onebot/Bot_Ero/scripts/botero.env
-Environment=BOTERO_DB_PATH=/home/dore/onebot/Bot_Ero/data.db
-Environment=BOTERO_GALLERY_PORT=8765
+# 配置单一来源 config.yaml（项目根）：db/端口/直播流地址等全部读自该文件。
+# 注意：原 BOTERO_LIVE_FLV_URL=http://127.0.0.1:18080/live/livestream.flv 的
+# 本机 SRS 直连覆盖，迁移后在 config.yaml 的 live.flv_url 填同一值。
 ExecStart=/usr/bin/python3 -m webapp
 Restart=always
 
@@ -59,7 +59,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-> **盐值单一来源**：`BOTERO_AUTH_SALT` 经 `EnvironmentFile` 从 `scripts/botero.env` 注入（bot 的 `main.py` 启动时也加载同一文件）。bot 生成密钥与 webapp 验证密钥**必须使用同一盐值**，改盐只改这一个文件。
+> **盐值单一来源**：登录密钥盐在项目根 `config.yaml` 的 `auth.salt`（bot 与 webapp 共读同一文件）。bot 生成密钥与 webapp 验证密钥**必须使用同一盐值**，改盐只改这一个文件。
 
 部署步骤（模板已在 `scripts/`，确认盐值后安装）：
 
@@ -70,9 +70,9 @@ systemctl daemon-reload
 systemctl enable --now botero-web
 ```
 
-> 生成随机盐：`openssl rand -base64 24`。
+> 生成随机盐：`openssl rand -base64 24`（填入 `config.yaml` 的 `auth.salt`）。
 >
-> **换盐无感迁移**：若此前已用旧盐发过密钥，把旧盐值追加到 `scripts/botero.env` 的 `BOTERO_AUTH_SALT_OLD`（逗号分隔可多个），旧密钥继续有效，无需群友重新 `/图库密钥`；之后新发的密钥用新盐。
+> **换盐无感迁移**：若此前已用旧盐发过密钥，把旧盐追加到 `config.yaml` 的 `auth.old_salts` 列表（YAML 列表可多项），旧密钥继续有效，无需群友重新 `/图库密钥`；之后新发的密钥用新盐。
 
 ### 一键启停脚本
 
@@ -85,38 +85,41 @@ systemctl enable --now botero-web
 ./scripts/botero-services.sh status   # 查看状态
 ```
 
-## 5. 环境变量清单
+## 5. 配置文件清单
 
-全部 `BOTERO_*` 变量（定义于 `core/config.py`，bot 与 webapp 共用；例外 `BOTERO_LIVE_FLV_URL` 定义于 `webapp/live/app.py`）：
+全部部署可变值在项目根 `config.yaml`（bot 与 webapp 共读；模板 `config.example.yaml`，缺文件/缺必填项启动即退出）。完整键表见 `kb/QUICK_REFERENCE.md`「配置文件 config.yaml」。常用键：
 
-| 变量 | 默认值 | 用途 |
+| 键 | 默认值 | 用途 |
 |------|--------|------|
-| `BOTERO_DB_PATH` | `<仓库>/data.db` | SQLite 数据库路径 |
-| `BOTERO_IMAGE_ROOT` | `<仓库>/server_data/record_images` | 打卡图片存储目录 |
-| `BOTERO_TRPG_CHARS_ROOT` | `<仓库>/server_data/trpg_chars` | TRPG 角色卡目录 |
-| `BOTERO_USER_SETTINGS_ROOT` | `<仓库>/server_data/user_settings` | 用户设置目录 |
-| `BOTERO_ACTIVITY_ROOT` | `<仓库>/server_data/activity_archive` | 活动存档目录 |
-| `BOTERO_GALLERY_HOST` | `0.0.0.0` | webapp 监听地址 |
-| `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口 |
-| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测用）。webapp 与 SRS 同机时设为 `http://127.0.0.1:18080/live/livestream.flv`（直连本机，避免公网回环探测超时）；浏览器播放始终走公网地址（live.js 内置，不受此变量影响） |
-| `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP 地址，用于拉取 QQ 昵称 |
-| `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 访问令牌 |
-| `BOTERO_GROUP_ID` | `296470819` | 默认群号 |
-| `BOTERO_THUMB_CACHE` | `<仓库>/server_data/thumb_cache` | 缩略图缓存目录 |
-| `BOTERO_THUMB_MAX_WIDTH` | `480` | 缩略图最大宽度 |
-| `BOTERO_THUMB_MAX_HEIGHT` | `720` | 缩略图最大高度 |
-| `BOTERO_THUMB_QUALITY` | `82` | 缩略图 JPEG 质量 |
-| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | 登录密钥盐。**单一来源 `scripts/botero.env`**：bot（main.py 启动加载）与 webapp（systemd EnvironmentFile）共用，改盐只改该文件；生产建议改为随机值 |
-| `BOTERO_AUTH_SALT_OLD` | 空 | 历史盐列表（逗号分隔，写于 `scripts/botero.env`）。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
-| `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 网页打卡单次最大图片数 |
-| `BOTERO_CHECKIN_MAX_BYTES` | `10485760` | 网页打卡单图最大字节数 |
-| `BOTERO_FORUM_IMAGES_ROOT` | `<仓库>/server_data/forum_images` | 议事厅正文图片存储目录（公开读取，uuid 文件名不可枚举） |
-| `BOTERO_FORUM_IMAGE_MAX_BYTES` | `10485760` | 议事厅正文单图最大字节数（JPG/PNG/WebP/GIF） |
-| `BOTERO_TIMELINE_URL` | `http://127.0.0.1:8765` | Event Server 基地址（bot 插件发送时间线事件的目标） |
-| `BOTERO_EVENT_TOKEN` | `BotEro-Timeline-ChangeMe` | 系统间事件令牌（bot 发送与 webapp 校验共用；**单一来源 `scripts/botero.env`**，生产建议改为随机值） |
-| `BOTERO_MESSAGE_LOG_DB_PATH` | `<仓库>/server_data/message_log.db` | 群消息日志独立库路径（周报数据源，永久保留） |
-| `BOTERO_WEB_BASE_URL` | `https://littlero.tech` | 周报群通知链接的 Web 基址 |
-| `BOTERO_WEEKLY_NOTIFY` | `1` | 周报出版通知开关（群消息 + 时间线事件；置 `0` 关闭） |
+| `paths.db` | `<仓库>/data.db` | SQLite 数据库路径 |
+| `paths.images` | `<仓库>/server_data/record_images` | 打卡图片存储目录 |
+| `paths.trpg_chars` / `paths.user_settings` / `paths.activity` | `<仓库>/server_data/...` | 角色/设置/活动存档目录 |
+| `webapp.host` / `webapp.port` | `0.0.0.0` / `8765` | webapp 监听地址/端口 |
+| `live.flv_url` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测用）。**webapp 与 SRS 同机时设为 `http://127.0.0.1:18080/live/livestream.flv`**（直连本机，避免公网回环探测超时）；浏览器播放始终走公网地址（live.js 内置，不受此项影响） |
+| `onebot.http_url` / `onebot.token` | `http://192.168.0.103:3000` / `123456` | OneBot HTTP（拉 QQ 昵称） |
+| `bot.default_group` | `296470819` | 默认群号（昵称查询） |
+| `thumbs.*` | `server_data/thumb_cache` / `480` / `720` / `82` | 缩略图参数 |
+| `auth.salt` | （必填） | 登录密钥盐。**单一来源 `config.yaml`**：bot 与 webapp 共用，生产建议改随机值 |
+| `auth.old_salts` | `[]` | 历史盐列表。换盐时把旧盐加进来，旧密钥继续有效，实现无感迁移 |
+| `uploads.checkin_max_images` / `checkin_max_bytes` | `9` / `10485760` | 网页打卡上传限制 |
+| `paths.forum_images` / `uploads.forum_image_max_bytes` | `<仓库>/server_data/forum_images` / `10485760` | 议事厅正文图片目录与单图上限（公开读取，uuid 文件名不可枚举） |
+| `timeline.url` / `timeline.token` | `http://127.0.0.1:8765` /（必填） | Event Server 基地址与系统间事件令牌（bot 发送与 webapp 校验共用；生产建议改随机值） |
+| `paths.message_log_db` | `<仓库>/server_data/message_log.db` | 群消息日志独立库路径（周报数据源，永久保留） |
+| `weekly.web_base_url` / `weekly.notify` | `https://littlero.tech` / `true` | 周报链接前缀 / 出版通知开关（群消息 + 时间线事件） |
+| `bot.download_proxy` | 空（直连） | 图片下载代理 |
+| `tools.icon_proxy` | 空（直连） | 工具箱图标抓取代理 |
+
+> 环境变量仅剩 `BOTERO_CONFIG`：用于定位配置文件本身（如 `BOTERO_CONFIG=/etc/botero/config.yaml python3 -m webapp`），不用于读取配置值。
+
+### 首次部署
+
+```bash
+cd /home/dore/onebot/Bot_Ero
+cp config.example.yaml config.yaml   # 然后编辑：填生产值（身份/盐/token/live.flv_url 等）
+pip install PyYAML                   # 或 pip install -r requirements.txt
+systemctl daemon-reload              # unit 已移除 EnvironmentFile，更新后重载
+systemctl restart botero-web
+```
 
 > 旧变量 `BOTERO_GALLERY_URL`（图库域基地址）已删除：单 origin 后媒体 URL 为同源根相对路径，无需跨域基地址。
 
@@ -124,7 +127,7 @@ systemctl enable --now botero-web
 
 ## 7. 事件发送方接入
 
-事件发送方接入：bot 插件经 `core/timeline_client.py` 发送（`BOTERO_TIMELINE_URL` + `BOTERO_EVENT_TOKEN`，见第 5 节环境变量）；v1 发送方为打卡与周常任务，回滚联动删除。协议见 `specs/timeline-protocol.md`。
+事件发送方接入：bot 插件经 `core/timeline_client.py` 发送（`config.yaml` 的 `timeline.url` + `timeline.token`，见第 5 节配置清单）；v1 发送方为打卡与周常任务，回滚联动删除。协议见 `specs/timeline-protocol.md`。
 
 ## 8. 启动顺序与验证
 

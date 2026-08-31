@@ -1082,8 +1082,9 @@ git commit -m "feat(配置): 统一配置文件 config.yaml 发布 1.32.0，文�
    sudo systemctl restart botero-web    # webapp
    # bot 进程（llonebot 容器侧）：重启 bot 主进程
    ```
-3. VPS 上的 `scripts/botero.env` 会被 git pull 自动删除（已 `git rm`），其值必须已并入 `config.yaml` 再重启
-4. 验证：webapp 首页可登录（盐一致）、bot 上线心跳正常、`/图库密钥` 生成的旧密钥仍可登录（old_salts 为空且盐未变则天然一致）
+3. VPS `config.yaml` 的 `live.flv_url` 填 `http://127.0.0.1:18080/live/livestream.flv`（原 systemd `Environment=BOTERO_LIVE_FLV_URL` 的本机 SRS 直连覆盖值，见 `scripts/botero-web.service` 注释）
+4. VPS 上的 `scripts/botero.env` 会被 git pull 自动删除（已 `git rm`），其值必须已并入 `config.yaml` 再重启
+5. 验证：webapp 首页可登录（盐一致）、bot 上线心跳正常、`/图库密钥` 生成的旧密钥仍可登录（old_salts 为空且盐未变则天然一致）
 
 ## Self-Review 记录
 

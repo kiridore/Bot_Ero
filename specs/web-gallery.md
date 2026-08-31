@@ -52,7 +52,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 
 | 模块 | 职责 |
 |------|------|
-| `core/config.py` | 全部 `BOTERO_*` 环境变量读取（bot 与 Web 唯一来源）；`webapp/gallery/config.py` 为兼容再导出层 |
+| `core/config.py` | 统一 `config.yaml` 读取（bot 与 Web 唯一来源，import 时 `yaml.safe_load`）；`webapp/gallery/config.py` 为兼容再导出层 |
 | `core/auth.py` | `make_login_key` / `verify_login_key`（HMAC 登录密钥） |
 | `core/web/auth_deps.py` | `get_current_user_id` / `get_optional_user_id`（登录依赖注入，唯一权威副本；feature 模块一律从本模块 import，**MUST NOT** 各自复制） |
 | `core/onebot_client.py` | `resolve_display_name` / `resolve_avatar_url`（QQ 昵称/头像） |
@@ -118,34 +118,34 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 
 ## Constraint: 配置
 
-所有配置通过环境变量读取（`core/config.py`，单一来源）：
+所有配置读自项目根 `config.yaml`（`core/config.py` 单一来源；完整键表见 `kb/QUICK_REFERENCE.md`）：
 
-| 环境变量 | 默认值 | 说明 |
+| 配置键 | 默认值 | 说明 |
 |----------|--------|------|
-| `BOTERO_DB_PATH` | `data.db` | 数据库路径 |
-| `BOTERO_IMAGE_ROOT` | `server_data/record_images` | 打卡图片目录 |
-| `BOTERO_GALLERY_HOST` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
-| `BOTERO_GALLERY_PORT` | `8765` | webapp 监听端口（唯一端口） |
-| `BOTERO_LIVE_FLV_URL` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测用）。**webapp 与 SRS 同机部署时设为 `http://127.0.0.1:18080/live/livestream.flv`**（直连本机，避免公网 hairpin 回环探测超时误报「未开播」）；浏览器播放始终走公网地址（live.js 内置） |
-| `BOTERO_ONEBOT_HTTP` | `http://192.168.0.103:3000` | OneBot HTTP API |
-| `BOTERO_ONEBOT_TOKEN` | `123456` | OneBot HTTP 令牌 |
-| `BOTERO_GROUP_ID` | `296470819` | 默认群号（昵称查询） |
-| `BOTERO_THUMB_CACHE` | `server_data/thumb_cache` | 缩略图缓存目录 |
-| `BOTERO_THUMB_MAX_WIDTH` | `480` | 缩略图最大宽度 |
-| `BOTERO_THUMB_MAX_HEIGHT` | `720` | 缩略图最大高度 |
-| `BOTERO_THUMB_QUALITY` | `82` | JPEG 缩略图质量 |
-| `BOTERO_AUTH_SALT` | `BotEro-Gallery-ChangeMe` | HMAC 盐值（**单一来源 `scripts/botero.env`**，bot 与 webapp 共用；生产建议改随机值） |
-| `BOTERO_CHECKIN_MAX_IMAGES` | `9` | 单次打卡最大图片数 |
-| `BOTERO_CHECKIN_MAX_BYTES` | `10485760` (10MB) | 单张图片最大字节 |
-| `BOTERO_TRPG_CHARS_ROOT` | `server_data/trpg_chars` | 跑团角色卡 JSON 存储根目录 |
-| `BOTERO_USER_SETTINGS_ROOT` | `server_data/user_settings` | 个人设置 JSON 存储根目录 |
-| `BOTERO_ACTIVITY_ROOT` | `server_data/activity_archive` | 活动归档根目录（`<活动id>/` 子目录） |
+| `paths.db` | `data.db` | 数据库路径 |
+| `paths.images` | `server_data/record_images` | 打卡图片目录 |
+| `webapp.host` | `0.0.0.0` | 绑定地址（局域网可访问；仅本机用 `127.0.0.1`） |
+| `webapp.port` | `8765` | webapp 监听端口（唯一端口） |
+| `live.flv_url` | `https://live.littlero.tech/live/livestream.flv` | 直播间 FLV 流地址（状态探测用）。**webapp 与 SRS 同机部署时设为 `http://127.0.0.1:18080/live/livestream.flv`**（直连本机，避免公网 hairpin 回环探测超时误报「未开播」）；浏览器播放始终走公网地址（live.js 内置） |
+| `onebot.http_url` | `http://192.168.0.103:3000` | OneBot HTTP API |
+| `onebot.token` | `123456` | OneBot HTTP 令牌 |
+| `bot.default_group` | `296470819` | 默认群号（昵称查询） |
+| `thumbs.cache_dir` | `server_data/thumb_cache` | 缩略图缓存目录 |
+| `thumbs.max_width` | `480` | 缩略图最大宽度 |
+| `thumbs.max_height` | `720` | 缩略图最大高度 |
+| `thumbs.jpeg_quality` | `82` | JPEG 缩略图质量 |
+| `auth.salt` | （必填） | HMAC 盐值（**单一来源 `config.yaml`**，bot 与 webapp 共用；生产建议改随机值） |
+| `uploads.checkin_max_images` | `9` | 单次打卡最大图片数 |
+| `uploads.checkin_max_bytes` | `10485760` (10MB) | 单张图片最大字节 |
+| `paths.trpg_chars` | `server_data/trpg_chars` | 跑团角色卡 JSON 存储根目录 |
+| `paths.user_settings` | `server_data/user_settings` | 个人设置 JSON 存储根目录 |
+| `paths.activity` | `server_data/activity_archive` | 活动归档根目录（`<活动id>/` 子目录） |
 
 ---
 
 ## Constraint: 数据库共享
 
-所有子应用与 bot 共用同一 SQLite（`BOTERO_DB_PATH`），**MUST** 通过 `core.database_manager.DbManager` 访问：
+所有子应用与 bot 共用同一 SQLite（`config.yaml` 的 `paths.db`），**MUST** 通过 `core.database_manager.DbManager` 访问：
 
 - 连接开启 WAL 模式，`busy_timeout=5000`（多进程并发安全）
 - 子应用**只允许**经由 `core/db/*` 业务 manager 读写，不直接裸 SQL（`webapp/gallery/repository.py` 是图库只读查询的既有例外）
@@ -165,7 +165,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 **登录模型:**
 - 密钥即 token：`Authorization: Bearer <key>` 或根域 cookie `botero_key`（`core/web/auth_deps.py::AUTH_COOKIE_NAME`）任一凭证；无服务端 session
-- 全站共享同一 `BOTERO_AUTH_SALT`，同一密钥在所有分区通用；**盐值单一来源为 `scripts/botero.env`**（bot 生成密钥与 webapp 验证密钥共用，改盐只改该文件）
+- 全站共享同一登录密钥盐（`config.yaml` `auth.salt`），同一密钥在所有分区通用；**盐值单一来源为 `config.yaml`**（bot 生成密钥与 webapp 验证密钥共用，改盐只改该文件）
 - 前端 token 存 localStorage（**单 origin 共享**——任一分区登录后其余分区免重复登录；`core/web/static/auth.js` 同时写根域 cookie，作为服务端页面门控凭据）
 - **依赖注入:** `Depends(get_current_user_id)`（必须登录）/ `Depends(get_optional_user_id)`（可选登录），定义在 `core/web/auth_deps.py`，两依赖均双通道兜底（header 优先，缺失读 cookie）
 
@@ -298,7 +298,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/api/forum/tags` | 必须 | 全部被引用 tag 及使用数量（`{"tags": [{"id","name","created_at","post_count"}]}`；仅返回至少被一个帖子引用的 tag，删帖/编辑移除引用后悬空 tag 自动清理，不再出现「引用(0)」） |
 | `GET` | `/api/forum/posts` | 必须 | 帖子列表（`tag`/`type` 可选过滤，置顶优先 + `id` 倒序 keyset 分页），每项含 `view_count`（浏览量） |
 | `GET` | `/api/forum/posts/{id}` | 必须 | 帖子详情（投票帖附子投票票数与当前用户已投）；每次 GET 浏览量 `view_count` +1（含编辑页预填加载，按请求次数计不按人去重），返回值含本次浏览后的最新计数；不存在/已删 → 404 |
-| `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`BOTERO_FORUM_IMAGE_MAX_BYTES`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
+| `POST` | `/api/forum/images` | 必须 | 正文图片上传（multipart，字段 `file`；仅 JPG/PNG/WebP/GIF，单张 ≤10MB（`uploads.forum_image_max_bytes`），否则 400；返回 `{"url": "/forum/media/<name>"}`，uuid 文件名不可枚举） |
 | `PATCH` | `/api/forum/posts/{id}` | 必须 | 编辑自己的帖子（`title`/`body_json`/`tags` 可改，`tags` 整体替换；类型与投票结构不可改；非本人 → 403，不存在 → 404；成功后撤回旧时间线事件并按 `forum_post:{id}` 同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `DELETE` | `/api/forum/posts/{id}` | 必须 | 删除自己的帖子（级联删除评论/选项/投票/标签关联；非本人 → 403；成功后按 `forum_post:{id}` 撤回时间线事件） |
 | `GET` | `/api/forum/posts/{id}/comments` | 必须 | 评论线程列表（两级：顶层 `id ASC` keyset 分页（时间正序，从旧到新，`cursor`/`limit≤100`），每条附 `replies[]`（`id ASC` 串内正序）；每项含 `parent_id`/`root_id`/`edited_at`/`status`，回复的回复附 `reply_to_user_id`/`reply_to_name`；仍有存活回复的软删项以 `status:'deleted'` 占位返回；响应含 `total`（open 状态总数）与 `next_cursor`（下一页顶层起点）） |
@@ -339,7 +339,7 @@ server_data/trpg_chars/<user_id>/<char_id>.json   # 单个角色完整数据（�
 server_data/user_settings/<user_id>.json          # 个人设置（文件不存在 = 全默认值）
 ```
 
-- 根目录可用 `BOTERO_TRPG_CHARS_ROOT` / `BOTERO_USER_SETTINGS_ROOT` 环境变量覆盖（默认见上文配置表）
+- 根目录可用 `config.yaml` 的 `paths.trpg_chars` / `paths.user_settings` 覆盖（默认见上文配置表）
 - **隐私开关:** `privacy.char_public`（bool，缺省 `True`）。`GET /api/characters/{user_id}/{char_id}` 仅本人或对方已公开时可访问，否则返回 403
 - 设置经 `GET/PUT /api/me/settings` 读写，`PUT` 深合并，不覆盖未传字段
 - 角色创建/更新由 `core/trpg/character.py` 的 `finalize()` 计算派生值，非法数据返回 400
@@ -451,8 +451,8 @@ with _connect() as conn:
 
 ### 认证盐值
 
-- `AUTH_SALT` 默认值为 `"BotEro-Gallery-ChangeMe"`（定义于 `core/config.py`，环境变量 `BOTERO_AUTH_SALT` 驱动）
-- **部署单一来源**：`scripts/botero.env`（bot 的 `main.py` 启动时加载、webapp 经 systemd `EnvironmentFile` 注入），两进程共用同一盐值；改盐只改该文件
+- `AUTH_SALT` 必填于 `config.yaml` `auth.salt`（缺失时启动即退出；模板提供占位值）
+- **部署单一来源**：项目根 `config.yaml` 的 `auth.salt`（bot 与 webapp 两进程共读），改盐只改该文件
 
 ---
 
@@ -500,6 +500,6 @@ webapp/static/
 ## Constraint: 部署
 
 - 完整部署（systemd unit 示例、环境变量注入、Caddy 反代配置）见 [`docs/web-apps-deployment.md`](../docs/web-apps-deployment.md)
-- 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根，环境注入 `BOTERO_DB_PATH` / `BOTERO_GALLERY_PORT` 等；`BOTERO_AUTH_SALT` 经 `scripts/botero.env`（EnvironmentFile）注入；systemd 单 unit `botero-web.service`，Caddy 根域 `littlero.tech` 全部流量反代 8765（主页/分区/API 均由 webapp 路由）；无子域 DNS
-- **直播间上游**：SRS 部署在局域网（如 `10.100.0.2:18080`），公网经子域 `live.littlero.tech`（Caddy 反代 + `Access-Control-Allow-Origin: *`，TLS）暴露 HTTP-FLV；webapp 仅经 `BOTERO_LIVE_FLV_URL` 探测/播放，不直连 SRS
+- 单进程 `python -m webapp`（默认 8765），`WorkingDirectory` 指向仓库根；全部部署可变值读自项目根 `config.yaml`（db/端口/盐等，`BOTERO_CONFIG` 可定位其他路径）；systemd 单 unit `botero-web.service`，Caddy 根域 `littlero.tech` 全部流量反代 8765（主页/分区/API 均由 webapp 路由）；无子域 DNS
+- **直播间上游**：SRS 部署在局域网（如 `10.100.0.2:18080`），公网经子域 `live.littlero.tech`（Caddy 反代 + `Access-Control-Allow-Origin: *`，TLS）暴露 HTTP-FLV；webapp 仅经 `config.yaml` `live.flv_url` 探测/播放，不直连 SRS
 

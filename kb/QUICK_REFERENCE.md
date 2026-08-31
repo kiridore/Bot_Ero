@@ -1,40 +1,54 @@
 # BotEro 快速参考
 
-> 项目身份、硬编码常量、路径、完整指令表
+> 配置文件、代码内常量、路径、完整指令表
 
 ---
 
 ## 项目身份
 
-- **Bot QQ:** `3915014383`
-- **Bot 昵称:** `小埃同学`
-- **主人 QQ:** `1057613133`
-- **默认群:** `296470819`
-- **语言:** Python 3（纯同步、多线程）
-- **数据库:** SQLite 3 (`data.db`)
-- **入口:** `python main.py`
+- **Bot QQ / 昵称 / 超管 / 默认群 / WS 地址等全部部署值**：项目根 `config.yaml`（gitignore；模板 `config.example.yaml`），代码零硬编码
+- **语言：** Python 3（纯同步、多线程）
+- **数据库：** SQLite 3 (`data.db`)
+- **入口：** `python main.py`
 
-## 硬编码常量
+## 配置文件 `config.yaml`
 
-| 常量 | 文件:行号 | 值 |
-|------|----------|-----|
-| 当前版本 | `core/config.py:10` | `BOTERO_VERSION`（单一来源，随 CHANGELOG 同步） |
-| WebSocket URL | `main.py:28` | `ws://127.0.0.1:3001` |
-| WS Token | `main.py:29` | `123456` |
-| 默认群号 | `core/context.py:16` | `296470819` |
-| 超级用户 | `core/base.py:12` | `[1057613133]` |
-| Bot QQ | `core/base.py:13` | `"3915014383"` |
-| Bot 昵称 | `core/base.py:11` | `"小埃同学"` |
-| 下载代理 | `core/utils.py:83-85` | `127.0.0.1:7890` |
-| Python 数据路径 | `core/context.py:12` | `"./server_data"` |
-| OneBot 数据路径 | `core/context.py:11` | `"/app/llonebot/server_data"` |
+`core/config.py` 在 import 时经 `yaml.safe_load` 加载（文件不存在或必填项缺失 → 启动即退出并提示 `cp config.example.yaml config.yaml`）；环境变量 `BOTERO_CONFIG` 仅用于定位配置文件本身（测试/多环境用）。修改后需重启对应进程生效。
+
+| 节 | 键 | 必填 | 默认/说明 |
+|----|----|------|----------|
+| `bot` | `qq` | ✅ | Bot QQ（**必须加引号保持 str**） |
+| | `nickname` | ✅ | 机器人昵称 |
+| | `super_users` | ✅ | 超管 QQ 列表（list[int]） |
+| | `default_group` | ✅ | 默认群号（同时供 webapp 昵称查询用） |
+| | `ws_url` / `ws_token` | ✅ | OneBot v11 WS 地址与鉴权 |
+| | `llonebot_data_path` / `python_data_path` | ✅ | 双数据路径（API 侧 / Python I/O 侧） |
+| | `download_proxy` | ❌ | 图片下载代理，空 = 直连 |
+| | `onebot_qq_volume` | ❌ | docker 卷路径，仅容器部署用 |
+| `onebot` | `http_url` / `token` | ✅ | OneBot HTTP（拉 QQ 昵称） |
+| `paths` | `db` 等 7 键 | ❌ | 缺省即默认布局（`data.db`、`server_data/*`）；相对路径按项目根解析 |
+| `webapp` | `host` / `port` | ❌ | `0.0.0.0` / `8765` |
+| `auth` | `salt` | ✅ | 登录密钥盐（HMAC；bot 生成与 webapp 验证共用） |
+| | `old_salts` | ❌ | 换盐后旧盐列表，旧密钥无感迁移 |
+| `timeline` | `url` / `token` | ✅ | Event Server 基地址与系统间事件令牌 |
+| `weekly` | `web_base_url` / `notify` | ❌ | 周报链接前缀 / 出版通知开关 |
+| `uploads` | `checkin_max_images` / `checkin_max_bytes` / `forum_image_max_bytes` | ❌ | 上传限制 |
+| `thumbs` | `cache_dir` / `max_width` / `max_height` / `jpeg_quality` | ❌ | 缩略图参数 |
+| `live` | `flv_url` | ❌ | 直播 FLV 流地址 |
+| `tools` | `icon_proxy` | ❌ | 图标抓取代理，空 = 直连 |
+
+## 代码内常量（非配置）
+
+| 常量 | 位置 | 值 |
+|------|------|-----|
+| 当前版本 | `core/config.py:17` | `BOTERO_VERSION`（单一来源，随 CHANGELOG 同步） |
 | API 超时 | `core/api.py:44` | 30 秒 |
-| 周边界偏移 | `core/utils.py:13-21` | 8 小时 (08:00) |
-| 重连延迟 | `main.py:95` | 5 秒 |
-| 系统插件（不可禁用） | `core/context.py:19-28` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome`, `message_logger` |
-| 插件命名 | `core/context.py:61-62` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
-| 群插件配置表 | `core/db/_base.py:352-357` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
-| 私聊配置 group_id | `core/context.py:68` | `0` |
+| 周边界偏移 | `core/utils.py:14-24` | 8 小时 (08:00) |
+| 重连延迟 | `main.py:79` | 5 秒 |
+| 系统插件（不可禁用） | `core/context.py:21-30` | `menu`, `group_manager`, `startup_changelog`, `backup`, `update`, `auto_friend`, `welcome`, `message_logger` |
+| 插件命名 | `core/context.py:63` | `plugin_key(cls)` = 模块路径二级名（如 `checkin`） |
+| 群插件配置表 | `core/db/_base.py:366` | `group_plugin_config(group_id, plugin_name)` — 有行=启用 |
+| 私聊配置 group_id | `core/context.py:70` | `0` |
 | 最大装备称号数 | `plugins/title/__init__.py:106` | 3 |
 | 群头衔最大长度 | `plugins/set_group_title/__init__.py:20` | 10 字符 |
 | 年补卡上限 | `plugins/remedy_checkin/__init__.py:14` | 4 次 |
@@ -44,7 +58,7 @@
 ## 常用路径
 
 ```
-./server_data/                              ← Python 文件 I/O 根目录
+./server_data/                              ← Python 文件 I/O 根目录（默认值，config.yaml 可覆盖）
   record_images/<user_id>/                  ← 打卡图片缓存（按用户分目录）
   personal_records/                         ← 生成档案图片
   thumb_cache/                              ← Web 端缩略图
@@ -53,14 +67,16 @@
   activity_archive/<活动id>/                ← 活动归档：meta.json + 接龙/匹配 markdown + imgs/
   message_log.db                            ← 群消息日志独立库（周报数据源，永久保留）
 
-/app/llonebot/server_data/                  ← OneBot API 调用中使用的路径
+/app/llonebot/server_data/                  ← OneBot API 调用中使用的路径（config.yaml bot.llonebot_data_path 默认值）
 /var/lib/docker/volumes/onebot_qq_volume/   ← Docker 卷（裸机部署时不用）
 ```
 
+> 全部数据路径可经 `config.yaml` 的 `paths` / `thumbs` 节覆盖。
+
 ## 跑团角色卡与个人设置（JSON 存储）
 
-- 角色卡**不再存 SQLite**，改存 `server_data/trpg_chars/<user_id>/`（`meta.json` 记录 `current_id`/`order`，`<char_id>.json` 为单个角色数据）；根目录可用 `BOTERO_TRPG_CHARS_ROOT` 覆盖
-- 个人设置存 `server_data/user_settings/<user_id>.json`；根目录可用 `BOTERO_USER_SETTINGS_ROOT` 覆盖
+- 角色卡**不再存 SQLite**，改存 `server_data/trpg_chars/<user_id>/`（`meta.json` 记录 `current_id`/`order`，`<char_id>.json` 为单个角色数据）；根目录可用 `config.yaml` `paths.trpg_chars` 覆盖
+- 个人设置存 `server_data/user_settings/<user_id>.json`；根目录可用 `config.yaml` `paths.user_settings` 覆盖
 - 已约定设置键：`privacy.char_public`（bool，缺省 True）= 是否允许他人查看我的角色卡（网页端 `/profile/settings` 开关，QQ 查看他人卡需已公开）
 - 存储层：`core/character_store.py`、`core/user_settings.py`（原子写 tmp+os.replace，每用户进程内锁；bot 与 web 双进程共用）
 - 网页车卡：`/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）

@@ -87,7 +87,7 @@ plugins/     47 个已注册插件（每插件一个文件夹，activity/redeem_
 webapp/      Web 单进程入口：app.py（认证+时间线主页+router include+mount）、11 功能模块、
              timeline/（Event Server + entries.json）、static/（静态文件）、requirements.txt
 scripts/     systemd unit（botero-web.service）、Caddyfile、botero-services.sh、
-             botero.env（环境变量单一来源，bot 启动加载、webapp 经 systemd EnvironmentFile 注入）
+             db 工具脚本（配置在项目根 config.yaml，不入库）
 specs/       权威约束文档（SDD，改代码前必读对应规范）
 kb/          知识库分主题（QUICK_REFERENCE / PLUGIN_CATALOG / GAMEPLAY / CONVENTIONS /
              OPERATIONS / DATABASE）
@@ -98,8 +98,8 @@ server_data/ 运行时数据（record_images / thumb_cache / trpg_chars / user_s
 
 ## 配置
 
-- 硬编码值（无配置文件）：WS `ws://127.0.0.1:3001` / token `123456`（`main.py`）、默认群 `296470819`、超管 `[1057613133]`、Bot QQ `3915014383`（`core/`）
-- 环境变量：全部 `BOTERO_*`（定义于 `core/config.py`，部署值单一来源 `scripts/botero.env`），关键项：`BOTERO_DB_PATH`、`BOTERO_AUTH_SALT`、`BOTERO_GALLERY_HOST/PORT`、`BOTERO_IMAGE_ROOT`、`BOTERO_ONEBOT_HTTP/TOKEN`、`BOTERO_GROUP_ID`
+- 配置单一来源：项目根 `config.yaml`（gitignore，模板 `config.example.yaml`）——身份（Bot QQ/超管/默认群）、WS、数据路径、下载代理、盐、端口、直播地址等全部部署可变值；缺文件/缺必填项启动即退出
+- 环境变量仅剩 `BOTERO_CONFIG`：定位配置文件本身（测试/多环境）
 - 部署：见 [`docs/web-apps-deployment.md`](docs/web-apps-deployment.md)（systemd 单 unit + Caddy 反代）
 
 ## 测试

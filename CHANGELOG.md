@@ -8,6 +8,13 @@
 
 - **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
 
+## [1.32.0] - 2026-08-31
+
+### 变更
+- 配置统一为项目根 `config.yaml`（YAML）：QQ 号、超管、默认群、WS 地址/token、数据路径、下载代理等原硬编码值与全部 `BOTERO_*` 环境变量合并为单一配置文件；真实配置退出 git（模板 `config.example.yaml`）
+- `BOTERO_CONFIG` 环境变量仅用于定位配置文件（测试与多环境部署）
+- 移除 `webapp` 失效的 `--db`/`--images` 启动参数与 `scripts/botero.env`
+- 部署迁移：`cp config.example.yaml config.yaml` 填真实值并重启；systemd unit 移除 EnvironmentFile 后 daemon-reload
 
 ## [1.31.0] - 2026-08-31
 

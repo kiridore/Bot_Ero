@@ -3,8 +3,8 @@
 本文件在 pytest 收集任何测试模块**之前**导入——在进程内首次 import core 之前
 生成临时 ``config.yaml`` 并经 ``BOTERO_CONFIG`` 指向它，全部数据路径落在会话级
 临时目录，保证 ``pytest`` 回归永不触碰真实 ``data.db`` / ``server_data/``
-（``core.config`` 在模块首次 import 时求值冻结配置，各测试文件模块级的
-``os.environ`` 赋值在统一进程下无效，隔离必须在此处前置完成，
+（``core.config`` 在模块首次 import 时读 ``config.yaml`` 求值冻结，各测试文件模块级的
+``os.environ`` 赋值无效，隔离必须在此处前置生成临时配置并设 ``BOTERO_CONFIG``，
 见 kb/CONVENTIONS.md 陷阱：配置在 import 时冻结）。
 
 布局约定：

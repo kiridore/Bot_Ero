@@ -45,7 +45,7 @@
 ## Constraint: 入口点 (main.py)
 
 `main.py` 是唯一入口，负责：
-1. **环境注入**：加载 `scripts/botero.env`（`os.environ.setdefault`，必须在 import core 之前——`core.config` 在 import 时读取环境变量；进程已有环境变量优先）
+1. **配置加载**：`core.config` 在 import 时读取项目根 `config.yaml`（缺文件/缺必填项启动即退出；`BOTERO_CONFIG` 环境变量可定位其他路径）
 2. 建立 WebSocket 连接到 OneBot 服务端
 3. 注册 `on_message` 回调
 4. 掉线自动重连
@@ -145,7 +145,7 @@ def resolve_event_type(context):
 ## Constraint: 模块依赖关系
 
 ```
-main.py（启动先加载 scripts/botero.env → 再 import core）
+main.py（import core.config 读项目根 config.yaml）
  ├── core.api          (WS_APP, Echo 单例)
  ├── core.context      (plugin_registry, SYSTEM_PLUGINS, 路径常量)
  ├── core.logger       (全局 logger)
@@ -159,7 +159,7 @@ main.py（启动先加载 scripts/botero.env → 再 import core）
                                 alarm/immortal/quest/activity/guestbook/redeem/timeline/
                                 forum/tools/weekly/message_log/purge_user，DDL 集中在 _base.py)
 
-core.config            ← 全部 BOTERO_* 环境变量读取（bot 与 webapp 共用）
+core.config            ← 统一 config.yaml 读取（yaml.safe_load，bot 与 webapp 共用）
 core.auth              ← make_login_key / verify_login_key（HMAC 登录密钥）
 core.title_defs        ← TITLE_DEFS 导入时快照（bot 与 webapp 各自加载）
 core.feature_packs     ← 功能包定义（/功能包 批量开关）
