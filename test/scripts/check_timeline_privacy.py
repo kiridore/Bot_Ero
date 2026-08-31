@@ -47,6 +47,10 @@ from core.auth import make_login_key  # noqa: E402
 from core.config import IMAGE_ROOT, THUMB_CACHE_DIR  # noqa: E402
 from webapp.app import app  # noqa: E402
 
+# Task 3 迁移 core/user_settings.py 读 config.yaml 前，上面 YAML 的 paths.user_settings 覆盖
+# 对它无效（仍读环境变量/默认路径）——直接 patch 模块属性，防止写真实 server_data/user_settings/
+user_settings.SETTINGS_ROOT = Path(os.path.join(_tmp, "user_settings"))
+
 A = "1057613133"  # 作者：私聊打卡隐藏 + 图片模糊
 C = "3915014383"  # 普通查看者（设置全默认公开）
 AH = {"Authorization": "Bearer " + make_login_key(int(A)), "Content-Type": "application/json"}
