@@ -23,7 +23,7 @@ import threading
 import uuid
 from pathlib import Path
 
-SETTINGS_ROOT = Path(os.environ.get("BOTERO_USER_SETTINGS_ROOT", "server_data/user_settings"))
+from core.config import USER_SETTINGS_ROOT as SETTINGS_ROOT  # 根目录来自 config.yaml paths.user_settings
 
 _LOCKS: dict[str, threading.Lock] = {}
 

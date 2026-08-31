@@ -15,10 +15,8 @@ class RandomReferencePlugin(CommandPlugin):
 
     def _resolve_image_url(self) -> str:
         # picsum.photos returns a redirect to the actual image.
-        proxies = {
-            "http": "http://127.0.0.1:7890",
-            "https": "http://127.0.0.1:7890",
-        }
+        from core.config import DOWNLOAD_PROXY
+        proxies = {"http": DOWNLOAD_PROXY, "https": DOWNLOAD_PROXY} if DOWNLOAD_PROXY else None
         try:
             resp = requests.get(self.PICSUM_URL, proxies=proxies, timeout=30, allow_redirects=False)
         except Exception:

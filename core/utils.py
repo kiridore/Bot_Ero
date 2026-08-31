@@ -80,10 +80,8 @@ def ensure_checkin_image(api, user_id, content):
 
 def download_image(url, local_path, expected_size=None):
     try:
-        proxies = {
-            "http": "http://127.0.0.1:7890",
-            "https": "http://127.0.0.1:7890"
-        }
+        from core.config import DOWNLOAD_PROXY
+        proxies = {"http": DOWNLOAD_PROXY, "https": DOWNLOAD_PROXY} if DOWNLOAD_PROXY else None
 
         response = requests.get(url, proxies=proxies, timeout=30)
         if response.status_code != 200:
