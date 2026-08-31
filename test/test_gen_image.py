@@ -232,5 +232,71 @@ class TestFetchAvatarCachedLogic(unittest.TestCase):
             self.assertIsNone(fetch_avatar_cached(_Api(), 987003))
 
 
+@unittest.skipUnless(PILImage is not None, "需要安装 Pillow（pip install pillow）")
+class TestRankCard(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="rank_card_test_")
+        self.addCleanup(self._tmp.cleanup)
+        self.out_root = Path(self._tmp.name)
+
+    def _assert_png_file(self, path: Path) -> None:
+        self.assertTrue(path.is_file(), f"未生成文件: {path}")
+        self.assertGreater(path.stat().st_size, 100, f"文件过小: {path}")
+        with PILImage.open(path) as loaded:
+            self.assertEqual(loaded.format, "PNG")
+
+    def _render_basic(self):
+        from core.gen_image.rank_card import RankRow, render_rank_card
+
+        rows = [
+            RankRow(rank=1, name="「画师」阿囡", detail="114514分",
+                    avatar=PILImage.new("RGB", (96, 96), (212, 175, 55))),
+            RankRow(rank=2, name="板油二号", detail="1919分", avatar=None),
+            RankRow(rank=3, name="很长的名字" * 8, detail="810分", avatar=None),
+        ]
+        return render_rank_card("积分排行榜", "TOP 3", rows)
+
+    def test_render_basic(self):
+        img = self._render_basic()
+        self.assertEqual(img.mode, "RGB")
+        self.assertEqual(img.width, 620)
+        self.assertGreater(img.height, 200)  # 高度随字体度量浮动，下界只验整体结构已渲染
+        path = GEN_IMAGE_OUTPUT / "rank_card_basic.png"
+        img.save(path, format="PNG")
+        self._assert_png_file(path)
+
+    def test_render_week_board_many_rows(self):
+        from core.gen_image.rank_card import RankRow, render_rank_card
+
+        rows = [
+            RankRow(rank=i, name=f"板油{i:02d}", detail=f"2026-08-{(i % 28) + 1:02d} 09:12:34")
+            for i in range(1, 31)
+        ]
+        img = render_rank_card("本周打卡板油", "2026-08-31 ~ 2026-09-07 · 共 30 名板油完成打卡", rows)
+        self.assertGreater(img.height, 1000)  # 30 行 + 头像行的最小高度保障
+        path = GEN_IMAGE_OUTPUT / "rank_card_week_board.png"
+        img.save(path, format="PNG")
+        self._assert_png_file(path)
+
+    def test_save_rank_png_rotates_files(self):
+        from core.gen_image import rank_card as rank_card_module
+        from core.gen_image.rank_card import RankRow, render_rank_card, save_rank_png
+
+        with patch.object(rank_card_module.context, "python_data_path", self._tmp.name):
+            img = self._render_basic()
+            py1, send1 = save_rank_png("points_rank", img)
+            img2 = render_rank_card(
+                "标题", "副标题",
+                [RankRow(rank=1, name="乙", detail="2分")],
+            )
+            py2, send2 = save_rank_png("points_rank", img2)
+
+        self.assertFalse(Path(py1).is_file())  # 旧图已被清理
+        self.assertTrue(Path(py2).is_file())
+        self.assertNotEqual(py1, py2)
+        self.assertIn("rank_cards", send2)
+        self.assertIn("points_rank_", Path(py2).name)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
