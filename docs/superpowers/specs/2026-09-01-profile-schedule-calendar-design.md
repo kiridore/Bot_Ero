@@ -68,7 +68,7 @@
 `AlarmCreateIn` 加 `scope: str = "private"`（`"private" | "group"`，其他值 400）：
 
 - `private`：现状行为，`db.alarm.add(..., group_id=None, is_private=True)`
-- `group`：`db.alarm.add(..., group_id=DEFAULT_GROUP_ID, is_private=False)`（`core.context.DEFAULT_GROUP_ID`）
+- `group`：`db.alarm.add(..., group_id=GROUP_ID, is_private=False)`（`core.config.GROUP_ID`，即 `BOTERO_GROUP_ID` 环境变量，默认 296470819——与 `resolve_display_name` 用的是同一个群）
 
 ### 新增 `PUT /api/me/alarms/{id}`（编辑，仅创建者）
 
@@ -77,7 +77,7 @@
 - 复用创建的整套校验（`_build_alarm_body` → `ga._parse_create_body` → fire/content/recur）
 - `UPDATE group_alarms SET fire_at, content, is_private, group_id, is_recurring, recur_kind, recur_a, recur_b, recur_c`，编号不变
 - 语义：编辑循环闹钟 = 重新指定规则，`fire_at` 从现在重算下次（等于删旧建新但保留编号）
-- scope 互转：`private→group` 置 `group_id=DEFAULT_GROUP_ID, is_private=0`；`group→private` 置 `is_private=1`（group_id 列置 0，与 `add()` 私聊写入一致）
+- scope 互转：`private→group` 置 `group_id=GROUP_ID, is_private=0`；`group→private` 置 `is_private=1`（group_id 列置 0，与 `add()` 私聊写入一致）
 
 ### 保留 `GET /api/me/alarms`（旧列表）
 
