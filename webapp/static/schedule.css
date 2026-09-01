@@ -72,7 +72,7 @@
 .cal-chip.mine {
   border-left-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--accent-soft);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 .cal-chip.more { border-left-color: transparent; color: var(--ink-soft); }
@@ -117,9 +117,10 @@
 .weekday-btn:hover { border-color: var(--accent); }
 .alarm-type-btn.active,
 .weekday-btn.active {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
 }
 .weekday-group { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .weekday-btn { min-width: 2.2rem; text-align: center; padding-inline: 0.55rem; }
