@@ -483,8 +483,12 @@ function makeChip(item) {
 function selectDay(key) {
   calState.selectedDate = key;
   renderCalendar();
+  // 从日期格新建时清空残留：编辑态遗留的旧内容与范围不带入新闹钟
   formState.editingId = null;
   formState.seeds = null;
+  const contentEl = document.getElementById("alarmContent");
+  if (contentEl) contentEl.value = "";
+  setScope("private");
   updateFormModeUi();
   setScheduleType("once_date");
   const dateEl = document.getElementById("alarmDate");

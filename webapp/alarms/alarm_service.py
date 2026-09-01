@@ -329,10 +329,11 @@ def update_alarm(user_id: str, alarm_id: int, payload: dict[str, Any]) -> dict:
          rec, rk, ra, rb, rc, int(alarm_id), int(user_id)),
     )
     db.conn.commit()
+    verb = "在群里提醒" if scope == "group" else "提醒你"
     return {
         "id": int(alarm_id),
         "message": (
-            f"已修改闹钟 #{alarm_id}，将于 {fire.strftime('%Y-%m-%d %H:%M')} 提醒你："
+            f"已修改闹钟 #{alarm_id}，将于 {fire.strftime('%Y-%m-%d %H:%M')} {verb}："
             f"「{clean_content}」"
         ),
     }
