@@ -1484,6 +1484,8 @@ function renderAlarmList() {
     `;
     card.addEventListener("click", () => openAlarmDialog({
       ...item,
+      // 列表 API 的 scope 是展示字符串（“私聊”/“群 N”），换成枚举供悬浮窗/编辑用
+      scope: item.is_private ? "private" : "group",
       date: String(item.fire_at).slice(0, 10),
       time: String(item.fire_at).slice(11, 16),
       is_mine: true,
