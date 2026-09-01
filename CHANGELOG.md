@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.33.1] - 2026-09-01
+
+### 修复
+
+- **静态资产陈旧缓存**：`/static/`、`/shared/`、`/entries.json` 现返回 `Cache-Control: no-cache`（带 ETag 重验证）——修复导航改名（如闹钟→日程）后浏览器仍显示旧名称的问题
+
 ## [1.33.0] - 2026-09-01
 
 ### 新增

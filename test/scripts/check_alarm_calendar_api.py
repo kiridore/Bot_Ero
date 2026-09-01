@@ -131,6 +131,10 @@ r = client.get("/profile/schedule", follow_redirects=False)
 check("未登录页面 302 登录", r.status_code == 302 and "/login" in r.headers.get("location", ""))
 r = client.get("/profile/schedule", headers=H)
 check("日程页 200", r.status_code == 200 and "日程" in r.text)
+r = client.get("/entries.json", headers=H)
+check("静态资产 no-cache 重验证", r.headers.get("cache-control") == "no-cache"
+      and client.get("/shared/nav.js", headers=H).headers.get("cache-control") == "no-cache")
+check("导航数据已是日程", "\u65e5\u7a0b" in r.text and "/profile/schedule" in r.text)
 
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)

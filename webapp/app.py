@@ -54,6 +54,17 @@ async def login_guard(request: Request, call_next):
     return await call_next(request)
 
 
+# —— 静态资产防陈旧：无 Cache-Control 时浏览器启发式缓存会让 nav.js/entries.json
+# 这类内容变更型资产长期陈旧（如导航改名不生效）；no-cache = 每次带 ETag 重验证，304 极便宜
+@app.middleware("http")
+async def static_revalidate(request: Request, call_next):
+    resp = await call_next(request)
+    path = request.url.path
+    if path.startswith(("/static/", "/shared/")) or path == "/entries.json":
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 class LoginIn(BaseModel):
     key: str
 
