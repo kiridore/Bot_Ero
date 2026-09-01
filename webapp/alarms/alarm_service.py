@@ -6,11 +6,15 @@
 
 from __future__ import annotations
 
+import calendar as _cal
 import importlib.util
 import re
+from datetime import datetime
 from typing import Any
 
+from core.config import GROUP_ID
 from core.database_manager import DbManager
+from core.onebot_client import resolve_display_name
 from core import config
 
 _GROUP_ALARM_PATH = config.PROJECT_ROOT / "plugins" / "group_alarm" / "parser.py"
@@ -217,3 +221,66 @@ def cancel_alarm(user_id: str, alarm_id: int) -> dict:
     if not ok:
         raise ValueError("取消失败：编号不存在、已触发或不是你创建的闹钟")
     return {"message": f"已取消闹钟 #{alarm_id}"}
+
+
+def calendar_month(user_id: str, month: str) -> dict:
+    """按月展开闹钟（服务端权威展开，前端零重复实现）。
+
+    只向前展开：单次看 fire_at 是否落月内；循环从 fire_at 推进到月末。
+    # ponytail: fire_at 落后于 now（bot 停机）时显示其迟到的待触发项，与列表视图一致
+    """
+    ga = _load_group_alarm()
+    uid = int(user_id)
+    y, m = int(month[:4]), int(month[5:7])
+    month_start = datetime(y, m, 1)
+    month_end = datetime(y, m, _cal.monthrange(y, m)[1], 23, 59, 59)
+    now = datetime.now()
+
+    db = DbManager()
+    db.cur.execute(
+        """
+        SELECT id, creator_user_id, fire_at, content, is_private,
+               is_recurring, recur_kind, recur_a, recur_b, recur_c
+        FROM group_alarms
+        WHERE fired = 0 AND (creator_user_id = ? OR is_private = 0)
+        """,
+        (uid,),
+    )
+    rows = db.cur.fetchall()
+    days: dict[str, list[dict]] = {}
+
+    def place(id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc, occ: datetime):
+        is_recurring = int(is_rec or 0) and int(rk or 0) > 0
+        days.setdefault(occ.strftime("%Y-%m-%d"), []).append({
+            "id": int(id_),
+            "time": occ.strftime("%H:%M"),
+            "content": content,
+            "date": occ.strftime("%Y-%m-%d"),
+            "is_mine": int(creator) == uid,
+            "scope": "private" if int(is_priv or 0) else "group",
+            "is_recurring": is_recurring,
+            "recur_kind": int(rk or 0),
+            "recur_a": int(ra or 0),
+            "recur_b": int(rb or 0),
+            "recur_desc": ga._format_recur_desc(int(rk), int(ra or 0), int(rb or 0), int(rc or 0)) if is_recurring else None,
+            "creator_name": resolve_display_name(str(creator)),
+        })
+
+    for id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc in rows:
+        fire = datetime.strptime(fire_s, "%Y-%m-%d %H:%M:%S")
+        is_recurring = int(is_rec or 0) and int(rk or 0) > 0
+        if not is_recurring:
+            if month_start <= fire <= month_end:
+                place(id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc, fire)
+            continue
+        occ = fire if fire > now else ga._next_recurring_fire(fire, now, int(rk), int(ra), int(rb), int(rc))
+        guard = 0
+        while occ <= month_end and guard < 10000:
+            if occ >= month_start:
+                place(id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc, occ)
+            occ = ga._next_recurring_fire(occ, occ, int(rk), int(ra), int(rb), int(rc))
+            guard += 1
+
+    for items in days.values():
+        items.sort(key=lambda x: (x["time"], x["id"]))
+    return {"month": month, "days": days, "min_lead_minutes": 5}

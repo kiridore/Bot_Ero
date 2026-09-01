@@ -1,16 +1,19 @@
 """闹钟子应用：个人与群闹钟管理。"""
 
+import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from webapp.alarms.alarm_service import cancel_alarm, create_alarm, list_alarms
+from webapp.alarms.alarm_service import calendar_month, cancel_alarm, create_alarm, list_alarms
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
 
 router = APIRouter()
+
+_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 class AlarmCreateIn(BaseModel):
@@ -39,6 +42,16 @@ def _or_400(fn, *args):
 @router.get("/api/me/alarms")
 def api_alarms_list(user_id: Annotated[str, Depends(get_current_user_id)]):
     return list_alarms(user_id)
+
+
+@router.get("/api/me/calendar")
+def api_calendar(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    month: str = Query(...),
+):
+    if not _MONTH_RE.match(month):
+        raise HTTPException(status_code=400, detail="month 须为 YYYY-MM")
+    return calendar_month(user_id, month)
 
 
 @router.post("/api/me/alarms")
