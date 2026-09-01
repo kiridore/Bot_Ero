@@ -154,6 +154,10 @@
 .alarm-content { margin: 0.35rem 0 0; font-size: 0.92rem; word-break: break-word; }
 
 /* —— 详情/当日悬浮窗 —— */
+.alarm-dlg-body { padding: 0.9rem 1rem 0.4rem; }
+#alarmDialog .alarm-actions { padding: 0.4rem 1rem 0.9rem; margin-top: 0; }
+#dayDlgList { padding-bottom: 0.5rem; }
+#dayDlgList .day-row-btn:last-child { border-bottom: none; }
 .alarm-dlg-body p { margin: 0.3rem 0; }
 .alarm-dlg-badge {
   display: inline-block;
