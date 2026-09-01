@@ -569,7 +569,7 @@ function renderAlarmList() {
     const card = document.createElement("article");
     card.className = "alarm-item";
     card.dataset.reveal = "";
-    const metaParts = [`#${item.id}`, item.scope === "group" ? "群内公开" : "仅我"];
+    const metaParts = [`#${item.id}`, item.is_private ? "仅我" : "群内公开"];
     if (item.recur_desc) metaParts.push(item.recur_desc);
     metaParts.push(item.fire_at);
     card.innerHTML = `
