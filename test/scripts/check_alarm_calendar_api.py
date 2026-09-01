@@ -84,5 +84,45 @@ check("循环闹钟次日展开", next_key in data["days"])
 check("同日按时间排序", [it["time"] for it in data["days"][key]]
       == sorted(it["time"] for it in data["days"][key]))
 
+# —— scope 与编辑（Task 2）——
+tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+r = client.post("/api/me/alarms", headers=JH, json={
+    "content": "网页群闹钟", "schedule_type": "once_date", "date": tomorrow, "time": "21:00",
+    "scope": "group",
+})
+gid_new = r.json().get("id")
+db_cur = DB.cur
+db_cur.execute("SELECT is_private, group_id FROM group_alarms WHERE id = ?", (gid_new,))
+is_priv, gid_val = db_cur.fetchone()
+check("POST scope=group 写群字段", r.status_code == 200 and int(is_priv) == 0
+      and int(gid_val) == 296470819, r.text)
+
+r = client.post("/api/me/alarms", headers=JH, json={
+    "content": "网页私聊闹钟", "schedule_type": "once_date", "date": tomorrow, "time": "21:30",
+})
+priv_new = r.json().get("id")
+db_cur.execute("SELECT is_private FROM group_alarms WHERE id = ?", (priv_new,))
+check("POST 默认 private", int(db_cur.fetchone()[0]) == 1)
+
+r = client.put(f"/api/me/alarms/{gid_new}", headers=JH, json={
+    "content": "改成每天群提醒", "schedule_type": "daily", "time": "08:05", "scope": "group",
+})
+check("PUT 200", r.status_code == 200 and r.json().get("id") == gid_new, r.text)
+db_cur.execute("SELECT content, recur_kind, recur_a FROM group_alarms WHERE id = ?", (gid_new,))
+content_v, rk_v, ra_v = db_cur.fetchone()
+check("PUT 重算规则", content_v == "改成每天群提醒" and int(rk_v) == 1 and int(ra_v) == 1)
+
+r = client.put(f"/api/me/alarms/{gid_new}", headers={"Content-Type": "application/json", **OH},
+               json={"content": "抢改", "schedule_type": "daily", "time": "01:00"})
+check("PUT 非创建者 400", r.status_code == 400)
+
+r = client.put(f"/api/me/alarms/{gid_new}", headers=JH, json={
+    "content": "转私聊", "schedule_type": "daily", "time": "08:05", "scope": "private",
+})
+db_cur.execute("SELECT is_private, group_id FROM group_alarms WHERE id = ?", (gid_new,))
+is_priv2, gid2 = db_cur.fetchone()
+check("PUT 群转私聊字段翻转", int(is_priv2) == 1 and int(gid2) == 0)
+
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)

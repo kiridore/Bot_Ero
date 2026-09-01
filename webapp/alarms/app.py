@@ -7,7 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from webapp.alarms.alarm_service import calendar_month, cancel_alarm, create_alarm, list_alarms
+from webapp.alarms.alarm_service import (
+    calendar_month,
+    cancel_alarm,
+    create_alarm,
+    list_alarms,
+    update_alarm,
+)
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
 
@@ -30,6 +36,7 @@ class AlarmCreateIn(BaseModel):
     weekday: int | None = None
     month: int | None = None
     day: int | None = None
+    scope: str = "private"
 
 
 def _or_400(fn, *args):
@@ -60,6 +67,15 @@ def api_alarms_create(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     return _or_400(create_alarm, user_id, body.model_dump())
+
+
+@router.put("/api/me/alarms/{alarm_id}")
+def api_alarms_update(
+    alarm_id: int,
+    body: AlarmCreateIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    return _or_400(update_alarm, user_id, alarm_id, body.model_dump())
 
 
 @router.delete("/api/me/alarms/{alarm_id}")

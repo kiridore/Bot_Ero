@@ -148,6 +148,9 @@ def _format_alarm_row(row: tuple, format_recur) -> dict:
         "is_private": bool(int(is_priv or 0)),
         "group_id": int(gid or 0),
         "scope": scope,
+        "recur_kind": int(rk or 0),
+        "recur_a": int(ra or 0),
+        "recur_b": int(rb or 0),
     }
 
 
@@ -172,6 +175,9 @@ def list_alarms(user_id: str) -> dict:
 
 def create_alarm(user_id: str, payload: dict[str, Any]) -> dict:
     body = _build_alarm_body(payload)
+    scope = str(payload.get("scope") or "private")
+    if scope not in ("private", "group"):
+        raise ValueError("提醒范围须为 private 或 group")
     ga = _load_group_alarm()
     parsed = ga._parse_create_body(body)
     if isinstance(parsed, str):
@@ -183,8 +189,8 @@ def create_alarm(user_id: str, payload: dict[str, Any]) -> dict:
         int(user_id),
         fire,
         clean_content,
-        group_id=None,
-        is_private=True,
+        group_id=GROUP_ID if scope == "group" else None,
+        is_private=scope != "group",
         recur=recur,
     )
     if recur:
@@ -284,3 +290,49 @@ def calendar_month(user_id: str, month: str) -> dict:
     for items in days.values():
         items.sort(key=lambda x: (x["time"], x["id"]))
     return {"month": month, "days": days, "min_lead_minutes": 5}
+
+
+def update_alarm(user_id: str, alarm_id: int, payload: dict[str, Any]) -> dict:
+    body = _build_alarm_body(payload)
+    scope = str(payload.get("scope") or "private")
+    if scope not in ("private", "group"):
+        raise ValueError("提醒范围须为 private 或 group")
+    ga = _load_group_alarm()
+    parsed = ga._parse_create_body(body)
+    if isinstance(parsed, str):
+        raise ValueError(parsed)
+
+    fire, clean_content, recur = parsed
+    db = DbManager()
+    db.cur.execute(
+        "SELECT id FROM group_alarms WHERE id = ? AND creator_user_id = ? AND fired = 0",
+        (int(alarm_id), int(user_id)),
+    )
+    if not db.cur.fetchone():
+        raise ValueError("修改失败：编号不存在、已触发或不是你创建的闹钟")
+
+    if recur:
+        k, a, b, c = recur
+        rec, rk, ra, rb, rc = 1, k, a, b, c
+    else:
+        rec = rk = ra = rb = rc = 0
+    # ponytail: 与 bot advance() 并发时最后写赢；出现丢更新再加 fire_at 前置条件比对
+    db.cur.execute(
+        """
+        UPDATE group_alarms
+        SET fire_at = ?, content = ?, is_private = ?, group_id = ?,
+            is_recurring = ?, recur_kind = ?, recur_a = ?, recur_b = ?, recur_c = ?
+        WHERE id = ? AND creator_user_id = ? AND fired = 0
+        """,
+        (fire.strftime("%Y-%m-%d %H:%M:%S"), clean_content,
+         0 if scope == "group" else 1, GROUP_ID if scope == "group" else 0,
+         rec, rk, ra, rb, rc, int(alarm_id), int(user_id)),
+    )
+    db.conn.commit()
+    return {
+        "id": int(alarm_id),
+        "message": (
+            f"已修改闹钟 #{alarm_id}，将于 {fire.strftime('%Y-%m-%d %H:%M')} 提醒你："
+            f"「{clean_content}」"
+        ),
+    }

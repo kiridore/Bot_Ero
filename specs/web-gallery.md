@@ -247,7 +247,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/me/alarms` | 必须 | 闹钟列表 |
 | `GET` | `/api/me/calendar?month=YYYY-MM` | 必须 | 月历展开（自己的 + 全部群闹钟；循环向前展开） |
-| `POST` | `/api/me/alarms` | 必须 | 创建闹钟 |
+| `POST` | `/api/me/alarms` | 必须 | 创建闹钟（`scope`: private/group，默认 private） |
+| `PUT` | `/api/me/alarms/{id}` | 必须 | 编辑闹钟（仅创建者；重算规则，支持私聊/群互转） |
 | `DELETE` | `/api/me/alarms/{id}` | 必须 | 取消闹钟 |
 
 ### 活动（`activities` 模块）

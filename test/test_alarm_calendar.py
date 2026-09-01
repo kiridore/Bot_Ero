@@ -119,5 +119,54 @@ class CalendarExpandTest(unittest.TestCase):
         self.assertEqual([i["content"] for i in items], ["早", "晚"])
 
 
+class UpdateAlarmTest(unittest.TestCase):
+    def setUp(self):
+        db = DbManager()
+        db.cur.execute("DELETE FROM group_alarms")
+        db.conn.commit()
+        self.me, self.other = "10001", "10002"
+
+    def test_update_recomputes_rule_and_keeps_id(self):
+        fire = datetime.now() + timedelta(days=1)
+        db = DbManager()  # 持有引用：临时 DbManager 链式取属性后 __del__ 会提前关连接
+        aid = db.alarm.add(int(self.me), fire, "旧内容")
+        new_fire = datetime.now() + timedelta(days=2)
+        out = alarm_service.update_alarm(self.me, aid, {
+            "content": "新内容", "schedule_type": "once_date",
+            "date": new_fire.strftime("%Y-%m-%d"), "time": "09:30",
+            "scope": "private",
+        })
+        self.assertEqual(out["id"], aid)  # 编号不变
+        db = DbManager()
+        db.cur.execute(
+            "SELECT content, fire_at, is_private FROM group_alarms WHERE id = ?", (aid,))
+        content, fire_at, is_priv = db.cur.fetchone()
+        self.assertEqual(content, "新内容")
+        self.assertTrue(fire_at.startswith(new_fire.strftime("%Y-%m-%d")))
+        self.assertEqual(int(is_priv), 1)
+
+    def test_scope_flip_group_to_private(self):
+        fire = datetime.now() + timedelta(days=1)
+        db = DbManager()
+        aid = db.alarm.add(int(self.me), fire, "群", group_id=123, is_private=False)
+        alarm_service.update_alarm(self.me, aid, {
+            "content": "群", "schedule_type": "once_date",
+            "date": fire.strftime("%Y-%m-%d"), "time": "20:00", "scope": "private",
+        })
+        db = DbManager()
+        db.cur.execute("SELECT is_private, group_id FROM group_alarms WHERE id = ?", (aid,))
+        is_priv, gid = db.cur.fetchone()
+        self.assertEqual((int(is_priv), int(gid)), (1, 0))
+
+    def test_non_creator_rejected(self):
+        fire = datetime.now() + timedelta(days=1)
+        db = DbManager()
+        aid = db.alarm.add(int(self.other), fire, "别人的")
+        with self.assertRaises(ValueError):
+            alarm_service.update_alarm(self.me, aid, {
+                "content": "改", "schedule_type": "once_today", "time": "23:50",
+            })
+
+
 if __name__ == "__main__":
     unittest.main()
