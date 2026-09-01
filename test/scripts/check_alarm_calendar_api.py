@@ -124,5 +124,13 @@ db_cur.execute("SELECT is_private, group_id FROM group_alarms WHERE id = ?", (gi
 is_priv2, gid2 = db_cur.fetchone()
 check("PUT 群转私聊字段翻转", int(is_priv2) == 1 and int(gid2) == 0)
 
+# —— 路由与页面（Task 4）——
+r = client.get("/alarms", headers=H, follow_redirects=False)
+check("旧 /alarms 302（登录态）", r.status_code == 302 and r.headers.get("location") == "/profile/schedule")
+r = client.get("/profile/schedule", follow_redirects=False)
+check("未登录页面 302 登录", r.status_code == 302 and "/login" in r.headers.get("location", ""))
+r = client.get("/profile/schedule", headers=H)
+check("日程页 200", r.status_code == 200 and "日程" in r.text)
+
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)

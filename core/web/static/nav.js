@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { label: "个人中心", path: "/profile" },
   { label: "跑团", path: "/trpg" },
   { label: "留言簿", path: "/guestbook" },
-  { label: "闹钟", path: "/alarms" },
+  { label: "日程", path: "/profile/schedule" },
   { label: "活动", path: "/activities" },
   { label: "直播", path: "/live" },
   { label: "工具箱", path: "/tools" },

@@ -4,7 +4,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from webapp.alarms.alarm_service import (
@@ -86,9 +86,15 @@ def api_alarms_cancel(
     return _or_400(cancel_alarm, user_id, alarm_id)
 
 
-@router.get("/alarms")
-def alarms_page():
-    page = STATIC_DIR / "alarms.html"
+@router.get("/profile/schedule")
+def schedule_page():
+    page = STATIC_DIR / "schedule.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少静态页面")
     return FileResponse(page)
+
+
+@router.get("/alarms")
+def alarms_page():
+    """旧闹钟页：302 到日程页（保留书签兼容）。"""
+    return RedirectResponse("/profile/schedule", status_code=302)
