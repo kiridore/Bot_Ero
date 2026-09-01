@@ -132,11 +132,35 @@ const byClass = (cls) => ALL_ELS.filter((e) => e.classList && e.classList.contai
   check("过去日 past", cellOf("2026-09-01").classList.contains("past"));
   check("今天 today", cellOf("2026-09-15").classList.contains("today"));
 
-  // 3. chip：3 条上限 + mine/other 类名
-  const chips = cellOf("2026-09-15").children.filter((c) => c.classList.contains("cal-chip"));
-  check("chip 最多 3 条 + +N 折叠", chips.length === 4 && chips[3].classList.contains("more") && chips[3].textContent === "+1 更多");
-  check("我的 chip mine", chips[0].classList.contains("mine"));
-  check("别人的 chip other", chips[1].classList.contains("other"));
+  // 3. chip 与过滤：默认隐藏循环 → 08:00「我的每天」不可见；mine/other 类名
+  const chipsOf = (key) => byClass("cal-cell").slice(-42)
+    .find((c) => c.dataset.date === key)
+    .children.filter((c) => c.classList.contains("cal-chip"));
+  const latestCbs = () => ALL_ELS.filter((e) => e.type === "checkbox").slice(-3);
+  const fire = async (cb, val) => { cb.checked = val; await (cb._listeners.change || [])[0]({ target: cb }); };
+  let chips = chipsOf("2026-09-15");
+  check("默认隐藏循环闹钟（3 条无 +N）", chips.length === 3 && !chips.some((c) => c.textContent.includes("我的每天")));
+  check("别人的 chip other", chips[0].classList.contains("other") && chips[0].textContent.includes("别人的群"));
+  check("我的 chip mine", chips.find((c) => c.textContent.includes("第三条")).classList.contains("mine"));
+  const cbs0 = latestCbs();
+  check("过滤行 3 个 checkbox 且默认只勾隐藏循环", cbs0.length === 3 && cbs0[0].checked === true && !cbs0[1].checked && !cbs0[2].checked);
+
+  // 3b. 取消隐藏循环 → 4 条 + +N 折叠
+  await fire(cbs0[0], false);
+  chips = chipsOf("2026-09-15");
+  check("取消隐藏循环后 4 条 + +N 折叠", chips.length === 4 && chips[3].classList.contains("more") && chips[3].textContent === "+1 更多" && chips.some((c) => c.textContent.includes("我的每天")));
+  // 3c. 勾选隐藏非我创建 → 别人的群消失
+  await fire(latestCbs()[1], true);
+  chips = chipsOf("2026-09-15");
+  check("隐藏非我创建后别人 chip 消失", chips.length === 3 && !chips.some((c) => c.textContent.includes("别人的群")));
+  // 3d. 勾选隐藏群聊 → 我的群闹钟也隐藏，仅剩私聊
+  await fire(latestCbs()[2], true);
+  chips = chipsOf("2026-09-15");
+  check("隐藏群聊后仅剩私聊 chip", chips.length === 2 && !chips.some((c) => c.textContent.includes("第三条")) && chips.some((c) => c.textContent.includes("第四条")));
+  // 3e. 还原默认过滤（后续用例用）
+  await fire(latestCbs()[0], true);
+  await fire(latestCbs()[1], false);
+  await fire(latestCbs()[2], false);
 
   // 4. 点未来日空白 → 预填 once_date + 日期（selectDay 会重建日历，重新取节点）
   const target = cellOf("2026-09-20");
@@ -149,14 +173,15 @@ const byClass = (cls) => ALL_ELS.filter((e) => e.classList && e.classList.contai
 
   // 5. 我的 chip 点击 → 详情悬浮窗含编辑入口（合成事件：listener 里调 e.stopPropagation）
   const ev = { stopPropagation() {} };
-  const mineChip = chips[0];
+  const mineChip = chipsOf("2026-09-15").find((c) => c.textContent.includes("第三条"));
   await mineChip._listeners.click[0](ev);
   check("详情悬浮窗打开", els.alarmDialog.open === true);
   check("我的闹钟显示编辑入口", !els.alarmDlgActions.classList.contains("hidden"));
   check("详情含创建人", els.alarmDlgBody._html.includes("我（"));
 
   // 6. 别人的闹钟 → 编辑入口隐藏
-  await chips[1]._listeners.click[0](ev);
+  const otherChip = chipsOf("2026-09-15").find((c) => c.textContent.includes("别人的群"));
+  await otherChip._listeners.click[0](ev);
   check("别人的闹钟隐藏编辑入口", els.alarmDlgActions.classList.contains("hidden"));
 
   process.exit(fail ? 1 : 0);

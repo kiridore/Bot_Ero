@@ -48,7 +48,8 @@
 }
 .cal-cell.dim { opacity: 0.35; }
 .cal-cell.past { opacity: 0.45; pointer-events: none; }
-.cal-cell.today { border-color: var(--accent); }
+.cal-cell.today { border-color: var(--accent); border-width: 2px; }
+.cal-cell.today .cal-cell-num { color: var(--accent); font-weight: 700; }
 .cal-cell.selected {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border-color: var(--accent);
@@ -70,9 +71,21 @@
 }
 .cal-chip.mine {
   border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent-soft);
+  font-weight: 600;
 }
 .cal-chip.more { border-left-color: transparent; color: var(--ink-soft); }
+
+.cal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.cal-filter { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
 
 /* —— 闹钟表单（自 alarms.css 迁移，类名不变）—— */
 .alarm-form h2,

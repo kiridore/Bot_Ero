@@ -25,6 +25,7 @@ const WEEKDAYS = [
 ];
 
 var formState = { scheduleType: "daily", weekday: 1, minLeadMinutes: 5, scope: "private", editingId: null, seeds: null };
+var filters = { hideRecurring: true, hideOthers: false, hideGroup: false }; // 日历过滤（仅日历，底部列表不受影响）
 var calState = { year: 0, month: 0, data: { month: "", days: {} }, selectedDate: null };
 var listItems = [];
 // ponytail: 上面三个用 var 而非 const/let——浏览器 classic script 顶层行为一致，
@@ -426,6 +427,29 @@ function renderCalendar() {
   toolbar.append(prev, title, next, todayBtn);
   host.appendChild(toolbar);
 
+  const filterRow = document.createElement("div");
+  filterRow.className = "cal-filters";
+  for (const opt of [
+    { key: "hideRecurring", label: "隐藏循环闹钟" },
+    { key: "hideOthers", label: "隐藏非我创建" },
+    { key: "hideGroup", label: "隐藏群聊闹钟" },
+  ]) {
+    const lab = document.createElement("label");
+    lab.className = "cal-filter";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = filters[opt.key];
+    box.addEventListener("change", (e) => {
+      filters[opt.key] = e.target.checked;
+      renderCalendar();
+    });
+    const txt = document.createElement("span");
+    txt.textContent = opt.label;
+    lab.append(box, txt);
+    filterRow.appendChild(lab);
+  }
+  host.appendChild(filterRow);
+
   const weekRow = document.createElement("div");
   weekRow.className = "cal-week-row";
   for (const wd of ["一", "二", "三", "四", "五", "六", "日"]) {
@@ -456,7 +480,7 @@ function renderCalendar() {
     num.textContent = String(d.getDate());
     cell.appendChild(num);
 
-    const items = calState.data.days[key] || [];
+    const items = (calState.data.days[key] || []).filter(visibleCalItem);
     const shown = items.slice(0, 3);
     for (const item of shown) cell.appendChild(makeChip(item));
     if (items.length > 3) {
@@ -516,8 +540,14 @@ function openAlarmDialog(item) {
   document.getElementById("alarmDlgActions").classList.toggle("hidden", !item.is_mine);
   if (!alarmDialog.open) alarmDialog.showModal();
 }
+function visibleCalItem(item) {
+  if (filters.hideRecurring && item.is_recurring) return false;
+  if (filters.hideOthers && !item.is_mine) return false;
+  if (filters.hideGroup && item.scope === "group") return false;
+  return true;
+}
 function openDayDialog(key) {
-  const items = calState.data.days[key] || [];
+  const items = (calState.data.days[key] || []).filter(visibleCalItem);
   const list = document.getElementById("dayDlgList");
   list.innerHTML = "";
   for (const item of items) {
