@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>日程</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/shared/profile.css" />
+  <link rel="stylesheet" href="/static/schedule.css" />
+</head>
+<body>
+  <header class="toolbar profile-toolbar">
+    <nav class="profile-nav">
+      <a href="/profile">主页</a>
+      <a href="/profile/checkin">打卡</a>
+      <a href="/profile/schedule" class="active">日程</a>
+      <a href="/profile/shop">商店</a>
+      <a href="/profile/settings">设置</a>
+    </nav>
+    <div class="auth-area" id="authArea"></div>
+  </header>
+
+  <main class="profile-main" id="scheduleMain">
+    <p class="loading-msg">加载中…</p>
+  </main>
+
+  <dialog id="loginDialog" class="login-dialog">
+    <form method="dialog" id="loginForm">
+      <h2>个人中心登录</h2>
+      <p class="login-hint">请向机器人私聊发送 <code>/图库密钥</code> 获取密钥</p>
+      <input type="password" id="loginKey" placeholder="粘贴登录密钥" autocomplete="off" required />
+      <p class="login-error hidden" id="loginError"></p>
+      <div class="login-actions">
+        <button type="button" id="loginCancel">取消</button>
+        <button type="submit" class="primary">登录</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="alarmDialog" class="day-dialog">
+    <div class="day-dialog-header">
+      <h3>闹钟详情</h3>
+      <button type="button" id="alarmDlgClose" aria-label="关闭">×</button>
+    </div>
+    <div class="alarm-dlg-body" id="alarmDlgBody"></div>
+    <div class="alarm-actions" id="alarmDlgActions">
+      <button type="button" class="btn-sm" id="alarmDlgCancel">取消闹钟</button>
+      <button type="button" class="btn-sm primary" id="alarmDlgEdit">编辑</button>
+    </div>
+  </dialog>
+
+  <dialog id="dayDialog" class="day-dialog">
+    <div class="day-dialog-header">
+      <h3 id="dayDlgTitle">当日闹钟</h3>
+      <button type="button" id="dayDlgClose" aria-label="关闭">×</button>
+    </div>
+    <div id="dayDlgList"></div>
+  </dialog>
+
+  <script src="/shared/auth.js?v=3"></script>
+  <script src="/shared/motion.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/schedule.js"></script>
+</body>
+</html>
