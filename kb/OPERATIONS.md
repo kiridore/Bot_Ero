@@ -22,7 +22,7 @@ python -m webapp
 
 > 登录密钥盐经 `scripts/botero.env` 单一来源注入（bot 的 `main.py` 启动时自动加载该文件；webapp 生产环境经 systemd `EnvironmentFile`）。无需手动 export，改盐只改该文件。
 
-单进程承载时间线社区主页（`/`，timeline 模块页面，登录可见）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` `/weekly`）+ 独立登录页 `/login`，Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
+单进程承载时间线社区主页（`/`，timeline 模块页面，登录可见）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/profile/schedule` `/activities` `/live` `/forum` `/tools` `/weekly`）+ 独立登录页 `/login`，Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
 
 ### 全站登录门控（1.18.0 起）
 

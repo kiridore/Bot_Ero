@@ -28,7 +28,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
 │  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools /weekly │
-│                      │     │  /alarms /activities /live /timeline（11 个 APIRouter） │
+│                      │     │  /profile/schedule /activities /live /timeline（11 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (时间线社区主页，登录可见)     │
          └──────────┬───────┘
@@ -484,7 +484,7 @@ webapp/static/
   profile.html/js、checkin.html/js、shop.html/js、settings.html/js
   trpg.html/js（车卡管理）、char_view.html/js（只读查看）、trpg.css
   guestbook.html/js、guestbook.css
-  alarms.html/js、alarms.css
+  schedule.html/js/css                        ← 日程页 /profile/schedule（旧 /alarms 302）
   activities.html/js、activities_detail.html/js
   live.html/live.js/mpegts.min.js             ← 直播间（mpegts.js 1.7.3 内置，与 SRS 官方播放器同款；flv.js 1.6.2 与该 SRS 实例不兼容已弃用）
   timeline.html + timeline.js + timeline.css  ← 时间线社区主页（根路径 /）
