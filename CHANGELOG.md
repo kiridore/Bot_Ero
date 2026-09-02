@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.33.4] - 2026-09-02
+
+### 新增
+
+- **站点图标**：全站浏览器标签页显示 favicon（`/favicon.ico` 与 `/favicon.png` 均可取，登录前亦可加载）
+
 ## [1.33.3] - 2026-09-01
 
 ### 修复

@@ -134,6 +134,8 @@ check("日程页 200", r.status_code == 200 and "日程" in r.text)
 r = client.get("/entries.json", headers=H)
 check("静态资产 no-cache 重验证", r.headers.get("cache-control") == "no-cache"
       and client.get("/shared/nav.js", headers=H).headers.get("cache-control") == "no-cache")
+fr = client.get("/favicon.ico")
+check("favicon 免登录可取", fr.status_code == 200 and fr.headers.get("content-type") == "image/png")
 check("导航数据已是日程", "\u65e5\u7a0b" in r.text and "/profile/schedule" in r.text)
 
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
