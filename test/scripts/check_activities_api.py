@@ -213,6 +213,10 @@ m333 = DB.activity.get_member(rid3, "333")
 check("提交写库", m333["status"] == "done" and m333["content"] == "我的文字作品"
       and _json.loads(m333["images"]) == ["1-1.png", "1-2.png"])
 
+r = client.get(f"/api/activities/{rid3}", headers=H333)
+img_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
+check("me 图片 URL 映射", img_row["images"] == [f"/archive/{rid3}/media/1-1.png", f"/archive/{rid3}/media/1-2.png"])
+
 r = client.post(f"/api/activities/{rid3}/submit", headers=H333, data={"content": "改成纯文字"})
 check("submit 更新覆盖", r.json() == {"ok": True, "updated": True}, r.text)
 raw_imgs = DB.activity.get_member(rid3, "333")["images"]
@@ -249,6 +253,10 @@ r = client.get(f"/api/activities/{mid3}/me", headers=H444)
 check("match 无轮次限制", r.json()["can_submit"] is True, r.text)
 r = client.post(f"/api/activities/{mid3}/submit", headers=H444, data={"content": "任意时刻"})
 check("match 提交 200", r.status_code == 200 and r.json()["updated"] is False, r.text)
+r = client.get(f"/api/activities/{mid3}", headers=H333)
+row444 = next(m for m in r.json()["members"] if m["user_id"] == "444")
+check("match 他人已提交剥离", row444["content"] is None and row444["images"] == []
+      and row444["submitted_at"] is None)
 
 # —— 页面路由（登录门控由 middleware 处理，Bearer 可过）——
 r = client.get("/activities/new", headers=OH, follow_redirects=False)
