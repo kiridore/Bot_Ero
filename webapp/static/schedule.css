@@ -1,0 +1,181 @@
+/* 日程页专属样式（闹钟表单部分自 alarms.css 迁移） */
+
+/* —— 月历 —— */
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+.cal-toolbar h2 { margin: 0; flex: 1; text-align: center; }
+.cal-nav-btn {
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.cal-nav-btn:hover { border-color: var(--accent); }
+
+.cal-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cal-cell {
+  min-height: 5.4rem;
+  padding: 0.3rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-card);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+}
+.cal-cell.dim { opacity: 0.35; }
+.cal-cell.past { opacity: 0.45; pointer-events: none; }
+.cal-cell.today { border-color: var(--accent); border-width: 2px; }
+.cal-cell.today .cal-cell-num { color: var(--accent); font-weight: 700; }
+.cal-cell.selected {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
+}
+.cal-cell-num { font-size: 0.8rem; color: var(--ink-soft); }
+
+.cal-chip {
+  display: block;
+  margin-top: 2px;
+  padding: 0.05rem 0.3rem;
+  border-radius: 5px;
+  border-left: 3px solid var(--rule);
+  background: color-mix(in srgb, var(--rule) 22%, transparent);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.cal-chip.mine {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.cal-chip.more { border-left-color: transparent; color: var(--ink-soft); }
+
+.cal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.cal-filter { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+
+/* —— 闹钟表单（自 alarms.css 迁移，类名不变）—— */
+.alarm-form h2,
+.alarm-list + h2 { margin-top: 0; }
+.alarm-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.alarm-field-block { margin-top: 0.85rem; }
+.alarm-field-label { font-size: 0.82rem; color: var(--ink-soft); }
+.alarm-fields { margin-top: 0.85rem; }
+.alarm-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.65rem 0.85rem;
+}
+.alarm-field-hint { margin: 0.65rem 0 0; }
+.alarm-type-grid { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.alarm-type-btn,
+.weekday-btn {
+  padding: 0.38rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.alarm-type-btn:hover,
+.weekday-btn:hover { border-color: var(--accent); }
+.alarm-type-btn.active,
+.weekday-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.weekday-group { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.weekday-btn { min-width: 2.2rem; text-align: center; padding-inline: 0.55rem; }
+.alarm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink);
+  font: inherit;
+}
+.alarm-input-sm { padding: 0.5rem 0.65rem; }
+.alarm-actions { margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+/* —— 闹钟列表（自 alarms.css 迁移）—— */
+.alarm-list { display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.75rem; }
+.alarm-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  cursor: pointer;
+}
+.alarm-item-main { flex: 1; min-width: 0; }
+.alarm-meta { margin: 0; font-size: 0.78rem; color: var(--ink-soft); }
+.alarm-content { margin: 0.35rem 0 0; font-size: 0.92rem; word-break: break-word; }
+
+/* —— 详情/当日悬浮窗 —— */
+.alarm-dlg-body { padding: 0.9rem 1rem 0.4rem; }
+#alarmDialog .alarm-actions { padding: 0.4rem 1rem 0.9rem; margin-top: 0; }
+#dayDlgList { padding-bottom: 0.5rem; }
+#dayDlgList .day-row-btn:last-child { border-bottom: none; }
+.alarm-dlg-body p { margin: 0.3rem 0; }
+.alarm-dlg-badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.day-row-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.day-row-btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
