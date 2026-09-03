@@ -1,7 +1,7 @@
 import os
 import json
 
-import core.context as context
+from core import config
 
 STATUS_LABEL = {
     "done": "已完成",
@@ -13,7 +13,8 @@ STATUS_LABEL = {
 
 
 def archive_dir(activity_id: int) -> str:
-    return f"{context.python_data_path}/activity_archive/{activity_id}"
+    # 运行时读 config.ACTIVITY_ROOT（而非 from-import 冻结值）：conftest 环境重定向与测试打桩都生效
+    return str(config.ACTIVITY_ROOT / str(activity_id))
 
 
 def image_path(activity_id: int, seq: int, n: int, ext: str) -> str:

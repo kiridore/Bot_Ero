@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 _tmp = tempfile.mkdtemp(prefix="botero_activity_test_")
 _db = os.path.join(_tmp, "test.db")
 os.environ["BOTERO_DB_PATH"] = _db
+os.environ["BOTERO_ACTIVITY_ROOT"] = os.path.join(_tmp, "activity_root")
 
 _conn = sqlite3.connect(_db)
 _cur = _conn.cursor()

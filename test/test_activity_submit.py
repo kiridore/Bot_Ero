@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import core.context as context
+from core import config
 from core.event import Event
 from core.db._base import init_schema
 from core.db.activity import ActivityManager
@@ -54,6 +55,8 @@ class TestSubmit(unittest.TestCase):
         self.conn = sqlite3.connect(DB_PATH)
         init_schema(self.conn, self.conn.cursor())
         self.db = _Db(self.conn)
+        # 归档路径隔离：archive.py 运行时读 core.config.ACTIVITY_ROOT，打桩到本测试临时目录
+        config.ACTIVITY_ROOT = Path("/tmp/test_activity_archive_submit")
         context.python_data_path = "/tmp/test_activity_archive_submit"
 
     def tearDown(self):
@@ -160,7 +163,7 @@ class TestSubmit(unittest.TestCase):
             self._submit(uid, content).handle()
         act = self.db.activity.get_activity(aid)
         self.assertEqual(act["status"], "finished")
-        d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
+        d = f"/tmp/test_activity_archive_submit/{aid}"
         self.assertTrue(os.path.isfile(f"{d}/relay.md"))
 
     def test_submit_match_stays_running(self):
@@ -170,7 +173,7 @@ class TestSubmit(unittest.TestCase):
             self._submit(uid, content).handle()
         act = self.db.activity.get_activity(aid)
         self.assertEqual(act["status"], "running")
-        d = f"/tmp/test_activity_archive_submit/activity_archive/{aid}"
+        d = f"/tmp/test_activity_archive_submit/{aid}"
         self.assertFalse(os.path.exists(d), "全员提交后不应归档")
 
     def test_match_all_submitted_no_forward(self):
