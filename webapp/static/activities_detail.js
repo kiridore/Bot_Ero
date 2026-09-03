@@ -38,24 +38,104 @@ function remainingText(member, act) {
 }
 
 let actCache = null;
+let meCache = null;
+const REASON_TEXT = {
+  not_started: "活动未开始，开始后才能提交",
+  finished: "活动已结束",
+  missed: "已截止或被跳过，无法提交",
+  left: "你已退出活动",
+  not_my_turn: "还未轮到你提交",
+};
+
+function mySubmissionBlock(me) {
+  if (!me || !me.member) return "";
+  const m = me.member;
+  return `
+    <section class="detail-section">
+      <h2>我的提交${m.status === "done" ? "（已提交，可更新）" : ""}</h2>
+      ${m.submitted_at ? `<div class="muted">${m.submitted_at}</div>` : ""}
+      ${m.content ? `<p class="work-content">${escapeHtml(m.content)}</p>` : ""}
+      ${m.images.map((u) => `<img class="work-img" src="${u}">`).join("")}
+      ${m.status === "pending" && me.can_submit ? '<div class="muted">尚未提交</div>' : ""}
+    </section>`;
+}
+
+function submitBlock(me) {
+  if (!me || !me.member) return "";
+  if (!me.can_submit) {
+    return `
+    <section class="detail-section">
+      <h2>提交作品</h2>
+      <p class="muted">${escapeHtml(me.block_text || REASON_TEXT[me.block_reason] || "当前无法提交")}</p>
+    </section>`;
+  }
+  return `
+    <section class="detail-section">
+      <h2>提交作品</h2>
+      <textarea id="myContent" class="work-input" rows="3" maxlength="2000"
+        placeholder="作品文字（与图片至少一项）">${escapeHtml(me.member.content || "")}</textarea>
+      <input type="file" id="myFiles" class="work-input" accept="image/*" multiple />
+      <div class="submit-row">
+        <button type="button" id="submitBtn" class="primary">提交</button>
+        <span id="submitHint" class="muted"></span>
+      </div>
+    </section>`;
+}
+
+async function submitWork() {
+  const btn = document.getElementById("submitBtn");
+  const hint = document.getElementById("submitHint");
+  const content = (document.getElementById("myContent")?.value || "").trim();
+  const files = document.getElementById("myFiles")?.files || [];
+  if (!content && !files.length) { hint.textContent = "请附上作品（文字或图片）"; return; }
+  const fd = new FormData();
+  fd.append("content", content);
+  for (const f of files) fd.append("files", f);
+  btn.disabled = true;
+  btn.textContent = "提交中…";
+  try {
+    const res = await fetch(`/api/activities/${actCache.id}/submit`, {
+      method: "POST", headers: GalleryAuth.headers(), body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "提交失败");
+    hint.textContent = data.updated ? "已更新提交" : "提交成功";
+    await loadDetail();
+  } catch (err) {
+    hint.textContent = err.message || "提交失败";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "提交";
+  }
+}
 
 function renderCountdown() {
   if (!actCache || actCache.status !== "running" || actCache.type !== "relay") return;
   const cur = actCache.members.find(m => m.status === "pending");
-  if (!cur) return;
+  // received_at 为空 = 网页提交后等待心跳补推进的窗口，无倒计时可言
+  if (!cur || !cur.received_at) return;
   const el = document.getElementById("turnCountdown");
   if (el) el.innerHTML = remainingText(cur, actCache);
 }
 
 async function loadDetail() {
   const id = location.pathname.split("/").pop();
-  const res = await fetch(`/api/activities/${id}`);
+  const [res, meRes] = await Promise.all([
+    fetch(`/api/activities/${id}`, { headers: GalleryAuth.headers() }),
+    fetch(`/api/activities/${id}/me`, { headers: GalleryAuth.headers() }),
+  ]);
   if (!res.ok) {
     mainEl.innerHTML = '<p class="muted">活动不存在</p>';
     return;
   }
-  const act = await res.json();
-  actCache = act;
+  actCache = await res.json();
+  meCache = meRes.ok ? await meRes.json()
+    : { member: null, can_submit: false, block_reason: "not_member" };
+  renderDetail();
+}
+
+function renderDetail() {
+  const act = actCache;
   const session = GalleryAuth.load();
   const myUid = session && session.user_id;
   const nickOf = {};
@@ -83,7 +163,8 @@ async function loadDetail() {
   let turnBlock = "";
   if (isRunning && act.type === "relay") {
     const cur = act.members.find(m => m.status === "pending");
-    if (cur) {
+    // received_at 为空 = 网页提交后等待心跳补推进的窗口，不渲染倒计时
+    if (cur && cur.received_at) {
       turnBlock = `
         <div class="turn-highlight">
           当前轮到：<strong>${escapeHtml(cur.nickname)}</strong>
@@ -138,7 +219,11 @@ async function loadDetail() {
       <h2>参加人员</h2>
       <div class="member-list">${memberRows}</div>
     </section>
+    ${mySubmissionBlock(meCache)}
+    ${submitBlock(meCache)}
     ${worksBlock}`;
+  const sb = document.getElementById("submitBtn");
+  if (sb) sb.addEventListener("click", submitWork);
   if (isRunning && act.type === "relay") {
     setInterval(renderCountdown, 60000);
   }
