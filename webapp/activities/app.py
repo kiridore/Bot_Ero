@@ -111,7 +111,7 @@ def _submission_state(user_id: str, act: dict, members: list[dict]):
 
 
 def _save_submission_images(activity_id: int, seq: int, files: list[tuple[bytes, str | None]]) -> list[str]:
-    """存 ACTIVITY_ROOT/<id>/imgs/<seq>-<n>.<ext>（与 bot 命名一致）；限制同打卡。"""
+    """存 ACTIVITY_ROOT/<id>/imgs/<seq>-<n>.<ext>（web 命名；bot 为 img_<seq>_<n><ext>，互不冲突）；限制同打卡。"""
     if len(files) > config.CHECKIN_MAX_IMAGES:
         raise ValueError(f"单次最多上传 {config.CHECKIN_MAX_IMAGES} 张图片")
     folder = ACTIVITY_ROOT / str(activity_id) / "imgs"
