@@ -7,6 +7,7 @@
 ## [未发布]
 
 - **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
+- forum_notify 论坛链接改走 `config.yaml` `weekly.web_base_url`（行为不变，消除域名硬编码）
 
 ## [1.35.0] - 2026-09-02
 

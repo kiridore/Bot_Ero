@@ -7,6 +7,7 @@
 from datetime import datetime
 
 from core.base import Plugin
+from core.config import WEB_BASE_URL
 from core.cq import text
 from core.timeline_client import emit_event
 from core.utils import register_plugin
@@ -34,7 +35,7 @@ class ForumNotifyPlugin(Plugin):
         posts = db.forum.list_unnotified_posts(limit=10)
         if posts:
             for pid, ptype, title, _ in posts:
-                url = f"https://littlero.tech/forum/{pid}"
+                url = f"{WEB_BASE_URL}/forum/{pid}"
                 prefix = {
                     "post": "长文",
                     "announce": "公告",
