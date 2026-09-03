@@ -572,7 +572,7 @@ def _relay_catchup(api, db, act: dict, members: list[dict]) -> bool:
         last = max(members, key=lambda m: m["seq"], default=None)
         if last is None or last["status"] != "done":
             return False
-        _announce_group(api, act["group_id"], f"{last['nickname']} 完成接力")
+        _announce_group(api, act["group_id"], f"第 {last['seq']} 棒 {last['nickname']} 完成接力")
         _finish_activity(api, db, act)
         return True
     if cur.get("received_at"):
@@ -580,7 +580,7 @@ def _relay_catchup(api, db, act: dict, members: list[dict]) -> bool:
     prev = last_done(members, cur["seq"])
     if not prev:
         return False
-    _announce_group(api, act["group_id"], f"{prev['nickname']} 完成接力")
+    _announce_group(api, act["group_id"], f"第 {prev['seq']} 棒 {prev['nickname']} 完成接力")
     if not _relay_advance(api, db, act, members, prev["seq"]):
         _finish_activity(api, db, act)
     return True
