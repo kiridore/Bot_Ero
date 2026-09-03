@@ -63,6 +63,15 @@ logger.exception("...")  # 自动附带 traceback
 13. `plugin_pool` 修改 → `is_plugin_enabled` 检查是否有 `sqlite3.Error` 兜底？
 14. `DbManager()` 链式临时对象调用（如 `DbManager().activity.xxx()`）→ 禁止：临时对象无引用，`__del__` 可能在使用期间关闭连接；先绑定变量 `db = DbManager()` 再用
 
+## 测试与流程陷阱（2026-09 实录）
+
+- **from-import 绑定坑**：`from core.config import X` 在导入期定格值，conftest/脚本的 env 重定向对它失效——用 `config.X` 属性访问（受害者：activity 归档测试独立运行时写真实 server_data）
+- **check 脚本只重定向 db 不够**：所测模块涉及的 `config.yaml` 路径键要全量重定向（经 `write_config` 的 `paths=`/`thumbs=` 覆盖）
+- **页面顶层状态容器用 `var`**：node DOM 测试靠 `eval` 访问 `formState` 等，`const/let` 在 eval 词法作用域外不可见
+- **改文案忘改测试**：备份日报前缀改动遗留 3 例失败约两周才修——文案改动同 commit 更新断言
+
+权威细则：`specs/conventions.md` §测试隔离与文案同步、§功能开发主流程。
+
 ## 已知技术债
 
 - `user_id` 在数据库中类型不一致（TEXT vs INTEGER），跨表查询需 CAST

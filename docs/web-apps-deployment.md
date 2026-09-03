@@ -12,7 +12,7 @@
 | 留言簿 | `/guestbook` |
 | 个人中心 | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） |
 | 跑团 | `/trpg`（`/trpg/char/{user_id}/{char_id}`） |
-| 闹钟 | `/alarms` |
+| 日程 | `/profile/schedule`（旧 `/alarms` 302） |
 | 活动 | `/activities`（`/activities/{activity_id}`） |
 | 直播 | `/live`（SRS HTTP-FLV 播放） |
 | 工具箱 | `/tools`（链接收藏卡片） |
@@ -138,7 +138,7 @@ systemctl restart botero-web
    ```bash
    # 未登录：主页与各分区页面应返回 302（重定向到 /login）
    curl -s -o /dev/null -w "主页(未登录): %{http_code}\n" https://littlero.tech/
-   for p in /gallery /guestbook /profile /trpg /alarms /activities /forum /tools /weekly; do
+   for p in /gallery /guestbook /profile /trpg /profile/schedule /activities /forum /tools /weekly; do
      echo "$p: $(curl -s -o /dev/null -w '%{http_code}' https://littlero.tech$p)"
    done
    # 带密钥（QQ 号 + 盐 → HMAC，见 /图库密钥）：应返回 200

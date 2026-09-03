@@ -42,9 +42,9 @@
     "url": "/live"
   },
   {
-    "name": "闹钟",
-    "desc": "个人与群闹钟管理",
-    "url": "/alarms"
+    "name": "日程",
+    "desc": "日历式日程与闹钟管理",
+    "url": "/profile/schedule"
   },
   {
     "name": "跑团",

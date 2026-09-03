@@ -61,7 +61,7 @@
 | `redeem_shop/` | `ShopWeeklyRotationPlugin` | `shop_weekly_rotation` | TimedHeartbeatPlugin | 每周一 08:00 | 刷新商店货架 |
 | `startup_changelog/` | `StartupChangelogPlugin` | `startup_changelog` | Plugin (手动 meta) | 启动时一次 | 发送开机问候 |
 | `weekly_quest/` | `WeeklyQuestResetPlugin` | `weekly_quest_reset` | TimedHeartbeatPlugin | 每周一 08:00 | 清理过期任务进度 |
-| `activity/` | `ActivityTimerPlugin` | `activity_timer` | Plugin (手动 meta) | 每 60 秒 | 活动计时：接龙超时跳过、匹配截止结束 |
+| `activity/` | `ActivityTimerPlugin` | `activity_timer` | Plugin (手动 meta) | 每 60 秒 | 活动计时：接龙超时跳过、匹配截止结束、网页接力提交补推进 |
 | `forum_notify/` | `ForumNotifyPlugin` | `forum_notify` | Plugin (手动 meta) | 每分钟 | 议事厅新帖群通知 + 过期投票自动关闭 |
 | `weekly_report/` | `WeeklyReportPlugin` | `weekly_report` | TimedHeartbeatPlugin | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档（首周通知默认关闭；仅日志覆盖到的完整周出报，启动补漏不越过日志起点） |
 

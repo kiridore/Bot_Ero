@@ -8,7 +8,7 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/trpg` `/alarms` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
+Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -16,7 +16,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | 留言簿 | `guestbook` | `/guestbook` | 留言列表/发表/点赞 |
 | 个人中心 | `profile` | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） | 个人主页/打卡/商店/称号/设置 5 域聚合 |
 | 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}`） | 车卡创建/编辑/查看 |
-| 闹钟 | `alarms` | `/alarms` | 闹钟 CRUD |
+| 日程/闹钟 | `alarms` | `/profile/schedule`（旧 `/alarms` 302） | 月历展开 + 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ 打卡隐私读侧过滤（见「时间线打卡隐私」约束）+ `entries.json` |
@@ -28,7 +28,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
 │  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools /weekly │
-│                      │     │  /alarms /activities /live /timeline（11 个 APIRouter） │
+│                      │     │  /profile/schedule /activities /live /timeline（11 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (时间线社区主页，登录可见)     │
          └──────────┬───────┘
@@ -243,10 +243,14 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 ### 闹钟（`alarms` 模块）
 
+页面为 `/profile/schedule`（日历 + 表单 + 列表；旧 `/alarms` 302 重定向至新页），`GET /api/me/calendar?month=YYYY-MM` 返回按日展开结果（自己的 + 全部群闹钟，循环只向前展开）。
+
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/me/alarms` | 必须 | 闹钟列表 |
-| `POST` | `/api/me/alarms` | 必须 | 创建闹钟 |
+| `GET` | `/api/me/calendar?month=YYYY-MM` | 必须 | 月历展开（自己的 + 全部群闹钟；循环向前展开） |
+| `POST` | `/api/me/alarms` | 必须 | 创建闹钟（`scope`: private/group，默认 private） |
+| `PUT` | `/api/me/alarms/{id}` | 必须 | 编辑闹钟（仅创建者；重算规则，支持私聊/群互转） |
 | `DELETE` | `/api/me/alarms/{id}` | 必须 | 取消闹钟 |
 
 ### 活动（`activities` 模块）
@@ -255,7 +259,9 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后；含 created_by |
 | `GET` | `/api/me/activities` | 必须 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
-| `GET` | `/api/activities/{id}` | 否 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL），不存在返回 404 |
+| `GET` | `/api/activities/{id}` | 必须 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL；进行中剥离他人作品字段，本人与 finished 归档全量），不存在返回 404 |
+| `GET` | `/api/activities/{id}/me` | 必须 | 我的成员态与提交（can_submit/block_reason） |
+| `POST` | `/api/activities/{id}/submit` | 必须 | 网页提交作品（multipart，规则同 QQ /提交） |
 | `POST` | `/api/activities` | 必须 | 创建活动（type/title/description/hours_per_user/signup_deadline/deadline；匹配必带截止、日期须未来、每群唯一进行中）→ {ok,id,announce=可复制群公告文案}。群固定 DEFAULT_GROUP_ID，created_by=登录用户 |
 | `PATCH` | `/api/activities/{id}` | 必须 | 创建人/超管编辑：open 可改 标题/描述/每人限时/报名截止/截止，running 仅 标题/描述/截止；他字段 400，结束后 409 |
 | `POST` | `/api/activities/{id}/start` | 必须 | 仅 open；人数预检（接龙≥1 匹配≥2）后写 signup_deadline=now，bot 心跳 ≤60s 自动开始并通知（B1 方案，幂等） |
@@ -318,7 +324,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `profile` | `/profile` 个人主页；`/profile/checkin` 网页打卡；`/profile/shop` 积分商店；`/profile/settings` 称号设置 |
 | `trpg` | `/trpg` 车卡管理；`/trpg/char/{user_id}/{char_id}` 角色卡只读查看页 |
 | `guestbook` | `/guestbook` 留言簿 |
-| `alarms` | `/alarms` 闹钟管理 |
+| `alarms` | `/profile/schedule` 日程日历（旧 `/alarms` 302 重定向） |
 | `activities` | `/activities` 活动归档（三区块：我参加的活动（登录可见）/ 进行中的活动（含成员列表）/ 活动归档）；`/activities/{activity_id}` 活动详情页（标题/发起时间/报名结束/截止/状态/详情/参加人员；接龙 running 显示当前轮到谁与剩余时间；匹配 running 显示每人下家；归档展示作品），不存在返回 404；创建人卡片/详情带管理入口，列表页带发起入口 |
 | `activities` | `/activities/new` 活动发起页（类型/标题/描述/每人限时/报名截止/截止；匹配必填截止；成功后展示可复制群公告文案）；登录门控 |
 | `activities` | `/activities/{activity_id}/manage` 活动管理页（仅创建人/超管，其余显示拒绝卡片）：open 编辑标题/描述/限时/报名截止/截止 + 开始/取消，running 编辑标题/描述/截止 + 提前结束，15s 轮询状态；open 常驻群公告文案复制；开始/结束借道心跳约 1 分钟生效 |
@@ -480,7 +486,7 @@ webapp/static/
   profile.html/js、checkin.html/js、shop.html/js、settings.html/js
   trpg.html/js（车卡管理）、char_view.html/js（只读查看）、trpg.css
   guestbook.html/js、guestbook.css
-  alarms.html/js、alarms.css
+  schedule.html/js/css                        ← 日程页 /profile/schedule（旧 /alarms 302）
   activities.html/js、activities_detail.html/js
   live.html/live.js/mpegts.min.js             ← 直播间（mpegts.js 1.7.3 内置，与 SRS 官方播放器同款；flv.js 1.6.2 与该 SRS 实例不兼容已弃用）
   timeline.html + timeline.js + timeline.css  ← 时间线社区主页（根路径 /）

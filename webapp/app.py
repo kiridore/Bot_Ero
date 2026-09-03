@@ -31,7 +31,7 @@ app = FastAPI(title="BotEro Web", version="1.0.0")
 # —— 全局登录门控 ——
 # 白名单：登录页/登录 API/静态资源；/api/timeline/events* 为 bot 事件上报
 # （携带独立事件令牌，由路由自身 _require_event_token 校验，不走用户登录）
-_PUBLIC_PATHS = {"/login", "/api/auth/login"}
+_PUBLIC_PATHS = {"/login", "/api/auth/login", "/favicon.ico", "/favicon.png"}
 _PUBLIC_PREFIXES = ("/static/", "/shared/", "/api/timeline/events")
 # 未登录时返回 401（而非 302）的路径：API 与媒体子资源（<img> 跟随 302 会把登录页 HTML 当图片渲染）
 _UNAUTHORIZED_PREFIXES = ("/api/", "/thumb/", "/media/", "/forum/media/", "/archive/")
@@ -52,6 +52,17 @@ async def login_guard(request: Request, call_next):
         next_url = path + (("?" + request.url.query) if request.url.query else "")
         return RedirectResponse(f"/login?next={quote(next_url, safe='')}", status_code=302)
     return await call_next(request)
+
+
+# —— 静态资产防陈旧：无 Cache-Control 时浏览器启发式缓存会让 nav.js/entries.json
+# 这类内容变更型资产长期陈旧（如导航改名不生效）；no-cache = 每次带 ETag 重验证，304 极便宜
+@app.middleware("http")
+async def static_revalidate(request: Request, call_next):
+    resp = await call_next(request)
+    path = request.url.path
+    if path.startswith(("/static/", "/shared/")) or path == "/entries.json":
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 class LoginIn(BaseModel):
@@ -99,6 +110,13 @@ def home():
 @app.get("/login")
 def login_page():
     return FileResponse(STATIC_DIR / "login.html")
+
+
+# 站点图标（浏览器默认请求 /favicon.ico；两路径均指向同一 png，登录前也可加载）
+@app.get("/favicon.ico")
+@app.get("/favicon.png")
+def favicon():
+    return FileResponse(STATIC_DIR / "favicon.png", media_type="image/png")
 
 
 app.include_router(gallery_router)

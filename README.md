@@ -45,7 +45,7 @@ python -m webapp                               # 默认 http://0.0.0.0:8765
 | `littlero.tech/guestbook` | 留言簿 |
 | `littlero.tech/profile` | 个人中心（`/profile/checkin` 打卡、`/profile/shop` 商店、`/profile/settings` 设置） |
 | `littlero.tech/trpg` | 跑团车卡（`/trpg/char/{uid}/{cid}` 角色查看） |
-| `littlero.tech/alarms` | 闹钟 |
+| `littlero.tech/profile/schedule` | 日程（闹钟日历） |
 | `littlero.tech/activities` | 活动归档（`/activities/{id}` 详情） |
 | `littlero.tech/live` | 直播间（SRS HTTP-FLV，mpegts.js 播放；观众列表，登录显示昵称） |
 | `littlero.tech/forum` | 议事厅（`/forum/{id}` 详情、`/forum/new` 发帖、`/forum/tags` 标签；长文/公告/投票/评论） |

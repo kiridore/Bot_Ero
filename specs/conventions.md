@@ -240,21 +240,34 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ---
 
-## Constraint: 开发计划先行
+## Constraint: 功能开发主流程
 
-**多步开发任务在动代码之前 MUST 先产出书面实施计划**，使用 `superpowers:writing-plans` skill 编写。
+**多步开发任务（新功能/跨文件改动/多 commit）MUST 走完整主流程；单点小修（一行 fix、纯文档、单文件微调）不强制，避免流程税。**
 
-**适用范围：** 新功能、跨文件/跨模块改动、预计拆多个 commit 的任务。单点小修（一行 fix、纯文档、单文件微调）不强制，避免流程税。
+**四步（每步产出 commit 后再进入下一步）：**
 
-**MUST:**
-- 计划保存到 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`（历史计划同目录可参照）
-- 计划头部声明 Goal / Architecture / Tech Stack，并把设计决策（spec 要点）随计划携带
-- 按任务分块，每个任务包含：精确文件清单、失败测试先行（项目内为 `test/test_*.py` 或 `test/scripts/check_*.py`）、完整可落地代码、运行验证命令与预期输出、commit 步骤（遵循 §Commit 提交分块）
-- 执行时用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans` 逐任务实施
+1. **设计先行**：用 `superpowers:brainstorming` skill 澄清需求——先分类（bounded/architectural）、澄清问题一次一个、方案对比带推荐；architectural 级产出设计文档 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`（已确认决策表 D1…Dn、API 契约、边界情况、测试清单），经用户逐节确认后 commit
+2. **计划先行**：用 `superpowers:writing-plans` skill 产出实施计划 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`：头部 Goal/Architecture/Tech Stack/Spec 指针 + Global Constraints；按任务分块，每任务含精确文件清单、失败测试先行（`test/test_*.py` / `test/scripts/check_*.py` / `test/test_*.js` 按被测层选）、完整可落地代码、验证命令与预期输出、commit 步骤（遵循 §Commit 提交分块）；写完自审三查：spec 覆盖、占位符扫描、跨任务类型一致性
+3. **执行**：用 `superpowers:subagent-driven-development`（默认）逐任务派发：每任务独立实现者 + 独立审查者（spec 合规与质量双裁定）+ 修复环（≤5 轮；Minor 延期入台账不进环）；全部任务后一次全分支最终审查 + 单次修复波；台账记 `.superpowers/sdd/<plan>/progress.md`，崩溃后凭台账+git log 恢复
+4. **集成**：向用户确认 push 或保持本地（本仓库惯例：直接 push origin/master，就地 master 开发不用 worktree）
+
+**执行中裁定纪律（Rulings, not stalls）：** 计划执行不打断用户；发现计划缺陷或审查冲突当场裁定并记入台账，最终汇报全部 Ruling 供用户推翻。仅四类事项必须停下问：不可逆/破坏性操作、安全敏感、仓外副作用（push 共享分支等）、计划崩坏到处是猜测。
 
 **MUST NOT:**
-- 无计划直接开写多步任务
-- 计划中留 TBD / TODO / "稍后补充"等占位符
+- 无计划直接开写多步任务；计划留 TBD / TODO / 「稍后补充」占位符
+- 任务审查有未处理的 Critical/Important（未修也未裁定延期）就进入下一任务
+
+---
+
+## Constraint: 测试隔离与文案同步
+
+**测试绝不触碰真实 `data.db`/`server_data`（红线）；用户可见文案改动与测试断言同 commit。**
+
+- 新增 `test/scripts/check_*.py` 独立进程脚本 MUST 用 `test/scripts/_env.py::write_config` 生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向——不止 `paths.db`，按所测模块补 `paths.activity`、`paths.images`、`thumbs.cache_dir` 等
+- 代码/测试引用路径常量 MUST 用模块属性访问（`config.ACTIVITY_ROOT`），禁止 `from core.config import ACTIVITY_ROOT` 式导入期绑定——conftest/脚本的 env 重定向对已绑定名字不生效（2026-09 activity 归档测试写真实 server_data 的根因）
+- node DOM 测试（`test/test_*.js`）：被测页面顶层状态容器用 `var` 声明（浏览器语义不变；eval 词法作用域下测试才能访问）；stub 缺方法修 stub，产品语义问题才修产品
+- 改动用户可见文案/输出格式（提示语、消息段）MUST 同 commit 更新对应测试断言（2026-09 备份日报欠账案例）
+- 合并前提 = 全量 `pytest` 全绿；存在基线失败时先定性（预存 or 本次引入）再继续，禁止带着未定性失败合并
 
 ---
 

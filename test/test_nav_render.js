@@ -19,7 +19,7 @@ checks.push(["nav 类名", inserted && inserted.className === "site-nav"]);
 checks.push(["样式已注入", headStyle && headStyle.tagName === "style"]);
 checks.push(["含主页入口", inserted && inserted.innerHTML.includes("littlero.tech")]);
 checks.push(["当前分区高亮", inserted && inserted.innerHTML.includes('class="active"') && inserted.innerHTML.includes('href="/profile"')]);
-checks.push(["含全部分区", inserted && ["/gallery", "/trpg", "/guestbook", "/alarms", "/activities"].every((p) => inserted.innerHTML.includes('href="' + p + '"'))]);
+checks.push(["含全部分区", inserted && ["/gallery", "/trpg", "/guestbook", "/profile/schedule", "/activities"].every((p) => inserted.innerHTML.includes('href="' + p + '"'))]);
 
 let fail = 0;
 for (const [name, ok] of checks) {

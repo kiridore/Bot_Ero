@@ -19,8 +19,8 @@ python -m webapp
 
 # 本地调试：直接按路径访问 http://127.0.0.1:8765/<分区>
 #   /          时间线（社区主页，登录门控，未登录 302 → /login）  /login  独立登录页
-#   /gallery  /guestbook  /profile(/checkin /shop /settings)  /trpg(/char/...)
-#   /alarms  /activities  /live  /forum(/new /tags /{id})  /tools  /weekly
+#   /gallery  /guestbook  /profile(/checkin /schedule /shop /settings)  /trpg(/char/...)
+#   /activities  /live  /forum(/new /tags /{id})  /tools  /weekly
 python -m webapp --port 8765
 ```
 

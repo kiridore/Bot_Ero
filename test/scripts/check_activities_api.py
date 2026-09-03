@@ -20,7 +20,9 @@ _tmp = tempfile.mkdtemp(prefix="botero_activity_test_")
 _db = os.path.join(_tmp, "test.db")
 from _env import write_config  # 同目录 helper：生成临时 config.yaml
 
-os.environ["BOTERO_CONFIG"] = write_config(_tmp, paths={"db": _db})
+os.environ["BOTERO_CONFIG"] = write_config(
+    _tmp, paths={"db": _db, "activity": os.path.join(_tmp, "activity_root")}
+)
 
 _conn = sqlite3.connect(_db)
 _cur = _conn.cursor()
@@ -165,6 +167,114 @@ check("匹配 2 人开始 200", r.status_code == 200, r.text)
 # —— 404 ——
 r = client.patch("/api/activities/99999", headers=OH, json={"title": "x"})
 check("编辑不存在 404", r.status_code == 404)
+
+# —— 网页提交：me / submit / 隐私剥离 ——
+import json as _json  # noqa: E402
+import time as _time  # noqa: E402
+
+H333 = {"Authorization": "Bearer " + make_login_key("333")}
+H444 = {"Authorization": "Bearer " + make_login_key("444")}
+DB.activity.update_activity(mid2, status="cancelled")  # 让出唯一进行中名额
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+r = client.post("/api/activities", headers=OH, json={
+    "type": "relay", "title": "接龙三", "hours_per_user": 48, "deadline": FUTURE2})
+rid3 = r.json()["id"]
+DB.activity.add_member(rid3, "333", "成员甲")
+DB.activity.add_member(rid3, "444", "成员乙")
+DB.activity.set_ring(rid3, [("333", None, 1), ("444", None, 2)])
+DB.activity.update_activity(rid3, status="running")
+DB.activity.update_member(rid3, "333", received_at=_time.strftime("%Y-%m-%d %H:%M:%S"))
+
+r = client.get(f"/api/activities/{rid3}/me", headers=H333)
+check("me 当前棒可提交", r.status_code == 200 and r.json()["can_submit"] is True
+      and r.json()["block_reason"] is None, r.text)
+r = client.get(f"/api/activities/{rid3}/me", headers=H444)
+check("me 非当前棒 not_my_turn", r.json()["block_reason"] == "not_my_turn")
+r = client.get(f"/api/activities/{rid3}/me", headers=OH)
+check("me 非成员 not_member", r.json()["member"] is None and r.json()["block_reason"] == "not_member")
+r = client.get("/api/activities/99999/me", headers=OH)
+check("me 不存在 404", r.status_code == 404)
+
+r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content": "抢跑"})
+check("submit 非轮到 409", r.status_code == 409 and "轮到你" in r.json().get("detail", ""), r.text)
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333, data={})
+check("submit 空作品 400", r.status_code == 400, r.text)
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333,
+                files=[("files", ("a.txt", b"hello", "text/plain"))], data={"content": "x"})
+check("submit 非图片类型 400", r.status_code == 400, r.text)
+
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333,
+                files=[("files", ("a.png", PNG, "image/png")),
+                       ("files", ("b.png", PNG, "image/png"))],
+                data={"content": "我的文字作品"})
+check("submit 成功", r.status_code == 200 and r.json() == {"ok": True, "updated": False}, r.text)
+from core.config import ACTIVITY_ROOT as _AR  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+check("图片落盘命名", (_Path(_AR) / str(rid3) / "imgs" / "1-1.png").is_file()
+      and (_Path(_AR) / str(rid3) / "imgs" / "1-2.png").is_file())
+m333 = DB.activity.get_member(rid3, "333")
+check("提交写库", m333["status"] == "done" and m333["content"] == "我的文字作品"
+      and _json.loads(m333["images"]) == ["1-1.png", "1-2.png"])
+
+r = client.get(f"/api/activities/{rid3}", headers=H333)
+img_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
+check("me 图片 URL 映射", img_row["images"] == [f"/archive/{rid3}/media/1-1.png", f"/archive/{rid3}/media/1-2.png"])
+
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333, data={"content": "改成纯文字"})
+check("submit 更新覆盖", r.json() == {"ok": True, "updated": True}, r.text)
+raw_imgs = DB.activity.get_member(rid3, "333")["images"]
+check("更新后 images 清空", raw_imgs in (None, "[]"))  # 覆盖式：无图重传写 NULL（与 bot 一致）
+
+r = client.get(f"/api/activities/{rid3}", headers=H333)
+me_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
+other_row = next(m for m in r.json()["members"] if m["user_id"] == "444")
+check("进行中他人作品剥离", other_row["content"] is None and other_row["images"] == []
+      and other_row["submitted_at"] is None)
+check("进行中本人保留", me_row["content"] == "改成纯文字")
+
+DB.activity.update_member(rid3, "444", status="missed")
+r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content": "补交"})
+check("missed 提交 409", r.status_code == 409 and "截止" in r.json().get("detail", ""))
+DB.activity.update_member(rid3, "444", status="pending")
+DB.activity.update_activity(rid3, status="finished")
+r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content": "x"})
+check("finished 提交 409", r.status_code == 409)
+r = client.get(f"/api/activities/{rid3}", headers=H444)
+done_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
+check("finished 后归档公开", done_row["content"] == "改成纯文字"
+      and done_row["images"] == [])  # 覆盖式更新已清图，归档跟随现状
+
+DB.activity.update_activity(rid3, status="cancelled")  # 让位给匹配用例
+r = client.post("/api/activities", headers=OH, json={
+    "type": "match", "title": "匹配三", "deadline": FUTURE2})
+mid3 = r.json()["id"]
+DB.activity.add_member(mid3, "333", "成员甲")
+DB.activity.add_member(mid3, "444", "成员乙")
+DB.activity.set_ring(mid3, [("333", "444", 1), ("444", "333", 2)])
+DB.activity.update_activity(mid3, status="running")
+r = client.get(f"/api/activities/{mid3}/me", headers=H444)
+check("match 无轮次限制", r.json()["can_submit"] is True, r.text)
+r = client.post(f"/api/activities/{mid3}/submit", headers=H444,
+                files=[("files", ("m.png", PNG, "image/png"))], data={"content": "任意时刻"})
+check("match 提交 200", r.status_code == 200 and r.json()["updated"] is False, r.text)
+
+# —— 归档媒体进行中鉴权 ——
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H444)
+check("进行中本人可取媒体", r.status_code == 200)
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H333)
+check("进行中他人成员 403", r.status_code == 403)
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=OH)
+check("进行中创建人可取", r.status_code == 200)
+r = client.get(f"/archive/{mid3}/media/img_2_1.jpg", headers=H444)
+check("bot 命名文件同样鉴权（不存在 404 而非 403）", r.status_code == 404)
+r = client.get(f"/api/activities/{mid3}", headers=H333)
+row444 = next(m for m in r.json()["members"] if m["user_id"] == "444")
+check("match 他人已提交剥离", row444["content"] is None and row444["images"] == []
+      and row444["submitted_at"] is None)
+DB.activity.update_activity(mid3, status="finished")
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H333)
+check("结束后成员可取归档", r.status_code == 200)
 
 # —— 页面路由（登录门控由 middleware 处理，Bearer 可过）——
 r = client.get("/activities/new", headers=OH, follow_redirects=False)

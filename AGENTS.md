@@ -30,7 +30,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **Git hooks:** clone 后执行 `git config core.hooksPath .githooks` 启用 Conventional Commits 校验（commit-msg 钩子对 >12 个文件的暂存输出分块提示，警告不阻断）。
 - **Commit 消息 MUST 中文** + Conventional Commits（如 `feat(任务): 新增周常全清称号`）。
 - **Commits MUST 按逻辑分块**：一个 commit = 一个逻辑变更；同一逻辑变更的配套文件（代码 + 行为测试 + spec + 菜单文本 + CHANGELOG + KNOWLEDGE_BASE）进**同一个** commit，无关改动拆开（`specs/conventions.md` §Commit 提交分块）。
-- **多步开发任务（新功能/跨文件改动/多 commit 任务）动代码前 MUST 先用 `superpowers:writing-plans` skill 写实施计划**，保存到 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`；单点小修（一行 fix/纯文档）不强制。细则与豁免边界见 `specs/conventions.md` §开发计划先行。
+- **多步开发任务（新功能/跨文件改动/多 commit 任务）MUST 走功能开发主流程：`superpowers:brainstorming` 澄清设计 → spec（`docs/superpowers/specs/`）→ `superpowers:writing-plans` 计划（`docs/superpowers/plans/`）→ `superpowers:subagent-driven-development` 逐任务实现+审查**；单点小修（一行 fix/纯文档）不强制。四步细则、执行裁定纪律与集成惯例见 `specs/conventions.md` §功能开发主流程。
 
 ## Plugin auto-import magic
 
@@ -77,6 +77,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **Specs MUST 在同一 commit 更新**（`specs/README.md` 维护规则表）。
 - **每次用户可见变更 MUST 同 commit 更新 `CHANGELOG.md` 并 bump `core/config.py::BOTERO_VERSION`**：CHANGELOG 顶部新增 `[x.y.z]` 节，与 `BOTERO_VERSION` 一致（新功能 minor / 修复 patch）。纯文档/测试/内部重构可只记 CHANGELOG `[未发布]` 节不 bump。
 - **新增/改名指令 MUST 同 commit 更新 `plugins/menu/bot_menu_text.py`**（指令文本唯一来源，勿在他处硬编码）。
+- **改动用户可见文案/输出格式 MUST 同 commit 更新对应测试断言**；新增测试脚本 MUST 用 `test/scripts/_env.py::write_config` 生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向它，按所测模块重定向全部相关数据路径（红线：不触真实 `server_data`），路径常量用 `config.X` 属性访问、禁止导入期绑定。见 `specs/conventions.md` §测试隔离与文案同步。
 - **动协议代码**（`core/api.py`、`core/event.py`、`core/cq.py` 或任何插件的 OneBot 事件/消息段访问）**MUST 先查权威上游**——见 `specs/onebot-protocol.md` §权威上游文档；LLOneBot 文档索引镜像在 `specs/llms.txt`（编辑前 webfetch 对应单页）。
 - LLM 子系统（`core/llm/`）**已弃用**，不要新增依赖。
 

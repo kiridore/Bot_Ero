@@ -1,13 +1,16 @@
 """活动子应用：接龙与匹配活动的作品归档。"""
 
+import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from core import config
 from core.base import SUPER_USER
 from core.config import ACTIVITY_ROOT
 from core.context import DEFAULT_GROUP_ID
@@ -67,6 +70,63 @@ def _announcement(act: dict) -> str:
         lines.append(f"报名截止：{act['signup_deadline']}（到点自动开始）")
     lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
     return "\n".join(lines)
+
+
+# —— 网页端提交（与 bot /提交 语义对齐）——
+
+_ALLOWED_MIME = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+_BLOCK_TEXT = {
+    "not_started": "活动未开始或已取消",
+    "finished": "活动已结束",
+    "missed": "已截止或被跳过，无法提交",
+    "left": "你已退出活动",
+    "not_my_turn": "还未轮到你提交",
+}
+
+
+def _current_turn(members: list[dict]) -> dict | None:
+    """与 plugins/activity/logic.current_turn 同语义（webapp 不 import plugins）。"""
+    for m in sorted(members, key=lambda x: x["seq"]):
+        if m["status"] == "pending":
+            return m
+    return None
+
+
+def _submission_state(user_id: str, act: dict, members: list[dict]):
+    """返回 (me_member|None, block_reason|None)，规则与 bot _handle_submit 对齐。"""
+    me = next((m for m in members if str(m["user_id"]) == user_id), None)
+    if me is None:
+        return None, "not_member"
+    if act["status"] != "running":
+        return me, "finished" if act["status"] == "finished" else "not_started"
+    if me["status"] == "left":
+        return me, "left"
+    if me["status"] in ("missed", "skipped"):
+        return me, "missed"
+    if me["status"] == "pending" and act["type"] == "relay":
+        cur = _current_turn(members)
+        if not cur or str(cur["user_id"]) != user_id:
+            return me, "not_my_turn"
+    return me, None
+
+
+def _save_submission_images(activity_id: int, seq: int, files: list[tuple[bytes, str | None]]) -> list[str]:
+    """存 ACTIVITY_ROOT/<id>/imgs/<seq>-<n>.<ext>（web 命名；bot 为 img_<seq>_<n><ext>，互不冲突）；限制同打卡。"""
+    if len(files) > config.CHECKIN_MAX_IMAGES:
+        raise ValueError(f"单次最多上传 {config.CHECKIN_MAX_IMAGES} 张图片")
+    folder = ACTIVITY_ROOT / str(activity_id) / "imgs"
+    saved = []
+    for n, (data, mime_raw) in enumerate(files, 1):
+        mime = (mime_raw or "").split(";")[0].strip().lower()
+        ext = _ALLOWED_MIME.get(mime)
+        if ext is None:
+            raise ValueError("仅支持 JPG / PNG / WebP / GIF 图片")
+        if len(data) > config.CHECKIN_MAX_BYTES:
+            raise ValueError(f"单张图片不能超过 {config.CHECKIN_MAX_BYTES // (1024 * 1024)} MB")
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{seq}-{n}{ext}").write_bytes(data)
+        saved.append(f"{seq}-{n}{ext}")
+    return saved
 
 
 class ActivityCreateIn(BaseModel):
@@ -217,6 +277,55 @@ def api_cancel_activity(activity_id: int,
     return {"ok": True}
 
 
+@router.get("/api/activities/{activity_id}/me")
+def api_activity_me(activity_id: int,
+                    user_id: Annotated[str, Depends(get_current_user_id)]):
+    db = DbManager()
+    act = db.activity.get_activity(activity_id)
+    if not act:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    me, reason = _submission_state(user_id, act, act["members"])
+    member = None
+    if me:
+        member = {
+            "status": me["status"], "seq": me["seq"],
+            "content": me.get("content"), "submitted_at": me.get("submitted_at"),
+            "images": [f"/archive/{activity_id}/media/{n}" for n in (me.get("images") or [])],
+        }
+    return {"member": member, "can_submit": reason is None,
+            "block_reason": reason, "block_text": _BLOCK_TEXT.get(reason)}
+
+
+@router.post("/api/activities/{activity_id}/submit")
+async def api_activity_submit(
+    activity_id: int,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    content: str = Form(""),
+    files: list[UploadFile] | None = File(None),
+):
+    db = DbManager()
+    act = db.activity.get_activity(activity_id)
+    if not act:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    me, reason = _submission_state(user_id, act, act["members"])
+    if reason is not None:
+        raise HTTPException(status_code=409, detail=_BLOCK_TEXT.get(reason, "无法提交"))
+    text = (content or "").strip()
+    payloads = [(await f.read(), f.content_type) for f in (files or [])]
+    try:
+        # ponytail: 与 bot 同语义——先全部存盘成功再写库，任一失败整体不生效；更新=覆盖（旧文件留磁盘）
+        saved = _save_submission_images(activity_id, me["seq"], payloads) if payloads else []
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not text and not saved:
+        raise HTTPException(status_code=400, detail="请附上作品（文字或图片）")
+    was_done = me["status"] == "done"
+    db.activity.update_member(
+        activity_id, user_id, status="done", content=text or None,
+        images=json.dumps(saved) if saved else None, submitted_at=_now())
+    return {"ok": True, "updated": was_done}
+
+
 @router.get("/api/me/activities")
 def api_my_activities(user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
@@ -224,7 +333,8 @@ def api_my_activities(user_id: Annotated[str, Depends(get_current_user_id)]):
 
 
 @router.get("/api/activities/{activity_id}")
-def api_activity_detail(activity_id: int):
+def api_activity_detail(activity_id: int,
+                        user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
     act = db.activity.get_activity(activity_id)
     if not act:
@@ -233,6 +343,11 @@ def api_activity_detail(activity_id: int):
         m["images"] = [
             f"/archive/{activity_id}/media/{name}" for name in m.get("images", [])
         ]
+        # 隐私：进行中不外发他人提交内容（finished 后归档公开）
+        if act["status"] != "finished" and str(m["user_id"]) != user_id:
+            m["content"] = None
+            m["images"] = []
+            m["submitted_at"] = None
     return act
 
 
@@ -244,9 +359,24 @@ def _assert_under_activity_root(path: Path) -> None:
 
 
 @router.get("/archive/{activity_id}/media/{filename}")
-def serve_activity_media(activity_id: int, filename: str):
+def serve_activity_media(activity_id: int, filename: str,
+                         user_id: Annotated[str, Depends(get_current_user_id)]):
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="非法路径")
+    db = DbManager()
+    act = db.activity.get_activity(activity_id)
+    if not act:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    # 隐私：进行中限「该文件所属序号的成员 / 创建人 / 超管」；结束后归档公开。命名两种：web「{seq}-{n}.ext」/ bot「img_{seq}_{n}.ext」
+    if act["status"] != "finished":
+        m = re.match(r"^(?:(\d+)-|img_(\d+)_)", filename)
+        seq = int(m.group(1) or m.group(2)) if m else None
+        allowed = (
+            seq is not None
+            and any(str(mem["user_id"]) == user_id and mem["seq"] == seq for mem in act["members"])
+        ) or str(act["created_by"]) == user_id or int(user_id) in SUPER_USER
+        if not allowed:
+            raise HTTPException(status_code=403, detail="活动进行中，仅作品本人可查看")
     path = ACTIVITY_ROOT / str(activity_id) / "imgs" / filename
     if not path.is_file():
         raise HTTPException(status_code=404, detail="图片不存在")

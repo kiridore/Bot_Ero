@@ -90,7 +90,7 @@
 │   ├── guestbook/             ← 留言簿模块（/guestbook）
 │   ├── profile/               ← 个人中心模块（/profile）
 │   ├── trpg/                  ← 跑团模块（/trpg）
-│   ├── alarms/                ← 闹钟模块（/alarms）
+│   ├── alarms/                ← 闹钟模块（/profile/schedule）
 │   ├── activities/            ← 活动归档模块（/activities）
 │   ├── live/                  ← 直播间模块（/live；SRS HTTP-FLV 播放 + /api/live/status 探测 + 观众在场 heartbeat/viewers，登录显示昵称）
 │   └── static/                ← 全部模块静态文件（login.html/js/css 独立登录页（next 回跳 + 会话自愈）、timeline.html/js/css、index.html、profile.html/js、trpg.html/js、guestbook.*、alarms.*、activities*.html/js、forum.*、tools.*、weekly.* 等；页面统一注入 /shared/motion.css + /shared/motion.js 动效层：View Transitions 页面过渡、data-reveal 滚动揭示批量交错（40ms/级上限 300ms，视口下方 25% 预揭示区提前进场）、按压反馈、lightbox/toast 过渡、数字滚动，prefers-reduced-motion 全关闭）

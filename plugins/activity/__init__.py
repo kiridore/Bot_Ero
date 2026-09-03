@@ -559,6 +559,33 @@ def _finish_activity(api, db, act: dict):
     _announce_group(api, act["group_id"], f"活动「{act['title']}」结束，已归档！")
 
 
+def _relay_catchup(api, db, act: dict, members: list[dict]) -> bool:
+    """网页端提交的补推进：当前棒 pending 且未激活（received_at 空）且上一棒已完成。
+
+    bot 端 /提交 即时推进不会进入此分支；活动开始时 seq1 由 _relay_advance 激活，
+    「未激活且无已完成前驱」为不可能态，返回 False 不动作。链尾（无 pending）经网页
+    提交时直接收尾归档。
+    """
+    from .logic import current_turn, last_done
+    cur = current_turn(members)
+    if cur is None:
+        last = max(members, key=lambda m: m["seq"], default=None)
+        if last is None or last["status"] != "done":
+            return False
+        _announce_group(api, act["group_id"], f"第 {last['seq']} 棒 {last['nickname']} 完成接力")
+        _finish_activity(api, db, act)
+        return True
+    if cur.get("received_at"):
+        return False
+    prev = last_done(members, cur["seq"])
+    if not prev:
+        return False
+    _announce_group(api, act["group_id"], f"第 {prev['seq']} 棒 {prev['nickname']} 完成接力")
+    if not _relay_advance(api, db, act, members, prev["seq"]):
+        _finish_activity(api, db, act)
+    return True
+
+
 def _start_activity(api, db, act: dict) -> str | None:
     """开始活动：校验人数、生成链/环、置 running、私聊通知。返回错误消息或 None。
 
@@ -650,14 +677,17 @@ class ActivityTimerPlugin(Plugin):
         for act in self.dbmanager.activity.get_running_activities():
             members = self.dbmanager.activity.get_members(act["id"])
             if act["type"] == "relay":
-                cur = current_turn(members)
-                if cur and is_timeout(cur.get("received_at"), now, act.get("hours_per_user") or 0):
-                    self.dbmanager.activity.update_member(
-                        act["id"], cur["user_id"], status="skipped")
-                    self._announce_group(act["group_id"], f"{cur['nickname']} 超时未完成，跳过")
+                if _relay_catchup(self.api, self.dbmanager, act, members):
                     members = self.dbmanager.activity.get_members(act["id"])
-                    if not _relay_advance(self.api, self.dbmanager, act, members, cur["seq"]):
-                        _finish_activity(self.api, self.dbmanager, act)
+                else:
+                    cur = current_turn(members)
+                    if cur and is_timeout(cur.get("received_at"), now, act.get("hours_per_user") or 0):
+                        self.dbmanager.activity.update_member(
+                            act["id"], cur["user_id"], status="skipped")
+                        self._announce_group(act["group_id"], f"{cur['nickname']} 超时未完成，跳过")
+                        members = self.dbmanager.activity.get_members(act["id"])
+                        if not _relay_advance(self.api, self.dbmanager, act, members, cur["seq"]):
+                            _finish_activity(self.api, self.dbmanager, act)
             deadline = act.get("deadline")
             try:
                 due = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")

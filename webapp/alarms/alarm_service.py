@@ -6,11 +6,15 @@
 
 from __future__ import annotations
 
+import calendar as _cal
 import importlib.util
 import re
+from datetime import datetime
 from typing import Any
 
+from core.config import GROUP_ID
 from core.database_manager import DbManager
+from core.onebot_client import resolve_display_name
 from core import config
 
 _GROUP_ALARM_PATH = config.PROJECT_ROOT / "plugins" / "group_alarm" / "parser.py"
@@ -144,6 +148,9 @@ def _format_alarm_row(row: tuple, format_recur) -> dict:
         "is_private": bool(int(is_priv or 0)),
         "group_id": int(gid or 0),
         "scope": scope,
+        "recur_kind": int(rk or 0),
+        "recur_a": int(ra or 0),
+        "recur_b": int(rb or 0),
     }
 
 
@@ -168,6 +175,9 @@ def list_alarms(user_id: str) -> dict:
 
 def create_alarm(user_id: str, payload: dict[str, Any]) -> dict:
     body = _build_alarm_body(payload)
+    scope = str(payload.get("scope") or "private")
+    if scope not in ("private", "group"):
+        raise ValueError("提醒范围须为 private 或 group")
     ga = _load_group_alarm()
     parsed = ga._parse_create_body(body)
     if isinstance(parsed, str):
@@ -179,8 +189,8 @@ def create_alarm(user_id: str, payload: dict[str, Any]) -> dict:
         int(user_id),
         fire,
         clean_content,
-        group_id=None,
-        is_private=True,
+        group_id=GROUP_ID if scope == "group" else None,
+        is_private=scope != "group",
         recur=recur,
     )
     if recur:
@@ -217,3 +227,113 @@ def cancel_alarm(user_id: str, alarm_id: int) -> dict:
     if not ok:
         raise ValueError("取消失败：编号不存在、已触发或不是你创建的闹钟")
     return {"message": f"已取消闹钟 #{alarm_id}"}
+
+
+def calendar_month(user_id: str, month: str) -> dict:
+    """按月展开闹钟（服务端权威展开，前端零重复实现）。
+
+    只向前展开：单次看 fire_at 是否落月内；循环从 fire_at 推进到月末。
+    # ponytail: fire_at 落后于 now（bot 停机）时显示其迟到的待触发项，与列表视图一致
+    """
+    ga = _load_group_alarm()
+    uid = int(user_id)
+    y, m = int(month[:4]), int(month[5:7])
+    month_start = datetime(y, m, 1)
+    month_end = datetime(y, m, _cal.monthrange(y, m)[1], 23, 59, 59)
+    now = datetime.now()
+
+    db = DbManager()
+    db.cur.execute(
+        """
+        SELECT id, creator_user_id, fire_at, content, is_private,
+               is_recurring, recur_kind, recur_a, recur_b, recur_c
+        FROM group_alarms
+        WHERE fired = 0 AND (creator_user_id = ? OR is_private = 0)
+        """,
+        (uid,),
+    )
+    rows = db.cur.fetchall()
+    days: dict[str, list[dict]] = {}
+
+    def place(id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc, occ: datetime):
+        is_recurring = int(is_rec or 0) and int(rk or 0) > 0
+        days.setdefault(occ.strftime("%Y-%m-%d"), []).append({
+            "id": int(id_),
+            "time": occ.strftime("%H:%M"),
+            "content": content,
+            "date": occ.strftime("%Y-%m-%d"),
+            "is_mine": int(creator) == uid,
+            "scope": "private" if int(is_priv or 0) else "group",
+            "is_recurring": is_recurring,
+            "recur_kind": int(rk or 0),
+            "recur_a": int(ra or 0),
+            "recur_b": int(rb or 0),
+            "recur_desc": ga._format_recur_desc(int(rk), int(ra or 0), int(rb or 0), int(rc or 0)) if is_recurring else None,
+            "creator_name": resolve_display_name(str(creator)),
+        })
+
+    for id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc in rows:
+        fire = datetime.strptime(fire_s, "%Y-%m-%d %H:%M:%S")
+        is_recurring = int(is_rec or 0) and int(rk or 0) > 0
+        if not is_recurring:
+            if month_start <= fire <= month_end:
+                place(id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc, fire)
+            continue
+        occ = fire if fire > now else ga._next_recurring_fire(fire, now, int(rk), int(ra), int(rb), int(rc))
+        guard = 0
+        while occ <= month_end and guard < 10000:
+            if occ >= month_start:
+                place(id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc, occ)
+            occ = ga._next_recurring_fire(occ, occ, int(rk), int(ra), int(rb), int(rc))
+            guard += 1
+
+    for items in days.values():
+        items.sort(key=lambda x: (x["time"], x["id"]))
+    return {"month": month, "days": days, "min_lead_minutes": 5}
+
+
+def update_alarm(user_id: str, alarm_id: int, payload: dict[str, Any]) -> dict:
+    body = _build_alarm_body(payload)
+    scope = str(payload.get("scope") or "private")
+    if scope not in ("private", "group"):
+        raise ValueError("提醒范围须为 private 或 group")
+    ga = _load_group_alarm()
+    parsed = ga._parse_create_body(body)
+    if isinstance(parsed, str):
+        raise ValueError(parsed)
+
+    fire, clean_content, recur = parsed
+    db = DbManager()
+    db.cur.execute(
+        "SELECT id FROM group_alarms WHERE id = ? AND creator_user_id = ? AND fired = 0",
+        (int(alarm_id), int(user_id)),
+    )
+    if not db.cur.fetchone():
+        raise ValueError("修改失败：编号不存在、已触发或不是你创建的闹钟")
+
+    if recur:
+        k, a, b, c = recur
+        rec, rk, ra, rb, rc = 1, k, a, b, c
+    else:
+        rec = rk = ra = rb = rc = 0
+    # ponytail: 与 bot advance() 并发时最后写赢；出现丢更新再加 fire_at 前置条件比对
+    db.cur.execute(
+        """
+        UPDATE group_alarms
+        SET fire_at = ?, content = ?, is_private = ?, group_id = ?,
+            is_recurring = ?, recur_kind = ?, recur_a = ?, recur_b = ?, recur_c = ?
+        WHERE id = ? AND creator_user_id = ? AND fired = 0
+        """,
+        (fire.strftime("%Y-%m-%d %H:%M:%S"), clean_content,
+         0 if scope == "group" else 1, GROUP_ID if scope == "group" else 0,
+         rec, rk, ra, rb, rc, int(alarm_id), int(user_id)),
+    )
+    db.conn.commit()
+    verb = "在群里提醒" if scope == "group" else "提醒你"
+    return {
+        "id": int(alarm_id),
+        "message": (
+            f"已修改闹钟 #{alarm_id}，将于 {fire.strftime('%Y-%m-%d %H:%M')} {verb}："
+            f"「{clean_content}」"
+        ),
+    }
