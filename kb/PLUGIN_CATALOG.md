@@ -57,7 +57,7 @@
 | 35 | `shop_weekly_rotation` | `redeem_shop/` | 每周一 08:00 | 刷新商店货架 |
 | 36 | `startup_changelog` | `startup_changelog/` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
 | 37 | `weekly_quest_reset` | `weekly_quest/` | 每周一 08:00 | 清理过期任务进度 |
-| 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配截止结束 |
+| 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配截止结束、网页接力提交补推进 |
 | 44 | `forum_notify` | `forum_notify/` | 每分钟（meta 心跳） | 议事厅新帖群通知 + 过期投票自动关闭 |
 | 47 | `weekly_report` | `weekly_report/` | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档；出版后默认群通知 + 时间线事件（`BOTERO_WEEKLY_NOTIFY` 可关）；仅日志覆盖到的完整周出报，启动补漏不越过日志起点 |
 
