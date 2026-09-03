@@ -12,7 +12,7 @@
 python main.py
 ```
 
-依赖清单见根目录 `requirements.txt`（`pip install -r requirements.txt`）：核心 `websocket-client` `requests` `Pillow`，可选 `jieba`（周报热词）、`psutil`（系统监控）、`GitPython`（更新）、`openai`（LLM，已弃用）。
+依赖清单见根目录 `requirements.txt`（`pip install -r requirements.txt`）：核心 `websocket-client` `requests` `Pillow` `PyYAML`（读 `config.yaml`），可选 `jieba`（周报热词）、`psutil`（系统监控）、`GitPython`（更新）、`openai`（LLM，已弃用）。
 
 ### Web 应用部署
 
@@ -20,9 +20,9 @@ python main.py
 python -m webapp
 ```
 
-> 登录密钥盐经 `scripts/botero.env` 单一来源注入（bot 的 `main.py` 启动时自动加载该文件；webapp 生产环境经 systemd `EnvironmentFile`）。无需手动 export，改盐只改该文件。
+> 登录密钥盐在项目根 `config.yaml` 的 `auth.salt`（bot 与 webapp 共读同一文件，无需手动 export）。换盐：改 `auth.salt`，并把旧盐追加到 `auth.old_salts` 列表，旧密钥继续有效。
 
-单进程承载时间线社区主页（`/`，timeline 模块页面，登录可见）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/profile/schedule` `/activities` `/live` `/forum` `/tools` `/weekly`）+ 独立登录页 `/login`，Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 可经 `BOTERO_LIVE_FLV_URL` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
+单进程承载时间线社区主页（`/`，timeline 模块页面，登录可见）与 10 个功能分区（`/gallery` `/guestbook` `/profile` `/trpg` `/profile/schedule` `/activities` `/live` `/forum` `/tools` `/weekly`）+ 独立登录页 `/login`，Caddy 全量反代 8765，单一根域按路径路由。直播间：播放 `live.littlero.tech/live/livestream.flv`（SRS，Caddy 反代 + CORS），`/api/live/status` 用数据流探测判在线（方案 A，URL 经 `config.yaml` `live.flv_url` 覆盖）。完整部署见 `docs/web-apps-deployment.md`。
 
 ### 全站登录门控（1.18.0 起）
 
@@ -34,7 +34,7 @@ python -m webapp
 - **登录页**：`/login`（报纸风独立页，`login.html`/`login.js`）；cookie 丢失但会话仍有效时自动跳回（会话自愈）
 - **退出**：各页用户卡片旁「退出」按钮，客户端清会话回登录页；`/shared/auth.js` 全局拦截同源 fetch 401，失效自动清会话跳 `/login`
 
-周报新增 env：`BOTERO_MESSAGE_LOG_DB_PATH`（默认 `server_data/message_log.db`）、`BOTERO_WEB_BASE_URL`（默认 `https://littlero.tech`，周报通知链接前缀）、`BOTERO_WEEKLY_NOTIFY`（周报出版通知，默认 `1` 开启，群消息 + 时间线事件同开同关；置 `0` 关闭）。
+周报相关配置在 `config.yaml`：`paths.message_log_db`（默认 `server_data/message_log.db`）、`weekly.web_base_url`（默认 `https://littlero.tech`，周报通知链接前缀）、`weekly.notify`（周报出版通知，默认开启，群消息 + 时间线事件同开同关；置 `false` 关闭）。
 
 > **称号定义变更后需重启 webapp：** `plugins/title/defs.py` 由 `core/title_defs.py` 在**进程导入时快照加载**一次（`TITLE_DEFS: dict = _load()`），网页端个人主页的称号目录（含总数与进度条）读该快照。新增/修改/删除称号后必须 `sudo systemctl restart botero-web`（或 `./scripts/botero-services.sh restart`），否则页面停留在旧称号列表（新解锁的称号也不显示）。
 

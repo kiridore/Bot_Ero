@@ -10,19 +10,19 @@
 - 上游请求均有超时上限与体积上限，跟随重定向 ≤3 跳。
 """
 
-import os
 import re
 import socket
 from urllib.parse import urljoin
 
 import requests
 
+from core.config import ICON_PROXY as PROXY  # 可选代理，None = 直连（config.yaml tools.icon_proxy）
+
 MAX_BYTES = 512 * 1024  # 图标体积上限
 TIMEOUT_FAVICON = 4.0   # 直接路径探测
 TIMEOUT_HTML = 5.0      # 首页抓取
 TIMEOUT_ICON = 4.0      # 解析出的候选图标
 UA = "Mozilla/5.0 (compatible; BotEroWebapp/1.0; +https://littlero.tech)"
-PROXY = os.environ.get("BOTERO_ICON_PROXY")  # 可选：如 "http://127.0.0.1:7890"
 
 _TAG_RE = re.compile(r"<link\b[^>]*>", re.I)
 _ATTR_RE = re.compile(r'([\w-]+)\s*=\s*(["\'])(.*?)\2', re.I)

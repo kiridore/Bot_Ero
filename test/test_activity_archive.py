@@ -28,9 +28,13 @@ def _member(uid, nick, seq, status="done", content=None, images=None):
 
 class TestArchive(unittest.TestCase):
     def setUp(self):
+        self._old_python_data_path = context.python_data_path
         context.python_data_path = TEST_ROOT
         if os.path.exists(TEST_ROOT):
             shutil.rmtree(TEST_ROOT)
+
+    def tearDown(self):
+        context.python_data_path = self._old_python_data_path
 
     def test_archive_relay(self):
         act = {"id": 1, "type": "relay", "title": "端午接龙", "description": "粽子",

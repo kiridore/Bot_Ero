@@ -6,6 +6,7 @@ from typing import Optional
 from PIL import Image, ImageDraw
 
 from core import context
+from core.config import NICKNAME
 from core.gen_image.avatar_helper import raster_circle_avatar_on_rgb
 from core.gen_image.fonts import load_font, text_width, truncate_text
 from core.gen_image.models import PersonalRecordStats
@@ -31,7 +32,7 @@ AFTER_SECTION_TITLE = 5
 AVATAR_SIZE = 56
 AVATAR_GAP = 12
 NAME_FONT_SIZE = 16
-FOOTER_TEXT = "Power by 小埃同学"
+FOOTER_TEXT = f"Power by {NICKNAME}"
 FOOTER_FONT_SIZE = 12
 FOOTER_PAD_TOP = 10
 FOOTER_PAD_BOTTOM = 14

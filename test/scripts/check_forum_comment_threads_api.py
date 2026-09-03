@@ -19,7 +19,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 _tmp = tempfile.mkdtemp(prefix="botero_forum_threads_test_")
 _db = os.path.join(_tmp, "test.db")
-os.environ["BOTERO_DB_PATH"] = _db
+from _env import write_config  # 同目录 helper：生成临时 config.yaml
+
+os.environ["BOTERO_CONFIG"] = write_config(_tmp, paths={"db": _db})
 
 _conn = sqlite3.connect(_db)
 _cur = _conn.cursor()

@@ -402,7 +402,7 @@ with _connect() as conn:
 | `has_image` | INTEGER | NOT NULL DEFAULT 0 | 是否含图片段 |
 
 - 索引：`idx_messages_group_time (group_id, sent_at)`、`idx_messages_text (text)`
-- 独立库 `server_data/message_log.db`（`BOTERO_MESSAGE_LOG_DB_PATH`），WAL + busy_timeout=5000；只记群消息，bot 自身消息不落库
+- 独立库 `server_data/message_log.db`（`config.yaml` `paths.message_log_db`），WAL + busy_timeout=5000；只记群消息，bot 自身消息不落库
 
 ### 周报归档
 

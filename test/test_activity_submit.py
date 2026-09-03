@@ -55,11 +55,15 @@ class TestSubmit(unittest.TestCase):
         self.conn = sqlite3.connect(DB_PATH)
         init_schema(self.conn, self.conn.cursor())
         self.db = _Db(self.conn)
+        self._old_python_data_path = context.python_data_path
         # 归档路径隔离：archive.py 运行时读 core.config.ACTIVITY_ROOT，打桩到本测试临时目录
+        self._old_activity_root = config.ACTIVITY_ROOT
         config.ACTIVITY_ROOT = Path("/tmp/test_activity_archive_submit")
         context.python_data_path = "/tmp/test_activity_archive_submit"
 
     def tearDown(self):
+        context.python_data_path = self._old_python_data_path
+        config.ACTIVITY_ROOT = self._old_activity_root
         self.conn.close()
 
     def _submit(self, user_id, text_body="", arg=""):

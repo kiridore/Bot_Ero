@@ -8,9 +8,7 @@ from core.event import Event
 
 only_to_me_flag = False
 
-NICKNAME = "小埃同学"         # 机器人昵称
-SUPER_USER = [1057613133]   # 主人的 QQ 号
-BOT_QQ = "3915014383"
+from core.config import BOT_QQ, NICKNAME, SUPER_USER  # noqa: F401,E402 —— 身份配置单一来源 config.yaml（旧名字保留，插件 import 面不变）
 
 
 class Plugin:

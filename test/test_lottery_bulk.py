@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.event import Event
+from core.base import NICKNAME
 from core.db._base import init_schema
 from core.db.checkin import CheckinManager
 from core.db.lottery import LotteryManager
@@ -103,7 +104,7 @@ class TestLotteryBulk(unittest.TestCase):
         self.assertEqual(sum("*摇骰子*" in _node_text(n) for n in nodes[1:]), 2)
         for n in nodes:
             self.assertEqual(n["data"]["user_id"], 3915014383)
-            self.assertEqual(n["data"]["nickname"], "小埃同学")
+            self.assertEqual(n["data"]["nickname"], NICKNAME)
         self.assertEqual(self.db.lottery.draw_count(123456, self.today), 2)
         self.assertEqual(self.db.lottery.spent(123456), 1)
 

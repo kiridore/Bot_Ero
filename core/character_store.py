@@ -17,7 +17,7 @@ import threading
 import uuid
 from pathlib import Path
 
-CHARS_ROOT = Path(os.environ.get("BOTERO_TRPG_CHARS_ROOT", "server_data/trpg_chars"))
+from core.config import TRPG_CHARS_ROOT as CHARS_ROOT  # 根目录来自 config.yaml paths.trpg_chars
 
 _LOCKS: dict[str, threading.Lock] = {}
 

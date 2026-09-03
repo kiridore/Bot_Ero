@@ -53,7 +53,7 @@ OneBot 服务端 ──WebSocket──> main.py
 | `cq.py` | OneBot 消息段构造器：`text()`、`image()`、`at()`、`reply()`、`forward()` 等，返回 dict 格式的消息段 |
 | `context.py` | 全局运行时状态：`plugin_registry`（插件类列表）、`script_start_time`、`DEFAULT_GROUP_ID`、路径配置 |
 | `database_manager.py` | SQLite 数据访问层（`data.db`），统一 DB_PATH + WAL + busy_timeout=5000；各业务表的 DDL 集中在 `core/db/_base.py`，读写按域拆分在 `core/db/`（checkin/points/shop/lottery/titles/alarm/immortal/quest/activity/guestbook/redeem/timeline/forum/tools/weekly/message_log） |
-| `config.py` | 全部 `BOTERO_*` 环境变量读取（bot 与 webapp 共用；部署侧单一来源 `scripts/botero.env`） |
+| `config.py` | 统一配置 `config.yaml` 读取（bot 与 webapp 共用；import 时 `yaml.safe_load` 加载，必填缺失启动即退出；`BOTERO_CONFIG` 环境变量仅用于定位文件） |
 | `auth.py` | `make_login_key` / `verify_login_key`（HMAC 登录密钥） |
 | `utils.py` | 工具函数：日期计算、积分操作、图片下载、`register_plugin` 装饰器 |
 | `onebot_client.py` | `resolve_display_name` / `resolve_avatar_url`（web 侧 QQ 昵称/头像解析） |
@@ -83,8 +83,8 @@ include 11 个模块 router
 - 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（49 个文件，文件名全局唯一），共享层 `core/web/static/` 以 `/shared` 挂载（auth.js / nav.js / motion.css/js / lightbox.js / icons.js / base.css / profile.css）
 - **全站登录门控**（1.18.0 起）：`webapp/app.py::login_guard` 中间件——白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，页面 302 → `/login?next=…`，API 与图片媒体 401；凭证 `Authorization: Bearer` 头或根域 cookie `botero_key` 任一
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
-- 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一 `BOTERO_AUTH_SALT`（**单一来源 `scripts/botero.env`**：bot 启动加载 + webapp systemd EnvironmentFile）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
-- 配置集中在 `core/config.py`（全部 `BOTERO_*` 环境变量）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
+- 密钥即登录 token（HMAC，`core/auth.py`），全站共享同一登录密钥盐（**单一来源 `config.yaml` 的 `auth.salt`**：bot 与 webapp 共读；换盐把旧盐追加到 `auth.old_salts`）；单 origin 下登录态 localStorage 同源共享（auth.js 保留根域 cookie 写入兼容旧缓存）
+- 配置统一在项目根 `config.yaml`（gitignore，模板 `config.example.yaml`）；数据库统一走 `core.database_manager.DbManager`（共享 SQLite，WAL + busy_timeout=5000）
 - **不要**给 uvicorn 加 `--workers`（多 worker 重新引入多进程 SQLite 写竞争）
 
 `webapp/forum/`（议事厅：长文/公告/投票/评论，Tiptap 富文本，投票/评论自动入时间线；详见 `docs/archive/superpowers/specs/2026-08-10-forum-design.md`）

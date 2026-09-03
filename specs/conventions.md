@@ -126,7 +126,7 @@ server_data/
 **MUST:**
 - Python 脚本文件 I/O 使用 `python_data_path`
 - 传递给 OneBot API 的路径参数使用 `llonebot_data_path`
-- Web 应用可通过 `BOTERO_IMAGE_ROOT` 环境变量覆盖
+- Web 应用可通过 `config.yaml` 的 `paths.images` 覆盖图片根目录
 
 ---
 
@@ -234,20 +234,9 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ---
 
-## Constraint: 硬编码常量
+## Constraint: 配置统一
 
-以下值**已硬编码在源码中**，修改时需注意：
-
-| 常量 | 位置 | 值 |
-|------|------|-----|
-| WebSocket URL | `main.py` | `ws://127.0.0.1:3001` |
-| WS Token | `main.py` | `123456` |
-| 默认群号 | `core/context.py` | `296470819` |
-| 超级用户 | `core/base.py` | `[1057613133]` |
-| 机器人 QQ | `core/base.py` | `"3915014383"` |
-| 下载代理 | `core/utils.py` | `127.0.0.1:7890` |
-
-以上六个值仍硬编码在源码，修改需直接编辑（精确 file:line 见 `kb/QUICK_REFERENCE.md` 硬编码常量表）。路径/盐/端口/开关类配置已环境变量化：约 30 个 `BOTERO_*` 变量集中读入 `core/config.py`，部署侧单一来源 `scripts/botero.env`。
+部署可变值（身份、连接、路径、盐、开关等）**全部**在项目根 `config.yaml`（gitignore；模板 `config.example.yaml` 随仓库）。`core/config.py` 在 import 时经 `yaml.safe_load` 加载并暴露模块级常量（对外常量名稳定，`core/base.py`/`core/context.py`/`main.py` 等取值点保持原变量名）；缺文件或缺必填项时启动即退出。`BOTERO_CONFIG` 环境变量仅用于定位配置文件本身（测试/多环境）。修改配置后需重启对应进程。
 
 ---
 
@@ -274,7 +263,7 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 **测试绝不触碰真实 `data.db`/`server_data`（红线）；用户可见文案改动与测试断言同 commit。**
 
-- 新增 `test/scripts/check_*.py` 独立进程脚本 MUST 重定向**全部** `BOTERO_*` 数据路径——不止 `BOTERO_DB_PATH`，按所测模块补 `BOTERO_ACTIVITY_ROOT`、`BOTERO_IMAGE_ROOT` 等
+- 新增 `test/scripts/check_*.py` 独立进程脚本 MUST 用 `test/scripts/_env.py::write_config` 生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向——不止 `paths.db`，按所测模块补 `paths.activity`、`paths.images`、`thumbs.cache_dir` 等
 - 代码/测试引用路径常量 MUST 用模块属性访问（`config.ACTIVITY_ROOT`），禁止 `from core.config import ACTIVITY_ROOT` 式导入期绑定——conftest/脚本的 env 重定向对已绑定名字不生效（2026-09 activity 归档测试写真实 server_data 的根因）
 - node DOM 测试（`test/test_*.js`）：被测页面顶层状态容器用 `var` 声明（浏览器语义不变；eval 词法作用域下测试才能访问）；stub 缺方法修 stub，产品语义问题才修产品
 - 改动用户可见文案/输出格式（提示语、消息段）MUST 同 commit 更新对应测试断言（2026-09 备份日报欠账案例）

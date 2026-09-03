@@ -48,7 +48,7 @@
 ├── core/                      ← 核心库（bot 与 Web 子应用共享）
 │   ├── base.py                ← Plugin/CommandPlugin/TimedHeartbeatPlugin
 │   ├── context.py             ← 运行时上下文、SYSTEM_PLUGINS、plugin_key
-│   ├── config.py              ← 全部 BOTERO_* 环境变量读取
+│   ├── config.py              ← 统一 config.yaml 读取（yaml.safe_load，必填缺失启动即退出）
 │   ├── auth.py                ← make_login_key / verify_login_key（登录密钥）
 │   ├── onebot_client.py       ← resolve_display_name / resolve_avatar_url
 │   ├── title_defs.py          ← TITLE_DEFS 加载
@@ -76,7 +76,7 @@
 │   ├── OPERATIONS.md
 │   └── DATABASE.md
 ├── specs/                     ← 规范文档
-├── scripts/                   ← 部署脚本（botero.env 盐单一来源 / systemd unit / Caddyfile / botero-services.sh）
+├── scripts/                   ← 部署脚本（systemd unit / Caddyfile / botero-services.sh；配置在项目根 config.yaml，不入库）
 ├── docs/                      ← 部署文档 + 归档设计文档（docs/archive/superpowers/）
 ├── roadmap.md                 ← 路线图（当前版本见 core/config.py::BOTERO_VERSION + CHANGELOG.md）
 ├── webapp/                    ← Web 单进程入口（8765；认证路由/时间线主页/static 合并目录；`python -m webapp`）

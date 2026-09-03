@@ -8,12 +8,14 @@ if TYPE_CHECKING:
     from core.base import Plugin
 
 script_start_time = datetime.now()
-llonebot_data_path = "/app/llonebot/server_data"    # 使用api是用这个地址
-python_data_path = "./server_data"                  # 在python脚本中访问用这个地址
-onebot_qq_volume = "/var/lib/docker/volumes/onebot_qq_volume/_data"
+from core import config as _config
+
+llonebot_data_path = _config.LLONEBOT_DATA_PATH    # 使用api是用这个地址（config.yaml）
+python_data_path = _config.PYTHON_DATA_PATH        # 在python脚本中访问用这个地址（config.yaml）
+onebot_qq_volume = _config.ONEBOT_QQ_VOLUME
 startup_changelog_sent = True
 plugin_registry: list[type["Plugin"]] = []
-DEFAULT_GROUP_ID = 296470819 # 在这里填写你想固定使用的群号
+DEFAULT_GROUP_ID = _config.DEFAULT_GROUP_ID  # 固定群号（config.yaml bot.default_group）
 
 # 系统级插件（不可按群禁用，始终运行）
 SYSTEM_PLUGINS = frozenset({

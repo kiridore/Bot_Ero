@@ -36,7 +36,7 @@ class WeekListPlugin(CommandPlugin):
 
         user_map = {}
         logger.debug(checkin_users)
-        #[(1, 1057613133, '2025-08-12 01:22:56', 'EDE6A7B4C56C0F2180D1C54AF7877B0C.png')]
+        #[(1, 123456, '2025-08-12 01:22:56', 'EDE6A7B4C56C0F2180D1C54AF7877B0C.png')]
         for user_info in checkin_users:
             user_map[user_info[1]] = user_info[2]
 

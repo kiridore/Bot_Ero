@@ -24,9 +24,9 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 ## Toolchain reality
 
 - **No build system:** 无 `pyproject.toml`/`setup.py`。两个入口：`python main.py`（bot）、`python -m webapp`（Web，默认 8765 端口）。依赖装根目录 `requirements.txt`（webapp 子集在 `webapp/requirements.txt`）。
-- **测试统一入口 pytest，无 lint/formatter.** 项目根 `pytest` 一键全量回归（`pytest.ini` + `test/conftest.py`，conftest 在收集前把全部 `BOTERO_*` 数据路径重定向到会话临时目录，**绝不触碰真实 `data.db`/`server_data`**）。布局：`test/test_*.py` 进程内用例（unittest 风格）；`test/scripts/check_*.py` 脚本式集成套件（依赖独立进程拿全新临时 DB，仍可 `python test/scripts/check_<name>.py` 单跑，由 `test/test_webapp_api_suites.py` 子进程纳入回归，新增自动发现）；`test/test_*.js` node 最小 DOM stub 渲染用例（含论坛 DOM 回归，由 `test/test_dom_render_suites.py` 子进程纳入，需 node）。`test_llm.py` 真实调外部计费 API，被 conftest `collect_ignore` 排除出常规回归。
+- **测试统一入口 pytest，无 lint/formatter.** 项目根 `pytest` 一键全量回归（`pytest.ini` + `test/conftest.py`，conftest 在收集前生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向它，全部数据路径落在会话临时目录，**绝不触碰真实 `data.db`/`server_data`**）。布局：`test/test_*.py` 进程内用例（unittest 风格）；`test/scripts/check_*.py` 脚本式集成套件（依赖独立进程拿全新临时 DB，仍可 `python test/scripts/check_<name>.py` 单跑，由 `test/test_webapp_api_suites.py` 子进程纳入回归，新增自动发现）；`test/test_*.js` node 最小 DOM stub 渲染用例（含论坛 DOM 回归，由 `test/test_dom_render_suites.py` 子进程纳入，需 node）。`test_llm.py` 真实调外部计费 API，被 conftest `collect_ignore` 排除出常规回归。
 - `pyrightconfig.json` 被 gitignore——不要在 CI/自动化中依赖它。
-- 环境变量单一来源 `scripts/botero.env`：`main.py` 启动时 `os.environ.setdefault` 注入（必须在 import core 之前）；webapp 生产经 systemd `EnvironmentFile` 读同一文件。约 30 个 `BOTERO_*` 变量集中在 `core/config.py`。
+- 配置单一来源项目根 `config.yaml`（gitignore，模板 `config.example.yaml`）：`core/config.py` import 时经 `yaml.safe_load` 加载（缺文件/缺必填项启动即退出）；环境变量 `BOTERO_CONFIG` 仅用于定位配置文件（测试/多环境）。
 - **Git hooks:** clone 后执行 `git config core.hooksPath .githooks` 启用 Conventional Commits 校验（commit-msg 钩子对 >12 个文件的暂存输出分块提示，警告不阻断）。
 - **Commit 消息 MUST 中文** + Conventional Commits（如 `feat(任务): 新增周常全清称号`）。
 - **Commits MUST 按逻辑分块**：一个 commit = 一个逻辑变更；同一逻辑变更的配套文件（代码 + 行为测试 + spec + 菜单文本 + CHANGELOG + KNOWLEDGE_BASE）进**同一个** commit，无关改动拆开（`specs/conventions.md` §Commit 提交分块）。
@@ -40,8 +40,8 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 
 | 常量 | 值 | 用途 |
 |------|-----|------|
-| `context.llonebot_data_path` | `/app/llonebot/server_data` | OneBot API 调用（bot 进程看到的路径） |
-| `context.python_data_path` | `./server_data` | Python 文件 I/O |
+| `context.llonebot_data_path` | `/app/llonebot/server_data`（默认，`config.yaml` `bot.llonebot_data_path`） | OneBot API 调用（bot 进程看到的路径） |
+| `context.python_data_path` | `./server_data`（默认，`config.yaml` `bot.python_data_path`） | Python 文件 I/O |
 
 **用错是静默失败**——API 调用只返回空/失败，不报错。
 
@@ -77,22 +77,13 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **Specs MUST 在同一 commit 更新**（`specs/README.md` 维护规则表）。
 - **每次用户可见变更 MUST 同 commit 更新 `CHANGELOG.md` 并 bump `core/config.py::BOTERO_VERSION`**：CHANGELOG 顶部新增 `[x.y.z]` 节，与 `BOTERO_VERSION` 一致（新功能 minor / 修复 patch）。纯文档/测试/内部重构可只记 CHANGELOG `[未发布]` 节不 bump。
 - **新增/改名指令 MUST 同 commit 更新 `plugins/menu/bot_menu_text.py`**（指令文本唯一来源，勿在他处硬编码）。
-- **改动用户可见文案/输出格式 MUST 同 commit 更新对应测试断言**；新增测试脚本 MUST 重定向全部 `BOTERO_*` 数据路径（红线：不触真实 `server_data`），路径常量用 `config.X` 属性访问、禁止导入期绑定。见 `specs/conventions.md` §测试隔离与文案同步。
+- **改动用户可见文案/输出格式 MUST 同 commit 更新对应测试断言**；新增测试脚本 MUST 用 `test/scripts/_env.py::write_config` 生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向它，按所测模块重定向全部相关数据路径（红线：不触真实 `server_data`），路径常量用 `config.X` 属性访问、禁止导入期绑定。见 `specs/conventions.md` §测试隔离与文案同步。
 - **动协议代码**（`core/api.py`、`core/event.py`、`core/cq.py` 或任何插件的 OneBot 事件/消息段访问）**MUST 先查权威上游**——见 `specs/onebot-protocol.md` §权威上游文档；LLOneBot 文档索引镜像在 `specs/llms.txt`（编辑前 webfetch 对应单页）。
 - LLM 子系统（`core/llm/`）**已弃用**，不要新增依赖。
 
-## Hardcoded values (no config file)
+## Hardcoded values
 
-| What | Where | Value |
-|------|-------|-------|
-| WS URL | `main.py:28` | `ws://127.0.0.1:3001` |
-| WS token | `main.py:29` | `123456` |
-| Default group | `core/context.py:16` | `296470819` |
-| Super user | `core/base.py:12` | `[1057613133]` |
-| Bot QQ | `core/base.py:13` | `"3915014383"` |
-| Download proxy | `core/utils.py:83-85` | `127.0.0.1:7890` |
-
-（精确 file:line 以 `kb/QUICK_REFERENCE.md` 硬编码常量表为准；路径/盐/端口类配置已 `BOTERO_*` 环境变量化。）
+部署值全部在项目根 `config.yaml`（QQ 号、超管、群号、WS、代理、路径、盐、端口等）；代码内仅剩算法常量（见 `kb/QUICK_REFERENCE.md`）。
 
 ## API behavior
 

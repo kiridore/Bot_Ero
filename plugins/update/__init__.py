@@ -6,6 +6,7 @@ import git
 
 from core import api, context
 from core.base import Plugin
+from core.config import NICKNAME
 from core.cq import text
 from core.utils import register_plugin
 
@@ -46,5 +47,5 @@ class UpdatePlugin(Plugin):
             # 更新成功并重启
             os.execv(sys.executable, ['python3'] + sys.argv)
         else:
-            self.api.send_msg(text("小埃同学已经是最新版本了喵~"))
+            self.api.send_msg(text(f"{NICKNAME}已经是最新版本了喵~"))
 

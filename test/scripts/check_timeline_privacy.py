@@ -18,16 +18,21 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# 必须在 import core.config / webapp 之前重定向 DB、用户设置、图片与缓存目录
+# 必须在 import core.config / webapp 之前生成临时配置（DB、用户设置、图片与缓存目录均指向 _tmp；
+# 昵称解析拒连降级 + timeline token 为 helper 默认值）
 _tmp = tempfile.mkdtemp(prefix="botero_timeline_privacy_test_")
 _db = os.path.join(_tmp, "test.db")
-os.environ["BOTERO_DB_PATH"] = _db
-os.environ["BOTERO_USER_SETTINGS_ROOT"] = os.path.join(_tmp, "user_settings")
-os.environ["BOTERO_IMAGE_ROOT"] = os.path.join(_tmp, "record_images")
-os.environ["BOTERO_THUMB_CACHE"] = os.path.join(_tmp, "thumb_cache")
-# 昵称解析立即失败降级（uid 直返），避免 192.168.x 超时拖慢测试
-os.environ["BOTERO_ONEBOT_HTTP"] = "http://127.0.0.1:1"
-os.environ["BOTERO_EVENT_TOKEN"] = "test-timeline-token"
+from _env import write_config  # 同目录 helper：生成临时 config.yaml
+
+os.environ["BOTERO_CONFIG"] = write_config(
+    _tmp,
+    paths={
+        "db": _db,
+        "user_settings": os.path.join(_tmp, "user_settings"),
+        "images": os.path.join(_tmp, "record_images"),
+    },
+    thumbs={"cache_dir": os.path.join(_tmp, "thumb_cache")},
+)
 
 _conn = sqlite3.connect(_db)
 _cur = _conn.cursor()
@@ -41,6 +46,10 @@ from core import user_settings  # noqa: E402
 from core.auth import make_login_key  # noqa: E402
 from core.config import IMAGE_ROOT, THUMB_CACHE_DIR  # noqa: E402
 from webapp.app import app  # noqa: E402
+
+# 兼容双保险：即使未来 paths.user_settings 覆盖链路变动，仍确保写临时目录而非真实
+# server_data/user_settings/（与 test_user_settings.py 同款模块属性 patch）
+user_settings.SETTINGS_ROOT = Path(os.path.join(_tmp, "user_settings"))
 
 A = "1057613133"  # 作者：私聊打卡隐藏 + 图片模糊
 C = "3915014383"  # 普通查看者（设置全默认公开）

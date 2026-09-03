@@ -1,6 +1,5 @@
 """直播间模块：播放 SRS HTTP-FLV 流（live.littlero.tech/live/livestream.flv）+ 观众在场。"""
 
-import os
 import threading
 import time
 from typing import Annotated
@@ -10,14 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from core.config import LIVE_FLV_URL  # 直播流地址（config.yaml live.flv_url 可覆盖，便于本地联调）
+
 from core.onebot_client import resolve_display_name
 from core.web.auth_deps import get_optional_user_id
 from webapp import STATIC_DIR
 
 router = APIRouter()
 
-# 直播流地址（方案 A 状态探测与页面播放同源 URL；环境变量可覆盖，便于本地联调）
-LIVE_FLV_URL = os.environ.get("BOTERO_LIVE_FLV_URL", "https://live.littlero.tech/live/livestream.flv")
 PROBE_TIMEOUT_SECONDS = 2.0
 PROBE_READ_BYTES = 4096
 

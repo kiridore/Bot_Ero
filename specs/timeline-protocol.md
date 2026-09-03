@@ -48,7 +48,7 @@
 
 ## Constraint: 发送与幂等
 
-- 端点：`POST /api/timeline/events`，鉴权 `Authorization: Bearer <BOTERO_EVENT_TOKEN>`（系统间共享密钥，与用户登录密钥不同；单一来源 `scripts/botero.env`）。
+- 端点：`POST /api/timeline/events`，鉴权 `Authorization: Bearer <timeline.token>`（系统间共享密钥，与用户登录密钥不同；单一来源 `config.yaml` `timeline.token`）。
 - 服务器收件时生成 `received_at`；展示、排序均以 `received_at` 为准，与发送方时钟无关。
 - 幂等：`(source, id)` 与 `(source, dedup_key)` 唯一；重复提交 **MUST** 被静默忽略（INSERT OR IGNORE），不报错、不覆盖。
 - 发送方 **MUST** best-effort 发送：失败仅记日志，**MUST NOT** 阻塞业务主流程、**MUST NOT** 重试风暴（单次发送至多重试一次）。
@@ -68,7 +68,7 @@
 - 两条路径：
   - `DELETE /api/timeline/events/{id}`——按事件 id；
   - `DELETE /api/timeline/events/by-key?source=<source>&key=<dedup_key>`——按业务自然键（**业务回滚专用**，发送方无需追踪事件 id）。
-- 鉴权：`BOTERO_EVENT_TOKEN`；删除时 source 必须匹配事件自身的 source。
+- 鉴权：`config.yaml` 的 `timeline.token`；删除时 source 必须匹配事件自身的 source。
 - **业务回滚 MUST 联动删除对应事件**：`/撤回打卡`、打卡消息撤回 → 删 `checkin` 事件。硬删除后同日重打卡可重新入列（新 id、新 dedup_key 行）。
 
 ## Constraint: 查询与渲染

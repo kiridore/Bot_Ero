@@ -15,13 +15,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# 必须在 import core.config / webapp 之前重定向 DB 与外部依赖
+# 必须在 import core.config / webapp 之前生成临时配置（DB 重定向；昵称拒连降级 +
+# timeline token 为 helper 默认值，避免 192.168.x 超时拖慢测试）
 _tmp = tempfile.mkdtemp(prefix="botero_timeline_unread_test_")
 _db = os.path.join(_tmp, "test.db")
-os.environ["BOTERO_DB_PATH"] = _db
-# 昵称解析立即失败降级（uid 直返），避免 192.168.x 超时拖慢测试
-os.environ["BOTERO_ONEBOT_HTTP"] = "http://127.0.0.1:1"
-os.environ["BOTERO_EVENT_TOKEN"] = "test-timeline-token"
+from _env import write_config  # 同目录 helper：生成临时 config.yaml
+
+os.environ["BOTERO_CONFIG"] = write_config(_tmp, paths={"db": _db})
 
 _conn = sqlite3.connect(_db)
 _cur = _conn.cursor()

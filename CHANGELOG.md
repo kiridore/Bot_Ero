@@ -4,6 +4,18 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [未发布]
+
+- **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
+
+## [1.35.0] - 2026-09-02
+
+### 变更
+- 配置统一为项目根 `config.yaml`（YAML）：QQ 号、超管、默认群、WS 地址/token、数据路径、下载代理等原硬编码值与全部 `BOTERO_*` 环境变量合并为单一配置文件；真实配置退出 git（模板 `config.example.yaml`）
+- `BOTERO_CONFIG` 环境变量仅用于定位配置文件（测试与多环境部署）
+- 移除 `webapp` 失效的 `--db`/`--images` 启动参数与 `scripts/botero.env`
+- 部署迁移：`cp config.example.yaml config.yaml` 填真实值并重启；systemd unit 移除 EnvironmentFile 后 daemon-reload
+
 ## [1.34.0] - 2026-09-02
 
 ### 新增
@@ -46,11 +58,6 @@
 ### 新增
 
 - **日程日历页**：个人中心新增「日程」页（`/profile/schedule`），以月历展示自己与群内所有人的闹钟，重复闹钟自动展开填充；点日期快速添加，点闹钟查看详情（创建人/内容/规则），自己的闹钟可编辑（支持仅我/群内公开互转）与取消；网页新建闹钟可选「仅我 / 群内公开」。旧闹钟页 `/alarms` 重定向至新页，闹钟列表保留在新页底部
-
-## [未发布]
-
-- **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
-
 
 ## [1.31.0] - 2026-08-31
 

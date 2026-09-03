@@ -45,6 +45,7 @@ class TestCommands(unittest.TestCase):
         context.python_data_path = "/tmp/test_activity_archive_cmd"
 
     def tearDown(self):
+        context.python_data_path = self.old_python_data_path
         self.conn.close()
 
     def _run(self, text, user_id=123456):

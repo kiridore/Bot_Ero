@@ -66,7 +66,7 @@ logger.exception("...")  # 自动附带 traceback
 ## 测试与流程陷阱（2026-09 实录）
 
 - **from-import 绑定坑**：`from core.config import X` 在导入期定格值，conftest/脚本的 env 重定向对它失效——用 `config.X` 属性访问（受害者：activity 归档测试独立运行时写真实 server_data）
-- **check 脚本只重定向 DB_PATH 不够**：所测模块涉及的 `BOTERO_*` 数据路径要全量重定向
+- **check 脚本只重定向 db 不够**：所测模块涉及的 `config.yaml` 路径键要全量重定向（经 `write_config` 的 `paths=`/`thumbs=` 覆盖）
 - **页面顶层状态容器用 `var`**：node DOM 测试靠 `eval` 访问 `formState` 等，`const/let` 在 eval 词法作用域外不可见
 - **改文案忘改测试**：备份日报前缀改动遗留 3 例失败约两周才修——文案改动同 commit 更新断言
 
@@ -75,18 +75,17 @@ logger.exception("...")  # 自动附带 traceback
 ## 已知技术债
 
 - `user_id` 在数据库中类型不一致（TEXT vs INTEGER），跨表查询需 CAST
-- 配置半环境变量化：路径/盐/端口/开关等约 30 个 `BOTERO_*` 环境变量集中在 `core/config.py`，`scripts/botero.env` 是部署侧单一来源；但 WS 地址/token、默认群号、超级用户、下载代理等仍硬编码在源码（见 `kb/QUICK_REFERENCE.md` 硬编码常量表）
+- 配置已统一 `config.yaml`（`core/config.py` import 时经 `yaml.safe_load` 加载，bot 与 webapp 共用）；`BOTERO_CONFIG` 环境变量仅用于定位配置文件（测试/多环境）。真实配置不进 git，模板为 `config.example.yaml`
 - 无迁移框架，Schema 演化依赖手动 PRAGMA + ALTER
 - ~~无测试框架~~ 已统一 pytest（项目根 `pytest` 一键回归；`test/conftest.py` 收集前重定向全部数据路径到临时目录，脚本式集成套件在 `test/scripts/check_*.py` 经子进程纳入，node DOM 渲染用例一并纳入；`test_llm.py` 因真实调外部计费 API 被排除）
 - 部分旧表 (user_title_state, group_alarms repeat_y/m/d) 已被新设计取代但未删除
 - `core/api.py` 延迟导入 `plugins.title` 存在循环依赖
-- `webapp/__main__.py` 的 `--db` 参数不生效：`core.config.DB_PATH` 在模块首次 import 时冻结，`main()` 里设 env 太晚；需启动前注入 env（`BOTERO_DB_PATH=...`）
 
 ## 安全注意
 
-- Web 图库登录密钥盐单一来源：`scripts/botero.env`（bot 的 main.py 启动加载，webapp 经 systemd EnvironmentFile；源码默认值与其一致）
-- `AUTH_SALT` 改变会导致所有已发出的登录密钥失效（换盐用 `BOTERO_AUTH_SALT_OLD` 无感迁移）
-- 下载代理 `127.0.0.1:7890` 硬编码，非标准端口
+- Web 图库登录密钥盐单一来源：`config.yaml` 的 `auth.salt`（bot 与 webapp 共读同一文件）
+- `auth.salt` 改变会导致所有已发出的登录密钥失效（换盐用 `auth.old_salts` 列表无感迁移）
+- 下载代理走 `config.yaml` `bot.download_proxy`（本机默认 `http://127.0.0.1:7890`，非标准端口；留空则直连）
 
 ## 路径陷阱
 
@@ -126,9 +125,9 @@ main { padding: 12px 16px 3rem; max-width: 1600px; margin: 0 auto; }
 
 排查要点：DevTools 勾掉 `margin: 0 auto` 立即恢复，即查全局元素选择器（`main`/`div`/`section`）+ auto 外边距。
 
-### 陷阱 2：`--db` 启动参数不生效（见"已知技术债"）
+### 陷阱 2：配置在 import 时冻结（见"已知技术债"）
 
-`core.config.DB_PATH` 在模块首次 import 时求值冻结，`webapp/__main__.py` 的 `main()` 里设 env 太晚 → `--db` 静默无效，测试数据可能写进真实 `data.db`。正确隔离：进程启动前注入 env：`BOTERO_DB_PATH=/tmp/x.db python3 -m webapp`。
+`core.config` 在模块首次 import 时求值冻结。要换配置：改 `config.yaml` 后重启进程，或启动前设 `BOTERO_CONFIG=<其他配置文件路径>` 指向别的文件。
 
 ### 陷阱 3：`hub restart` 复用旧启动规格
 
@@ -159,4 +158,4 @@ main { padding: 12px 16px 3rem; max-width: 1600px; margin: 0 auto; }
 
 ### 模式 4：测试隔离
 
-webapp 冒烟必须用进程启动前注入的 `BOTERO_DB_PATH` 指向临时库；测完清理残留行（`DELETE FROM timeline_events WHERE id IN (...)`），防止测试数据污染生产表。
+webapp 冒烟必须用临时 `config.yaml`（`BOTERO_CONFIG=<临时配置> python3 -m webapp`，数据路径指向临时目录）；测完清理残留行（`DELETE FROM timeline_events WHERE id IN (...)`），防止测试数据污染生产表。

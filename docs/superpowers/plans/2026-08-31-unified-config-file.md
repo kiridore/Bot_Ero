@@ -640,9 +640,11 @@ class TestWiring(unittest.TestCase):
             context.python_data_path = old
 
     def test_main_reads_config_ws(self):
-        import main
+        # 不 import main：import main 会触发 migrate_group_plugin_config() 直写真实 data.db（隔离铁律）。
+        # 接线覆盖：Task 2 Step 7 grep + Task 4 Step 5 启动冒烟。
         import core.config as cfg
-        self.assertIs(main.WS_URL, cfg.WS_URL)  # 同一对象 = 真从 config 来，非碰巧同值
+        self.assertTrue(hasattr(cfg, "WS_URL"))
+        self.assertIsInstance(cfg.WS_TOKEN, str)
 
 
 if __name__ == "__main__":
@@ -652,7 +654,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `python -m pytest test/test_config_wiring.py -v`
-Expected: `test_main_reads_config_ws` FAIL（main.WS_URL 是硬编码常量、与 config 无关联断言不成立），或 `test_base_identity_from_config` FAIL（base 常量非 config 同源）
+Expected: `test_base_identity_from_config` FAIL（base 常量是源码字面量，与 YAML 解析出的字符串非同一对象）；`test_context_attrs_from_config` 的赋值断言通过（上下文常量当前也是字面量同值——非本步关键）。整体文件 FAIL 即为有效 red。
 
 - [ ] **Step 3: 改 `core/base.py`**
 
@@ -1080,8 +1082,9 @@ git commit -m "feat(配置): 统一配置文件 config.yaml 发布 1.32.0，文�
    sudo systemctl restart botero-web    # webapp
    # bot 进程（llonebot 容器侧）：重启 bot 主进程
    ```
-3. VPS 上的 `scripts/botero.env` 会被 git pull 自动删除（已 `git rm`），其值必须已并入 `config.yaml` 再重启
-4. 验证：webapp 首页可登录（盐一致）、bot 上线心跳正常、`/图库密钥` 生成的旧密钥仍可登录（old_salts 为空且盐未变则天然一致）
+3. VPS `config.yaml` 的 `live.flv_url` 填 `http://127.0.0.1:18080/live/livestream.flv`（原 systemd `Environment=BOTERO_LIVE_FLV_URL` 的本机 SRS 直连覆盖值，见 `scripts/botero-web.service` 注释）
+4. VPS 上的 `scripts/botero.env` 会被 git pull 自动删除（已 `git rm`），其值必须已并入 `config.yaml` 再重启
+5. 验证：webapp 首页可登录（盐一致）、bot 上线心跳正常、`/图库密钥` 生成的旧密钥仍可登录（old_salts 为空且盐未变则天然一致）
 
 ## Self-Review 记录
 
