@@ -1,6 +1,7 @@
 """活动子应用：接龙与匹配活动的作品归档。"""
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -358,9 +359,24 @@ def _assert_under_activity_root(path: Path) -> None:
 
 
 @router.get("/archive/{activity_id}/media/{filename}")
-def serve_activity_media(activity_id: int, filename: str):
+def serve_activity_media(activity_id: int, filename: str,
+                         user_id: Annotated[str, Depends(get_current_user_id)]):
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="非法路径")
+    db = DbManager()
+    act = db.activity.get_activity(activity_id)
+    if not act:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    # 隐私：进行中限「该文件所属序号的成员 / 创建人 / 超管」；结束后归档公开。命名两种：web「{seq}-{n}.ext」/ bot「img_{seq}_{n}.ext」
+    if act["status"] != "finished":
+        m = re.match(r"^(?:(\d+)-|img_(\d+)_)", filename)
+        seq = int(m.group(1) or m.group(2)) if m else None
+        allowed = (
+            seq is not None
+            and any(str(mem["user_id"]) == user_id and mem["seq"] == seq for mem in act["members"])
+        ) or str(act["created_by"]) == user_id or int(user_id) in SUPER_USER
+        if not allowed:
+            raise HTTPException(status_code=403, detail="活动进行中，仅作品本人可查看")
     path = ACTIVITY_ROOT / str(activity_id) / "imgs" / filename
     if not path.is_file():
         raise HTTPException(status_code=404, detail="图片不存在")

@@ -252,12 +252,26 @@ DB.activity.set_ring(mid3, [("333", "444", 1), ("444", "333", 2)])
 DB.activity.update_activity(mid3, status="running")
 r = client.get(f"/api/activities/{mid3}/me", headers=H444)
 check("match 无轮次限制", r.json()["can_submit"] is True, r.text)
-r = client.post(f"/api/activities/{mid3}/submit", headers=H444, data={"content": "任意时刻"})
+r = client.post(f"/api/activities/{mid3}/submit", headers=H444,
+                files=[("files", ("m.png", PNG, "image/png"))], data={"content": "任意时刻"})
 check("match 提交 200", r.status_code == 200 and r.json()["updated"] is False, r.text)
+
+# —— 归档媒体进行中鉴权 ——
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H444)
+check("进行中本人可取媒体", r.status_code == 200)
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H333)
+check("进行中他人成员 403", r.status_code == 403)
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=OH)
+check("进行中创建人可取", r.status_code == 200)
+r = client.get(f"/archive/{mid3}/media/img_2_1.jpg", headers=H444)
+check("bot 命名文件同样鉴权（不存在 404 而非 403）", r.status_code == 404)
 r = client.get(f"/api/activities/{mid3}", headers=H333)
 row444 = next(m for m in r.json()["members"] if m["user_id"] == "444")
 check("match 他人已提交剥离", row444["content"] is None and row444["images"] == []
       and row444["submitted_at"] is None)
+DB.activity.update_activity(mid3, status="finished")
+r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H333)
+check("结束后成员可取归档", r.status_code == 200)
 
 # —— 页面路由（登录门控由 middleware 处理，Bearer 可过）——
 r = client.get("/activities/new", headers=OH, follow_redirects=False)
