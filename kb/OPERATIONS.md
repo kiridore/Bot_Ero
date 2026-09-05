@@ -139,6 +139,7 @@ forward(messages)     # [{"type": "node", "data": {"content": [...]}}]
 | API | URL | 用途 |
 |-----|-----|------|
 | OneBot WS | `ws://127.0.0.1:3001` | QQ 消息收发 |
+| cloud-mail | `<mail.url 配置>` | 自建邮箱系统发信（`core/mail_client.py`，可选 mail 节启用） |
 | FF14 新闻 | `https://cqnews.web.sdo.com/api/news/newsList` | 新闻拉取 |
 | picsum.photos | `https://picsum.photos/512` | 随机参考图 |
 | DeepSeek (弃用) | `https://api.deepseek.com` | LLM 对话 |

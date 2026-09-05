@@ -6,6 +6,7 @@
 
 ## [未发布]
 
+- **邮件客户端**：新增 `core/mail_client.py`（cloud-mail/Skymail API：登录 token 缓存、发件账号自动发现、best-effort 发信含附件）；`config.yaml` 新增可选 `mail` 节启用，留空即关闭。暂无调用方，为后续邮件通知功能铺底
 - **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
 - forum_notify 论坛链接改走 `config.yaml` `weekly.web_base_url`（行为不变，消除域名硬编码）
 

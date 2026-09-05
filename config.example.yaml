@@ -61,3 +61,9 @@ live:
 
 tools:
   icon_proxy: ""    # 工具箱图标抓取代理；留空不走代理
+
+mail:
+  url: ""            # cloud-mail（Skymail）站点基地址；留空 = 邮件功能关闭
+  email: ""          # 发件账号（管理员邮箱，登录换 token 用）
+  password: ""
+  sender_name: ""    # 发件人显示名（可选，空则自动截取邮箱前缀）

@@ -129,3 +129,10 @@ FORUM_IMAGE_MAX_BYTES = int(_uploads.get("forum_image_max_bytes") or 10 * 1024 *
 # —— 直播 / 工具箱 ——
 LIVE_FLV_URL = str(_sec("live").get("flv_url") or "https://live.littlero.tech/live/livestream.flv")
 ICON_PROXY = _sec("tools").get("icon_proxy") or None  # None = 不走代理
+
+# —— cloud-mail 邮件（可选；url/email/password 留空 = 功能关闭）——
+_mail = _sec("mail")
+CLOUDMAIL_URL = str(_mail.get("url") or "")
+CLOUDMAIL_EMAIL = str(_mail.get("email") or "")
+CLOUDMAIL_PASSWORD = str(_mail.get("password") or "")
+CLOUDMAIL_SENDER_NAME = str(_mail.get("sender_name") or "")
