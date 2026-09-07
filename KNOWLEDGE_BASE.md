@@ -1,6 +1,6 @@
 # BotEro (小埃同学) 知识库索引
 
-（BotEro = QQ 群机器人 + 单进程 FastAPI 社区站。webapp 共 12 个功能模块：timeline 社区时间线（根路径 `/` 主页，30s 实时轮询 + 逐卡未读已读）、forum 议事厅（长文/公告/单选多选多子投票/两级嵌套评论，Tiptap 富文本）、tools 工具箱（网页链接收藏卡片 + tag 云 + 点击统计）、weekly 小埃周报（每周一 08:00 自动出版）、admin 管理仪表盘（插件启停+配置编辑，仅超管）+ gallery/guestbook/profile/trpg/alarms/activities/live；全站登录门控，独立登录页 /login）
+（BotEro = QQ 群机器人 + 单进程 FastAPI 社区站。webapp 共 11 个功能模块：timeline 社区时间线（根路径 `/` 主页，30s 实时轮询 + 逐卡未读已读）、forum 议事厅（长文/公告/单选多选多子投票/两级嵌套评论，Tiptap 富文本）、tools 工具箱（网页链接收藏卡片 + tag 云 + 点击统计）、weekly 小埃周报（每周一 08:00 自动出版）+ gallery/guestbook/profile/trpg/alarms/activities/live；全站登录门控，独立登录页 /login）
 >
 > 本文件是总索引，具体内容按主题拆分到 `kb/` 目录和 `specs/` 目录。
 > AI 读取流程: KNOWLEDGE_BASE.md → 按需读取链接文档。

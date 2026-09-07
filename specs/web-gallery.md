@@ -8,7 +8,7 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`/`admin`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` `/admin` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
+Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -23,12 +23,11 @@ Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`t
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 | 周报 | `weekly` | `/weekly`（`/weekly/{week_key}`） | 群周报归档：`GET /api/weekly` 列表、`GET /api/weekly/{week_key}` 详情；报纸排版页面 |
-| 管理 | `admin` | `/admin` | 插件启停（按群/私聊，即时生效）+ 配置文件在线编辑（校验/备份/原子写；仅超管） |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
-│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools /weekly /admin │
+│  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools /weekly │
 │                      │     │  /profile/schedule /activities /live /timeline（12 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (时间线社区主页，登录可见)     │
@@ -102,7 +101,6 @@ app.include_router(timeline_router)      # Event Server + /entries.json
 app.include_router(forum_router)
 app.include_router(tools_router)         # 最后：/tools 页面 + /api/tools（不遮蔽任何已注册路由）
 app.include_router(weekly_router)       # /weekly 页面 + /api/weekly（不遮蔽任何已注册路由）
-app.include_router(admin_router)        # /admin 页面 + /api/admin/*（仅超管）
 app.mount("/static", StaticFiles(directory=webapp/static))    # 全部模块静态
 app.mount("/shared", StaticFiles(directory=core/web/static))  # 共享静态
 
@@ -299,18 +297,6 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/api/weekly` | 必须 | 归档列表：每期 issue/start/end/total_messages/headline.title，按 week_key 倒序，仅返回 `core.config.GROUP_ID` 数据 |
 | `GET` | `/api/weekly/{week_key}` | 必须 | 详情：整行 `data_json` 返回；不存在 → 404 |
 
-### 管理（`admin` 模块）
-
-全部端点仅**超级用户**（`int(uid) in core.config.SUPER_USER`），非超管 → 403「仅超级用户」。
-
-| 方法 | 路径 | 登录 | 说明 |
-|------|------|------|------|
-| `GET` | `/api/admin/plugins/scopes` | 超管 | 作用范围清单：`group_plugin_config` distinct 群号 ∪ {0（私聊）, 默认群}，每项含 `group_id/label/is_default` |
-| `GET` | `/api/admin/plugins?group_id=N` | 超管 | 该范围插件列表：文件系统枚举 `plugins/`（webapp 不 import plugins），每项 `key/enabled/system`（system=SYSTEM_PLUGINS 恒启用） |
-| `PUT` | `/api/admin/plugins` | 超管 | 切换启停：body `{group_id≥0, plugin_key, enabled}`，写 `group_plugin_config` 白名单表（有行=启用），bot 下次事件即时生效；系统插件/未知 key → 400 |
-| `GET` | `/api/admin/config` | 超管 | 返回 `config.yaml` 原文 + `restart_hint` |
-| `PUT` | `/api/admin/config` | 超管 | body `{yaml}`：`yaml.safe_load` 解析 + `core.config._REQUIRED` 必填校验（失败 400 不落盘）→ 旧文件备份 `<path>.bak`（一代）→ tmp + `os.replace` 原子写；保存后需重启 bot/webapp 生效 |
-
 ### 议事厅（`forum` 模块）
 
 | 方法 | 路径 | 认证 | 说明 |
@@ -346,7 +332,6 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `forum` | `/forum` 帖子列表（tag 过滤）；`/forum/new` 发帖（`?id=` 编辑模式，类型/投票结构不可改）；`/forum/tags` tag 管理；`/forum/{post_id}` 帖子详情（投票/评论，作者可见编辑/删除按钮）；`/forum/media/{filename}` 正文图片读取（公开，uuid 文件名） |
 | `tools` | `/tools` 工具箱（链接卡片网格 + tag 云（全部 tag 及使用数量，点击筛选）+ tag 徽标/筛选 + 双维度排序 + 点击统计 + 关键字搜索 + 卡片/列表双视图，卡片 icon 浏览器直连默认路径、失败/超时转服务端解析兜底（favicon.ico → 首页 link rel=icon，入库缓存），头部操作/删除为图标按钮（自托管 lucide SVG，眼睛图标示点击数），添加需登录，登录用户可编辑/删除自己提交的链接） |
 | `weekly` | `/weekly` 最新一期重定向；`/weekly/{week_key}` 报纸详情页（报头 + 5 版渲染 + 归档导航） |
-| `admin` | `/admin` 管理仪表盘（仅超管，非超管页内提示）：插件管理（范围下拉=私聊/各群（默认群标注）→ 插件开关列表 + 🔒 系统插件锁定区）+ 配置编辑（等宽 textarea 原文 + 保存（校验/备份 `.bak`/原子写）+ 重启生效提示） |
 
 ---
 
@@ -508,7 +493,6 @@ webapp/static/
   forum.html/js/css、forum_detail.html/js、forum_new.html/js、forum_tags.html/js ← 议事厅（/forum）
   tools.html/js/css                            ← 工具箱（/tools）
   weekly.html/js/css                           ← 周报（/weekly）
-  admin.html/js/css                            ← 管理仪表盘（/admin，仅超管）
 ```
 
 时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/base.css` 的报纸风 token）。

@@ -1,6 +1,6 @@
 # BotEro（小埃同学）
 
-基于 **OneBot v11 协议** 的 QQ 群聊机器人（WebSocket 连接 NapCat / Lagrange / LLOneBot 等服务端），事件驱动 + 插件架构；附带单进程 FastAPI Web 应用（`webapp`），在单一根域 `littlero.tech` 下按路径提供时间线社区主页与图库、议事厅、周报等 12 个功能模块，全站登录门控。
+基于 **OneBot v11 协议** 的 QQ 群聊机器人（WebSocket 连接 NapCat / Lagrange / LLOneBot 等服务端），事件驱动 + 插件架构；附带单进程 FastAPI Web 应用（`webapp`），在单一根域 `littlero.tech` 下按路径提供时间线社区主页与图库、议事厅、周报等 11 个功能模块，全站登录门控。
 
 ## 功能概览
 
@@ -66,7 +66,7 @@ OneBot 服务端 ──WebSocket──> main.py ──> 每事件新线程 → p
 
 littlero.tech ──Caddy 反代──> webapp（单进程 FastAPI, 8765）
    ├── / 时间线社区主页（登录可见，webapp/static/timeline.html）
-   ├── 12 个功能模块（webapp/gallery|guestbook|profile|trpg|alarms|activities|live|timeline|forum|tools|weekly|admin，各含 APIRouter）
+   ├── 11 个功能模块（webapp/gallery|guestbook|profile|trpg|alarms|activities|live|timeline|forum|tools|weekly，各含 APIRouter）
    └── /api /static /shared /thumb /media /archive（根路径）
 
 core/（共享层）── bot 与 webapp 共用：config / auth / database_manager / onebot_client /

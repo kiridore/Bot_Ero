@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机器人，通过 WebSocket 连接到 OneBot 服务端（NapCat / Lagrange / LLOneBot），事件驱动 + 插件架构。
 
-此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 12 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/`、`webapp/timeline/`、`webapp/forum/`、`webapp/tools/`、`webapp/weekly/`、`webapp/admin/` 的 APIRouter + 根路径时间线主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
+此外包含 **单进程 FastAPI Web 应用 `webapp`**（注册 11 个功能域模块 `webapp/gallery/`、`webapp/guestbook/`、`webapp/profile/`、`webapp/trpg/`、`webapp/alarms/`、`webapp/activities/`、`webapp/live/`、`webapp/timeline/`、`webapp/forum/`、`webapp/tools/`、`webapp/weekly/` 的 APIRouter + 根路径时间线主页），共享 `core/` 层，单一根域 `littlero.tech` 按路径分区，Caddy 全量反代到同一 8765 端口。
 
 ## 运行命令
 
@@ -14,7 +14,7 @@ BotEro（小埃同学）是一个基于 **OneBot v11 协议** 的 QQ 群聊机�
 # 启动机器人主程序
 python main.py
 
-# 启动 Web 应用（单进程承载时间线社区主页 + 12 个功能模块，默认 8765，Caddy 全量反代）
+# 启动 Web 应用（单进程承载时间线社区主页 + 11 个功能模块，默认 8765，Caddy 全量反代）
 python -m webapp
 
 # 本地调试：直接按路径访问 http://127.0.0.1:8765/<分区>
@@ -77,9 +77,9 @@ OneBot 服务端 ──WebSocket──> main.py
 
 ### Web 应用（单进程 `webapp`，单一 origin 路径分区）
 
-注册 12 个模块
+注册 11 个模块
 
-include 12 个模块 router
+include 11 个模块 router
 - 每功能域模块含 `app.py`（导出 `router = APIRouter()`，业务/页面路由，不创建 FastAPI 实例、不 mount）；页面路由带分区前缀（如 `/profile/checkin`），API 保持根路径（全局唯一）；静态统一在 `webapp/static/`（49 个文件，文件名全局唯一），共享层 `core/web/static/` 以 `/shared` 挂载（auth.js / nav.js / motion.css/js / lightbox.js / icons.js / base.css / profile.css）
 - **全站登录门控**（1.18.0 起）：`webapp/app.py::login_guard` 中间件——白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，页面 302 → `/login?next=…`，API 与图片媒体 401；凭证 `Authorization: Bearer` 头或根域 cookie `botero_key` 任一
 - 认证助手 `get_current_user_id` / `get_optional_user_id` 唯一权威副本在 `core/web/auth_deps.py`，模块一律从该处 import
@@ -89,7 +89,6 @@ include 12 个模块 router
 
 `webapp/forum/`（议事厅：长文/公告/投票/评论，Tiptap 富文本，投票/评论自动入时间线；详见 `docs/archive/superpowers/specs/2026-08-10-forum-design.md`）
 `webapp/weekly/`（小埃周报：`/weekly` 报纸排版归档，`/api/weekly` 列表与详情 API；详见 `docs/archive/superpowers/specs/2026-08-15-weekly-report-design.md`）
-`webapp/admin/`（管理仪表盘：`/admin` 仅超管——插件启停（按群/私聊，即时生效）+ config.yaml 在线编辑（校验/备份/原子写））
 
 ### LLM 子系统 (`core/llm/`)
 

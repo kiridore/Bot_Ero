@@ -1,6 +1,6 @@
 # 网页应用部署文档（Caddy + systemd + DNS）
 
-本文档是 BotEro 网页端在 VPS 上的部署参考。12 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`、`live`、`timeline`、`forum`、`tools`、`weekly`、`admin`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。**全站登录门控（1.18.0 起）**：除白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，未登录访问页面一律 302 重定向到 `/login?next=…`，API 与图片媒体返回 401；凭证支持 `Authorization: Bearer <key>` 头或根域 cookie `botero_key` 任一。
+本文档是 BotEro 网页端在 VPS 上的部署参考。11 个功能分区（`gallery`、`guestbook`、`profile`、`trpg`、`alarms`、`activities`、`live`、`timeline`、`forum`、`tools`、`weekly`）由**单进程 `webapp`**（端口 8765）承载，全部挂在**单一根域 `littlero.tech`** 下，按**路径分区**访问，不再需要任何子域。**全站登录门控（1.18.0 起）**：除白名单（`/login`、`/api/auth/login`、`/static`、`/shared`、`/api/timeline/events*`）外，未登录访问页面一律 302 重定向到 `/login?next=…`，API 与图片媒体返回 401；凭证支持 `Authorization: Bearer <key>` 头或根域 cookie `botero_key` 任一。
 
 ## 1. URL 方案
 
