@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { label: "活动", path: "/activities" },
   { label: "直播", path: "/live" },
   { label: "工具箱", path: "/tools" },
+  { label: "管理", path: "/admin" },
 ];
 
 (function () {

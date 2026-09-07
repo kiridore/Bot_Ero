@@ -144,3 +144,11 @@ def api_admin_config_put(body: ConfigIn, user_id: Annotated[str, Depends(get_cur
     tmp.write_text(body.yaml, encoding="utf-8")
     os.replace(tmp, path)
     return {"ok": True}
+
+
+@router.get("/admin")
+def admin_page():
+    page = STATIC_DIR / "admin.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
