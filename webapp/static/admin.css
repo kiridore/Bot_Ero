@@ -22,3 +22,4 @@
 }
 .admin-hint { color: var(--ink-soft); font-size: 0.8rem; }
 .admin-error { color: #b3402f; font-size: 0.82rem; white-space: pre-wrap; }
+.admin-error.hidden { display: none; }
