@@ -14,6 +14,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import os
+
+if not os.environ.get("BOTERO_CONFIG"):
+    raise SystemExit("须通过 pytest 运行（conftest 提供隔离配置，直跑会触碰真实数据库）")
+
 from core import config
 import core.context as ctx
 
