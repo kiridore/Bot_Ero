@@ -13,6 +13,8 @@ import argparse
 import json
 import sqlite3
 
+from core import config
+
 
 def _describe(row) -> str:
     week_key, group_id, created_at, data_json = row
@@ -38,7 +40,7 @@ def main() -> None:
     parser.add_argument("--yes", action="store_true", help="跳过确认直接删除")
     args = parser.parse_args()
 
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     cur = conn.cursor()
     try:
         if args.week_key:

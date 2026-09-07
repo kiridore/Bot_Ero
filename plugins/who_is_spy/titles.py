@@ -1,6 +1,7 @@
 import sqlite3
 from core.logger import logger
 from core.database_manager import DbManager
+from core import config
 
 GAME_TITLE_THRESHOLDS = [
     ("total_games", 10, 301),
@@ -16,7 +17,7 @@ GAME_TITLE_THRESHOLDS = [
 
 
 def _ensure_stats_table():
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS user_game_stats (
             user_id TEXT PRIMARY KEY,
@@ -37,7 +38,7 @@ def grant_game_titles(dbmanager: DbManager, user_id: str, role: str, winner: str
     civ_win = 1 if role == "civilian" and is_winner else 0
     spy_win = 1 if role == "spy" and is_winner else 0
 
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     conn.execute("""
         INSERT INTO user_game_stats (user_id, total_games, total_wins, civilian_wins, spy_wins)
         VALUES (?, 1, ?, ?, ?)

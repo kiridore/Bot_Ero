@@ -13,8 +13,9 @@ from datetime import datetime, timedelta
 import sqlite3
 
 from core import utils
+from core import config
 
-conn = sqlite3.connect("data.db")
+conn = sqlite3.connect(str(config.DB_PATH))
 cur = conn.cursor()
 
 year = 2025

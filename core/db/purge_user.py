@@ -1,5 +1,7 @@
 import sqlite3
 
+from core import config
+
 
 TABLES_USER_ID = [
     "checkin_records",
@@ -53,7 +55,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     user_id = sys.argv[1]
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     conn.execute("PRAGMA foreign_keys=ON")
     result = purge_user(conn, user_id)
     print(f"Deleted rows for user {user_id}:")
