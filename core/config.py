@@ -136,3 +136,8 @@ CLOUDMAIL_URL = str(_mail.get("url") or "")
 CLOUDMAIL_EMAIL = str(_mail.get("email") or "")
 CLOUDMAIL_PASSWORD = str(_mail.get("password") or "")
 CLOUDMAIL_SENDER_NAME = str(_mail.get("sender_name") or "")
+
+# —— bot 内置监控面板（可选；局域网访问，图库密钥超管鉴权）——
+_panel = _sec("panel")
+PANEL_HOST = str(_panel.get("host") or "0.0.0.0")
+PANEL_PORT = int(_panel.get("port") or 8790)

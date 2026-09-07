@@ -10,6 +10,10 @@ import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 runtime_context.migrate_group_plugin_config()
 
+from core.web_panel import start_panel
+
+start_panel()
+
 import websocket  # pyright: ignore[reportMissingImports]
 
 
