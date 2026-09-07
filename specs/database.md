@@ -280,6 +280,7 @@ with _connect() as conn:
 | `period_key` | TEXT | PRIMARY KEY (with group_id) | 期数标识 |
 | `winning_digits` | TEXT | NOT NULL | 中奖号码 |
 | `bet_total` | INTEGER | DEFAULT 0 | 总投注数 |
+| `pool_total` | INTEGER | DEFAULT 0 | 开奖时总池（本期投注+当时滚存；旧数据为 0 回退 bet_total） |
 | `drawn_at` | TEXT | NOT NULL | 开奖时间 |
 
 #### `immortal_lottery_bets`

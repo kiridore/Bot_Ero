@@ -309,10 +309,17 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             period_key TEXT NOT NULL,
             winning_digits TEXT NOT NULL,
             bet_total INTEGER NOT NULL DEFAULT 0,
+            pool_total INTEGER NOT NULL DEFAULT 0,   -- 开奖时总池（本期投注+当时滚存）
             drawn_at TEXT NOT NULL,
             PRIMARY KEY (group_id, period_key)
         );
     """)
+    cur.execute("PRAGMA table_info(immortal_lottery_results)")
+    if "pool_total" not in [row[1] for row in cur.fetchall()]:
+        cur.execute(
+            "ALTER TABLE immortal_lottery_results ADD COLUMN"
+            " pool_total INTEGER NOT NULL DEFAULT 0"
+        )
     cur.execute("""
         CREATE TABLE IF NOT EXISTS immortal_lottery_bets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

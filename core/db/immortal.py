@@ -78,14 +78,16 @@ class ImmortalManager:
         return self.cur.fetchone() is not None
 
     def insert_result(
-        self, group_id: int, period_key: str, winning_digits: str, bet_total: int, drawn_at: str
+        self, group_id: int, period_key: str, winning_digits: str, bet_total: int,
+        drawn_at: str, pool_total: int = 0,
     ):
         self.cur.execute(
             """
-            INSERT INTO immortal_lottery_results (group_id, period_key, winning_digits, bet_total, drawn_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO immortal_lottery_results (group_id, period_key, winning_digits, bet_total, pool_total, drawn_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (int(group_id), str(period_key), str(winning_digits), int(bet_total), str(drawn_at)),
+            (int(group_id), str(period_key), str(winning_digits), int(bet_total),
+             int(pool_total), str(drawn_at)),
         )
         self.conn.commit()
 
@@ -98,6 +100,7 @@ class ImmortalManager:
         drawn_at: str,
         new_carry_total: int,
         payouts,
+        pool_total: int = 0,
     ) -> bool:
         gid = int(group_id)
         pk = str(period_key)
@@ -112,10 +115,10 @@ class ImmortalManager:
                 return False
             self.cur.execute(
                 """
-                INSERT INTO immortal_lottery_results (group_id, period_key, winning_digits, bet_total, drawn_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO immortal_lottery_results (group_id, period_key, winning_digits, bet_total, pool_total, drawn_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (gid, pk, str(winning_digits), int(bet_total), str(drawn_at)),
+                (gid, pk, str(winning_digits), int(bet_total), int(pool_total), str(drawn_at)),
             )
             self.cur.execute(
                 """

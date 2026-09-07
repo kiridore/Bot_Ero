@@ -203,21 +203,25 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
     def _build_headline(self, db, group_id, start, end, period) -> dict:
         # 1. 仙人彩大奖 / 奖池滚存
         db.cur.execute(
-            "SELECT period_key, winning_digits, bet_total FROM immortal_lottery_results"
+            "SELECT period_key, winning_digits, bet_total, pool_total FROM immortal_lottery_results"
             " WHERE group_id = ? AND drawn_at >= ? AND drawn_at < ?"
             " ORDER BY drawn_at DESC LIMIT 1",
             (int(group_id), start, end),
         )
         imm = db.cur.fetchone()
         if imm:
-            period_key, digits, pool = imm[0], str(imm[1]), int(imm[2] or 0)
-            hits = [
+            period_key, digits = str(imm[0]), str(imm[1])
+            # 开奖时总池（含滚存）；旧数据未落库时回退本期投注额
+            pool = int(imm[3] or 0) or int(imm[2] or 0)
+            winners_all = [
                 (uid, str(bet))
-                for _bid, uid, bet in db.immortal.list_bets(int(group_id), str(period_key))
-                if sum(1 for i in range(4) if digits[i] == str(bet)[i]) >= 3
+                for _bid, uid, bet in db.immortal.list_bets(int(group_id), period_key)
+                if sum(1 for i in range(4) if digits[i] == str(bet)[i]) >= 2
             ]
-            if hits:
-                hit_names = "、".join(f"{_name(uid)}（{bet}）" for uid, bet in hits)
+            jackpot = [(uid, bet) for uid, bet in winners_all
+                       if sum(1 for i in range(4) if digits[i] == bet[i]) >= 3]
+            if jackpot:
+                hit_names = "、".join(f"{_name(uid)}（{bet}）" for uid, bet in jackpot)
                 return {
                     "kind": "immortal_jackpot",
                     "title": "仙人彩大奖落定",
@@ -225,14 +229,28 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
                     "stats": [
                         {"label": "开奖号码", "value": digits},
                         {"label": "大奖得主", "value": hit_names},
-                        {"label": "奖池", "value": pool},
+                        {"label": "总奖池", "value": pool},
+                    ],
+                }
+            if winners_all:
+                # 无人命中大奖（≥3A），但有三等奖（2A）——不再误报「无人中奖」
+                names = "、".join(f"{_name(uid)}（{bet}）" for uid, bet in winners_all)
+                return {
+                    "kind": "immortal_jackpot",
+                    "title": "仙人彩开奖",
+                    "body": f"本期开奖号码 {digits}，无人命中大奖，{len(winners_all)} 注命中三等奖，奖池滚存。",
+                    "stats": [
+                        {"label": "开奖号码", "value": digits},
+                        {"label": "中奖注数", "value": len(winners_all)},
+                        {"label": "中奖名单", "value": names},
+                        {"label": "总奖池", "value": pool},
                     ],
                 }
             return {
                 "kind": "immortal_jackpot",
                 "title": "仙人彩奖池滚存",
-                "body": f"本期开奖号码 {digits}，无人命中大奖，奖池滚存。",
-                "stats": [{"label": "开奖号码", "value": digits}, {"label": "奖池", "value": pool}],
+                "body": f"本期开奖号码 {digits}，无人中奖，奖池滚存。",
+                "stats": [{"label": "开奖号码", "value": digits}, {"label": "总奖池", "value": pool}],
             }
 
         # 2. 群活动本周结束
@@ -360,7 +378,7 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         unlucky = db.lottery.weekly_unlucky_from_log(start, end)
 
         db.cur.execute(
-            "SELECT period_key, winning_digits, bet_total FROM immortal_lottery_results"
+            "SELECT period_key, winning_digits, bet_total, pool_total FROM immortal_lottery_results"
             " WHERE group_id = ? AND drawn_at >= ? AND drawn_at < ?"
             " ORDER BY drawn_at DESC LIMIT 1",
             (int(GROUP_ID), start, end),
@@ -370,7 +388,8 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
         if imm:
             period_key = str(imm[0])
             digits = str(imm[1])
-            pool = int(imm[2] or 0)
+            # 开奖时总池（含滚存）；旧数据回退本期投注额
+            pool = int(imm[3] or 0) or int(imm[2] or 0)
             tier_names = {4: "一等奖(4A)", 3: "二等奖(3A)", 2: "三等奖(2A)"}
             winners = []
             for _bid, uid, bet in db.immortal.list_bets(int(GROUP_ID), period_key):

@@ -198,6 +198,7 @@ CREATE TABLE immortal_lottery_results (
     period_key TEXT NOT NULL,
     winning_digits TEXT NOT NULL,
     bet_total INTEGER NOT NULL DEFAULT 0,
+    pool_total INTEGER NOT NULL DEFAULT 0,
     drawn_at TEXT NOT NULL,
     PRIMARY KEY (group_id, period_key)
 );

@@ -107,15 +107,20 @@ class TestImmortalManager(unittest.TestCase):
     def test_finalize_draw_atomic(self):
         ok = self.db.immortal.finalize_draw(
             self.gid, "2026-08-17", "1234", 2, "2026-08-23 20:00:00", 7, [(501, 5)],
+            pool_total=12,
         )
         self.assertTrue(ok)
         self.assertTrue(self.db.immortal.has_result(self.gid, "2026-08-17"))
         self.assertEqual(self.db.immortal.carry(self.gid), 7)
         self.db.cur.execute("SELECT points FROM user_assets WHERE user_id = '501'")
         self.assertEqual(self.db.cur.fetchone()[0], 5)
+        self.db.cur.execute(
+            "SELECT pool_total FROM immortal_lottery_results"
+            " WHERE group_id = ? AND period_key = ?", (self.gid, "2026-08-17"))
+        self.assertEqual(self.db.cur.fetchone()[0], 12, "开奖时应落库当时总池")
         # 同期重复开奖被拒绝
         self.assertFalse(self.db.immortal.finalize_draw(
-            self.gid, "2026-08-17", "5678", 2, "2026-08-23 20:01:00", 0, [],
+            self.gid, "2026-08-17", "5678", 2, "2026-08-23 20:01:00", 0, [], pool_total=2,
         ))
 
 

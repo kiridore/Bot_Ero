@@ -221,6 +221,7 @@ class ImmortalLotteryPlugin(Plugin):
                 drawn_at,
                 new_carry,
                 payouts,
+                pool_total=pool,
             )
         except Exception:
             return
