@@ -89,13 +89,14 @@ function renderNav(items) {
     if (select.value) location.href = `/weekly/${select.value}`;
   };
   const idx = items.findIndex((it) => it.week_key === weekKey);
-  if (idx <= 0) prev.disabled = true; else {
+  // items 按 week_key DESC（最新在前）：「上一期」= 更旧 = idx+1，「下一期」= 更新 = idx-1
+  if (idx < 0 || idx >= items.length - 1) prev.disabled = true; else {
     prev.disabled = false;
-    prev.onclick = () => (location.href = `/weekly/${items[idx - 1].week_key}`);
+    prev.onclick = () => (location.href = `/weekly/${items[idx + 1].week_key}`);
   }
-  if (idx < 0 || idx >= items.length - 1) next.disabled = true; else {
+  if (idx <= 0) next.disabled = true; else {
     next.disabled = false;
-    next.onclick = () => (location.href = `/weekly/${items[idx + 1].week_key}`);
+    next.onclick = () => (location.href = `/weekly/${items[idx - 1].week_key}`);
   }
 }
 
