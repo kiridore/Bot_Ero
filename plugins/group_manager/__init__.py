@@ -4,13 +4,14 @@ from core.base import CommandPlugin
 from core.cq import text
 from core.utils import register_plugin
 import core.context as runtime_context
+from core import config
 from core.feature_packs import FEATURE_PACKS
 
 ACTIONS = {"on": "on", "开启": "on", "off": "off", "关闭": "off"}
 
 
 def _get_config(group_id: int) -> set[str]:
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     rows = conn.execute(
         "SELECT plugin_name FROM group_plugin_config WHERE group_id = ?",
         (group_id,)
@@ -20,7 +21,7 @@ def _get_config(group_id: int) -> set[str]:
 
 
 def _set_config(group_id: int, plugin_name: str, enable: bool):
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     if enable:
         conn.execute(
             "INSERT OR IGNORE INTO group_plugin_config (group_id, plugin_name) VALUES (?, ?)",
@@ -73,7 +74,7 @@ def _set_pack_config(group_id: int, pack_name: str, enable: bool):
     pack = FEATURE_PACKS.get(pack_name)
     if pack is None:
         return False
-    conn = sqlite3.connect("data.db")
+    conn = sqlite3.connect(str(config.DB_PATH))
     for key in pack["plugins"]:
         if key in runtime_context.SYSTEM_PLUGINS:
             continue

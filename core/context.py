@@ -69,7 +69,7 @@ def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
         return True
     gid = group_id if group_id is not None else 0
     try:
-        conn = sqlite3.connect("data.db")
+        conn = sqlite3.connect(str(_config.DB_PATH))
         cur = conn.execute(
             "SELECT 1 FROM group_plugin_config WHERE group_id = ? AND plugin_name = ?",
             (gid, key)
@@ -81,7 +81,14 @@ def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
         return True
 
 def migrate_group_plugin_config():
-    conn = sqlite3.connect("data.db")
+    """仅表不存在时建表并播种默认群；已有表绝不重播（禁用状态不得因重启复活）。"""
+    conn = sqlite3.connect(str(_config.DB_PATH))
+    exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE name = 'group_plugin_config'"
+    ).fetchone()
+    if exists:
+        conn.close()
+        return
     conn.execute("""
         CREATE TABLE IF NOT EXISTS group_plugin_config (
             group_id INTEGER NOT NULL,
