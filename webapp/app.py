@@ -12,6 +12,7 @@ from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.web.auth_deps import AUTH_COOKIE_NAME, get_current_user_id
 from webapp import STATIC_DIR
 
+from webapp.admin.app import router as admin_router
 from webapp.gallery.app import router as gallery_router
 from webapp.guestbook.app import router as guestbook_router
 from webapp.profile.app import router as profile_router
@@ -130,5 +131,6 @@ app.include_router(timeline_router)
 app.include_router(forum_router)
 app.include_router(tools_router)
 app.include_router(weekly_router)
+app.include_router(admin_router)
 app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
