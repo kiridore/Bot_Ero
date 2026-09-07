@@ -5,11 +5,11 @@ function escapeHtml(s) {
 }
 
 async function api(path, options = {}) {
-  const res = await fetch(path, { headers: GalleryAuth.headers(), ...options });
+  const res = await fetch(path, { ...options, headers: { ...GalleryAuth.headers(), ...(options.headers || {}) } });
   if (res.status === 403) throw new Error("仅超级用户");
   if (res.status === 401) { GalleryAuth.clear(); location.href = "/login?next=/admin"; throw new Error("未登录"); }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || "请求失败");
+  if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : (data.detail ? "请求格式错误" : "请求失败"));
   return data;
 }
 
