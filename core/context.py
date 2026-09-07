@@ -79,28 +79,3 @@ def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
         return enabled
     except sqlite3.Error:
         return True
-
-def migrate_group_plugin_config():
-    """仅表不存在时建表并播种默认群；已有表绝不重播（禁用状态不得因重启复活）。"""
-    conn = sqlite3.connect(str(_config.DB_PATH))
-    exists = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE name = 'group_plugin_config'"
-    ).fetchone()
-    if exists:
-        conn.close()
-        return
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS group_plugin_config (
-            group_id INTEGER NOT NULL,
-            plugin_name TEXT NOT NULL,
-            PRIMARY KEY (group_id, plugin_name)
-        )
-    """)
-    rows = [(DEFAULT_GROUP_ID, plugin_key(cls)) for cls in plugin_registry
-            if plugin_key(cls) not in SYSTEM_PLUGINS]
-    if rows:
-        conn.executemany(
-            "INSERT OR IGNORE INTO group_plugin_config (group_id, plugin_name) VALUES (?, ?)", rows
-        )
-    conn.commit()
-    conn.close()
