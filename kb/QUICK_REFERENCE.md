@@ -35,6 +35,7 @@
 | `uploads` | `checkin_max_images` / `checkin_max_bytes` / `forum_image_max_bytes` | ❌ | 上传限制 |
 | `thumbs` | `cache_dir` / `max_width` / `max_height` / `jpeg_quality` | ❌ | 缩略图参数 |
 | `live` | `flv_url` | ❌ | 直播 FLV 流地址 |
+| `panel` | `host` / `port` | ❌ | bot 内置监控面板（`0.0.0.0` / `8790`，局域网访问，图库密钥超管鉴权） |
 | `tools` | `icon_proxy` | ❌ | 图标抓取代理，空 = 直连 |
 
 ## 代码内常量（非配置）
