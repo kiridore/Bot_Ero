@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -133,8 +134,11 @@ async def api_checkin_submit(
     for f in files:
         data = await f.read()
         payloads.append((data, f.content_type))
-    names = _checkin_or_400(save_uploaded_images, user_id, payloads)
-    return perform_checkin(user_id, names)
+    # 阻塞工作（文件写 + SQLite + emit 自回环 HTTP）必须出事件循环：
+    # 否则 perform_checkin 内的 emit_event 自 POST 本进程时，事件循环被阻塞无法
+    # 服务该请求 → 互相等待双双超时，时间线事件丢失（打卡响应也卡 ~10s）
+    names = await run_in_threadpool(_checkin_or_400, save_uploaded_images, user_id, payloads)
+    return await run_in_threadpool(perform_checkin, user_id, names)
 
 
 @router.get("/api/me/shop")
