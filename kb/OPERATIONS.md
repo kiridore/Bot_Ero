@@ -38,6 +38,13 @@ python -m webapp
 
 > **称号定义变更后需重启 webapp：** `plugins/title/defs.py` 由 `core/title_defs.py` 在**进程导入时快照加载**一次（`TITLE_DEFS: dict = _load()`），网页端个人主页的称号目录（含总数与进度条）读该快照。新增/修改/删除称号后必须 `sudo systemctl restart botero-web`（或 `./scripts/botero-services.sh restart`），否则页面停留在旧称号列表（新解锁的称号也不显示）。
 
+### 监控面板（bot 内置）
+
+bot 启动时自动在 `panel.host:panel.port`（默认 `0.0.0.0:8790`，局域网）开启管理面板：
+浏览器访问 `http://<bot 机器 IP>:8790/`，粘贴超级用户的图库密钥（私聊机器人 `/图库密钥`）登录。
+功能：按群/私聊查看与修改插件启停（即时生效）；编辑 `config.yaml`（校验/备份/原子写，保存后重启 bot 生效）。
+面板端口被占用时仅记录告警，不影响 bot 运行。
+
 ## 备份机制
 
 - 打卡时即时下载: `/打卡` 时图片即落盘 `server_data/record_images/<user_id>/`（时间线事件引用的 /thumb/ URL 立即可用）

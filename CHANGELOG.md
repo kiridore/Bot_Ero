@@ -4,6 +4,18 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [未发布]
+
+- **邮件客户端**：新增 `core/mail_client.py`（cloud-mail/Skymail API：登录 token 缓存、发件账号自动发现、best-effort 发信含附件）；`config.yaml` 新增可选 `mail` 节启用，留空即关闭。暂无调用方，为后续邮件通知功能铺底
+- **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
+- forum_notify 论坛链接改走 `config.yaml` `weekly.web_base_url`（行为不变，消除域名硬编码）
+
+## [1.37.0] - 2026-09-02
+
+### 变更
+
+- **管理仪表盘迁移为 bot 内置监控面板**：1.36.0 的 webapp 仪表盘（`/admin`）移除，改为 QQ 机器人启动时自带的 web 监控面板（默认 `0.0.0.0:8790`，局域网访问，`config.yaml` `panel` 节可调）——功能不变（按群/私聊插件启停 + config.yaml 在线编辑），插件列表现显示真实描述；鉴权沿用图库密钥（仅超级用户），浏览器访问 `http://<bot 所在机器>:8790/`
+
 ## [1.36.0] - 2026-09-02
 
 ### 新增
@@ -14,12 +26,6 @@
 
 - **插件禁用重启复活**：bot 启动不再对已有配置表重新播种默认群，网页/QQ 端禁用的插件重启后保持禁用；自此新插件部署后初始为禁用，需经 /插件 或 /admin 启用
 - **硬编码 data.db**：插件启停读取与群管理改走 `config.yaml` 配置的数据库路径
-
-## [未发布]
-
-- **邮件客户端**：新增 `core/mail_client.py`（cloud-mail/Skymail API：登录 token 缓存、发件账号自动发现、best-effort 发信含附件）；`config.yaml` 新增可选 `mail` 节启用，留空即关闭。暂无调用方，为后续邮件通知功能铺底
-- **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
-- forum_notify 论坛链接改走 `config.yaml` `weekly.web_base_url`（行为不变，消除域名硬编码）
 
 ## [1.35.2] - 2026-09-02
 

@@ -28,7 +28,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
 │  main.py (bot)       │     │  webapp (单进程, 127.0.0.1:8765)          │
 │  ws://127.0.0.1:3001 │     │  /gallery /guestbook /profile /trpg /forum /tools /weekly │
-│                      │     │  /profile/schedule /activities /live /timeline（12 个 APIRouter） │
+│                      │     │  /profile/schedule /activities /live /timeline（11 个 APIRouter） │
 └────────┬────────────┘     │        │  └─ Caddy 全量反代              │
          │                  │        └── / (时间线社区主页，登录可见)     │
          └──────────┬───────┘
