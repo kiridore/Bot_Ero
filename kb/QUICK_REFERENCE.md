@@ -21,7 +21,7 @@
 | | `qq` | ✅ | Bot QQ（**必须加引号保持 str**） |
 | | `nickname` | ✅ | 机器人昵称 |
 | | `super_users` | ✅ | 超管 QQ 列表（list[int]） |
-| | `default_group` | 私有✅ | 默认群号（同时供 webapp 昵称查询用）；社区形态可省（None） |
+| | `default_group` | 私有✅ | 默认群号（同时供 webapp 昵称查询用）；社区形态可省（None）；无群上下文的群发丢弃（社区形态） |
 | | `ws_url` / `ws_token` | ✅ | OneBot v11 WS 地址与鉴权 |
 | | `llonebot_data_path` / `python_data_path` | ✅ | 双数据路径（API 侧 / Python I/O 侧） |
 | | `download_proxy` | ❌ | 图片下载代理，空 = 直连 |

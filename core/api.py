@@ -75,6 +75,16 @@ class ApiWrapper:
             merged.append(seg)
         return tuple(merged)
 
+    def _group_target(self) -> int | None:
+        """群发目标：上下文群号优先，回落默认群；社区形态无默认群返回 None（调用方丢弃计 0）。"""
+        gid = self.context.group_id
+        if gid:
+            return gid
+        fallback = runtime_context.DEFAULT_GROUP_ID
+        if fallback is None:
+            logger.warning("无群上下文且未配置默认群，丢弃群消息发送")
+        return fallback
+
     def send_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_msg-%E5%8F%91%E9%80%81%E6%B6%88%E6%81%AF
         message = self._inject_titles_before_at(message)
@@ -94,9 +104,9 @@ class ApiWrapper:
 
     def send_group_msg(self, *message) -> int:
         # https://github.com/botuniverse/onebot-11/blob/master/api/public.md#send_group_msg-%E5%8F%91%E9%80%81%E7%BE%A4%E6%B6%88%E6%81%AF
-        group_id = self.context.group_id
-        if not group_id:
-            group_id = runtime_context.DEFAULT_GROUP_ID
+        group_id = self._group_target()
+        if group_id is None:
+            return 0
         params = {"group_id": group_id, "message": message}
         ret = self.call_api("send_group_msg", params)
         msg_id = 0 if ret.get("status") != "ok" else ret.get("data", {}).get("message_id", 0)
@@ -166,9 +176,9 @@ class ApiWrapper:
             return self.send_private_forward_msg(message)
 
     def send_group_forward_msg(self, message: list):
-        group_id = self.context.group_id
-        if not group_id:
-            group_id = runtime_context.DEFAULT_GROUP_ID
+        group_id = self._group_target()
+        if group_id is None:
+            return 0
         params = {"group_id": group_id, "messages": forward(message)}
         ret = self.call_api("send_group_forward_msg", params)
         return 0 if ret.get("status") != "ok" else 1
@@ -186,9 +196,9 @@ class ApiWrapper:
             return self.send_private_forward_nodes(nodes)
 
     def send_group_forward_nodes(self, nodes: list) -> int:
-        group_id = self.context.group_id
-        if not group_id:
-            group_id = runtime_context.DEFAULT_GROUP_ID
+        group_id = self._group_target()
+        if group_id is None:
+            return 0
         params = {"group_id": group_id, "messages": nodes}
         ret = self.call_api("send_group_forward_msg", params)
         return 0 if ret.get("status") != "ok" else 1
