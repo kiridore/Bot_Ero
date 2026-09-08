@@ -4,17 +4,20 @@
 # 修改后需重启对应进程生效。
 
 bot:
+  edition: private              # 部署形态：private=私有全功能 | community=社区公共服务（纯 bot，见 docs/community/）
   qq: "3915014383"            # Bot 的 QQ 号（必须加引号保持字符串）
   nickname: 小埃同学           # 机器人昵称
   super_users: [1057613133]   # 超级用户 QQ 号列表
-  default_group: 296470819    # 默认群号（无群上下文时发送目标）
+  default_group: 296470819    # 默认群号（私有形态必填；社区形态可省 = 无默认群，无群上下文的群发将被丢弃——见 api.py 兜底）
   ws_url: ws://127.0.0.1:3001   # OneBot v11 WebSocket 地址
   ws_token: "123456"            # WS 鉴权 token
   download_proxy: "http://127.0.0.1:7890"  # 图片下载代理；留空 "" 直连
   llonebot_data_path: /app/llonebot/server_data  # OneBot API 调用看到的路径（容器内）
   python_data_path: ./server_data               # Python 文件 I/O 用的路径
   onebot_qq_volume: ""      # docker 卷路径（裸机部署留空）
+  system_plugins: []        # 可选：系统插件白名单（缺省 = menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）
 
+# OneBot HTTP（拉取 QQ 昵称；私有形态必填——webapp 昵称解析用；社区形态可省）
 onebot:
   http_url: http://192.168.0.103:3000  # OneBot HTTP（拉取 QQ 昵称）
   token: "123456"
@@ -37,6 +40,7 @@ auth:
   salt: ChangeMe-Random-Salt    # 登录密钥盐（HMAC）：bot 生成密钥与 webapp 验证共用
   old_salts: []                 # 换盐后把旧盐加进此列表，旧密钥继续有效（无感迁移）
 
+# 社区时间线上报（私有形态必填——webapp Event Server 地址；社区形态留空/省略 = 上报关闭）
 timeline:
   url: http://127.0.0.1:8765   # Event Server 基地址
   token: ChangeMe-Timeline-Token  # 系统间事件令牌（与用户登录密钥不同）
@@ -71,3 +75,7 @@ mail:
 panel:
   host: "0.0.0.0"    # bot 内置监控面板（局域网访问；仅本机改 127.0.0.1）
   port: 8790
+
+community:                 # 仅 edition: community 生效（见 docs/community/community-edition-plan.md）
+  max_groups: 50               # 最大激活群数（入群审核超限直接拒绝）
+  cmd_cooldown_seconds: 3      # 同用户同指令冷却秒数（0=关闭；私有形态缺省 0）

@@ -6,6 +6,7 @@
 
 ## [未发布]
 
+- **配置分侧与部署形态**：`config.yaml` 新增可选 `bot.edition: private|community`（缺省 private，私有部署零变化）；必填键按形态拆分——community 仅校验 bot 基础项 + `auth.salt`，不再要求 `bot.default_group`/`onebot`/`timeline`；新增 `bot.system_plugins` 与 `community` 节（`max_groups`/`cmd_cooldown_seconds`，缺省 50/3）；`DEFAULT_GROUP_ID` 社区形态可为 `None`（发送兜底与上报 no-op 由后续任务落地）。社区版任务 T0.1，计划见 `docs/superpowers/plans/2026-09-08-config-edition-split.md`
 - **社区版规划文档**：新增 `docs/community/`（社区化开发文档集：`README.md` 索引 + `architecture-overview.md` 工程架构纵览与耦合点 C1-C8 分析 + `community-edition-plan.md` 开发计划：决策记录 D1-D11、内核净化/多群适配（用户全局账户）/准入运营三条工作流、分批释出路线 + `development-plan.md` 细粒度任务拆分执行计划；产品侧原 `market-expansion-plan.md` 一并归入）；`specs/conventions.md` 新增双形态接缝约束（私有/社区同主干共存，edition 差异仅限 5 处接缝白名单，社区部署按 tag 固化），纯文档不改代码
 
 - **邮件客户端**：新增 `core/mail_client.py`（cloud-mail/Skymail API：登录 token 缓存、发件账号自动发现、best-effort 发信含附件）；`config.yaml` 新增可选 `mail` 节启用，留空即关闭。暂无调用方，为后续邮件通知功能铺底

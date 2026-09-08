@@ -27,6 +27,21 @@ timeline:
   token: test-timeline-token
 """
 
+# 社区形态最小配置：无 default_group / onebot / timeline 节
+COMMUNITY_MINIMAL = """
+bot:
+  edition: community
+  qq: "123456"
+  nickname: 测试bot
+  super_users: [1, 2]
+  ws_url: ws://127.0.0.1:3001
+  ws_token: "123456"
+  llonebot_data_path: /tmp/onebot_data
+  python_data_path: ./server_data
+auth:
+  salt: test-salt
+"""
+
 
 def _write(tmp: str, content: str) -> str:
     p = Path(tmp) / "config.yaml"
@@ -63,6 +78,37 @@ class TestLoad(unittest.TestCase):
             p.write_text(yaml.safe_dump(bad), encoding="utf-8")
             with self.assertRaises(SystemExit):
                 _load(p)
+
+    def test_community_minimal_loads_without_web_side_keys(self):
+        """社区形态：缺 default_group / onebot / timeline 不退出。"""
+        from core.config import _load
+        with tempfile.TemporaryDirectory() as tmp:
+            data = _load(Path(_write(tmp, COMMUNITY_MINIMAL)))
+            self.assertEqual(data["bot"]["edition"], "community")
+
+    def test_private_missing_default_group_exits(self):
+        """私有形态（缺省 edition）：default_group 仍必填。"""
+        from core.config import _load
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = yaml.safe_load(REQUIRED_MINIMAL)
+            del bad["bot"]["default_group"]
+            p = Path(tmp) / "config.yaml"
+            p.write_text(yaml.safe_dump(bad), encoding="utf-8")
+            with self.assertRaises(SystemExit) as ctx:
+                _load(p)
+            self.assertIn("bot.default_group", str(ctx.exception))
+
+    def test_invalid_edition_exits(self):
+        """非法 edition 值启动即退出并提示可选值。"""
+        from core.config import _load
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = yaml.safe_load(REQUIRED_MINIMAL)
+            bad["bot"]["edition"] = "saas"
+            p = Path(tmp) / "config.yaml"
+            p.write_text(yaml.safe_dump(bad), encoding="utf-8")
+            with self.assertRaises(SystemExit) as ctx:
+                _load(p)
+            self.assertIn("bot.edition", str(ctx.exception))
 
 
 class TestConstants(unittest.TestCase):
@@ -101,6 +147,8 @@ class TestConstants(unittest.TestCase):
                 )
                 self.assertEqual(cfg.CHECKIN_MAX_BYTES, 10 * 1024 * 1024)
                 self.assertEqual(cfg.AUTH_SALT_OLD, [])
+                self.assertEqual(cfg.EDITION, "private")
+                self.assertEqual(cfg.COMMUNITY_CMD_COOLDOWN_SECONDS, 0)  # private 缺省 0=频控关闭（T1.5 契约）
             finally:
                 import core.config as cfg2
                 importlib.reload(cfg2)  # 恢复 conftest 临时配置
@@ -112,6 +160,39 @@ class TestConstants(unittest.TestCase):
             cfg = self._reload_with(_write(tmp, yaml.safe_dump(raw, allow_unicode=True)))
             try:
                 self.assertEqual(cfg.AUTH_SALT_OLD, ["a", " b", "c"])
+            finally:
+                import core.config as cfg2
+                importlib.reload(cfg2)
+
+    def test_community_constants(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._reload_with(_write(tmp, COMMUNITY_MINIMAL))
+            try:
+                self.assertEqual(cfg.EDITION, "community")
+                self.assertIsNone(cfg.DEFAULT_GROUP_ID)      # 社区形态无默认群
+                self.assertIsNone(cfg.GROUP_ID)              # 旧名别名跟随
+                self.assertEqual(cfg.TIMELINE_URL, "")       # 空 = 上报关闭（T0.3 消费）
+                self.assertEqual(cfg.TIMELINE_TOKEN, "")
+                self.assertEqual(cfg.ONEBOT_HTTP_URL, "")
+                self.assertEqual(cfg.SYSTEM_PLUGINS_CONF, [])
+                self.assertEqual(cfg.COMMUNITY_MAX_GROUPS, 50)
+                self.assertEqual(cfg.COMMUNITY_CMD_COOLDOWN_SECONDS, 3)
+            finally:
+                import core.config as cfg2
+                importlib.reload(cfg2)
+
+    def test_edition_default_private_and_overrides(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = yaml.safe_load(REQUIRED_MINIMAL)
+            raw["bot"]["system_plugins"] = ["menu", "register"]
+            raw["community"] = {"max_groups": 5, "cmd_cooldown_seconds": 10}
+            cfg = self._reload_with(_write(tmp, yaml.safe_dump(raw, allow_unicode=True)))
+            try:
+                self.assertEqual(cfg.EDITION, "private")     # 无 edition 键 → 缺省 private
+                self.assertEqual(cfg.DEFAULT_GROUP_ID, 42)
+                self.assertEqual(cfg.SYSTEM_PLUGINS_CONF, ["menu", "register"])
+                self.assertEqual(cfg.COMMUNITY_MAX_GROUPS, 5)
+                self.assertEqual(cfg.COMMUNITY_CMD_COOLDOWN_SECONDS, 10)  # 显式覆盖不分形态
             finally:
                 import core.config as cfg2
                 importlib.reload(cfg2)

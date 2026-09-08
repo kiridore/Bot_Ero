@@ -13,30 +13,33 @@
 
 ## 配置文件 `config.yaml`
 
-`core/config.py` 在 import 时经 `yaml.safe_load` 加载（文件不存在或必填项缺失 → 启动即退出并提示 `cp config.example.yaml config.yaml`）；环境变量 `BOTERO_CONFIG` 仅用于定位配置文件本身（测试/多环境用）。修改后需重启对应进程生效。
+`core/config.py` 在 import 时经 `yaml.safe_load` 加载（文件不存在或必填项缺失 → 启动即退出并提示 `cp config.example.yaml config.yaml`）；必填集按 `bot.edition` 分侧（community 仅 bot 基础项 + `auth.salt`）；环境变量 `BOTERO_CONFIG` 仅用于定位配置文件本身（测试/多环境用）。修改后需重启对应进程生效。
 
 | 节 | 键 | 必填 | 默认/说明 |
 |----|----|------|----------|
-| `bot` | `qq` | ✅ | Bot QQ（**必须加引号保持 str**） |
+| `bot` | `edition` | ❌ | 部署形态 `private`（缺省）/`community`；差异约束见 `specs/conventions.md` §双形态接缝 |
+| | `qq` | ✅ | Bot QQ（**必须加引号保持 str**） |
 | | `nickname` | ✅ | 机器人昵称 |
 | | `super_users` | ✅ | 超管 QQ 列表（list[int]） |
-| | `default_group` | ✅ | 默认群号（同时供 webapp 昵称查询用） |
+| | `default_group` | 私有✅ | 默认群号（同时供 webapp 昵称查询用）；社区形态可省（None） |
 | | `ws_url` / `ws_token` | ✅ | OneBot v11 WS 地址与鉴权 |
 | | `llonebot_data_path` / `python_data_path` | ✅ | 双数据路径（API 侧 / Python I/O 侧） |
 | | `download_proxy` | ❌ | 图片下载代理，空 = 直连 |
 | | `onebot_qq_volume` | ❌ | docker 卷路径，仅容器部署用 |
-| `onebot` | `http_url` / `token` | ✅ | OneBot HTTP（拉 QQ 昵称） |
+| | `system_plugins` | ❌ | 系统插件白名单（缺省 = 内置 8 件套）；社区形态裁掉 message_logger/startup_changelog 等 |
+| `onebot` | `http_url` / `token` | 私有✅ | OneBot HTTP（拉 QQ 昵称）；社区形态可省 |
 | `paths` | `db` 等 7 键 | ❌ | 缺省即默认布局（`data.db`、`server_data/*`）；相对路径按项目根解析 |
 | `webapp` | `host` / `port` | ❌ | `0.0.0.0` / `8765` |
 | `auth` | `salt` | ✅ | 登录密钥盐（HMAC；bot 生成与 webapp 验证共用） |
 | | `old_salts` | ❌ | 换盐后旧盐列表，旧密钥无感迁移 |
-| `timeline` | `url` / `token` | ✅ | Event Server 基地址与系统间事件令牌 |
+| `timeline` | `url` / `token` | 私有✅ | Event Server 基地址与系统间事件令牌；社区形态可省（留空 = 上报关闭） |
 | `weekly` | `web_base_url` / `notify` | ❌ | 周报链接前缀 / 出版通知开关 |
 | `uploads` | `checkin_max_images` / `checkin_max_bytes` / `forum_image_max_bytes` | ❌ | 上传限制 |
 | `thumbs` | `cache_dir` / `max_width` / `max_height` / `jpeg_quality` | ❌ | 缩略图参数 |
 | `live` | `flv_url` | ❌ | 直播 FLV 流地址 |
 | `panel` | `host` / `port` | ❌ | bot 内置监控面板（`0.0.0.0` / `8790`，局域网访问，图库密钥超管鉴权） |
 | `tools` | `icon_proxy` | ❌ | 图标抓取代理，空 = 直连 |
+| `community` | `max_groups` / `cmd_cooldown_seconds` | ❌ | 仅 community 形态生效；缺省 `50` / `3`（private 缺省 `0`=关闭频控） |
 
 ## 代码内常量（非配置）
 
