@@ -18,14 +18,22 @@ BOTERO_VERSION = "1.37.2"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
-# 必填键（点路径）。bot 节除 download_proxy / onebot_qq_volume 外全必填。
-_REQUIRED = (
-    "bot.qq", "bot.nickname", "bot.super_users", "bot.default_group",
+# 必填键（点路径），按部署形态拆分：
+# - 两种形态共有的 bot 基础项 + auth.salt
+# - 私有形态额外要求：默认群（单群假设兜底）、OneBot HTTP（webapp 昵称解析）、
+#   时间线上报（webapp Event Server 地址）
+_EDITIONS = ("private", "community")
+_REQUIRED_BOT = (
+    "bot.qq", "bot.nickname", "bot.super_users",
     "bot.ws_url", "bot.ws_token", "bot.llonebot_data_path", "bot.python_data_path",
-    "onebot.http_url", "onebot.token",
     "auth.salt",
+)
+_REQUIRED_PRIVATE_EXTRA = (
+    "bot.default_group",
+    "onebot.http_url", "onebot.token",
     "timeline.url", "timeline.token",
 )
+_REQUIRED = _REQUIRED_BOT + _REQUIRED_PRIVATE_EXTRA  # 兼容 web_panel 存盘校验（私有全集，语义不变）
 
 
 def _load(path: Path) -> dict:
@@ -35,7 +43,11 @@ def _load(path: Path) -> dict:
             f"请先复制模板并填写：cp config.example.yaml config.yaml"
         )
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    for dotted in _REQUIRED:
+    edition = str((data.get("bot") or {}).get("edition") or "private")
+    if edition not in _EDITIONS:
+        sys.exit(f"配置文件 {path} 的 bot.edition 非法：{edition}（可选 {'/'.join(_EDITIONS)}）")
+    required = _REQUIRED_BOT + (_REQUIRED_PRIVATE_EXTRA if edition == "private" else ())
+    for dotted in required:
         section, _, key = dotted.partition(".")
         value = (data.get(section) or {}).get(key)
         if value is None or value == "" or value == []:
@@ -73,8 +85,19 @@ def _path(key: str, default: Path) -> Path:
 BOT_QQ = str(_bot["qq"])
 NICKNAME = str(_bot["nickname"])
 SUPER_USER = [int(u) for u in _bot["super_users"]]
-DEFAULT_GROUP_ID = int(_bot["default_group"])
-GROUP_ID = DEFAULT_GROUP_ID  # webapp 侧旧名，两名一键
+
+# —— 部署形态（private=私有全功能；community=社区公共服务，纯 bot）——
+EDITION = str(_bot.get("edition") or "private")
+SYSTEM_PLUGINS_CONF = [str(s) for s in (_bot.get("system_plugins") or [])]  # T0.4 消费（缺省空 = 用内置集合）
+_community = _sec("community")
+COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
+# 频控冷却秒数：显式配置不分形态生效；缺省 community=3 / private=0（关闭）
+_cooldown_raw = _community.get("cmd_cooldown_seconds")
+COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else (3 if EDITION == "community" else 0)
+
+_default_group = _bot.get("default_group")
+DEFAULT_GROUP_ID = int(_default_group) if _default_group else None  # 社区形态可无默认群（发送兜底见 T0.2）
+GROUP_ID = DEFAULT_GROUP_ID  # webapp 侧旧名，两名一键（community 形态可为 None）
 WS_URL = str(_bot["ws_url"])
 WS_TOKEN = str(_bot["ws_token"])
 DOWNLOAD_PROXY = str(_bot.get("download_proxy") or "")
@@ -83,8 +106,8 @@ PYTHON_DATA_PATH = str(_bot["python_data_path"])
 ONEBOT_QQ_VOLUME = str(_bot.get("onebot_qq_volume") or "")
 
 # —— OneBot HTTP（NapCat / Lagrange 等），用于拉取 QQ 昵称 ——
-ONEBOT_HTTP_URL = str(_onebot["http_url"])
-ONEBOT_TOKEN = str(_onebot["token"])
+ONEBOT_HTTP_URL = str(_onebot.get("http_url") or "")
+ONEBOT_TOKEN = str(_onebot.get("token") or "")
 
 # —— 数据路径（相对路径按项目根解析）——
 DB_PATH = _path("db", PROJECT_ROOT / "data.db")
@@ -108,8 +131,8 @@ AUTH_SALT = str(_auth["salt"])
 AUTH_SALT_OLD = [str(s) for s in (_auth.get("old_salts") or [])]
 
 # —— 社区时间线 ——
-TIMELINE_URL = str(_timeline["url"]).rstrip("/")
-TIMELINE_TOKEN = str(_timeline["token"])
+TIMELINE_URL = str(_timeline.get("url") or "").rstrip("/")  # 空 = 上报关闭（T0.3 消费）
+TIMELINE_TOKEN = str(_timeline.get("token") or "")
 
 # —— 小埃周报 ——
 WEB_BASE_URL = str(_weekly.get("web_base_url") or "https://littlero.tech").rstrip("/")
