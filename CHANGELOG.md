@@ -6,6 +6,8 @@
 
 ## [未发布]
 
+- **社区版规划文档**：新增 `docs/community/`（社区化开发文档集：`README.md` 索引 + `architecture-overview.md` 工程架构纵览与耦合点 C1-C8 分析 + `community-edition-plan.md` 开发计划：决策记录 D1-D11、内核净化/多群适配（用户全局账户）/准入运营三条工作流、分批释出路线 + `development-plan.md` 细粒度任务拆分执行计划；产品侧原 `market-expansion-plan.md` 一并归入）；`specs/conventions.md` 新增双形态接缝约束（私有/社区同主干共存，edition 差异仅限 5 处接缝白名单，社区部署按 tag 固化），纯文档不改代码
+
 - **邮件客户端**：新增 `core/mail_client.py`（cloud-mail/Skymail API：登录 token 缓存、发件账号自动发现、best-effort 发信含附件）；`config.yaml` 新增可选 `mail` 节启用，留空即关闭。暂无调用方，为后续邮件通知功能铺底
 - **CSS token 收编**：全站样式残留的硬编码颜色统一改为 `:root` token / `color-mix` 派生（内部重构，渲染不变，为主题机制铺路）
 - forum_notify 论坛链接改走 `config.yaml` `weekly.web_base_url`（行为不变，消除域名硬编码）

@@ -240,6 +240,22 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ---
 
+## Constraint: 双形态接缝（edition 开关白名单）
+
+私有版与社区版**同一主干共存**（决策见 `docs/community/community-edition-plan.md` D5），差异仅经 `bot.edition` 配置切换。**禁止长期分支隔离两形态**（双份 cherry-pick、schema 漂移、社区分支腐化）；若未来转为开源/分发形态，正确工具是抽共享库或独立仓库，不是分支。
+
+`edition` 差异只允许出现在以下接缝（白名单，超出即违规）：
+
+1. `core/config.py` —— 必填键分侧、`EDITION` 常量及各 edition 专属配置访问器；
+2. `core/feature_packs.py` —— 双形态功能包表选择；
+3. `plugins/menu/bot_menu_text.py`（及其选择处）—— 双菜单文本；
+4. 准入门控（`main.py` plugin_pool 中央检查）—— 社区版黑名单/群激活/注册检查，私有版直通；
+5. 权限点（如 `grant_points_all` 的 `super_user()` 收紧）—— 仅限权限判定函数内的分支。
+
+**业务逻辑内禁止 `if EDITION` 判断**；发现新差异需求时先评估能否归入上述接缝（配置化/包定义/钩子注册），不能则提请所有者修订本白名单。社区部署按 **git tag 固化**：部署 = 指定 tag + config，升级 = 显式 bump tag，不追主干 HEAD。
+
+---
+
 ## Constraint: 功能开发主流程
 
 **多步开发任务（新功能/跨文件改动/多 commit）MUST 走完整主流程；单点小修（一行 fix、纯文档、单文件微调）不强制，避免流程税。**
