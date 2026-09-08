@@ -71,6 +71,8 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 ### T0.2 发送兜底适配（DEFAULT_GROUP_ID 可空）`S`
 
+> spec：`docs/superpowers/specs/2026-09-08-send-fallback-drop-design.md` · plan：`docs/superpowers/plans/2026-09-08-send-fallback-drop.md`
+
 **目标**：社区版无默认群时，无群上下文的群发不再隐式发往某个群。
 
 **改动**：`core/api.py`（3 处：`send_group_msg` L98、`send_group_forward_msg` L171、`send_group_forward_nodes` L191 的 `if not group_id: group_id = runtime_context.DEFAULT_GROUP_ID`）
