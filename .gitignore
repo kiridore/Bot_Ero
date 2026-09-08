@@ -12,4 +12,5 @@ data.db-wal
 
 # 本地工具目录
 .zcode
+.worktrees/
 .superpowers/
