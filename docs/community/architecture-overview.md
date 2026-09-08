@@ -83,7 +83,7 @@ test/                 pytest 进程内用例 + scripts/check_* 集成脚本 + no
 main.py               279 行（WS 连接 + 事件分发 + 重连）
 ```
 
-插件按功能包分组（`core/feature_packs.py`）：基础包（打卡系 9 个）、基础扩展包（经济/称号/周常）、休闲娱乐、匿名游戏、跑团、群管理工具；系统插件 7 个常驻（menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）。
+插件按功能包分组（`core/feature_packs.py`）：基础包（打卡系 9 个）、基础扩展包（经济/称号/周常）、休闲娱乐、匿名游戏、跑团、群管理工具；系统插件 8 个常驻（menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）。
 
 ## 4. 数据模型（44 表按域分组）
 

@@ -93,7 +93,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 ### T0.4 系统插件配置化 `S`
 
-**目标**：`SYSTEM_PLUGINS` 从硬编码 frozenset 改读 `config.yaml bot.system_plugins`（缺省 = 现值 7 个），社区配置裁掉 `message_logger`、`startup_changelog`。
+**目标**：`SYSTEM_PLUGINS` 从硬编码 frozenset 改读 `config.yaml bot.system_plugins`（缺省 = 现值 8 个），社区配置裁掉 `message_logger`、`startup_changelog`。
 
 **改动**：`core/context.py`（`SYSTEM_PLUGINS = frozenset(config.SYSTEM_PLUGINS_CONF or 默认集)`）、`config.example.yaml`
 

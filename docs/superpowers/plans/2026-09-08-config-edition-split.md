@@ -298,7 +298,7 @@ community:                 # 仅 edition: community 生效（见 docs/community/
 
 ```markdown
 | `bot` | `edition` | ❌ | 部署形态 `private`（缺省）/`community`；差异约束见 `specs/conventions.md` §双形态接缝 |
-| | `system_plugins` | ❌ | 系统插件白名单（缺省 = 内置 7 件套）；社区形态裁掉 message_logger/startup_changelog 等 |
+| | `system_plugins` | ❌ | 系统插件白名单（缺省 = 内置 8 件套）；社区形态裁掉 message_logger/startup_changelog 等 |
 ```
 
 `default_group` 行"必填"列改为 `私有✅`，说明加"社区形态可省（None）"；`onebot` 与 `timeline` 行必填列同样改为 `私有✅`，说明注明社区形态可省/留空=关闭。表后新增一行：
