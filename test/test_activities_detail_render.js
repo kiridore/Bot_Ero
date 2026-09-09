@@ -15,6 +15,8 @@ function makeEl(tag) {
     showModal() { this.open = true; },
     close() { this.open = false; },
     scrollIntoView() {},
+    click() {},
+    remove() { el._removed = true; },
   };
   Object.defineProperty(el, "innerHTML", {
     get() { return el._html; },
@@ -38,6 +40,7 @@ authArea.id = "authArea";
 const els = { detailMain: mainEl, authArea, submitForm: null };
 global.document = {
   createElement: makeEl,
+  body: makeEl("body"),
   getElementById(id) {
     if (els[id]) return els[id];
     for (const el of ALL_ELS) {
@@ -85,6 +88,10 @@ global.window = { addEventListener() {} };
 global.FormData = class { constructor() { this._d = {}; } append(k, v) { this._d[k] = v; } };
 global.confirm = () => true;
 global.alert = () => {};
+const pngCalls = [];
+global.htmlToImage = {
+  toPng: async (node, opts) => { pngCalls.push({ node, opts }); return "data:image/png;base64,AAA"; },
+};
 
 eval(fs.readFileSync("webapp/static/activities_detail.js", "utf8"));
 
@@ -120,6 +127,28 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   await wait(100);
   const html3 = mainEl._html;
   check("非成员隐藏提交区", !html3.includes("我的提交") && !html3.includes("提交作品"));
+
+  // 5. finished → 生成分享长图按钮 + 点击接线 + 离屏节点清理
+  check("运行中无分享按钮", !html.includes("shareBtn"));
+  actData.status = "finished";
+  actData.finished_at = "2026-09-03 12:00:00";
+  actData.members[1] = { user_id: "444", nickname: "成员乙", seq: 2, status: "done",
+    content: "乙的作品", images: [], submitted_at: "2026-09-02 11:00:00" };
+  loadDetail();
+  await wait(100);
+  const html4 = mainEl._html;
+  check("结束显示分享按钮", html4.includes("生成分享长图") && /id="shareBtn"/.test(html4));
+  check("含全部作品块", html4.includes("乙的作品"));
+  const shareBtn = els.shareBtn;
+  check("按钮接线", !!(shareBtn && shareBtn._listeners.click && shareBtn._listeners.click.length === 1));
+  if (shareBtn && shareBtn._listeners.click) {
+    await shareBtn._listeners.click[0]();
+    check("调用 toPng", pngCalls.length === 1);
+    check("背景色为报纸色", pngCalls[0] && pngCalls[0].opts && pngCalls[0].opts.backgroundColor === "#f5efe0");
+    check("下载文件名", ALL_ELS.some((e) => e.tagName === "a" && e.download === "activity-3.png"));
+    check("离屏节点已清理", pngCalls[0] && pngCalls[0].node && !!pngCalls[0].node._removed);
+    check("按钮文案复位", shareBtn.textContent === "生成分享长图");
+  }
 
   process.exit(fail ? 1 : 0);
 })();

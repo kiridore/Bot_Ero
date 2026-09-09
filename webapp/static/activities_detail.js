@@ -109,6 +109,52 @@ async function submitWork() {
   }
 }
 
+function buildShareNode(act) {
+  // 离屏克隆：固定 720px 宽浅色报纸风（不跟随暗色主题），内联样式自包含。
+  // 色值与 base.css 浅色主题 --paper/--ink 同源。
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "width:720px;padding:28px;box-sizing:border-box;background:#f5efe0;color:#2c2a24";
+  const head = `
+    <div style="border-bottom:2px solid #2c2a24;padding-bottom:14px;margin-bottom:18px;">
+      <div style="font-size:26px;font-weight:700;">${escapeHtml(act.title)}</div>
+      <div style="margin-top:8px;font-size:14px;opacity:.75;">
+        ${TYPE_LABEL[act.type] || act.type} · ${escapeHtml(act.created_at || "")} ~ ${escapeHtml(act.finished_at || "")} · ${act.members.length} 人
+      </div>
+    </div>`;
+  const works = act.members.map((m) => `
+    <div style="margin:0 0 22px;padding:14px;background:#fffdf4;border:1px solid #e4dcc6;border-radius:8px;">
+      <div style="font-size:15px;font-weight:700;">
+        ${escapeHtml(m.nickname)}（${escapeHtml(String(m.user_id))}）· ${MEMBER_STATUS_LABEL[m.status] || m.status}
+        ${m.submitted_at ? `<span style="font-weight:400;opacity:.6;"> · ${escapeHtml(m.submitted_at)}</span>` : ""}
+      </div>
+      ${m.content ? `<div style="margin-top:8px;font-size:14px;white-space:pre-wrap;">${escapeHtml(m.content)}</div>` : ""}
+      ${m.images.map((u) => `<img src="${u}" style="display:block;max-width:100%;border-radius:6px;margin-top:8px;">`).join("")}
+    </div>`).join("");
+  wrap.innerHTML = head + works;
+  document.body.appendChild(wrap);
+  return wrap;
+}
+
+async function downloadShareImage() {
+  const btn = document.getElementById("shareBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "生成中…"; }
+  let node = null;
+  try {
+    node = buildShareNode(actCache);
+    // ponytail: pixelRatio 1（720px 宽）——iOS Safari canvas 面积上限 ~16.7M px，图片很多的长活动下 ratio>1 会碰顶；需要更清晰时再分片拼接
+    const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 1, backgroundColor: "#f5efe0" });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `activity-${actCache.id}.png`;
+    a.click();
+  } catch (err) {
+    alert(`生成长图失败：${(err && err.message) || err}`);
+  } finally {
+    if (node) node.remove();
+    if (btn) { btn.disabled = false; btn.textContent = "生成分享长图"; }
+  }
+}
+
 function renderCountdown() {
   if (!actCache || actCache.status !== "running" || actCache.type !== "relay") return;
   const cur = actCache.members.find(m => m.status === "pending");
@@ -196,7 +242,10 @@ function renderDetail() {
   if (act.status === "finished") {
     worksBlock = `
       <section class="detail-section">
-        <h2>作品</h2>
+        <div class="works-head">
+          <h2>作品</h2>
+          <button type="button" id="shareBtn" class="primary">生成分享长图</button>
+        </div>
         ${act.members.map(m => `
           <div class="work-block">
             <h3>${escapeHtml(m.nickname)}（${m.user_id}）· ${MEMBER_STATUS_LABEL[m.status] || m.status}</h3>
@@ -224,6 +273,8 @@ function renderDetail() {
     ${worksBlock}`;
   const sb = document.getElementById("submitBtn");
   if (sb) sb.addEventListener("click", submitWork);
+  const shb = document.getElementById("shareBtn");
+  if (shb) shb.addEventListener("click", downloadShareImage);
   if (isRunning && act.type === "relay") {
     setInterval(renderCountdown, 60000);
   }

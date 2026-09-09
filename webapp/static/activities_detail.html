@@ -59,6 +59,12 @@
       color: var(--accent-ink); border-radius: 8px; padding: 8px 18px; cursor: pointer;
     }
     .submit-row .primary:disabled { opacity: 0.5; cursor: default; }
+    .works-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .works-head .primary {
+      border: 1px solid var(--accent); background: var(--accent-soft);
+      color: var(--accent-ink); border-radius: 8px; padding: 8px 18px; cursor: pointer;
+    }
+    .works-head .primary:disabled { opacity: 0.5; cursor: default; }
     .muted { color: var(--ink-soft); font-size: 13px; }
     .countdown { color: var(--gold); }
   </style>
@@ -76,6 +82,7 @@
   <script src="/shared/lightbox.js"></script>
   <script src="/shared/motion.js"></script>
   <script src="/shared/nav.js"></script>
+  <script src="/static/vendor/html-to-image.min.js"></script>
   <script src="/static/activities_detail.js"></script>
 </body>
 </html>

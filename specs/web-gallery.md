@@ -17,7 +17,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | 个人中心 | `profile` | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） | 个人主页/打卡/商店/称号/设置 5 域聚合 |
 | 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}`） | 车卡创建/编辑/查看 |
 | 日程/闹钟 | `alarms` | `/profile/schedule`（旧 `/alarms` 302） | 月历展开 + 闹钟 CRUD |
-| 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情 |
+| 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情（结束后可一键生成分享长图 PNG 下载） |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ 打卡隐私读侧过滤（见「时间线打卡隐私」约束）+ `entries.json` |
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
@@ -65,6 +65,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 - Constraint: 全部子应用样式必须经由 `core/web/static/base.css` 的 `:root` token（报纸风数值，全站唯一来源），禁止在子应用样式文件引入新的硬编码颜色。
 - Constraint: 全站配色主题：`base.css` 内 `:root[data-theme="dark"]`（夜间，暖暗色）与 `:root[data-theme="mono"]`（上班摸鱼，低饱和灰白 + `img { filter: grayscale(0.85) }` 低饱和灰化图片（保留少量饱和度，避免全黑白观感突兀））覆盖 token；`theme.js` 由每个页面 `<head>` 在 `/shared/base.css` 之前以同步 `<script>` 引用，首帧前依 localStorage 键 `botero_theme`（取值 `""`/`mono`/`dark`，非法回退默认）设置 `<html data-theme>` 防闪白；设置页经 `window.BoteroTheme.get()/set(v)` 读写。主题为浏览器本地偏好，**MUST NOT** 写入服务端个人设置。
 - Constraint: 派生淡染色（悬浮底、遮罩、红 tint、热力图色阶）MUST 经 `--tint`/`--tint-strong`/`--red-tint`/`--red-tint-strong`/`--heat-*` token 或模块内 `color-mix()` 套 `:root` token 表达（主题切换自动跟随）；模块 CSS **MUST NOT** 引入新的硬编码颜色或独立色阶。
+- Constraint: 第三方前端库 vendored 在 `webapp/static/vendor/`（当前仅 `html-to-image.min.js`，MIT，供活动详情页生成分享长图：离屏克隆「作品」区块 720px 宽、内联样式钉死浅色报纸色值不随主题、`pixelRatio: 1` 规避 iOS canvas 面积上限）；新增前端依赖优先考虑能否用已有库/原生 API 替代。
 
 ## Constraint: 全站动效层（motion.css / motion.js）
 
