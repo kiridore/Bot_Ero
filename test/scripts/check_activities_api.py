@@ -233,6 +233,17 @@ check("进行中他人作品剥离", other_row["content"] is None and other_row[
       and other_row["submitted_at"] is None)
 check("进行中本人保留", me_row["content"] == "改成纯文字")
 
+# 同名图重传：磁盘/服务端应返回新字节，且响应必须带防陈旧缓存头（浏览器启发式缓存不会重验证同 URL 图片）
+PNG2 = PNG + b"V2"
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333,
+                files=[("files", ("a.png", PNG2, "image/png"))], data={"content": "换图"})
+check("submit 同名换图", r.json() == {"ok": True, "updated": True}, r.text)
+r = client.get(f"/archive/{rid3}/media/1-1.png", headers=H333)
+check("同名换图后返回新字节", r.status_code == 200 and r.content == PNG2,
+      f"status={r.status_code} len={len(r.content)} expect={len(PNG2)}")
+check("媒体响应带 no-cache", r.headers.get("cache-control") == "no-cache",
+      f"cache-control={r.headers.get('cache-control')}")
+
 DB.activity.update_member(rid3, "444", status="missed")
 r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content": "补交"})
 check("missed 提交 409", r.status_code == 409 and "截止" in r.json().get("detail", ""))
@@ -242,8 +253,8 @@ r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content":
 check("finished 提交 409", r.status_code == 409)
 r = client.get(f"/api/activities/{rid3}", headers=H444)
 done_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
-check("finished 后归档公开", done_row["content"] == "改成纯文字"
-      and done_row["images"] == [])  # 覆盖式更新已清图，归档跟随现状
+check("finished 后归档公开", done_row["content"] == "换图"
+      and done_row["images"] == [f"/archive/{rid3}/media/1-1.png"])  # 归档跟随最后一次提交
 
 DB.activity.update_activity(rid3, status="cancelled")  # 让位给匹配用例
 r = client.post("/api/activities", headers=OH, json={
