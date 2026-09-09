@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.39.1]
+
+- **修复活动作品图同名重传不刷新**：`/archive/{id}/media/*` 图片响应补 `Cache-Control: no-cache`（复用 `static_revalidate` 中间件），浏览器不再以启发式缓存展示旧图；服务端同名覆盖写盘本就正确，仅缺重验证头
+
 ## [1.39.0]
 
 - **活动分享长图**：活动详情页在活动结束后新增「生成分享长图」按钮，将标题/起止时间与全部作品（文字+图片）以 720px 宽浅色报纸风拼接为单张 PNG 下载（vendored `html-to-image`，前端 DOM 快照，零后端改动）
