@@ -222,27 +222,46 @@ img_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
 check("me 图片 URL 映射", img_row["images"] == [f"/archive/{rid3}/media/1-1.png", f"/archive/{rid3}/media/1-2.png"])
 
 r = client.post(f"/api/activities/{rid3}/submit", headers=H333, data={"content": "改成纯文字"})
-check("submit 更新覆盖", r.json() == {"ok": True, "updated": True}, r.text)
-raw_imgs = DB.activity.get_member(rid3, "333")["images"]
-check("更新后 images 清空", raw_imgs in (None, "[]"))  # 覆盖式：无图重传写 NULL（与 bot 一致）
+check("文本编辑保留图片", r.json() == {"ok": True, "updated": True} and _json.loads(DB.activity.get_member(rid3, "333")["images"]) == ["1-1.png", "1-2.png"], r.text)
 
 r = client.get(f"/api/activities/{rid3}", headers=H333)
 me_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
 other_row = next(m for m in r.json()["members"] if m["user_id"] == "444")
 check("进行中他人作品剥离", other_row["content"] is None and other_row["images"] == []
       and other_row["submitted_at"] is None)
-check("进行中本人保留", me_row["content"] == "改成纯文字")
 
-# 同名图重传：磁盘/服务端应返回新字节，且响应必须带防陈旧缓存头（浏览器启发式缓存不会重验证同 URL 图片）
+# —— 增量语义续：新图追加编号 · removed 单图删除 · 非法 removed 400 ——
+r = client.get(f"/api/activities/{rid3}", headers=H333)
+check("进行中本人保留", next(m for m in r.json()["members"] if m["user_id"] == "333")["content"] == "改成纯文字")
+
+# 追加：新图枚举从现有最大 n 继续（1-3），不覆盖旧文件
 PNG2 = PNG + b"V2"
 r = client.post(f"/api/activities/{rid3}/submit", headers=H333,
-                files=[("files", ("a.png", PNG2, "image/png"))], data={"content": "换图"})
-check("submit 同名换图", r.json() == {"ok": True, "updated": True}, r.text)
-r = client.get(f"/archive/{rid3}/media/1-1.png", headers=H333)
-check("同名换图后返回新字节", r.status_code == 200 and r.content == PNG2,
-      f"status={r.status_code} len={len(r.content)} expect={len(PNG2)}")
+                files=[("files", ("a.png", PNG2, "image/png"))], data={"content": "追加一张"})
+check("追加命名递增", r.json() == {"ok": True, "updated": True}
+      and _json.loads(DB.activity.get_member(rid3, "333")["images"]) == ["1-1.png", "1-2.png", "1-3.png"], r.text)
+check("旧图未被覆盖", (_Path(_AR) / str(rid3) / "imgs" / "1-1.png").is_file()
+      and (_Path(_AR) / str(rid3) / "imgs" / "1-3.png").is_file())
+r = client.get(f"/archive/{rid3}/media/1-3.png", headers=H333)
+check("追加图返回新字节", r.status_code == 200 and r.content == PNG2,
+      f"status={r.status_code} len={len(r.content)}")
 check("媒体响应带 no-cache", r.headers.get("cache-control") == "no-cache",
       f"cache-control={r.headers.get('cache-control')}")
+
+# 单图删除：removed 列表 → 文件落盘消失、列表移除、内容保留
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333,
+                data={"content": "删一张", "removed": ["1-1.png"]})
+check("removed 删除生效", r.json() == {"ok": True, "updated": True}
+      and _json.loads(DB.activity.get_member(rid3, "333")["images"]) == ["1-2.png", "1-3.png"], r.text)
+check("删除文件落盘消失", not (_Path(_AR) / str(rid3) / "imgs" / "1-1.png").is_file())
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333,
+                data={"content": "x", "removed": ["9-9.png"]})
+check("非法 removed 400", r.status_code == 400, r.text)
+
+# 仅删图不传文本也允许（removed 非空）
+r = client.post(f"/api/activities/{rid3}/submit", headers=H333, data={"removed": ["1-2.png"]})
+check("仅删图提交", r.json() == {"ok": True, "updated": True}
+      and _json.loads(DB.activity.get_member(rid3, "333")["images"]) == ["1-3.png"], r.text)
 
 DB.activity.update_member(rid3, "444", status="missed")
 r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content": "补交"})
@@ -253,8 +272,8 @@ r = client.post(f"/api/activities/{rid3}/submit", headers=H444, data={"content":
 check("finished 提交 409", r.status_code == 409)
 r = client.get(f"/api/activities/{rid3}", headers=H444)
 done_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
-check("finished 后归档公开", done_row["content"] == "换图"
-      and done_row["images"] == [f"/archive/{rid3}/media/1-1.png"])  # 归档跟随最后一次提交
+check("finished 后归档公开", done_row["content"] is None
+      and done_row["images"] == [f"/archive/{rid3}/media/1-3.png"])  # 归档跟随最后状态（仅删图不传文本→文本清空）
 
 DB.activity.update_activity(rid3, status="cancelled")  # 让位给匹配用例
 r = client.post("/api/activities", headers=OH, json={

@@ -262,7 +262,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/api/me/activities` | 必须 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
 | `GET` | `/api/activities/{id}` | 必须 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL；进行中剥离他人作品字段，本人与 finished 归档全量），不存在返回 404 |
 | `GET` | `/api/activities/{id}/me` | 必须 | 我的成员态与提交（can_submit/block_reason） |
-| `POST` | `/api/activities/{id}/submit` | 必须 | 网页提交作品（multipart，规则同 QQ /提交） |
+| `POST` | `/api/activities/{id}/submit` | 必须 | 网页提交作品（multipart；增量语义：`content` 覆盖文本、`files` 追加到末尾（`{seq}-{n}` 续编号）、`removed` 列表删除对应已有图片；三者可任意组合，全部为空 400；文本编辑/删图不重置其他字段） |
 | `POST` | `/api/activities` | 必须 | 创建活动（type/title/description/hours_per_user/signup_deadline/deadline；匹配必带截止、日期须未来、每群唯一进行中）→ {ok,id,announce=可复制群公告文案}。群固定 DEFAULT_GROUP_ID，created_by=登录用户 |
 | `PATCH` | `/api/activities/{id}` | 必须 | 创建人/超管编辑：open 可改 标题/描述/每人限时/报名截止/截止，running 仅 标题/描述/截止；他字段 400，结束后 409 |
 | `POST` | `/api/activities/{id}/start` | 必须 | 仅 open；人数预检（接龙≥1 匹配≥2）后写 signup_deadline=now，bot 心跳 ≤60s 自动开始并通知（B1 方案，幂等） |

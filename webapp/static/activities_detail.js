@@ -55,9 +55,58 @@ function mySubmissionBlock(me) {
       <h2>我的提交${m.status === "done" ? "（已提交，可更新）" : ""}</h2>
       ${m.submitted_at ? `<div class="muted">${m.submitted_at}</div>` : ""}
       ${m.content ? `<p class="work-content">${escapeHtml(m.content)}</p>` : ""}
-      ${m.images.map((u) => `<img class="work-img" src="${u}">`).join("")}
+      ${m.images.length ? `<div class="img-grid">${m.images.map((u) => imgCard(u, undefined, false)).join("")}</div>` : ""}
       ${m.status === "pending" && me.can_submit ? '<div class="muted">尚未提交</div>' : ""}
     </section>`;
+}
+
+// 方形缩略图卡片；name 用于已传图的 removed 标识，deletable 控制右上角删除键
+function imgCard(src, name, deletable) {
+  const dn = name !== undefined ? ` data-name="${escapeHtml(name)}"` : "";
+  return `<div class="img-card"${dn}><img src="${escapeHtml(src)}" alt="">`
+    + (deletable ? `<button type="button" class="img-del" aria-label="移除图片">×</button>` : "")
+    + `</div>`;
+}
+
+var pendingRemovals = new Set();  // 已传图待删除文件名（提交时生效）
+var pendingImages = [];  // 新选图 {file, url}，提交时 append 到末尾
+
+function renderPreviewGrid() {
+  const grid = document.getElementById("previewImages");
+  if (!grid) return;
+  grid.innerHTML = pendingImages.map((p, i) =>
+    `<div class="img-card" data-idx="${i}"><img src="${escapeHtml(p.url)}" alt="">`
+    + `<button type="button" class="img-del" aria-label="移除图片">×</button></div>`).join("");
+}
+
+function onFilesPicked(e) {
+  for (const f of (e.target.files || [])) {
+    if (!f) continue;
+    pendingImages.push({ file: f, url: URL.createObjectURL(f) });
+  }
+  e.target.value = "";
+  renderPreviewGrid();
+}
+
+function onCardClick(e) {
+  const btn = e.target.closest(".img-del");
+  if (!btn) return;
+  const card = btn.closest(".img-card");
+  const grid = card.parentElement;
+  if (grid.id === "previewImages") {
+    const [removed] = pendingImages.splice(Number(card.dataset.idx), 1);
+    if (removed) URL.revokeObjectURL(removed.url);
+    renderPreviewGrid();
+  } else if (grid.id === "savedImages") {
+    pendingRemovals.add(card.dataset.name);
+    grid.removeChild(card);
+  }
+}
+
+function resetPendingState() {
+  for (const p of pendingImages) URL.revokeObjectURL(p.url);
+  pendingImages = [];
+  pendingRemovals = new Set();
 }
 
 function submitBlock(me) {
@@ -69,12 +118,20 @@ function submitBlock(me) {
       <p class="muted">${escapeHtml(me.block_text || REASON_TEXT[me.block_reason] || "当前无法提交")}</p>
     </section>`;
   }
+  const existing = me.member.images || [];
   return `
     <section class="detail-section">
       <h2>提交作品</h2>
       <textarea id="myContent" class="work-input" rows="3" maxlength="2000"
         placeholder="作品文字（与图片至少一项）">${escapeHtml(me.member.content || "")}</textarea>
       <input type="file" id="myFiles" class="work-input" accept="image/*" multiple />
+      ${existing.length
+        ? `<div class="muted" style="margin-top:8px">已上传（点 × 移除，提交时生效）</div>`
+          + `<div class="img-grid" id="savedImages">`
+          + existing.map((u) => imgCard(u, u.split("/").pop(), true)).join("")
+          + `</div>`
+        : ""}
+      <div class="img-grid" id="previewImages"></div>
       <div class="submit-row">
         <button type="button" id="submitBtn" class="primary">提交</button>
         <span id="submitHint" class="muted"></span>
@@ -86,11 +143,14 @@ async function submitWork() {
   const btn = document.getElementById("submitBtn");
   const hint = document.getElementById("submitHint");
   const content = (document.getElementById("myContent")?.value || "").trim();
-  const files = document.getElementById("myFiles")?.files || [];
-  if (!content && !files.length) { hint.textContent = "请附上作品（文字或图片）"; return; }
+  if (!content && !pendingImages.length && !pendingRemovals.size) {
+    hint.textContent = "请附上作品（文字或图片）"; return;
+  }
   const fd = new FormData();
   fd.append("content", content);
-  for (const f of files) fd.append("files", f);
+  // 增量语义：新图 append 到末尾、removed 单独移除（均提交时生效）；文本总是随表单提交
+  for (const p of pendingImages) fd.append("files", p.file);
+  for (const name of pendingRemovals) fd.append("removed", name);
   btn.disabled = true;
   btn.textContent = "提交中…";
   try {
@@ -100,6 +160,7 @@ async function submitWork() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || "提交失败");
     hint.textContent = data.updated ? "已更新提交" : "提交成功";
+    resetPendingState();
     await loadDetail();
   } catch (err) {
     hint.textContent = err.message || "提交失败";
@@ -273,6 +334,12 @@ function renderDetail() {
     ${worksBlock}`;
   const sb = document.getElementById("submitBtn");
   if (sb) sb.addEventListener("click", submitWork);
+  const myFiles = document.getElementById("myFiles");
+  if (myFiles) myFiles.addEventListener("change", onFilesPicked);
+  const savedGrid = document.getElementById("savedImages");
+  if (savedGrid) savedGrid.addEventListener("click", onCardClick);
+  const prevGrid = document.getElementById("previewImages");
+  if (prevGrid) prevGrid.addEventListener("click", onCardClick);
   const shb = document.getElementById("shareBtn");
   if (shb) shb.addEventListener("click", downloadShareImage);
   if (isRunning && act.type === "relay") {

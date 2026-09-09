@@ -110,13 +110,14 @@ def _submission_state(user_id: str, act: dict, members: list[dict]):
     return me, None
 
 
-def _save_submission_images(activity_id: int, seq: int, files: list[tuple[bytes, str | None]]) -> list[str]:
-    """存 ACTIVITY_ROOT/<id>/imgs/<seq>-<n>.<ext>（web 命名；bot 为 img_<seq>_<n><ext>，互不冲突）；限制同打卡。"""
+def _save_submission_images(activity_id: int, seq: int, files: list[tuple[bytes, str | None]], start: int = 1) -> list[str]:
+    """存 ACTIVITY_ROOT/<id>/imgs/<seq>-<n>.<ext>（web 命名；bot 为 img_<seq>_<n><ext>，互不冲突）；
+    增量追加：命名从 start 续编（start = 现有图片最大序号 + 1），不覆盖旧文件；限制同打卡。"""
     if len(files) > config.CHECKIN_MAX_IMAGES:
         raise ValueError(f"单次最多上传 {config.CHECKIN_MAX_IMAGES} 张图片")
     folder = ACTIVITY_ROOT / str(activity_id) / "imgs"
     saved = []
-    for n, (data, mime_raw) in enumerate(files, 1):
+    for n, (data, mime_raw) in enumerate(files, start):
         mime = (mime_raw or "").split(";")[0].strip().lower()
         ext = _ALLOWED_MIME.get(mime)
         if ext is None:
@@ -127,6 +128,31 @@ def _save_submission_images(activity_id: int, seq: int, files: list[tuple[bytes,
         (folder / f"{seq}-{n}{ext}").write_bytes(data)
         saved.append(f"{seq}-{n}{ext}")
     return saved
+
+
+_WEB_IMG_RE = re.compile(r"^(\d+)-(\d+)\.\w+$")
+
+
+def _next_img_number(seq: int, images: list[str]) -> int:
+    """现有 web 命名 {seq}-{n}.ext 的最大 n + 1（bot 命名 img_* 不参与，前缀不同天然不冲突）。"""
+    max_n = 0
+    for name in images:
+        m = _WEB_IMG_RE.match(name)
+        if m and int(m.group(1)) == seq:
+            max_n = max(max_n, int(m.group(2)))
+    return max_n + 1
+
+
+def _delete_submission_images(activity_id: int, names: list[str]) -> None:
+    """删除已落盘图片文件；name 来自成员 images 列表（服务端生成），仍做路径穿越防护。"""
+    folder = ACTIVITY_ROOT / str(activity_id) / "imgs"
+    for name in names:
+        try:
+            p = (folder / name).resolve()
+            p.relative_to(ACTIVITY_ROOT.resolve())
+        except ValueError:
+            continue
+        p.unlink(missing_ok=True)
 
 
 class ActivityCreateIn(BaseModel):
@@ -302,7 +328,9 @@ async def api_activity_submit(
     user_id: Annotated[str, Depends(get_current_user_id)],
     content: str = Form(""),
     files: list[UploadFile] | None = File(None),
+    removed: list[str] = Form(default=[]),
 ):
+    """增量提交：content 覆盖文本，files 追加到末尾（续编号），removed 从现有列表移除；可任意组合。"""
     db = DbManager()
     act = db.activity.get_activity(activity_id)
     if not act:
@@ -311,19 +339,28 @@ async def api_activity_submit(
     if reason is not None:
         raise HTTPException(status_code=409, detail=_BLOCK_TEXT.get(reason, "无法提交"))
     text = (content or "").strip()
+    # get_activity 已把 members[].images json.loads 成 list（见 core/db/activity.py:49）
+    current = me.get("images") or []
+    if not isinstance(current, list):
+        current = []
+    if any(name not in current for name in removed):
+        raise HTTPException(status_code=400, detail="无效的图片参数")
     payloads = [(await f.read(), f.content_type) for f in (files or [])]
     try:
-        # ponytail: 与 bot 同语义——先全部存盘成功再写库，任一失败整体不生效；更新=覆盖（旧文件留磁盘）
-        saved = _save_submission_images(activity_id, me["seq"], payloads) if payloads else []
+        # 与 bot 同语义：先全部存盘成功再写库，任一失败整体不生效
+        saved = _save_submission_images(
+            activity_id, me["seq"], payloads, _next_img_number(me["seq"], current)
+        ) if payloads else []
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if not text and not saved:
+    if not text and not saved and not removed:
         raise HTTPException(status_code=400, detail="请附上作品（文字或图片）")
-    was_done = me["status"] == "done"
+    _delete_submission_images(activity_id, removed)
+    images = [n for n in current if n not in removed] + saved
     db.activity.update_member(
         activity_id, user_id, status="done", content=text or None,
-        images=json.dumps(saved) if saved else None, submitted_at=_now())
-    return {"ok": True, "updated": was_done}
+        images=json.dumps(images) if images else None, submitted_at=_now())
+    return {"ok": True, "updated": me["status"] == "done"}
 
 
 @router.get("/api/me/activities")
