@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.38.0]
+
+- **活动归档图片点击放大**：活动详情页（含归档后的「作品」区块与「我的提交」区块）的图片接入共享灯箱，点击可在当前页放大预览；共享灯箱选择器同步扩展 `img.work-img`
+
 ## [未发布]
 
 - **发送兜底分形态**：无群上下文的群发（send_group_msg / 群合并转发×2）在未配置默认群（社区形态）时不再把 `group_id=None` 发往 OneBot，改为记 warning 并丢弃（返回 0）；私有形态回落默认群行为不变。社区版任务 T0.2，spec/plan 见 `docs/superpowers/specs/2026-09-08-send-fallback-drop-design.md` 与 `docs/superpowers/plans/2026-09-08-send-fallback-drop.md`

@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  // 共享灯箱：点击时间线事件图片 / 议事厅正文图片在当前页放大预览。
+  // 共享灯箱：点击时间线事件图片 / 议事厅正文图片 / 活动归档作品图在当前页放大预览。
   // 复用 base.css 中既有的 .lightbox 报纸风样式。
   var overlay = null;
 
@@ -65,7 +65,7 @@
   });
 
   document.addEventListener("click", function (e) {
-    var el = e.target.closest(".tl-images a, img.forum-img");
+    var el = e.target.closest(".tl-images a, img.forum-img, img.work-img");
     if (!el) return;
     var url = el.tagName === "A" ? el.getAttribute("href") : el.getAttribute("src");
     if (!url || url.startsWith("#")) return;
