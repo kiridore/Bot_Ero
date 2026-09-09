@@ -135,102 +135,37 @@
   typeSelect.addEventListener("change", updateSections);
   updateSections();
 
-  // CDN 动态导入加超时：esm.sh 慢/不可达时 12s 快速降级（正文编辑器缺失，但预填/标题/tag 不受影响）
-  function withTimeout(promise, label) {
-    return Promise.race([
-      promise,
-      new Promise(function (_, reject) {
-        setTimeout(function () { reject(new Error(label + " 加载超时（12s）")); }, 12000);
-      }),
-    ]);
-  }
-
-  // Tiptap 编辑器
+  // Tiptap 编辑器（共享模块 RichText.mount：工具栏 + esm.sh 12s 超时降级 + 图片上传可选）
   let editor = null;
-  try {
-    const { Editor } = await withTimeout(import("https://esm.sh/@tiptap/core@2.6.0"), "Tiptap core");
-    const { default: StarterKit } = await withTimeout(import("https://esm.sh/@tiptap/starter-kit@2.6.0"), "StarterKit");
-    const { default: Image } = await withTimeout(import("https://esm.sh/@tiptap/extension-image@2.6.0"), "Image");
-    const toolbar = document.createElement("div");
-    toolbar.className = "forum-editor-toolbar";
-    const content = document.createElement("div");
-    content.className = "forum-editor-content";
-    const wrap = document.createElement("div");
-    wrap.className = "forum-editor";
-    const editorRoot = document.getElementById("editor");
-    editorRoot.innerHTML = "";
-    [
-      ["B", "粗体", function () { return editor.chain().focus().toggleBold().run(); }],
-      ["I", "斜体", function () { return editor.chain().focus().toggleItalic().run(); }],
-      ["H2", "标题", function () { return editor.chain().focus().toggleHeading({ level: 2 }).run(); }],
-      ["UL", "列表", function () { return editor.chain().focus().toggleBulletList().run(); }],
-      ["OL", "有序", function () { return editor.chain().focus().toggleOrderedList().run(); }],
-      ["\"", "引用", function () { return editor.chain().focus().toggleBlockquote().run(); }],
-      ["<>", "代码", function () { return editor.chain().focus().toggleCode().run(); }],
-    ].forEach(function (b) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = b[0];
-      btn.title = b[1];
-      btn.addEventListener("click", function (e) { e.preventDefault(); b[2](); });
-      toolbar.appendChild(btn);
-    });
-    // 图片插入：上传本地文件到服务器后插入正文
-    const imgBtn = document.createElement("button");
-    imgBtn.type = "button";
-    imgBtn.textContent = "IMG";
-    imgBtn.title = "插入图片";
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = "image/jpeg,image/png,image/webp,image/gif";
-    fileInput.hidden = true;
-    let uploading = false;
-    imgBtn.addEventListener("click", function (e) { e.preventDefault(); fileInput.click(); });
-    fileInput.addEventListener("change", async function () {
-      const f = fileInput.files && fileInput.files[0];
-      fileInput.value = "";
-      if (!f || uploading) return;
-      uploading = true;
-      try {
-        const fd = new FormData();
-        fd.append("file", f);
-        const res = await fetch("/api/forum/images", {
-          method: "POST",
-          headers: GalleryAuth.headers(),
-          body: fd,
-        });
-        if (res.status === 401) {
-          const dlg = GalleryAuth.ensureLoginDialog();
-          if (typeof dlg.showModal === "function") dlg.showModal();
-          return;
-        }
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          showMsg(data.detail || "图片上传失败", false);
-          return;
-        }
-        const data = await res.json();
-        editor.chain().focus().setImage({ src: data.url }).run();
-      } catch (err) {
-        showMsg("图片上传失败：" + err.message, false);
-      } finally {
-        uploading = false;
+  RichText.mount(document.getElementById("editor"), {
+    upload: async function (f) {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/forum/images", {
+        method: "POST",
+        headers: GalleryAuth.headers(),
+        body: fd,
+      });
+      if (res.status === 401) {
+        const dlg = GalleryAuth.ensureLoginDialog();
+        if (typeof dlg.showModal === "function") dlg.showModal();
+        throw new Error("未登录");
       }
-    });
-    toolbar.appendChild(imgBtn);
-    toolbar.appendChild(fileInput);
-    wrap.appendChild(toolbar);
-    wrap.appendChild(content);
-    editorRoot.appendChild(wrap);
-    editor = new Editor({
-      element: content,
-      extensions: [StarterKit, Image],
-      content: { type: "doc", content: [{ type: "paragraph" }] },
-    });
-    if (editingId) applyPendingBody();
-  } catch (e) {
-    showMsg("Tiptap 加载失败（请检查网络或刷新重试）：" + e.message, false);
-  }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "图片上传失败");
+      }
+      return (await res.json()).url;
+    },
+    onReady: function (ed) {
+      editor = ed;
+      if (editingId) applyPendingBody();
+    },
+    onError: function (e) {
+      showMsg("Tiptap 加载失败（请检查网络或刷新重试）：" + e.message, false);
+    },
+  });
+
 
   GalleryAuth.renderAuth(document.getElementById("authArea"));
 

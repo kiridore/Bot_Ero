@@ -34,6 +34,7 @@ _conn.close()
 from fastapi.testclient import TestClient  # noqa: E402
 from core.auth import make_login_key  # noqa: E402
 from core.database_manager import DbManager  # noqa: E402
+from core.tiptap import plain_to_tiptap  # noqa: E402
 from webapp.app import app  # noqa: E402
 
 client = TestClient(app)
@@ -71,7 +72,7 @@ r = client.post("/api/activities", headers=OH, json={
 check("截止格式错 400", r.status_code == 400, r.text)
 r = client.post("/api/activities", headers=OH, json={
     "type": "match", "title": "匹配一", "deadline": FUTURE,
-    "signup_deadline": FUTURE2, "description": "描述", "hours_per_user": 24})
+    "signup_deadline": FUTURE2, "description": plain_to_tiptap("描述"), "hours_per_user": 24})
 check("匹配创建 200", r.status_code == 200, r.text)
 mid = r.json().get("id")
 check("返回 id 与公告", isinstance(mid, int) and "匹配下家" in r.json().get("announce", ""))
@@ -88,10 +89,10 @@ check("owner 查公告 200", r.status_code == 200 and "活动发起" in r.json()
 r = client.patch(f"/api/activities/{mid}", headers=OTH, json={"title": "抢改"})
 check("非 owner 编辑 403", r.status_code == 403)
 r = client.patch(f"/api/activities/{mid}", headers=OH, json={
-    "title": "匹配一改", "description": "新描述", "signup_deadline": FUTURE, "deadline": FUTURE2})
+    "title": "匹配一改", "description": plain_to_tiptap("新描述"), "signup_deadline": FUTURE, "deadline": FUTURE2})
 check("open 编辑 200", r.status_code == 200, r.text)
 r = client.get(f"/api/activities/{mid}", headers=OH)
-check("编辑生效", r.json().get("title") == "匹配一改" and r.json().get("description") == "新描述")
+check("编辑生效", r.json().get("title") == "匹配一改" and r.json().get("description") == plain_to_tiptap("新描述"))
 r = client.patch(f"/api/activities/{mid}", headers=OH, json={"hours_per_user": 0})
 check("hours<=0 拒绝", r.status_code == 422, r.text)
 r = client.patch(f"/api/activities/{mid}", headers=OH, json={"deadline": "2000-01-01 20:00"})

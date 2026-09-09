@@ -10,6 +10,14 @@ function escapeHtml(s) {
 
 
 
+function richDescHtml(desc) {
+  // TipTap JSON → HTML；历史纯文本（JSON 解析失败）兜底转义展示
+  let doc = null;
+  try { doc = JSON.parse(desc); } catch (_) { /* 历史纯文本 */ }
+  if (!doc || !doc.type) return escapeHtml(desc);
+  return RichText.render(doc);
+}
+
 function statusBadge(status) {
   const cls = status === "open" ? "badge-open" : status === "running" ? "badge-running"
     : status === "finished" ? "badge-done" : "badge-cancelled";
@@ -260,7 +268,7 @@ function renderDetail() {
     infoRow("报名结束", escapeHtml(act.signup_deadline || "—")),
     infoRow("截止时间", escapeHtml(act.deadline || "—")),
     infoRow("当前状态", STATUS_LABEL[act.status] || act.status),
-    infoRow("详情", escapeHtml(act.description || "—")),
+    infoRow("详情", act.description ? richDescHtml(act.description) : "—"),
     infoRow("参加人员", `${act.members.length} 人`),
   ];
   if (act.type === "relay" && act.hours_per_user) {

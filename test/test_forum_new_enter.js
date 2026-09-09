@@ -58,6 +58,10 @@ const authSrc = fs.readFileSync("core/web/static/auth.js", "utf8");
 eval(authSrc);
 global.GalleryAuth = window.GalleryAuth;
 
+const richSrc = fs.readFileSync("core/web/static/richtext.js", "utf8");
+eval(richSrc);
+global.RichText = window.RichText;
+
 const newSrc = fs.readFileSync("webapp/static/forum_new.js", "utf8");
 eval(newSrc);
 

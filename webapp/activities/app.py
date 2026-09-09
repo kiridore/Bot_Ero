@@ -15,6 +15,7 @@ from core.base import SUPER_USER
 from core.config import ACTIVITY_ROOT
 from core.context import DEFAULT_GROUP_ID
 from core.database_manager import DbManager
+from core.tiptap import tiptap_to_plain
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
 
@@ -65,7 +66,7 @@ def _announcement(act: dict) -> str:
     if act.get("deadline"):
         lines.append(f"截止：{act['deadline']}")
     if act.get("description"):
-        lines.append(f"描述：{act['description']}")
+        lines.append(f"描述：{tiptap_to_plain(act['description'])}")
     if act.get("signup_deadline"):
         lines.append(f"报名截止：{act['signup_deadline']}（到点自动开始）")
     lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
@@ -159,7 +160,7 @@ class ActivityCreateIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: str = Field(pattern="^(relay|match)$")
     title: str = Field(min_length=1, max_length=100)
-    description: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=4000)  # TipTap JSON 字符串
     hours_per_user: float = Field(default=48.0, gt=0)
     signup_deadline: str | None = None
     deadline: str | None = None
@@ -168,7 +169,7 @@ class ActivityCreateIn(BaseModel):
 class ActivityEditIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str | None = Field(default=None, min_length=1, max_length=100)
-    description: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=4000)  # TipTap JSON 字符串
     hours_per_user: float | None = Field(default=None, gt=0)
     signup_deadline: str | None = None
     deadline: str | None = None

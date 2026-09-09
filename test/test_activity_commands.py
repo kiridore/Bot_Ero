@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import core.context as context
 from core.event import Event
+from core.tiptap import plain_to_tiptap
 from core.db._base import init_schema
 from core.db.activity import ActivityManager
 from plugins.activity import ActivityPlugin
@@ -130,7 +131,7 @@ class TestCommands(unittest.TestCase):
         p.handle()
         act = self.db.activity.get_active_activity(GID)
         self.assertIsNotNone(act)
-        self.assertEqual(act["description"], "三天")
+        self.assertEqual(act["description"], plain_to_tiptap("三天"))
         self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_parse_duration(self):
@@ -151,14 +152,14 @@ class TestCommands(unittest.TestCase):
         self.assertIn("围绕粽子自由创作", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
         self.assertEqual(act["title"], "端午")
-        self.assertEqual(act["description"], "围绕粽子自由创作")
+        self.assertEqual(act["description"], plain_to_tiptap("围绕粽子自由创作"))
         self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_create_relay_description_multiword(self):
         p = self._run("/活动 创建 接龙 t 这是 一段 描述 48小时")
         p.handle()
         act = self.db.activity.get_active_activity(GID)
-        self.assertEqual(act["description"], "这是 一段 描述")
+        self.assertEqual(act["description"], plain_to_tiptap("这是 一段 描述"))
         self.assertEqual(act["hours_per_user"], 48.0)
 
     def test_create_match_with_description(self):
@@ -167,7 +168,7 @@ class TestCommands(unittest.TestCase):
         p.handle()
         self.assertIn("圆桌交换礼物", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
-        self.assertEqual(act["description"], "圆桌交换礼物")
+        self.assertEqual(act["description"], plain_to_tiptap("圆桌交换礼物"))
         self.assertEqual(act["deadline"], d + ":00")
 
     def test_create_relay_no_description_compat(self):
@@ -185,7 +186,7 @@ class TestCommands(unittest.TestCase):
         p.handle()
         self.assertIn("报名截止", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
-        self.assertEqual(act["description"], "自由创作")
+        self.assertEqual(act["description"], plain_to_tiptap("自由创作"))
         self.assertEqual(act["signup_deadline"], sd + ":00")
         self.assertEqual(act["deadline"], dl + ":00")
         self.assertEqual(act["hours_per_user"], 48.0)
@@ -196,7 +197,7 @@ class TestCommands(unittest.TestCase):
         p = self._run(f"/活动 创建 匹配 中秋 圆桌礼物 报名截止 {sd} 截止 {dl}")
         p.handle()
         act = self.db.activity.get_active_activity(GID)
-        self.assertEqual(act["description"], "圆桌礼物")
+        self.assertEqual(act["description"], plain_to_tiptap("圆桌礼物"))
         self.assertEqual(act["signup_deadline"], sd + ":00")
         self.assertEqual(act["deadline"], dl + ":00")
 

@@ -41,44 +41,9 @@
     return m ? Number(m[1]) : null;
   }
 
-  // 渲染 Tiptap JSON -> HTML（仅长文/公告用）
+  // 渲染 Tiptap JSON -> HTML（仅长文/公告用，共享模块 RichText.render）
   function renderTiptap(doc) {
-    if (!doc || !doc.type) return "";
-    const escText = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    }); };
-    if (doc.type === "text") {
-      // Tiptap 的加粗/斜体/删除线/行内代码是 text 节点上的 marks，需逐层包裹
-      let t = escText(doc.text || "");
-      (doc.marks || []).forEach(function (m) {
-        if (!m || !m.type) return;
-        switch (m.type) {
-          case "bold": t = "<strong>" + t + "</strong>"; break;
-          case "italic": t = "<em>" + t + "</em>"; break;
-          case "strike": t = "<s>" + t + "</s>"; break;
-          case "code": t = "<code>" + t + "</code>"; break;
-        }
-      });
-      return t;
-    }
-    const children = Array.isArray(doc.content) ? doc.content.map(renderTiptap).join("") : "";
-    switch (doc.type) {
-      case "doc": return children;
-      case "paragraph": return "<p>" + children + "</p>";
-      case "heading": return "<h2>" + children + "</h2>";
-      case "bulletList": return "<ul>" + children + "</ul>";
-      case "orderedList": return "<ol>" + children + "</ol>";
-      case "listItem": return "<li>" + children + "</li>";
-      case "blockquote": return "<blockquote>" + children + "</blockquote>";
-      case "codeBlock": return "<pre><code>" + children + "</code></pre>";
-      case "hardBreak": return "<br/>";
-      case "image": {
-        const src = escText((doc.attrs && doc.attrs.src) || "");
-        const alt = escText((doc.attrs && doc.attrs.alt) || "");
-        return '<img class="forum-img" src="' + src + '" alt="' + alt + '">';
-      }
-      default: return children;
-    }
+    return RichText.render(doc);
   }
 
   // —— 评论线程渲染（顶层 + 缩进回复串，两级） ——

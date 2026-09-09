@@ -2,6 +2,7 @@ import os
 import json
 
 from core import config
+from core.tiptap import tiptap_to_plain
 
 STATUS_LABEL = {
     "done": "已完成",
@@ -51,7 +52,7 @@ def archive_activity(activity: dict, members: list[dict]):
         "group_id": activity["group_id"],
         "type": activity["type"],
         "title": activity["title"],
-        "description": activity.get("description"),
+        "description": tiptap_to_plain(activity.get("description")),
         "created_at": activity["created_at"],
         "finished_at": activity.get("finished_at"),
         "members": [
@@ -73,7 +74,7 @@ def archive_activity(activity: dict, members: list[dict]):
     lines.append(f"- 标题：{activity['title']}")
     lines.append(f"- 类型：{'匹配下家' if is_match else '接龙'}")
     if activity.get("description"):
-        lines.append(f"- 描述：{activity['description']}")
+        lines.append(f"- 描述：{tiptap_to_plain(activity['description'])}")
     lines.append(f"- 开始：{activity['created_at']}")
     lines.append(f"- 结束：{activity.get('finished_at')}")
     lines.append("")

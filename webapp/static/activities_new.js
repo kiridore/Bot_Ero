@@ -22,6 +22,14 @@
     return localValue ? localValue.replace("T", " ") : "";
   }
 
+  // 富文本描述（共享 Tiptap 编辑器）
+  let descEditor = null;
+  RichText.mount(document.getElementById("description"), {
+    content: RichText.docFrom(""),
+    onReady: function (ed) { descEditor = ed; },
+    onError: function (e) { showMsg("富文本编辑器加载失败：" + e.message, false); },
+  });
+
   document.getElementById("submitBtn").addEventListener("click", async function () {
     if (!GalleryAuth.isLoggedIn()) { showMsg("请先登录", false); return; }
     const type = document.querySelector("input[name=actType]:checked").value;
@@ -30,8 +38,8 @@
     const deadline = toServerTime(document.getElementById("deadline").value);
     if (type === "match" && !deadline) { showMsg("匹配活动必须设定截止时间", false); return; }
     const body = { type: type, title: title, deadline: deadline || null };
-    const desc = document.getElementById("description").value.trim();
-    if (desc) body.description = desc;
+    const descDoc = descEditor ? descEditor.getJSON() : null;
+    if (descDoc && RichText.docText(descDoc)) body.description = JSON.stringify(descDoc);
     const signup = toServerTime(document.getElementById("signupDeadline").value);
     if (signup) body.signup_deadline = signup;
     if (type === "relay") body.hours_per_user = Number(document.getElementById("hours").value) || 48;

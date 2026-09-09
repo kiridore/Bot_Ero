@@ -6,6 +6,7 @@
   const id = location.pathname.split("/")[2];
   const msgEl = document.getElementById("msg");
   let actCache = null;
+  let descEditor = null;
 
   function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -84,7 +85,7 @@
     badge.innerHTML = '<span class="status-badge ' + cls + '">' + (STATUS_LABEL[act.status] || act.status) + "</span>";
 
     const editable = act.status === "open" || act.status === "running";
-    ["mTitle", "mDesc", "mDeadline"].forEach(function (elId) {
+    ["mTitle", "mDeadline"].forEach(function (elId) {
       document.getElementById(elId).disabled = !editable;
     });
     document.getElementById("mHoursRow").style.display = act.type === "relay" ? "" : "none";
@@ -94,7 +95,11 @@
     document.getElementById("saveBtn").disabled = !editable;
 
     document.getElementById("mTitle").value = act.title || "";
-    document.getElementById("mDesc").value = act.description || "";
+    RichText.mount(document.getElementById("mDesc"), {
+      content: RichText.docFrom(act.description || ""),
+      onReady: function (ed) { descEditor = ed; ed.setEditable(editable); },
+      onError: function (e) { showMsg("富文本编辑器加载失败：" + e.message, false); },
+    });
     document.getElementById("mHours").value = act.hours_per_user || 48;
     document.getElementById("mSignup").value = toLocalTime(act.signup_deadline);
     document.getElementById("mDeadline").value = toLocalTime(act.deadline);
@@ -145,8 +150,8 @@
   document.getElementById("saveBtn").addEventListener("click", async function () {
     const body = { title: document.getElementById("mTitle").value.trim() };
     if (!body.title) { showMsg("标题不能为空", false); return; }
-    const desc = document.getElementById("mDesc").value.trim();
-    if (desc) body.description = desc;
+    const descDoc = descEditor ? descEditor.getJSON() : null;
+    if (descDoc && RichText.docText(descDoc)) body.description = JSON.stringify(descDoc);
     const dl = toServerTime(document.getElementById("mDeadline").value);
     if (dl) body.deadline = dl;
     if (actCache && actCache.status === "open") {

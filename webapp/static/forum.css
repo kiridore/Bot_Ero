@@ -121,54 +121,6 @@
   border-color: var(--accent);
 }
 
-.forum-editor {
-  border: 1px solid var(--rule);
-  border-radius: 0;
-  background: var(--paper-card);
-  padding: 0.5rem;
-  min-height: 200px;
-}
-
-.forum-editor-toolbar {
-  display: flex;
-  gap: 0.3rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--rule);
-  margin-bottom: 0.5rem;
-}
-
-.forum-editor-toolbar button {
-  padding: 0.2rem 0.6rem;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 0.82rem;
-  cursor: pointer;
-}
-
-.forum-editor-toolbar button:hover { background: var(--accent-soft); }
-
-.forum-editor-content {
-  min-height: 150px;
-  outline: none;
-}
-
-.forum-editor-content p { margin: 0 0 0.6em; line-height: 1.6; }
-.forum-editor-content h2 { font-size: 1.2em; margin: 0.8em 0 0.4em; }
-.forum-editor-content blockquote {
-  border-left: 3px solid var(--line);
-  padding-left: 0.8rem;
-  color: var(--ink-soft);
-  margin: 0.6em 0;
-}
-.forum-editor-content code {
-  font-family: monospace;
-  background: var(--accent-soft);
-  padding: 0.1em 0.3em;
-}
-.forum-editor-content img { max-width: 100%; height: auto; }
-
 .forum-poll-option {
   display: flex;
   align-items: center;

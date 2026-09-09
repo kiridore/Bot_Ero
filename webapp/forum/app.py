@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from core.timeline_client import emit_event, retract_event
+from core.tiptap import tiptap_to_plain
 from core.web.auth_deps import get_current_user_id
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.database_manager import DbManager
@@ -32,17 +33,6 @@ def _author_fields(user_id) -> dict:
     }
 
 
-def _tiptap_to_plain(doc: Any) -> str:
-    """递归遍历 Tiptap document JSON，提取所有 text 节点的文本，空白归一。"""
-    if isinstance(doc, dict):
-        if doc.get("type") == "text":
-            return doc.get("text", "")
-        return " ".join(_tiptap_to_plain(v) for v in doc.get("content", []) if v is not None)
-    if isinstance(doc, list):
-        return " ".join(_tiptap_to_plain(item) for item in doc if item is not None)
-    return ""
-
-
 def _excerpt(body_json_str: str, max_len: int) -> str:
     """从 Tiptap JSON 字符串提取纯文本节选（max_len 字 + …）。JSON 解析失败返回空串。"""
     if not body_json_str:
@@ -51,7 +41,7 @@ def _excerpt(body_json_str: str, max_len: int) -> str:
         doc = json.loads(body_json_str)
     except (TypeError, ValueError):
         return ""
-    text = _tiptap_to_plain(doc).strip()
+    text = tiptap_to_plain(doc).strip()
     text = re.sub(r"\s+", " ", text)
     if not text:
         return ""

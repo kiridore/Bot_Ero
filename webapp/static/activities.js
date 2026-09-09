@@ -24,6 +24,14 @@ function statusBadge(status) {
   return `<span class="status-badge ${cls}">${STATUS_LABEL[status] || status}</span>`;
 }
 
+function richDescHtml(desc) {
+  // TipTap JSON → HTML；历史纯文本（JSON 解析失败）兜底转义展示
+  let doc = null;
+  try { doc = JSON.parse(desc); } catch (_) { /* 历史纯文本 */ }
+  if (!doc || !doc.type) return escapeHtml(desc);
+  return RichText.render(doc);
+}
+
 function progressText(a) {
   return `${a.done_count}/${a.member_count} 人完成`;
 }
@@ -72,7 +80,7 @@ async function loadActiveActivities() {
         ${statusBadge(a.status)}
         <span class="activity-progress">${progressText(a)}</span>
       </div>
-      ${a.description ? `<div class="activity-desc">${escapeHtml(a.description)}</div>` : ""}
+      ${a.description ? `<div class="activity-desc">${richDescHtml(a.description)}</div>` : ""}
       <div class="muted">
         ${a.signup_deadline ? `报名截止：${a.signup_deadline}` : ""}
         ${a.signup_deadline && a.deadline ? " · " : ""}

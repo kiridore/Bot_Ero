@@ -1,0 +1,23 @@
+/* 共享富文本编辑器（Tiptap，esm.sh 动态加载）样式：议事厅正文与活动描述共用。
+   编辑区基础纸张风格沿用 base.css token；类名前缀 richtext-，禁止复制到各子应用。 */
+.richtext-editor { border: 1px solid var(--rule); border-radius: 8px; background: var(--paper-card); }
+.richtext-toolbar {
+  display: flex; flex-wrap: wrap; gap: 4px; padding: 8px;
+  border-bottom: 1px solid var(--rule); border-radius: 8px 8px 0 0; background: var(--paper);
+}
+.richtext-toolbar button {
+  border: 1px solid var(--rule); background: var(--paper-card); color: var(--ink);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; font: inherit;
+}
+.richtext-toolbar button:hover { background: var(--accent-soft); }
+.richtext-content { min-height: 120px; padding: 10px 12px; outline: none; }
+.richtext-content p { margin: 0 0 0.6em; line-height: 1.6; }
+.richtext-content h2 { font-size: 1.2em; margin: 0.8em 0 0.4em; }
+.richtext-content blockquote {
+  border-left: 3px solid var(--rule); margin: 0.6em 0; padding: 0.2em 0.8em; opacity: 0.8;
+}
+.richtext-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; font-size: 0.9em;
+}
+.richtext-content img { max-width: 100%; height: auto; }

@@ -88,6 +88,10 @@ function runScenario(sessionUid, authorUid, payloadOverride, commentsOverride) {
   eval(iconsSrc);
   global.GalleryIcons = window.GalleryIcons;
 
+  const richSrc = fs.readFileSync("core/web/static/richtext.js", "utf8");
+  eval(richSrc);
+  global.RichText = window.RichText;
+
   const detailSrc = fs.readFileSync("webapp/static/forum_detail.js", "utf8");
   eval(detailSrc);
   return els;

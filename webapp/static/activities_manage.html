@@ -7,6 +7,7 @@
   <script src="/shared/theme.js"></script>
   <link rel="stylesheet" href="/shared/base.css" />
   <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/shared/richtext.css" />
   <link rel="stylesheet" href="/shared/profile.css" />
   <style>
     .form-card { background: var(--paper-card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; max-width: 640px; margin: 0 auto 16px; }
@@ -54,7 +55,7 @@
       </div>
       <div class="form-row">
         <label for="mDesc">描述</label>
-        <textarea id="mDesc" rows="3" maxlength="500"></textarea>
+        <div id="mDesc"></div>
       </div>
       <div class="form-row" id="mHoursRow">
         <label for="mHours">每人限时（小时）</label>
@@ -87,6 +88,7 @@
     </section>
   </main>
 
+  <script src="/shared/richtext.js"></script>
   <script src="/shared/auth.js?v=3"></script>
   <script src="/shared/motion.js"></script>
   <script src="/shared/nav.js"></script>

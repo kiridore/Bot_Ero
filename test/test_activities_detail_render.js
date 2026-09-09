@@ -65,6 +65,9 @@ let meData = {
 };
 let actData = {
   id: 3, type: "relay", title: "接龙三", status: "running", hours_per_user: 48,
+  description: JSON.stringify({ type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "加粗", marks: [{ type: "bold" }] }] },
+  ] }),
   members: [
     { user_id: "333", nickname: "成员甲", seq: 1, status: "done", content: "我的文字作品",
       images: ["/archive/3/media/1-1.png"], submitted_at: "2026-09-02 10:00:00" },
@@ -89,6 +92,10 @@ global.FormData = class { constructor() { this._d = {}; } append(k, v) { (this._
 global.confirm = () => true;
 global.alert = () => {};
 global.URL = { createObjectURL: (f) => `blob:${f.name}`, revokeObjectURL() {} };
+
+const richSrc = fs.readFileSync("core/web/static/richtext.js", "utf8");
+eval(richSrc);
+global.RichText = window.RichText;
 const pngCalls = [];
 global.htmlToImage = {
   toPng: async (node, opts) => { pngCalls.push({ node, opts }); return "data:image/png;base64,AAA"; },
@@ -106,6 +113,7 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
 
   // 1. 我的提交区块：内容 + 图片卡片 + 可更新徽章
   check("含我的提交区块", html.includes("我的提交"));
+  check("详情富文本渲染加粗", html.includes("<strong>加粗</strong>"));
   check("显示我的文字", html.includes("我的文字作品"));
   check("显示我的图片", html.includes("/archive/3/media/1-1.png"));
   check("图片为方形卡片", html.includes("img-grid") && html.includes("img-card"));

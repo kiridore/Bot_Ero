@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from core.base import Plugin
 from core.cq import text
 from core.logger import logger
+from core.tiptap import plain_to_tiptap, tiptap_to_plain
 from core.utils import register_plugin
 
 from .logic import build_ring, relay_assignments, current_turn
@@ -344,7 +345,7 @@ class ActivityPlugin(Plugin):
             return
         if kind == "接龙":
             aid = self.dbmanager.activity.create_activity(
-                gid, "relay", title, params["description"], uid,
+                gid, "relay", title, plain_to_tiptap(params["description"]) if params["description"] else None, uid,
                 hours_per_user=params["hours"],
                 deadline=params["deadline"], signup_deadline=params["signup_deadline"])
             lines = [
@@ -356,7 +357,7 @@ class ActivityPlugin(Plugin):
                 self.api.send_msg(text("匹配活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
                 return
             aid = self.dbmanager.activity.create_activity(
-                gid, "match", title, params["description"], uid,
+                gid, "match", title, plain_to_tiptap(params["description"]) if params["description"] else None, uid,
                 deadline=params["deadline"], signup_deadline=params["signup_deadline"])
             lines = [
                 f"匹配活动「{title}」已创建（#{aid}）",
@@ -442,7 +443,7 @@ class ActivityPlugin(Plugin):
         members = self.dbmanager.activity.get_members(act["id"])
         lines = [f"「{act['title']}」（{'匹配下家' if act['type'] == 'match' else '接龙'} #{act['id']}）"]
         if act.get("description"):
-            lines.append(f"描述：{act['description']}")
+            lines.append(f"描述：{tiptap_to_plain(act['description'])}")
         if act["status"] == "open":
             lines.append(f"状态：报名中（{len(members)} 人已报名）")
             if act.get("signup_deadline"):

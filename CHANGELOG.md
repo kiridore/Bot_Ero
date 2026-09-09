@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.41.0]
+
+- **活动详情支持富文本**：活动描述（创建页/管理页）改用共享 Tiptap 富文本编辑器（议事厅同款：esm.sh 动态加载，12s 超时降级），存储为 TipTap JSON 文档（非 HTML，天然免 XSS）；详情页与列表页按白名单节点类型渲染（历史纯文本描述向前兼容）；bot 创建路径纯文本自动转 JSON、QQ 播报与归档侧转回纯文本；编辑器/渲染器抽取为共享模块 `core/web/static/richtext.js|css` 与 `core/tiptap.py`（论坛正文/评论改用同一实现，论坛独立样式删减）
+
 ## [1.40.0]
 
 - **活动作品提交改为增量交互**：网页提交语义从全量覆盖改为增量合并——上传新图追加到末尾（命名 `{seq}-{n}` 续编号，不再覆盖旧文件）、每张图显示为方形缩略卡片且右上角 × 可单独移除（`removed` 参数，提交时生效）、文本可直接编辑提交而保留已传图片；API `POST /api/activities/{id}/submit` 新增 `removed` 表单字段。bot 端提交逻辑不变
