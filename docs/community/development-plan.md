@@ -69,7 +69,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 **commit**：`feat(配置): bot.edition 部署形态与必填键分侧`
 
-### T0.2 发送兜底适配（DEFAULT_GROUP_ID 可空）`S`
+### T0.2 发送兜底适配（DEFAULT_GROUP_ID 可空）`S` ✅ 已完成（`55f28b0`，2026-09-08，spec + plan + SDD 全流程审查）
 
 > spec：`docs/superpowers/specs/2026-09-08-send-fallback-drop-design.md` · plan：`docs/superpowers/plans/2026-09-08-send-fallback-drop.md`
 
@@ -373,7 +373,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 
 **进度追踪**：
 
-- [ ] M0：~~T0.1~~✅ T0.2 T0.3 T0.4 T0.5 T0.6 T0.7 T0.8 T0.9
+- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ T0.3 T0.4 T0.5 T0.6 T0.7 T0.8 T0.9
 - [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
 - [ ] M2：T2.1 T2.2 T2.3 T2.4
 - [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）
