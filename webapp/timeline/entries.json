@@ -23,11 +23,11 @@
     "links": [
       {
         "label": "复制服务器 IP",
-        "copy": "mc.example.com:25565"
+        "copy": "202.189.9.212:64014"
       },
       {
         "label": "在线地图",
-        "url": "https://map.example.com"
+        "url": "https://mc-map.littlero.com"
       }
     ]
   },
