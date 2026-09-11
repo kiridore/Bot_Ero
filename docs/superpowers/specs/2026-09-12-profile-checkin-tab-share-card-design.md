@@ -19,7 +19,7 @@
 | D7 | 列表 API `GET /api/me/checkins?page=1` 返回 `{items, page, has_more}`（item = id/checkin_date/thumbnail_url/image_url）；月份分组由前端按 `checkin_date` 前缀计算（YAGNI：不加后端聚合） |
 | D8 | 图片读取兼容：EXIF 旋转（`ImageOps.exif_transpose`）、GIF/WebP 取首帧、带 alpha 通道转 RGB 白底 |
 | D9 | 无本地文件的记录不进列表（`only_with_file=True`）；分享接口对无文件/非本人/不存在 → 404 |
-| D10 | 测试以进程内 pytest 为主（API 行为 + 生成函数尺寸断言）；不新增 DOM 回归测试（项目无 profile 既有 DOM 用例） |
+| D10 | API 行为走脚本套件（`test/scripts/check_profile_checkins.py`，独立进程 + 临时 DB，由 `test/test_webapp_api_suites.py` 子进程自动纳入回归）；生成函数尺寸断言用进程内 pytest；不新增 DOM 回归测试（项目无 profile 既有 DOM 用例） |
 
 ## 改动点
 
@@ -27,7 +27,7 @@
 - `core/gen_image/checkin_share_card.py`（新）：`build_checkin_share_card(record, display_name, avatar_bytes, stats) -> PIL.Image`；复用 `fonts.py` / `avatar_helper.py`
 - `webapp/static/profile.html` / `profile.js`：Tab 栏 + 打卡网格（月分组、加载更多）、lightbox 记录 id、分享预览弹层
 - `core/web/static/profile.css`：Tab、卡片网格、预览层样式
-- 测试：`test/test_profile_checkins_api.py`（分页 + share.png 200 / 越权 404）、`test/test_checkin_share_card.py`（极端比例输入 → 输出尺寸上界断言）
+- 测试：`test/scripts/check_profile_checkins.py`（分页 + share.png 200 / 越权 404，由 `test/test_webapp_api_suites.py` 自动发现）、`test/test_checkin_share_card.py`（极端比例输入 → 输出尺寸上界断言）
 - 文档：`CHANGELOG.md` + `core/config.py::BOTERO_VERSION` minor bump；`specs/web-gallery.md` 新路由（web 路由不在 kb/OPERATIONS.md，该文件仅记 OneBot API）
 
 ## 边界
