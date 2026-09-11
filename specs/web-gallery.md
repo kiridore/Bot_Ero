@@ -220,8 +220,11 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/me/titles/equip` | 必须 | 装备单个称号 |
 | `DELETE` | `/api/me/titles/equipped` | 必须 | 卸下全部 |
 | `DELETE` | `/api/me/titles/equip/{id}` | 必须 | 卸下单个 |
-| `GET` | `/api/me/settings` | 必须 | 我的个人设置 |
-| `PUT` | `/api/me/settings` | 必须 | 更新个人设置（深合并） |
+| `GET` | `/api/me/settings` | 必须 | 我的个人设置（深合并，含绑定邮箱 `email`） |
+| `PUT` | `/api/me/settings` | 必须 | 更新个人设置（深合并；email 仅经邮箱验证接口变更） |
+| `POST` | `/api/me/email/code` | 必须 | 发送邮箱验证码（bind/unbind，60s 冷却；mail 未配置 503） |
+| `POST` | `/api/me/email/bind` | 必须 | 绑定/换绑邮箱（验证码校验） |
+| `POST` | `/api/me/email/unbind` | 必须 | 解绑邮箱（当前邮箱验证码确认） |
 
 ### 跑团（`trpg` 模块）
 

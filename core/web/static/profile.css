@@ -936,3 +936,53 @@
   text-decoration: none;
   font-size: 0.9rem;
 }
+
+/* ---- 账号邮箱卡片 ---- */
+.email-bound-info {
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+}
+
+.email-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.email-form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  align-items: center;
+}
+
+.email-form-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+}
+
+.email-btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.email-btn.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.email-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

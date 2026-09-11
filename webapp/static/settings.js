@@ -8,6 +8,8 @@ const loginCancel = document.getElementById("loginCancel");
 let settingsData = null;
 let userSettingsData = { privacy: {} };
 let searchQuery = "";
+let emailMode = "view"; // view | bind | unbind
+let emailCooldownTimer = null;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -107,6 +109,154 @@ function buildCheckinDisplayRow(title, groupName, settingKey, currentValue) {
     row.appendChild(radioLabel);
   });
   return row;
+}
+
+function maskEmail(email) {
+  const at = email.indexOf("@");
+  if (at < 1) return email;
+  const local = email.slice(0, at);
+  return (local.length > 2 ? local.slice(0, 2) : local.slice(0, 1)) + "***" + email.slice(at);
+}
+
+function startEmailCooldown(btn, seconds) {
+  if (emailCooldownTimer) clearInterval(emailCooldownTimer);
+  btn.disabled = true;
+  let left = seconds;
+  const tick = () => {
+    btn.textContent = `${left} 秒后可重发`;
+    left -= 1;
+    if (left < 0) {
+      clearInterval(emailCooldownTimer);
+      emailCooldownTimer = null;
+      btn.disabled = false;
+      btn.textContent = "发送验证码";
+    }
+  };
+  tick();
+  emailCooldownTimer = setInterval(tick, 1000);
+}
+
+async function sendEmailCode(purpose) {
+  const btn = document.getElementById(purpose === "unbind" ? "unbindSendBtn" : "bindSendBtn");
+  if (btn && btn.disabled) return;
+  const email = purpose === "bind" ? (document.getElementById("bindEmailInput")?.value.trim() || "") : "";
+  try {
+    const res = await apiFetch("/api/me/email/code", {
+      method: "POST",
+      body: JSON.stringify({ email, purpose }),
+    });
+    showToast("验证码已发送，请查收邮箱");
+    if (btn) startEmailCooldown(btn, res.cooldown_seconds || 60);
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function submitEmailBind() {
+  const email = document.getElementById("bindEmailInput").value.trim();
+  const code = document.getElementById("bindCodeInput").value.trim();
+  try {
+    await apiFetch("/api/me/email/bind", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    });
+    showToast("邮箱绑定成功");
+    await reloadEmailState();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function submitEmailUnbind() {
+  const code = document.getElementById("unbindCodeInput").value.trim();
+  try {
+    await apiFetch("/api/me/email/unbind", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    showToast("邮箱已解绑");
+    await reloadEmailState();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function reloadEmailState() {
+  userSettingsData = await apiFetch("/api/me/settings");
+  emailMode = "view";
+  renderPage();
+}
+
+function wireEmailForm(root) {
+  const bindSend = root.querySelector("#bindSendBtn");
+  const bindSubmit = root.querySelector("#bindSubmitBtn");
+  const unbindSend = root.querySelector("#unbindSendBtn");
+  const unbindSubmit = root.querySelector("#unbindSubmitBtn");
+  const cancel = root.querySelector("#emailCancelBtn");
+  if (bindSend) bindSend.addEventListener("click", () => sendEmailCode("bind"));
+  if (bindSubmit) bindSubmit.addEventListener("click", submitEmailBind);
+  if (unbindSend) unbindSend.addEventListener("click", () => sendEmailCode("unbind"));
+  if (unbindSubmit) unbindSubmit.addEventListener("click", submitEmailUnbind);
+  if (cancel) cancel.addEventListener("click", () => {
+    emailMode = "view";
+    renderPage();
+  });
+}
+
+function renderEmailSection() {
+  const sec = document.createElement("section");
+  sec.className = "settings-section";
+  const bound = userSettingsData.email;
+  let body = "";
+  if (bound && emailMode === "view") {
+    body = `
+      <p class="email-bound-info">已绑定：${escapeHtml(maskEmail(bound))}${
+        userSettingsData.email_bound_at ? `（${escapeHtml(userSettingsData.email_bound_at)}）` : ""
+      }</p>
+      <div class="email-actions">
+        <button type="button" class="email-btn primary" id="emailRebindBtn">换绑邮箱</button>
+        <button type="button" class="email-btn" id="emailUnbindBtn">解绑邮箱</button>
+      </div>
+    `;
+  } else if (emailMode === "unbind" && bound) {
+    body = `
+      <p class="email-bound-info">将向 ${escapeHtml(maskEmail(bound))} 发送验证码，输入后确认解绑。</p>
+      <div class="email-form-row">
+        <input type="text" id="unbindCodeInput" placeholder="6 位验证码" maxlength="6" inputmode="numeric" />
+        <button type="button" class="email-btn" id="unbindSendBtn">发送验证码</button>
+      </div>
+      <div class="email-form-row">
+        <button type="button" class="email-btn primary" id="unbindSubmitBtn">确认解绑</button>
+        <button type="button" class="email-btn" id="emailCancelBtn">取消</button>
+      </div>
+    `;
+  } else {
+    body = `
+      <div class="email-form-row">
+        <input type="email" id="bindEmailInput" placeholder="输入要绑定的邮箱" />
+        <button type="button" class="email-btn" id="bindSendBtn">发送验证码</button>
+      </div>
+      <div class="email-form-row">
+        <input type="text" id="bindCodeInput" placeholder="6 位验证码" maxlength="6" inputmode="numeric" />
+        <button type="button" class="email-btn primary" id="bindSubmitBtn">绑定</button>
+      </div>
+      <p class="preview-hint">验证码 10 分钟内有效。${bound ? "换绑成功后旧邮箱即被覆盖。" : ""}</p>
+      ${bound ? '<div class="email-form-row"><button type="button" class="email-btn" id="emailCancelBtn">取消</button></div>' : ""}
+    `;
+  }
+  sec.innerHTML = `<div class="section-head"><h2>账号邮箱</h2></div>${body}`;
+  wireEmailForm(sec);
+  const rebind = sec.querySelector("#emailRebindBtn");
+  const unbind = sec.querySelector("#emailUnbindBtn");
+  if (rebind) rebind.addEventListener("click", () => {
+    emailMode = "bind";
+    renderPage();
+  });
+  if (unbind) unbind.addEventListener("click", () => {
+    emailMode = "unbind";
+    renderPage();
+  });
+  return sec;
 }
 
 function openLoginDialog() {
@@ -325,6 +475,7 @@ function renderPage() {
     "任何状态下你本人查看自己的打卡始终是原图与完整内容。";
   privacySec.appendChild(checkinHint);
   settingsMain.appendChild(renderThemeSection());
+  settingsMain.appendChild(renderEmailSection());
 
   document.getElementById("charPublicToggle").addEventListener("change", async (e) => {
     try {

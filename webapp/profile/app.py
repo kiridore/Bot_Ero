@@ -16,6 +16,7 @@ from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.web.auth_deps import get_current_user_id
 from webapp.profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
+from webapp.profile import email_service
 from webapp.profile.profile_service import build_profile
 from webapp.profile.share_service import build_share_png
 from webapp.profile.shop_service import get_shop, redeem_shop_item
@@ -73,6 +74,22 @@ class SettingsIn(BaseModel):
 
 class SettingsOut(BaseModel):
     privacy: dict
+    email: str | None = None
+    email_bound_at: str | None = None
+
+
+class EmailCodeIn(BaseModel):
+    email: str = ""
+    purpose: str = "bind"
+
+
+class EmailBindIn(BaseModel):
+    email: str
+    code: str
+
+
+class EmailUnbindIn(BaseModel):
+    code: str
 
 
 def _file_slug(content: str) -> str:
@@ -236,7 +253,59 @@ def api_unequip_one(
 @router.get("/api/me/settings", response_model=SettingsOut)
 def api_my_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
     settings = user_settings_mod.get_settings(user_id)
-    return SettingsOut(privacy=settings.get("privacy", {}))
+    return SettingsOut(
+        privacy=settings.get("privacy", {}),
+        email=settings.get("email"),
+        email_bound_at=settings.get("email_bound_at"),
+    )
+
+
+@router.post("/api/me/email/code")
+def api_email_code(
+    body: EmailCodeIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    if body.purpose not in ("bind", "unbind"):
+        raise HTTPException(status_code=400, detail="purpose 不合法")
+    if not email_service.mail_enabled():
+        raise HTTPException(status_code=503, detail="邮件功能未开启，请联系管理员")
+    if body.purpose == "bind":
+        email = body.email.strip()
+        if not email_service.is_valid_email(email):
+            raise HTTPException(status_code=400, detail="邮箱格式不正确")
+    else:
+        email = user_settings_mod.get_settings(user_id).get("email") or ""
+        if not email:
+            raise HTTPException(status_code=400, detail="当前未绑定邮箱")
+    ok, err = email_service.issue_code(user_id, email, body.purpose)
+    if not ok:
+        raise HTTPException(status_code=400, detail=err)
+    return {"cooldown_seconds": email_service.CODE_COOLDOWN_SECONDS}
+
+
+@router.post("/api/me/email/bind")
+def api_email_bind(
+    body: EmailBindIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    email = body.email.strip()
+    if not email_service.is_valid_email(email):
+        raise HTTPException(status_code=400, detail="邮箱格式不正确")
+    ok, err = email_service.bind_email(user_id, email, body.code.strip())
+    if not ok:
+        raise HTTPException(status_code=400, detail=err)
+    return {"success": True}
+
+
+@router.post("/api/me/email/unbind")
+def api_email_unbind(
+    body: EmailUnbindIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    ok, err = email_service.unbind_email(user_id, body.code.strip())
+    if not ok:
+        raise HTTPException(status_code=400, detail=err)
+    return {"success": True}
 
 
 @router.put("/api/me/settings", response_model=SettingsOut)
@@ -246,7 +315,11 @@ def api_update_settings(
 ):
     patch = body.model_dump(exclude_none=True)
     merged = user_settings_mod.update_settings(user_id, patch)
-    return SettingsOut(privacy=merged.get("privacy", {}))
+    return SettingsOut(
+        privacy=merged.get("privacy", {}),
+        email=merged.get("email"),
+        email_bound_at=merged.get("email_bound_at"),
+    )
 
 
 @router.get("/profile")
