@@ -224,6 +224,22 @@ async function downloadShareImage() {
   }
 }
 
+async function joinActivity() {
+  const btn = document.getElementById("joinBtn");
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`/api/activities/${actCache.id}/join`, {
+      method: "POST", headers: GalleryAuth.headers(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "加入失败");
+    await loadDetail();
+  } catch (err) {
+    alert(err.message || "加入失败");
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderCountdown() {
   if (!actCache || actCache.status !== "running" || actCache.type !== "relay") return;
   const cur = actCache.members.find(m => m.status === "pending");
@@ -334,7 +350,11 @@ function renderDetail() {
     </section>
     ${turnBlock ? `<section class="detail-section">${turnBlock}</section>` : ""}
     <section class="detail-section">
-      <h2>参加人员</h2>
+      <div class="works-head">
+        <h2>参加人员</h2>
+        ${act.status === "open" && !(meCache && meCache.member)
+          ? '<button type="button" id="joinBtn" class="primary">加入活动</button>' : ""}
+      </div>
       <div class="member-list">${memberRows}</div>
     </section>
     ${mySubmissionBlock(meCache)}
@@ -350,6 +370,8 @@ function renderDetail() {
   if (prevGrid) prevGrid.addEventListener("click", onCardClick);
   const shb = document.getElementById("shareBtn");
   if (shb) shb.addEventListener("click", downloadShareImage);
+  const jb = document.getElementById("joinBtn");
+  if (jb) jb.addEventListener("click", joinActivity);
   if (isRunning && act.type === "relay") {
     setInterval(renderCountdown, 60000);
   }

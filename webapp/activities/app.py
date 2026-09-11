@@ -15,6 +15,7 @@ from core.base import SUPER_USER
 from core.config import ACTIVITY_ROOT
 from core.context import DEFAULT_GROUP_ID
 from core.database_manager import DbManager
+from core.onebot_client import resolve_display_name
 from core.tiptap import tiptap_to_plain
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
@@ -251,6 +252,22 @@ def api_edit_activity(activity_id: int, body: ActivityEditIn,
     if fields:
         db.activity.update_activity(activity_id, **fields)
     return {"ok": True}
+
+
+@router.post("/api/activities/{activity_id}/join")
+def api_activity_join(activity_id: int,
+                      user_id: Annotated[str, Depends(get_current_user_id)]):
+    """加入报名中的活动（与 bot /活动 加入 同语义：open 期、重复加入拒、昵称经 OneBot 解析）。"""
+    db = DbManager()
+    act = db.activity.get_activity(activity_id)
+    if not act:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    if act["status"] != "open":
+        raise HTTPException(status_code=409, detail="活动不在报名中，无法加入")
+    if any(str(m["user_id"]) == user_id for m in act["members"]):
+        raise HTTPException(status_code=409, detail="你已加入该活动")
+    db.activity.add_member(activity_id, user_id, resolve_display_name(user_id) or user_id)
+    return {"ok": True, "members": len(act["members"]) + 1}
 
 
 @router.post("/api/activities/{activity_id}/start")

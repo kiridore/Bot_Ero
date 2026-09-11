@@ -75,9 +75,11 @@ let actData = {
   ],
 };
 const posts = [];
+const joins = [];
 global.fetch = async (path, options = {}) => {
   if (path === "/api/activities/3") return { ok: true, status: 200, json: async () => actData };
   if (path === "/api/activities/3/me") return { ok: true, status: 200, json: async () => meData };
+  if (path.endsWith("/join")) { joins.push(options); return { ok: true, status: 200, json: async () => ({ ok: true, members: 3 }) }; }
   if (path.endsWith("/submit")) { posts.push(options); return { ok: true, status: 200, json: async () => ({ ok: true, updated: true }) }; }
   return { ok: false, status: 404, json: async () => ({}) };
 };
@@ -162,12 +164,28 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   const html2 = mainEl._html;
   check("原因提示替代表单", html2.includes("还未轮到你提交") && !/id="submitBtn"/.test(html2));
 
-  // 4. not_member → 两块隐藏
+  // 4. not_member → 两块隐藏；open 期非成员显示加入按钮并可点击
   meData = { member: null, can_submit: false, block_reason: "not_member", block_text: null };
   loadDetail();
   await wait(100);
   const html3 = mainEl._html;
   check("非成员隐藏提交区", !html3.includes("我的提交") && !html3.includes("提交作品"));
+
+  // 5. open + 非成员 → 加入按钮接线 + 点击发 join 请求
+  actData.status = "open";
+  loadDetail();
+  await wait(100);
+  const htmlJoin = mainEl._html;
+  check("报名中显示加入按钮", /id="joinBtn"/.test(htmlJoin) && htmlJoin.includes("加入活动"));
+  const joinBtn = els.joinBtn;
+  check("加入按钮接线", !!(joinBtn && joinBtn._listeners.click && joinBtn._listeners.click.length === 1));
+  if (joinBtn && joinBtn._listeners.click) {
+    await joinBtn._listeners.click[0]();
+    await wait(50);
+    check("点击发送 join 请求", joins.length === 1 && joins[0].method === "POST");
+    check("加入后按钮复位/禁用", joinBtn.disabled === true || els.joinBtn === joinBtn);
+  }
+  actData.status = "running";  // 还原给后续场景;
 
   // 5. finished → 生成分享长图按钮 + 点击接线 + 离屏节点清理
   check("运行中无分享按钮", !html.includes("shareBtn"));

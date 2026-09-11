@@ -182,11 +182,16 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 r = client.post("/api/activities", headers=OH, json={
     "type": "relay", "title": "接龙三", "hours_per_user": 48, "deadline": FUTURE2})
 rid3 = r.json()["id"]
-DB.activity.add_member(rid3, "333", "成员甲")
-DB.activity.add_member(rid3, "444", "成员乙")
+r = client.post(f"/api/activities/{rid3}/join", headers=H333)
+check("web 加入 200", r.status_code == 200 and r.json().get("ok") is True, r.text)
+r = client.post(f"/api/activities/{rid3}/join", headers=H333)
+check("重复加入 409", r.status_code == 409 and "已加入" in r.json().get("detail", ""))
+client.post(f"/api/activities/{rid3}/join", headers=H444)
 DB.activity.set_ring(rid3, [("333", None, 1), ("444", None, 2)])
 DB.activity.update_activity(rid3, status="running")
 DB.activity.update_member(rid3, "333", received_at=_time.strftime("%Y-%m-%d %H:%M:%S"))
+r = client.post(f"/api/activities/{rid3}/join", headers=OH)
+check("非报名期加入 409", r.status_code == 409 and "报名中" in r.json().get("detail", ""))
 
 r = client.get(f"/api/activities/{rid3}/me", headers=H333)
 check("me 当前棒可提交", r.status_code == 200 and r.json()["can_submit"] is True
@@ -316,7 +321,8 @@ r = client.post("/api/activities", headers=OH, json={
     "description": plain_to_tiptap("征集说明")})
 check("征集创建 200", r.status_code == 200 and "征集" in r.json().get("announce", ""), r.text)
 cid = r.json()["id"]
-DB.activity.add_member(cid, "333", "成员甲")  # 报名走 QQ /活动 加入，API 无 join 端点，测试直接入库
+r = client.post(f"/api/activities/{cid}/join", headers=H333)
+check("征集 web 加入 200", r.status_code == 200, r.text)  # 报名走 QQ /活动 加入 或 web join
 r = client.post(f"/api/activities/{cid}/start", headers=OH)
 check("征集单人可开始", r.status_code == 200, r.text)
 DB.activity.set_ring(cid, [("333", None, 1)])  # 真实链路由 bot 心跳 _start_activity 编号，测试直接写（同 rid3）
