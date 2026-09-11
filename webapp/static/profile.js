@@ -6,6 +6,7 @@ const dayDialogClose = document.getElementById("dayDialogClose");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxClose = document.getElementById("lightboxClose");
+const shareImg = document.getElementById("shareImg");
 const loginDialog = document.getElementById("loginDialog");
 const loginForm = document.getElementById("loginForm");
 const loginKey = document.getElementById("loginKey");
@@ -14,6 +15,9 @@ const loginCancel = document.getElementById("loginCancel");
 
 let profileData = null;
 let titleFilter = "all";
+let activeTab = "titles";
+let checkinState = { loaded: false, page: 0, hasMore: true, loading: false, lastMonth: "" };
+let currentRecordId = null;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -60,8 +64,11 @@ function renderAuthChip() {
   area.appendChild(link);
 }
 
-function openLightbox(url) {
+function openLightbox(url, recordId = null) {
   lightboxImg.src = url;
+  currentRecordId = recordId;
+  const shareBtn = document.getElementById("lightboxShare");
+  if (shareBtn) shareBtn.classList.toggle("hidden", recordId == null);
   lightbox.classList.remove("hidden");
 }
 
@@ -92,7 +99,7 @@ async function openDay(date) {
     img.loading = "lazy";
     img.src = item.thumbnail_url || item.image_url;
     img.alt = item.checkin_date;
-    img.addEventListener("click", () => openLightbox(item.image_url));
+    img.addEventListener("click", () => openLightbox(item.image_url, item.id));
     dayDialogGrid.appendChild(img);
   }
 }
@@ -151,9 +158,94 @@ function renderTitles() {
   return list;
 }
 
+function switchTab(key) {
+  if (key === activeTab) return;
+  activeTab = key;
+  document.querySelectorAll(".profile-tabs button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === key);
+  });
+  document.getElementById("panelTitles").classList.toggle("hidden", key !== "titles");
+  document.getElementById("panelCheckins").classList.toggle("hidden", key !== "checkins");
+  if (key === "checkins" && !checkinState.loaded) {
+    checkinState.loaded = true;
+    loadCheckins();
+  }
+}
+
+async function loadCheckins() {
+  const more = document.getElementById("checkinMore");
+  if (!more || checkinState.loading || !checkinState.hasMore) return;
+  checkinState.loading = true;
+  more.disabled = true;
+  more.textContent = "加载中…";
+  try {
+    const res = await fetch(`/api/me/checkins?page=${checkinState.page + 1}`, {
+      headers: GalleryAuth.headers(),
+    });
+    if (!res.ok) throw new Error("加载失败");
+    const data = await res.json();
+    checkinState.page = data.page;
+    checkinState.hasMore = data.has_more;
+    appendCheckinCards(data.items);
+    more.textContent = checkinState.hasMore ? "加载更多" : "没有更多了";
+    more.disabled = !checkinState.hasMore;
+  } catch (err) {
+    more.textContent = "加载失败，点击重试";
+    more.disabled = false;
+  }
+  checkinState.loading = false;
+}
+
+function appendCheckinCards(items) {
+  const grid = document.getElementById("checkinGrid");
+  for (const it of items) {
+    const month = it.checkin_date.slice(0, 7);
+    if (month !== checkinState.lastMonth) {
+      checkinState.lastMonth = month;
+      const head = document.createElement("h4");
+      head.className = "checkin-month";
+      head.textContent = month;
+      grid.appendChild(head);
+    }
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "checkin-card";
+    card.dataset.reveal = "";
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = it.thumbnail_url || it.image_url;
+    img.alt = it.checkin_date;
+    const label = document.createElement("span");
+    label.className = "checkin-card-date";
+    label.textContent = it.checkin_date.slice(0, 16);
+    card.append(img, label);
+    card.addEventListener("click", () => openLightbox(it.image_url, it.id));
+    grid.appendChild(card);
+  }
+}
+
+function renderTabShell() {
+  const tabs = document.createElement("div");
+  tabs.className = "profile-tabs";
+  for (const [key, label] of [
+    ["titles", "称号"],
+    ["checkins", "打卡记录"],
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.dataset.tab = key;
+    btn.className = key === activeTab ? "active" : "";
+    btn.addEventListener("click", () => switchTab(key));
+    tabs.appendChild(btn);
+  }
+  return tabs;
+}
+
 function renderProfile(data) {
   profileData = data;
   profileMain.innerHTML = "";
+  checkinState = { loaded: false, page: 0, hasMore: true, loading: false, lastMonth: "" };
 
   const header = document.createElement("section");
   header.className = "profile-header";
@@ -199,10 +291,11 @@ function renderProfile(data) {
   profileMain.appendChild(heatTitle);
   profileMain.appendChild(renderHeatmap(data.heatmap));
 
-  const titleHead = document.createElement("h3");
-  titleHead.className = "section-title";
-  titleHead.textContent = "称号";
-  profileMain.appendChild(titleHead);
+  profileMain.appendChild(renderTabShell());
+
+  const panelTitles = document.createElement("section");
+  panelTitles.id = "panelTitles";
+  panelTitles.className = "tab-panel" + (activeTab === "titles" ? "" : " hidden");
 
   const filters = document.createElement("div");
   filters.className = "title-filters";
@@ -219,13 +312,33 @@ function renderProfile(data) {
       titleFilter = key;
       filters.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      const old = profileMain.querySelector(".title-list");
+      const old = panelTitles.querySelector(".title-list");
       if (old) old.replaceWith(renderTitles());
     });
     filters.appendChild(btn);
   }
-  profileMain.appendChild(filters);
-  profileMain.appendChild(renderTitles());
+  panelTitles.appendChild(filters);
+  panelTitles.appendChild(renderTitles());
+
+  const panelCheckins = document.createElement("section");
+  panelCheckins.id = "panelCheckins";
+  panelCheckins.className = "tab-panel" + (activeTab === "checkins" ? "" : " hidden");
+  const grid = document.createElement("div");
+  grid.id = "checkinGrid";
+  grid.className = "checkin-grid";
+  const moreBtn = document.createElement("button");
+  moreBtn.type = "button";
+  moreBtn.id = "checkinMore";
+  moreBtn.className = "checkin-more";
+  moreBtn.textContent = "加载更多";
+  moreBtn.addEventListener("click", loadCheckins);
+  panelCheckins.append(grid, moreBtn);
+
+  profileMain.append(panelTitles, panelCheckins);
+  if (activeTab === "checkins" && !checkinState.loaded) {
+    checkinState.loaded = true;
+    loadCheckins();
+  }
 }
 
 async function loadProfile(year) {
@@ -243,6 +356,22 @@ async function loadProfile(year) {
 
 dayDialogClose.addEventListener("click", () => dayDialog.close());
 lightboxClose.addEventListener("click", closeLightbox);
+
+const shareDialog = document.getElementById("shareDialog");
+const shareDialogClose = document.getElementById("shareDialogClose");
+const lightboxShareBtn = document.getElementById("lightboxShare");
+
+function openShareCard() {
+  if (currentRecordId == null) return;
+  const url = `/api/me/checkin/${currentRecordId}/share.png`;
+  shareImg.src = url;
+  const dl = document.getElementById("shareDownload");
+  dl.href = url;
+  shareDialog.showModal();
+}
+
+lightboxShareBtn.addEventListener("click", openShareCard);
+shareDialogClose.addEventListener("click", () => shareDialog.close());
 lightbox.addEventListener("click", (e) => {
   if (e.target === lightbox) closeLightbox();
 });

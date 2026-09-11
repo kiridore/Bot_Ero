@@ -7,7 +7,7 @@
   <script src="/shared/theme.js"></script>
   <link rel="stylesheet" href="/shared/base.css?v=2" />
   <link rel="stylesheet" href="/shared/motion.css" />
-  <link rel="stylesheet" href="/shared/profile.css?v=2" />
+  <link rel="stylesheet" href="/shared/profile.css?v=3" />
 </head>
 <body>
   <header class="toolbar profile-toolbar">
@@ -48,10 +48,24 @@
 
   <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true">
     <button type="button" class="lightbox-close" id="lightboxClose" aria-label="关闭">×</button>
+    <button type="button" class="lightbox-share hidden" id="lightboxShare">生成分享卡片</button>
     <figure>
       <img id="lightboxImg" alt="" />
     </figure>
   </div>
+
+  <dialog id="shareDialog" class="share-dialog">
+    <div class="share-dialog-header">
+      <h3>打卡分享卡片</h3>
+      <button type="button" id="shareDialogClose" aria-label="关闭">×</button>
+    </div>
+    <div class="share-dialog-body">
+      <img id="shareImg" alt="打卡分享卡片" />
+    </div>
+    <div class="share-dialog-actions">
+      <a id="shareDownload" class="share-download" download="checkin-share.png">下载图片</a>
+    </div>
+  </dialog>
 
   <script src="/shared/auth.js?v=3"></script>
   <script src="/shared/motion.js"></script>

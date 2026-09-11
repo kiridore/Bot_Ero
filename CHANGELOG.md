@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.46.0]
+
+- **个人中心打卡卡片 Tab 与分享卡**：个人主页「称号」区升级为「称号 / 打卡记录」并列 Tab，打卡记录按月分组、卡片式浏览全部打卡图（分页加载）；lightbox 查看打卡图新增「生成分享卡片」——服务端 PIL 合成浅色分享卡（头像/昵称/日期/照片/连击与累计统计/品牌 footer），极端宽高比（全景、超长图）自动 contain 进 1000×1250 照片区并以模糊背景铺满，成品恒定 1080 宽、总高上界 ~1700
+
 ## [1.45.2]
 
 - **修复网页创建活动不发时间线事件**：`webapp/activities` 创建路径补齐 signup 事件（此前仅 QQ 创建路径上报，网页创建静默缺失）；事件参数下沉为 `core.timeline_client.activity_event_args` 单一契约（source/dedup/actor/链接）供两个进程共用，防止再漂移；`TIMELINE_URL` 为空（上报关闭）时改为静默跳过而非抛异常刷日志

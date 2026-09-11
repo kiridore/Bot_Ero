@@ -248,6 +248,16 @@ class CheckinManager:
         row = self.cur.fetchone()
         return 0 if row is None or row[0] is None else int(row[0])
 
+    def count_images(self, user_id):
+        self.cur.execute("""
+            SELECT COUNT(*)
+            FROM checkin_records
+            WHERE user_id = ?
+            AND content != 'remedy_checkin'
+        """, (int(user_id),))
+        row = self.cur.fetchone()
+        return 0 if row is None or row[0] is None else int(row[0])
+
     def remedy_used(self, year, user_id):
         self.cur.execute("""
             SELECT used_count

@@ -780,3 +780,159 @@
   width: 18px;
   height: 18px;
 }
+
+/* ---- 个人主页 Tab（称号 / 打卡记录） ---- */
+.profile-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1rem;
+}
+
+.profile-tabs button {
+  padding: 0.4rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.profile-tabs button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tab-panel.hidden {
+  display: none;
+}
+
+/* ---- 打卡记录卡片网格 ---- */
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.checkin-month {
+  grid-column: 1 / -1;
+  margin: 1rem 0 0.25rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.checkin-card {
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-card);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.checkin-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.checkin-card-date {
+  display: block;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--rule);
+}
+
+.checkin-more {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.4rem 1.4rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.checkin-more:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---- lightbox 分享按钮 ---- */
+.lightbox-share {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 4.5rem;
+  padding: 0.5rem 1.4rem;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--paper-card);
+  color: var(--accent);
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* ---- 分享预览弹层 ---- */
+.share-dialog {
+  width: min(92vw, 540px);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-card);
+  padding: 0;
+}
+
+.share-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.share-dialog-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.share-dialog-header button {
+  border: none;
+  background: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.share-dialog-body {
+  padding: 1rem;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.share-dialog-body img {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.share-dialog-actions {
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem 1rem;
+}
+
+.share-download {
+  padding: 0.5rem 1.6rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.9rem;
+}

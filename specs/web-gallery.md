@@ -208,6 +208,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/me/day` | 必须 | 某结算日的打卡详情 |
+| `GET` | `/api/me/checkins` | 必须 | 我的打卡图分页（每页 24，仅含本地文件） |
+| `GET` | `/api/me/checkin/{id}/share.png` | 必须 | 打卡分享卡 PNG（仅本人记录，404=不存在/非本人/无文件） |
 | `GET` | `/api/me/profile` | 必须 | 用户档案（热度图、称号） |
 | `GET` | `/api/me/checkin/status` | 必须 | 本周打卡状态 |
 | `POST` | `/api/me/checkin` | 必须 | 网页端打卡上传（multipart） |
