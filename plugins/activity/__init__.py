@@ -151,6 +151,24 @@ def _emit_timeline(activity_id: int, title: str, action: str, description: str) 
     )
 
 
+def _pick_from(candidates: list[dict], arg: str | None, cmd: str) -> tuple[dict | None, str | None]:
+    """多活动选择：带编号→候选内按 id 命中；无编号且唯一→直选；多个→列编号要求指定。
+
+    返回 (act, err)；零候选且无 arg 时返回 (None, None)，空态文案由调用方给。
+    """
+    if arg is not None:
+        if not str(arg).isdigit():
+            return None, f"用法：{cmd} <活动编号>，编号见 /活动 状态"
+        act = next((a for a in candidates if a["id"] == int(arg)), None)
+        return (act, None) if act else (None, "活动编号无效或状态不符")
+    if len(candidates) == 1:
+        return candidates[0], None
+    if not candidates:
+        return None, None
+    ids = "、".join(f"#{a['id']}" for a in candidates)
+    return None, f"本群有多个活动，请指定编号：{cmd} <编号>（{ids}）"
+
+
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -315,18 +333,20 @@ class ActivityPlugin(Plugin):
             self._show_usage()
             return
         sub = args[0]
+        rest = args[1:]
+        arg = rest[0] if rest else None
         if sub == "创建":
-            self._handle_create(args[1:])
+            self._handle_create(rest)
         elif sub == "加入":
-            self._handle_join(gid, uid)
+            self._handle_join(gid, uid, arg)
         elif sub == "退出":
-            self._handle_leave(gid, uid)
+            self._handle_leave(gid, uid, arg)
         elif sub == "开始":
-            self._handle_start(gid, uid)
+            self._handle_start(gid, uid, arg)
         elif sub == "状态":
-            self._handle_status(gid)
+            self._handle_status(gid, arg)
         elif sub == "结束":
-            self._handle_end(gid, uid)
+            self._handle_end(gid, uid, arg)
         else:
             self._show_usage()
 
@@ -336,9 +356,10 @@ class ActivityPlugin(Plugin):
             "/活动 创建 接龙 <标题> [每人时限]（如 48小时 / 2天）\n"
             "/活动 创建 匹配 <标题> <截止 YYYY-MM-DD HH:MM>\n"
             "/活动 创建 征集 <标题> <截止 YYYY-MM-DD HH:MM>\n"
-            "/活动 加入 / 退出\n"
-            "/活动 开始（创建人）\n"
-            "/活动 状态 / 结束（创建人）"
+            "/活动 加入 [编号] / 退出 [编号]\n"
+            "/活动 开始 [编号]（创建人）\n"
+            "/活动 状态 [编号] / 结束 [编号]（创建人）\n"
+            "多个活动并行时需带编号（见 /活动 状态）"
         ))
 
     def _handle_create(self, args: list[str]):
@@ -346,9 +367,6 @@ class ActivityPlugin(Plugin):
         uid = str(self.bot_event.user_id)
         if not args or args[0] not in ("接龙", "匹配", "征集"):
             self.api.send_msg(text("用法：/活动 创建 接龙|匹配|征集 <标题> [描述] [参数]"))
-            return
-        if self.dbmanager.activity.get_active_activity(gid):
-            self.api.send_msg(text("本群已有进行中的活动"))
             return
         kind = args[0]
         type_val = {"接龙": "relay", "匹配": "match", "征集": "collect"}[kind]
@@ -404,10 +422,14 @@ class ActivityPlugin(Plugin):
         _emit_timeline(aid, title, "signup", f"{_TYPE_LABEL[type_val]} · 回复 /活动 加入 报名" + (
             f" · 报名截止 {params['signup_deadline']}" if params["signup_deadline"] else ""))
 
-    def _handle_join(self, gid: int, uid: str):
-        act = self.dbmanager.activity.get_active_activity(gid)
-        if not act or act["status"] != "open":
-            self.api.send_msg(text("本群当前没有报名中的活动"))
+    def _group_activities(self, gid: int, statuses: tuple[str, ...]) -> list[dict]:
+        return [a for a in self.dbmanager.activity.get_active_activities_for_group(gid)
+                if a["status"] in statuses]
+
+    def _handle_join(self, gid: int, uid: str, arg: str | None = None):
+        act, err = _pick_from(self._group_activities(gid, ("open",)), arg, "/活动 加入")
+        if act is None:
+            self.api.send_msg(text(err or "本群当前没有报名中的活动"))
             return
         if self.dbmanager.activity.get_member(act["id"], uid):
             self.api.send_msg(text("你已加入该活动"))
@@ -416,10 +438,12 @@ class ActivityPlugin(Plugin):
         n = self.dbmanager.activity.count_members(act["id"])
         self.api.send_msg(text(f"已加入「{act['title']}」（当前 {n} 人）"))
 
-    def _handle_leave(self, gid: int, uid: str):
-        act = self.dbmanager.activity.get_active_activity(gid)
-        if not act:
-            self.api.send_msg(text("本群没有进行中的活动"))
+    def _handle_leave(self, gid: int, uid: str, arg: str | None = None):
+        cands = [a for a in self._group_activities(gid, ("open", "running"))
+                 if self.dbmanager.activity.get_member(a["id"], uid)]
+        act, err = _pick_from(cands, arg, "/活动 退出")
+        if act is None:
+            self.api.send_msg(text(err or "你不在任何活动中"))
             return
         member = self.dbmanager.activity.get_member(act["id"], uid)
         if not member:
@@ -454,10 +478,10 @@ class ActivityPlugin(Plugin):
         elif act["type"] == "match":
             _match_reconnect(self.api, self.dbmanager, act, member["user_id"], members)
 
-    def _handle_start(self, gid: int, uid: str):
-        act = self.dbmanager.activity.get_active_activity(gid)
-        if not act:
-            self.api.send_msg(text("本群没有活动"))
+    def _handle_start(self, gid: int, uid: str, arg: str | None = None):
+        act, err = _pick_from(self._group_activities(gid, ("open",)), arg, "/活动 开始")
+        if act is None:
+            self.api.send_msg(text(err or "本群没有报名中的活动"))
             return
         if act["status"] != "open":
             self.api.send_msg(text("活动已开始"))
@@ -469,10 +493,19 @@ class ActivityPlugin(Plugin):
         if err:
             self.api.send_msg(text(err))
 
-    def _handle_status(self, gid: int):
-        act = self.dbmanager.activity.get_active_activity(gid)
-        if not act:
+    def _handle_status(self, gid: int, arg: str | None = None):
+        acts = self._group_activities(gid, ("open", "running"))
+        if not acts:
             self.api.send_msg(text("本群没有进行中的活动"))
+            return
+        if arg is None and len(acts) == 1:
+            arg = str(acts[0]["id"])  # 唯一候选直接详情（与其它命令的自动选中一致）
+        if arg is None:
+            self._status_list(gid)
+            return
+        act, err = _pick_from(acts, arg, "/活动 状态")
+        if act is None:
+            self.api.send_msg(text(err or "本群没有进行中的活动"))
             return
         members = self.dbmanager.activity.get_members(act["id"])
         lines = [f"「{act['title']}」（{_TYPE_LABEL.get(act['type'], act['type'])} #{act['id']}）"]
@@ -502,10 +535,28 @@ class ActivityPlugin(Plugin):
                 lines.append(f"截止：{act['deadline']}")
         self.api.send_msg(text("\n".join(lines)))
 
-    def _handle_end(self, gid: int, uid: str):
-        act = self.dbmanager.activity.get_active_activity(gid)
-        if not act:
-            self.api.send_msg(text("本群没有活动"))
+    def _status_list(self, gid: int):
+        """多活动并行的总览：每活动一行摘要 + 提示查看详情。"""
+        acts = self._group_activities(gid, ("open", "running"))
+        if not acts:
+            self.api.send_msg(text("本群没有进行中的活动"))
+            return
+        lines = ["本群进行中的活动："]
+        for a in acts:
+            members = self.dbmanager.activity.get_members(a["id"])
+            label = _TYPE_LABEL.get(a["type"], a["type"])
+            if a["status"] == "open":
+                lines.append(f"#{a['id']} {label}「{a['title']}」报名中（{len(members)} 人）")
+            else:
+                done = sum(1 for m in members if m["status"] == "done")
+                lines.append(f"#{a['id']} {label}「{a['title']}」进行中（完成 {done}/{len(members)}）")
+        lines.append("查看详情：/活动 状态 <编号>")
+        self.api.send_msg(text("\n".join(lines)))
+
+    def _handle_end(self, gid: int, uid: str, arg: str | None = None):
+        act, err = _pick_from(self._group_activities(gid, ("open", "running")), arg, "/活动 结束")
+        if act is None:
+            self.api.send_msg(text(err or "本群没有进行中的活动"))
             return
         if str(act["created_by"]) != uid and not self.super_user():
             self.api.send_msg(text("只有创建人才能结束活动"))

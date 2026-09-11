@@ -194,8 +194,6 @@ def api_activities():
 def api_create_activity(body: ActivityCreateIn,
                         user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
-    if db.activity.get_active_activity(DEFAULT_GROUP_ID):
-        raise HTTPException(status_code=409, detail="本群已有进行中的活动")
     if body.type in ("match", "collect") and not body.deadline:
         raise HTTPException(status_code=400, detail="匹配与征集活动必须设定截止时间")
     if not body.title.strip():

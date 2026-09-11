@@ -76,8 +76,9 @@ r = client.post("/api/activities", headers=OH, json={
 check("匹配创建 200", r.status_code == 200, r.text)
 mid = r.json().get("id")
 check("返回 id 与公告", isinstance(mid, int) and "匹配下家" in r.json().get("announce", ""))
-r = client.post("/api/activities", headers=OH, json={"type": "relay", "title": "接龙二"})
-check("每群唯一进行中 409", r.status_code == 409, r.text)
+r = client.post("/api/activities", headers=OH, json={"type": "relay", "title": "接龙并行"})
+check("单群多活动不再互斥 200", r.status_code == 200 and isinstance(r.json().get("id"), int), r.text)
+DB.activity.update_activity(r.json()["id"], status="cancelled")  # 收尾，避免影响后续用例
 
 # —— 公告查询 ——
 r = client.get(f"/api/activities/{mid}/announce", headers=OTH)
@@ -113,6 +114,12 @@ r = client.post("/api/activities", headers=OH, json={
 check("取消后创建 200", r.status_code == 200, r.text)
 rid = r.json()["id"]
 check("接龙公告含限时", "每人限时 2 天" in r.json().get("announce", ""))
+r = client.post("/api/activities", headers=OH, json={
+    "type": "relay", "title": "接龙二并行", "hours_per_user": 24, "deadline": FUTURE2})
+check("单群并发创建 200", r.status_code == 200, r.text)
+check("并发双活动都在列表", len([a for a in client.get("/api/activities", headers=OH).json()["items"]
+                          if a["status"] == "open"]) >= 2)
+DB.activity.update_activity(r.json()["id"], status="cancelled")  # 收尾，避免影响后续用例
 r = client.get("/api/activities", headers=OH)
 check("列表含 created_by", any(a.get("created_by") == OWNER for a in r.json()["items"]))
 

@@ -54,9 +54,18 @@ class ActivityManager:
         return act
 
     def get_active_activity(self, group_id) -> dict | None:
+        """本群最新一个进行中活动（无参兼容/测试用；生产路径用 get_active_activities_for_group）。"""
         return self._row(
             "SELECT * FROM activities WHERE group_id = ? AND status IN ('open', 'running')"
             " ORDER BY id DESC LIMIT 1",
+            (int(group_id),),
+        )
+
+    def get_active_activities_for_group(self, group_id) -> list[dict]:
+        """本群全部 open/running 活动（单群多活动：按 id 升序）。"""
+        return self._rows(
+            "SELECT * FROM activities WHERE group_id = ? AND status IN ('open', 'running')"
+            " ORDER BY id ASC",
             (int(group_id),),
         )
 

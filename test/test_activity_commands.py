@@ -316,6 +316,76 @@ class TestCommands(unittest.TestCase):
         self.assertIn("正式开始", acts[1]["title"])
         self.assertIn("已结束归档", acts[2]["title"])
 
+    # ── 单群多活动并行 ──
+
+    def test_multi_create_join_start_by_id(self):
+        """同群两个活动并行：创建不再互斥，加入/开始/状态/结束均可指定编号。"""
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run("/活动 创建 接龙 甲活动").handle()
+        p = self._run(f"/活动 创建 征集 乙活动 {d}")
+        p.handle()
+        self.assertIn("已创建", _sent_text(p))  # 不再报「已有进行中的活动」
+        acts = self.db.activity.get_active_activities_for_group(GID)
+        self.assertEqual(len(acts), 2)
+        aid_a, aid_b = acts[0]["id"], acts[1]["id"]
+
+        p = self._run("/活动 加入", user_id=999999)
+        p.handle()
+        self.assertIn("多个活动", _sent_text(p))  # 两个 open 候选 → 要求指定编号
+
+        p = self._run(f"/活动 加入 {aid_b}", user_id=234567)
+        p.handle()
+        self.assertIn("已加入", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_member(aid_a, "234567"))
+        self.assertIsNotNone(self.db.activity.get_member(aid_b, "234567"))
+
+        p = self._run(f"/活动 开始 {aid_b}", user_id=123456)
+        p.handle()
+        self.assertEqual(self.db.activity.get_activity(aid_b)["status"], "running")
+        self.assertEqual(self.db.activity.get_activity(aid_a)["status"], "open")
+
+        p = self._run("/活动 状态")
+        p.handle()
+        t = _sent_text(p)
+        self.assertIn(f"#{aid_a}", t)
+        self.assertIn(f"#{aid_b}", t)
+        self.assertIn("进行中", t)
+
+        p = self._run(f"/活动 结束 {aid_a}", user_id=123456)
+        p.handle()
+        self.assertEqual(self.db.activity.get_activity(aid_a)["status"], "cancelled")
+        self.assertEqual(self.db.activity.get_activity(aid_b)["status"], "running")
+
+    def test_multi_leave_by_id(self):
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run("/活动 创建 接龙 甲活动").handle()
+        self._run(f"/活动 创建 征集 乙活动 {d}").handle()
+        acts = self.db.activity.get_active_activities_for_group(GID)
+        aid_a, aid_b = acts[0]["id"], acts[1]["id"]
+        self._run(f"/活动 加入 {aid_a}", user_id=234567).handle()
+        self._run(f"/活动 加入 {aid_b}", user_id=234567).handle()
+        p = self._run(f"/活动 退出 {aid_a}", user_id=234567)
+        p.handle()
+        self.assertIn("已退出", _sent_text(p))
+        self.assertIsNone(self.db.activity.get_member(aid_a, "234567"))
+        self.assertIsNotNone(self.db.activity.get_member(aid_b, "234567"))
+
+    def test_multi_submit_by_activity_id(self):
+        """多活动下 /提交 <id> 定向到指定活动（无 id 时提示列编号）。"""
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run("/活动 创建 接龙 甲活动").handle()
+        self._run(f"/活动 创建 征集 乙活动 {d}").handle()
+        acts = self.db.activity.get_active_activities_for_group(GID)
+        aid_a, aid_b = acts[0]["id"], acts[1]["id"]
+        self._run("/活动 开始", user_id=123456).handle()
+        # 甲（接龙）无成员 → 开始失败；逐个指定开始
+        self._run(f"/活动 加入 {aid_a}", user_id=123456).handle()
+        self._run(f"/活动 加入 {aid_b}", user_id=123456).handle()
+        self._run(f"/活动 开始 {aid_a}", user_id=123456).handle()
+        self._run(f"/活动 开始 {aid_b}", user_id=123456).handle()
+        self.assertEqual(self.db.activity.get_activity(aid_a)["status"], "running")
+        self.assertEqual(self.db.activity.get_activity(aid_b)["status"], "running")
+
     # ── 征集（collect）──
 
     def test_collect_create_requires_deadline(self):
