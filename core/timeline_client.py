@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import requests
 
-from core.config import TIMELINE_TOKEN, TIMELINE_URL
+from core.config import BOT_QQ, TIMELINE_URL, TIMELINE_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,9 @@ def _headers() -> dict:
 
 
 def _post(payload: dict) -> None:
+    if not TIMELINE_URL:  # 空 = 上报关闭（社区形态未配置时间线）
+        logger.debug("时间线上报已关闭，跳过: %s", payload.get("id"))
+        return
     for attempt in (1, 2):  # 至多重试一次
         try:
             resp = requests.post(
@@ -37,6 +40,8 @@ def _post(payload: dict) -> None:
 
 
 def _request(method: str, url: str, **kwargs) -> None:
+    if not TIMELINE_URL:
+        return
     for attempt in (1, 2):
         try:
             resp = requests.request(method, url, headers=_headers(), timeout=5, **kwargs)
@@ -76,6 +81,24 @@ def emit_event(
     if dedup_key:
         payload["dedup_key"] = dedup_key
     _post(payload)
+
+
+def activity_event_args(activity_id: int, title: str, action: str, description: str) -> dict:
+    """活动生命周期事件参数（source/dedup/actor 契约单一来源，bot 与 webapp 共用）。
+
+    action: signup（开始报名）/ start（正式开始）/ finish（结束归档）。
+    调用方自行 emit_event(**activity_event_args(...))——便于各进程测试拦截 emit_event。
+    """
+    titles = {"signup": "开始报名", "start": "正式开始", "finish": "已结束归档"}
+    return {
+        "source": "activity",
+        "actor_id": BOT_QQ,
+        "actor_qq": BOT_QQ,
+        "title": f"「{title}」{titles[action]}",
+        "description": description,
+        "target_url": f"/activities/{activity_id}",
+        "dedup_key": f"activity:{activity_id}:{action}",
+    }
 
 
 def retract_event(source: str, dedup_key: str | None = None, event_id: str | None = None) -> None:

@@ -16,6 +16,7 @@ from core.config import ACTIVITY_ROOT, WEB_BASE_URL
 from core.context import DEFAULT_GROUP_ID
 from core.database_manager import DbManager
 from core.onebot_client import resolve_display_name
+from core.timeline_client import activity_event_args, emit_event
 from core.tiptap import tiptap_to_plain
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
@@ -58,9 +59,12 @@ def _format_duration(hours: float) -> str:
     return f"{int(hours // 24)} 天" if hours % 24 == 0 else f"{hours:g} 小时"
 
 
+_TYPE_LABEL = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}
+
+
 def _announcement(act: dict) -> str:
     """创建人复制到群里的公告文案（服务端单一来源）。"""
-    kind = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}.get(act["type"], act["type"])
+    kind = _TYPE_LABEL.get(act["type"], act["type"])
     lines = [f"【活动发起】{kind}「{act['title']}」（#{act['id']}）"]
     if act["type"] == "relay":
         lines.append(f"每人限时 {_format_duration(act['hours_per_user'] or 48)}")
@@ -205,6 +209,11 @@ def api_create_activity(body: ActivityCreateIn,
     aid = db.activity.create_activity(
         DEFAULT_GROUP_ID, body.type, body.title.strip(), body.description, user_id,
         hours_per_user=hours, deadline=deadline, signup_deadline=signup_deadline)
+    # 时间线事件与 bot 创建路径同源（契约见 core.timeline_client.activity_event_args）
+    emit_event(**activity_event_args(
+        aid, body.title.strip(), "signup",
+        f"{_TYPE_LABEL.get(body.type, body.type)} · 回复 /活动 加入 {aid} 报名"
+        + (f" · 报名截止 {signup_deadline}" if signup_deadline else "")))
     return {"ok": True, "id": aid, "announce": _announcement(db.activity.get_activity(aid))}
 
 

@@ -118,7 +118,7 @@
 | `forum` | `webapp/forum` | 发帖 / 帖与评论编辑 / 评论与嵌套回复 / 投票关闭 | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回（评论软删占位时仅撤回自身、子回复事件保留）；帖与评论编辑=撤回旧事件并按同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `tools` | `webapp/tools` | 提交 / 删除工具链接 | `tools_link:<tool_id>`（删除时按同 key 撤回事件） |
 | `weekly_report` | `plugins/weekly_report` | 周报出版（每周一 08:00 生成后，actor=bot 本体） | `weekly_report:<week_key>`（每期一条；生成幂等不重发，行被删后补偿重生成的重复提交由接收方按 dedup_key 静默忽略） |
-| `activity` | `plugins/activity` | 活动开始报名 / 报名结束正式开始 / 结束归档（actor=bot 本体小埃同学） | `activity:<activity_id>:signup` / `activity:<activity_id>:start` / `activity:<activity_id>:finish`（每阶段一条；重复提交（如心跳与手动并发）由接收方按 dedup_key 静默忽略；取消不发事件） |
+| `activity` | `plugins/activity` · `webapp/activities` | 活动开始报名（QQ 创建与网页创建同源） / 报名结束正式开始 / 结束归档（actor=bot 本体小埃同学） | `activity:<activity_id>:signup` / `activity:<activity_id>:start` / `activity:<activity_id>:finish`（每阶段一条；重复提交（如心跳与手动并发）由接收方按 dedup_key 静默忽略；取消不发事件） |
 
 > `quest`（周常任务完成）因触发频繁，自 2026-08-10 起**不再发送到时间线**（`core/utils.py::on_quest_trigger` 已移除发送/回滚接线）；如需恢复需重新在本表注册并约定 dedup_key。
 > `title`（解锁称号）自 2026-08-11 起**不再发送到时间线**（`plugins/title.logic::evaluate_and_unlock_titles` 已移除发送接线）；如需恢复需重新在本表注册并约定 dedup_key。

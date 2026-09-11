@@ -39,6 +39,11 @@ from webapp.app import app  # noqa: E402
 
 client = TestClient(app)
 DB = DbManager()  # 模块级强引用：避免临时 DbManager() 在链式取属性后被 __del__ 关闭共享连接
+
+# 拦截 web 端时间线发送（best-effort 真发会打 127.0.0.1 时间线端口），记录供断言
+import webapp.activities.app as _wact  # noqa: E402
+_timeline_sent = []
+_wact.emit_event = lambda **kw: _timeline_sent.append(kw)
 OWNER, OTHER, SUPER = "111", "222", "1057613133"
 OH = {"Authorization": "Bearer " + make_login_key(OWNER), "Content-Type": "application/json"}
 OTH = {"Authorization": "Bearer " + make_login_key(OTHER), "Content-Type": "application/json"}
@@ -76,6 +81,9 @@ r = client.post("/api/activities", headers=OH, json={
 check("匹配创建 200", r.status_code == 200, r.text)
 mid = r.json().get("id")
 check("返回 id 与公告", isinstance(mid, int) and "匹配下家" in r.json().get("announce", ""))
+_ev = next((e for e in _timeline_sent if e.get("dedup_key") == f"activity:{mid}:signup"), None)
+check("web 创建发时间线事件", _ev is not None and _ev["source"] == "activity"
+      and _ev["target_url"] == f"/activities/{mid}" and "开始报名" in _ev["title"], str(_timeline_sent[-1:] if _timeline_sent else []))
 r = client.post("/api/activities", headers=OH, json={"type": "relay", "title": "接龙并行"})
 check("单群多活动不再互斥 200", r.status_code == 200 and isinstance(r.json().get("id"), int), r.text)
 DB.activity.update_activity(r.json()["id"], status="cancelled")  # 收尾，避免影响后续用例

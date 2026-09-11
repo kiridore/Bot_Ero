@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.45.2]
+
+- **修复网页创建活动不发时间线事件**：`webapp/activities` 创建路径补齐 signup 事件（此前仅 QQ 创建路径上报，网页创建静默缺失）；事件参数下沉为 `core.timeline_client.activity_event_args` 单一契约（source/dedup/actor/链接）供两个进程共用，防止再漂移；`TIMELINE_URL` 为空（上报关闭）时改为静默跳过而非抛异常刷日志
+
 ## [1.45.1]
 
 - **活动公告补编号与详情链接**：创建活动后的群公告（bot 与 web 管理页同源文案）加入指令改为带活动编号（`/活动 加入 <编号>`、`/活动 开始 <编号>`），并新增网页详情链接 `{web_base_url}/activities/<编号>`（多活动并行下可直接点开查看）

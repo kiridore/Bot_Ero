@@ -8,7 +8,7 @@ from core.config import BOT_QQ, WEB_BASE_URL
 from core.cq import text
 from core.logger import logger
 from core.tiptap import plain_to_tiptap, tiptap_to_plain
-from core.timeline_client import emit_event
+from core.timeline_client import activity_event_args, emit_event
 from core.utils import register_plugin
 
 from .logic import build_ring, relay_assignments, current_turn
@@ -139,16 +139,7 @@ _TYPE_LABEL = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}
 
 def _emit_timeline(activity_id: int, title: str, action: str, description: str) -> None:
     """活动生命周期时间线事件（actor=小埃同学，best-effort 不阻塞主流程）。action: signup/start/finish。"""
-    titles = {"signup": "开始报名", "start": "正式开始", "finish": "已结束归档"}
-    emit_event(
-        source="activity",
-        actor_id=BOT_QQ,
-        actor_qq=BOT_QQ,
-        title=f"「{title}」{titles[action]}",
-        description=description,
-        target_url=f"/activities/{activity_id}",
-        dedup_key=f"activity:{activity_id}:{action}",
-    )
+    emit_event(**activity_event_args(activity_id, title, action, description))
 
 
 def _pick_from(candidates: list[dict], arg: str | None, cmd: str) -> tuple[dict | None, str | None]:
