@@ -17,6 +17,7 @@ from core.event import Event
 from core.tiptap import plain_to_tiptap
 from core.db._base import init_schema
 from core.db.activity import ActivityManager
+import plugins.activity as activity_mod
 from plugins.activity import ActivityPlugin
 from test.helper import MockApiWrapper, make_group_message
 
@@ -44,9 +45,14 @@ class TestCommands(unittest.TestCase):
         self.db = _Db(self.conn)
         self.old_python_data_path = context.python_data_path
         context.python_data_path = "/tmp/test_activity_archive_cmd"
+        # 隔离时间线事件网络调用（best-effort 也会打 127.0.0.1，测试统一拦截记录）
+        self.timeline_events = []
+        self._orig_emit = activity_mod.emit_event
+        activity_mod.emit_event = lambda **kw: self.timeline_events.append(kw)
 
     def tearDown(self):
         context.python_data_path = self.old_python_data_path
+        activity_mod.emit_event = self._orig_emit
         self.conn.close()
 
     def _run(self, text, user_id=123456):
@@ -290,6 +296,25 @@ class TestCommands(unittest.TestCase):
         p = self._run("/活动 状态")
         p.handle()
         self.assertNotIn("报名中", _sent_text(p))
+
+    def test_timeline_lifecycle_events(self):
+        """创建→开始→结束全生命周期各发一条时间线事件（actor=小埃同学）。"""
+        self._run("/活动 创建 接龙 生命周期").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 开始", user_id=123456).handle()
+        self._run("/活动 结束", user_id=123456).handle()
+        acts = self.timeline_events
+        self.assertEqual(len(acts), 3)
+        self.assertEqual([a["dedup_key"].rsplit(":", 1)[-1] for a in acts], ["signup", "start", "finish"])
+        for a in acts:
+            self.assertEqual(a["source"], "activity")
+            self.assertEqual(a["actor_id"], activity_mod.BOT_QQ)
+            self.assertEqual(a["actor_qq"], activity_mod.BOT_QQ)
+            self.assertTrue(a["title"].startswith("「生命周期」"))
+            self.assertEqual(a["target_url"], "/activities/1")
+        self.assertIn("开始报名", acts[0]["title"])
+        self.assertIn("正式开始", acts[1]["title"])
+        self.assertIn("已结束归档", acts[2]["title"])
 
     # ── 征集（collect）──
 

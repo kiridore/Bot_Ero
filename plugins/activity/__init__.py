@@ -4,9 +4,11 @@ import re
 from datetime import datetime, timedelta
 
 from core.base import Plugin
+from core.config import BOT_QQ
 from core.cq import text
 from core.logger import logger
 from core.tiptap import plain_to_tiptap, tiptap_to_plain
+from core.timeline_client import emit_event
 from core.utils import register_plugin
 
 from .logic import build_ring, relay_assignments, current_turn
@@ -133,6 +135,20 @@ def _check_deadlines_future(deadline: str | None, signup_deadline: str | None) -
 
 
 _TYPE_LABEL = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}
+
+
+def _emit_timeline(activity_id: int, title: str, action: str, description: str) -> None:
+    """活动生命周期时间线事件（actor=小埃同学，best-effort 不阻塞主流程）。action: signup/start/finish。"""
+    titles = {"signup": "开始报名", "start": "正式开始", "finish": "已结束归档"}
+    emit_event(
+        source="activity",
+        actor_id=BOT_QQ,
+        actor_qq=BOT_QQ,
+        title=f"「{title}」{titles[action]}",
+        description=description,
+        target_url=f"/activities/{activity_id}",
+        dedup_key=f"activity:{activity_id}:{action}",
+    )
 
 
 def _now() -> str:
@@ -335,6 +351,7 @@ class ActivityPlugin(Plugin):
             self.api.send_msg(text("本群已有进行中的活动"))
             return
         kind = args[0]
+        type_val = {"接龙": "relay", "匹配": "match", "征集": "collect"}[kind]
         rest = args[1:]
         if not rest:
             usage = ("用法：/活动 创建 接龙 <标题> [描述] [参数]\n"
@@ -384,6 +401,8 @@ class ActivityPlugin(Plugin):
             lines.append(f"报名截止：{params['signup_deadline']}（到点自动开始）")
         lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
         self.api.send_msg(text("\n".join(lines)))
+        _emit_timeline(aid, title, "signup", f"{_TYPE_LABEL[type_val]} · 回复 /活动 加入 报名" + (
+            f" · 报名截止 {params['signup_deadline']}" if params["signup_deadline"] else ""))
 
     def _handle_join(self, gid: int, uid: str):
         act = self.dbmanager.activity.get_active_activity(gid)
@@ -573,6 +592,9 @@ def _finish_activity(api, db, act: dict):
     members = db.activity.get_members(act["id"])
     archive_mod.archive_activity(fresh, members)
     _announce_group(api, act["group_id"], f"活动「{act['title']}」结束，已归档！")
+    done = sum(1 for m in members if m["status"] == "done")
+    _emit_timeline(act["id"], act["title"], "finish",
+                   f"{_TYPE_LABEL.get(act['type'], act['type'])} · 完成 {done}/{len(members)} · 作品已归档")
 
 
 def _relay_catchup(api, db, act: dict, members: list[dict]) -> bool:
@@ -640,9 +662,13 @@ def _start_activity(api, db, act: dict) -> str | None:
         )
         _announce_group(api, act["group_id"],
                         f"接龙活动「{act['title']}」开始，{nick_map[first[0]]} 先来！")
+        _emit_timeline(act["id"], act["title"], "start",
+                       f"{_TYPE_LABEL[act['type']]} · {len(users)} 人参加")
     elif act["type"] == "collect":
         _announce_group(api, act["group_id"],
                         f"征集活动「{act['title']}」开始，请大家在 {act['deadline']} 前私聊 /提交 作品！")
+        _emit_timeline(act["id"], act["title"], "start",
+                       f"{_TYPE_LABEL[act['type']]} · {len(users)} 人参加")
     else:
         for uid_, next_uid, _seq in assigns:
             _send_private(
@@ -652,6 +678,8 @@ def _start_activity(api, db, act: dict) -> str | None:
                      f"请为 TA 创作并私聊发送 /提交 附上作品，截止 {act['deadline']}。"),
             )
         _announce_group(api, act["group_id"], f"匹配活动「{act['title']}」开始，请查看私聊！")
+        _emit_timeline(act["id"], act["title"], "start",
+                       f"{_TYPE_LABEL[act['type']]} · {len(users)} 人参加")
     return None
 
 

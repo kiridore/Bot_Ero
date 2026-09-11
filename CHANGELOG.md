@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.44.0]
+
+- **活动生命周期时间线事件**：开始报名 / 报名结束正式开始 / 结束归档三个节点向社区时间线发事件（source `activity`，actor=小埃同学，卡片带活动详情页链接；dedup_key 按阶段幂等，取消不发）
+
 ## [1.43.0]
 
 - **web 端活动加入入口**：详情页报名期（open）对非成员显示「加入活动」按钮，新增 `POST /api/activities/{id}/join`（与 QQ `/活动 加入` 同语义：open 期、重复/非报名期 409，昵称经 OneBot 解析）
