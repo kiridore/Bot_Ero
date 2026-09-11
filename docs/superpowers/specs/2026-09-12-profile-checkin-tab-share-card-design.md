@@ -28,7 +28,7 @@
 - `webapp/static/profile.html` / `profile.js`：Tab 栏 + 打卡网格（月分组、加载更多）、lightbox 记录 id、分享预览弹层
 - `core/web/static/profile.css`：Tab、卡片网格、预览层样式
 - 测试：`test/test_profile_checkins_api.py`（分页 + share.png 200 / 越权 404）、`test/test_checkin_share_card.py`（极端比例输入 → 输出尺寸上界断言）
-- 文档：`CHANGELOG.md` + `core/config.py::BOTERO_VERSION` minor bump；`specs/web-gallery.md` 新路由；`kb/OPERATIONS.md` API 速查补两行
+- 文档：`CHANGELOG.md` + `core/config.py::BOTERO_VERSION` minor bump；`specs/web-gallery.md` 新路由（web 路由不在 kb/OPERATIONS.md，该文件仅记 OneBot API）
 
 ## 边界
 
