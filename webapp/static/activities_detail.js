@@ -1,5 +1,5 @@
 const mainEl = document.getElementById("detailMain");
-const TYPE_LABEL = { relay: "接龙", match: "匹配下家" };
+const TYPE_LABEL = { relay: "接龙", match: "匹配下家", collect: "征集" };
 const STATUS_LABEL = { open: "报名中", running: "进行中", finished: "已结束", cancelled: "已取消" };
 const MEMBER_STATUS_LABEL = { done: "已完成", skipped: "超时跳过", missed: "未提交", left: "已退出", pending: "未完成" };
 const MEMBER_STATUS_ICON = { done: "✓", skipped: "跳过", missed: "未交", left: "退出", pending: "…" };

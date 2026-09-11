@@ -59,7 +59,7 @@ def _format_duration(hours: float) -> str:
 
 def _announcement(act: dict) -> str:
     """创建人复制到群里的公告文案（服务端单一来源）。"""
-    kind = "接龙" if act["type"] == "relay" else "匹配下家"
+    kind = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}.get(act["type"], act["type"])
     lines = [f"【活动发起】{kind}「{act['title']}」（#{act['id']}）"]
     if act["type"] == "relay":
         lines.append(f"每人限时 {_format_duration(act['hours_per_user'] or 48)}")
@@ -158,7 +158,7 @@ def _delete_submission_images(activity_id: int, names: list[str]) -> None:
 
 class ActivityCreateIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: str = Field(pattern="^(relay|match)$")
+    type: str = Field(pattern="^(relay|match|collect)$")
     title: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=4000)  # TipTap JSON 字符串
     hours_per_user: float = Field(default=48.0, gt=0)
@@ -195,8 +195,8 @@ def api_create_activity(body: ActivityCreateIn,
     db = DbManager()
     if db.activity.get_active_activity(DEFAULT_GROUP_ID):
         raise HTTPException(status_code=409, detail="本群已有进行中的活动")
-    if body.type == "match" and not body.deadline:
-        raise HTTPException(status_code=400, detail="匹配活动必须设定截止时间")
+    if body.type in ("match", "collect") and not body.deadline:
+        raise HTTPException(status_code=400, detail="匹配与征集活动必须设定截止时间")
     if not body.title.strip():
         raise HTTPException(status_code=400, detail="标题不能为空")
     deadline = _parse_future_deadline(body.deadline, "截止时间")
@@ -269,6 +269,8 @@ def api_start_activity(activity_id: int,
         raise HTTPException(status_code=409, detail="接龙活动至少需要 1 人报名")
     if act["type"] == "match" and len(members) < 2:
         raise HTTPException(status_code=409, detail="匹配活动至少需要 2 人报名")
+    if act["type"] == "collect" and len(members) < 1:
+        raise HTTPException(status_code=409, detail="征集活动至少需要 1 人报名")
     if act.get("deadline") and act["deadline"] <= _now():  # 与插件 _start_activity 预检一致
         raise HTTPException(status_code=409, detail="截止时间已过，无法开始活动")
     db.activity.update_activity(activity_id, signup_deadline=_now())

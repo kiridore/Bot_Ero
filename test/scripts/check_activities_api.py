@@ -116,6 +116,7 @@ check("接龙公告含限时", "每人限时 2 天" in r.json().get("announce", 
 r = client.get("/api/activities", headers=OH)
 check("列表含 created_by", any(a.get("created_by") == OWNER for a in r.json()["items"]))
 
+
 # —— 开始（B1：signup_deadline=now）——
 r = client.post(f"/api/activities/{rid}/start", headers=OTH)
 check("非 owner 开始 403", r.status_code == 403)
@@ -306,6 +307,32 @@ check("match 他人已提交剥离", row444["content"] is None and row444["image
 DB.activity.update_activity(mid3, status="finished")
 r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H333)
 check("结束后成员可取归档", r.status_code == 200)
+
+# —— 征集（collect）：无截止 400 · 单人可开始 · 提交/结束全流程 ——
+r = client.post("/api/activities", headers=OH, json={"type": "collect", "title": "征集无截止"})
+check("征集无截止 400", r.status_code == 400 and "截止" in r.json().get("detail", ""), r.text)
+r = client.post("/api/activities", headers=OH, json={
+    "type": "collect", "title": "端午征稿", "deadline": FUTURE2,
+    "description": plain_to_tiptap("征集说明")})
+check("征集创建 200", r.status_code == 200 and "征集" in r.json().get("announce", ""), r.text)
+cid = r.json()["id"]
+DB.activity.add_member(cid, "333", "成员甲")  # 报名走 QQ /活动 加入，API 无 join 端点，测试直接入库
+r = client.post(f"/api/activities/{cid}/start", headers=OH)
+check("征集单人可开始", r.status_code == 200, r.text)
+DB.activity.set_ring(cid, [("333", None, 1)])  # 真实链路由 bot 心跳 _start_activity 编号，测试直接写（同 rid3）
+DB.activity.update_activity(cid, status="running")  # web start 延迟到 bot 心跳生效，测试直接置 running（同 rid3）
+r = client.get(f"/api/activities/{cid}/me", headers=H333)
+check("征集可提交", r.status_code == 200 and r.json()["can_submit"] is True, r.text)
+r = client.post(f"/api/activities/{cid}/submit", headers=H333,
+                files=[("files", ("c.png", PNG, "image/png"))], data={"content": "征集作品"})
+check("征集提交 200", r.json() == {"ok": True, "updated": False}, r.text)
+check("征集不存限时", DB.activity.get_activity(cid)["hours_per_user"] is None)
+r = client.post(f"/api/activities/{cid}/finish", headers=OH)
+check("征集提前结束 200", r.status_code == 200, r.text)
+DB.activity.update_activity(cid, status="finished")  # finish 同样延迟到 bot 心跳，测试直接置 finished（同 rid3）
+r = client.get(f"/api/activities/{cid}", headers=H333)
+collect_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
+check("征集归档公开", collect_row["content"] == "征集作品" and collect_row["images"] == [f"/archive/{cid}/media/1-1.png"])
 
 # —— 页面路由（登录门控由 middleware 处理，Bearer 可过）——
 r = client.get("/activities/new", headers=OH, follow_redirects=False)

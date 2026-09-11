@@ -43,6 +43,7 @@
         <div class="radio-row">
           <label><input type="radio" name="actType" value="relay" checked />接龙</label>
           <label><input type="radio" name="actType" value="match" />匹配下家</label>
+          <label><input type="radio" name="actType" value="collect" />征集</label>
         </div>
       </div>
       <div class="form-row">
@@ -62,7 +63,7 @@
         <input type="datetime-local" id="signupDeadline" />
       </div>
       <div class="form-row">
-        <label for="deadline">截止时间 <span id="deadlineMust" hidden style="color: var(--red)">（匹配必填）</span></label>
+        <label for="deadline">截止时间 <span id="deadlineMust" hidden style="color: var(--red)">（匹配/征集必填）</span></label>
         <input type="datetime-local" id="deadline" />
       </div>
       <button class="btn-primary" id="submitBtn">创建活动</button>

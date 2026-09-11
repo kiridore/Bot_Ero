@@ -17,7 +17,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | 个人中心 | `profile` | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） | 个人主页/打卡/商店/称号/设置 5 域聚合 |
 | 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}`） | 车卡创建/编辑/查看 |
 | 日程/闹钟 | `alarms` | `/profile/schedule`（旧 `/alarms` 302） | 月历展开 + 闹钟 CRUD |
-| 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情（结束后可一键生成分享长图 PNG 下载） |
+| 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情（接龙/匹配/征集三类，结束后可一键生成分享长图 PNG 下载） |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
 | 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ 打卡隐私读侧过滤（见「时间线打卡隐私」约束）+ `entries.json` |
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |

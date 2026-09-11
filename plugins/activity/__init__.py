@@ -132,6 +132,9 @@ def _check_deadlines_future(deadline: str | None, signup_deadline: str | None) -
     return None
 
 
+_TYPE_LABEL = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}
+
+
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -316,6 +319,7 @@ class ActivityPlugin(Plugin):
             "活动指令：\n"
             "/活动 创建 接龙 <标题> [每人时限]（如 48小时 / 2天）\n"
             "/活动 创建 匹配 <标题> <截止 YYYY-MM-DD HH:MM>\n"
+            "/活动 创建 征集 <标题> <截止 YYYY-MM-DD HH:MM>\n"
             "/活动 加入 / 退出\n"
             "/活动 开始（创建人）\n"
             "/活动 状态 / 结束（创建人）"
@@ -324,8 +328,8 @@ class ActivityPlugin(Plugin):
     def _handle_create(self, args: list[str]):
         gid = self.bot_event.group_id
         uid = str(self.bot_event.user_id)
-        if not args or args[0] not in ("接龙", "匹配"):
-            self.api.send_msg(text("用法：/活动 创建 接龙|匹配 <标题> [描述] [参数]"))
+        if not args or args[0] not in ("接龙", "匹配", "征集"):
+            self.api.send_msg(text("用法：/活动 创建 接龙|匹配|征集 <标题> [描述] [参数]"))
             return
         if self.dbmanager.activity.get_active_activity(gid):
             self.api.send_msg(text("本群已有进行中的活动"))
@@ -351,6 +355,17 @@ class ActivityPlugin(Plugin):
             lines = [
                 f"接龙活动「{title}」已创建（#{aid}）",
                 f"每人限时 {format_duration(params['hours'])}",
+            ]
+        elif kind == "征集":
+            if not params["deadline"]:
+                self.api.send_msg(text("征集活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
+                return
+            aid = self.dbmanager.activity.create_activity(
+                gid, "collect", title, plain_to_tiptap(params["description"]) if params["description"] else None, uid,
+                deadline=params["deadline"], signup_deadline=params["signup_deadline"])
+            lines = [
+                f"征集活动「{title}」已创建（#{aid}）",
+                f"截止时间 {params['deadline']}",
             ]
         else:
             if not params["deadline"]:
@@ -407,7 +422,7 @@ class ActivityPlugin(Plugin):
             self._handle_leave_running(act, member)
 
     def _handle_leave_running(self, act: dict, member: dict):
-        """进行中退出：接龙摘链（仅当轮到 TA 时顺延），匹配闭合环。"""
+        """进行中退出：接龙摘链（仅当轮到 TA 时顺延），匹配闭合环，征集仅标记退出。"""
         members = self.dbmanager.activity.get_members(act["id"])
         cur = current_turn(members)
         self.dbmanager.activity.update_member(act["id"], member["user_id"], status="left")
@@ -417,7 +432,7 @@ class ActivityPlugin(Plugin):
             if cur and cur["user_id"] == member["user_id"]:
                 if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
                     _finish_activity(self.api, self.dbmanager, act)
-        else:
+        elif act["type"] == "match":
             _match_reconnect(self.api, self.dbmanager, act, member["user_id"], members)
 
     def _handle_start(self, gid: int, uid: str):
@@ -441,7 +456,7 @@ class ActivityPlugin(Plugin):
             self.api.send_msg(text("本群没有进行中的活动"))
             return
         members = self.dbmanager.activity.get_members(act["id"])
-        lines = [f"「{act['title']}」（{'匹配下家' if act['type'] == 'match' else '接龙'} #{act['id']}）"]
+        lines = [f"「{act['title']}」（{_TYPE_LABEL.get(act['type'], act['type'])} #{act['id']}）"]
         if act.get("description"):
             lines.append(f"描述：{tiptap_to_plain(act['description'])}")
         if act["status"] == "open":
@@ -601,6 +616,10 @@ def _start_activity(api, db, act: dict) -> str | None:
         if not users:
             return "接龙活动至少需要 1 人"
         assigns = relay_assignments(users)
+    elif act["type"] == "collect":
+        if not users:
+            return "征集活动至少需要 1 人"
+        assigns = [(u, None, i + 1) for i, u in enumerate(users)]  # 仅按报名序编号，无链环
     else:
         if len(users) < 2:
             return "匹配活动至少需要 2 人"
@@ -621,6 +640,9 @@ def _start_activity(api, db, act: dict) -> str | None:
         )
         _announce_group(api, act["group_id"],
                         f"接龙活动「{act['title']}」开始，{nick_map[first[0]]} 先来！")
+    elif act["type"] == "collect":
+        _announce_group(api, act["group_id"],
+                        f"征集活动「{act['title']}」开始，请大家在 {act['deadline']} 前私聊 /提交 作品！")
     else:
         for uid_, next_uid, _seq in assigns:
             _send_private(

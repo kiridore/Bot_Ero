@@ -291,6 +291,70 @@ class TestCommands(unittest.TestCase):
         p.handle()
         self.assertNotIn("报名中", _sent_text(p))
 
+    # ── 征集（collect）──
+
+    def test_collect_create_requires_deadline(self):
+        p = self._run("/活动 创建 征集 端午征稿")
+        p.handle()
+        self.assertIn("截止", _sent_text(p))
+
+    def test_collect_create_and_flow(self):
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        p = self._run(f"/活动 创建 征集 端午征稿 {d}")
+        p.handle()
+        self.assertIn("征集活动", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["type"], "collect")
+        self.assertEqual(act["deadline"], d + ":00")
+        self.assertIsNone(act["hours_per_user"])
+
+        for uid in (123456, 234567):
+            self._run("/活动 加入", user_id=uid).handle()
+        p = self._run("/活动 开始", user_id=123456)
+        p.handle()
+        self.assertIn("征集活动", _sent_text(p))
+        self.assertIn("开始", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        self.assertEqual(act["status"], "running")
+        members = self.db.activity.get_members(act["id"])
+        # 不建链环：无下家、无计时激活
+        self.assertTrue(all(m["next_user_id"] is None for m in members))
+        self.assertTrue(all(m["received_at"] is None for m in members))
+
+    def test_collect_single_member_can_start(self):
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 征集 独自创作 {d}").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        p = self._run("/活动 开始", user_id=123456)
+        p.handle()
+        self.assertNotIn("至少", _sent_text(p))
+        self.assertEqual(self.db.activity.get_active_activity(GID)["status"], "running")
+
+    def test_collect_leave_running_marks_left(self):
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 征集 征稿 {d}").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 加入", user_id=234567).handle()
+        self._run("/活动 开始", user_id=123456).handle()
+        p = self._run("/活动 退出", user_id=234567)
+        p.handle()
+        self.assertIn("已退出", _sent_text(p))
+        act = self.db.activity.get_active_activity(GID)
+        m = self.db.activity.get_member(act["id"], "234567")
+        self.assertEqual(m["status"], "left")
+
+    def test_collect_status_shows_progress(self):
+        d = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+        self._run(f"/活动 创建 征集 征稿 {d}").handle()
+        self._run("/活动 加入", user_id=123456).handle()
+        self._run("/活动 开始", user_id=123456).handle()
+        p = self._run("/活动 状态")
+        p.handle()
+        t = _sent_text(p)
+        self.assertIn("征集", t)
+        self.assertIn("截止", t)
+
+
 
 if __name__ == "__main__":
     unittest.main()

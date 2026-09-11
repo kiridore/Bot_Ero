@@ -11,9 +11,10 @@
   // 匹配必填截止、限时仅接龙显示
   document.querySelectorAll("input[name=actType]").forEach(function (r) {
     r.addEventListener("change", function () {
-      const isMatch = document.querySelector("input[name=actType]:checked").value === "match";
-      document.getElementById("deadlineMust").hidden = !isMatch;
-      document.getElementById("hoursRow").style.display = isMatch ? "none" : "";
+      const type = document.querySelector("input[name=actType]:checked").value;
+      const needDeadline = type === "match" || type === "collect";
+      document.getElementById("deadlineMust").hidden = !needDeadline;
+      document.getElementById("hoursRow").style.display = type === "relay" ? "" : "none";
     });
   });
 
@@ -36,7 +37,7 @@
     const title = document.getElementById("title").value.trim();
     if (!title) { showMsg("请填写标题", false); return; }
     const deadline = toServerTime(document.getElementById("deadline").value);
-    if (type === "match" && !deadline) { showMsg("匹配活动必须设定截止时间", false); return; }
+    if ((type === "match" || type === "collect") && !deadline) { showMsg("匹配与征集活动必须设定截止时间", false); return; }
     const body = { type: type, title: title, deadline: deadline || null };
     const descDoc = descEditor ? descEditor.getJSON() : null;
     if (descDoc && RichText.docText(descDoc)) body.description = JSON.stringify(descDoc);

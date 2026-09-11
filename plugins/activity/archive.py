@@ -70,9 +70,11 @@ def archive_activity(activity: dict, members: list[dict]):
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     is_match = activity["type"] == "match"
+    _type_label = {"relay": "接龙", "match": "匹配下家", "collect": "征集"}.get(
+        activity["type"], activity["type"])
     lines = ["# 活动归档", ""]
     lines.append(f"- 标题：{activity['title']}")
-    lines.append(f"- 类型：{'匹配下家' if is_match else '接龙'}")
+    lines.append(f"- 类型：{_type_label}")
     if activity.get("description"):
         lines.append(f"- 描述：{tiptap_to_plain(activity['description'])}")
     lines.append(f"- 开始：{activity['created_at']}")
@@ -81,7 +83,7 @@ def archive_activity(activity: dict, members: list[dict]):
     lines.append("---")
     lines.append("")
 
-    title = "作品" if is_match else "接力"
+    title = "接力" if activity["type"] == "relay" else "作品"
     for i, m in enumerate(sorted(members, key=lambda x: x["seq"]), 1):
         lines.append(f"## {title} {i}")
         lines += _member_block(m)

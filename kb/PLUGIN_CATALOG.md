@@ -38,7 +38,7 @@
 | 28 | `weekly_quest` | `weekly_quest/` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
 | 29 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团记录` + 录制期间全匹配 | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
 | 30 | `who_is_spy` | `who_is_spy/` | 自定义 match: `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` + 私聊游戏阶段输入 | 谁是卧底：群聊创建房间，私聊匿名发言+投票 |
-| 31 | `activity` | `activity/` | 自定义 match: 群聊 `/活动` + 私聊 `/提交` | 群活动：接龙（每人限时、机器人接力转发）与匹配下家（圆桌单环，开始通知下家、作品玩家自提，机器人仅记录归档），结束自动归档 |
+| 31 | `activity` | `activity/` | 自定义 match: 群聊 `/活动` + 私聊 `/提交` | 群活动：接龙（每人限时、机器人接力转发）、匹配下家（圆桌单环，开始通知下家、作品玩家自提）与征集（各自在截止前提交一次，无链环），结束自动归档 |
 | 45 | `redeem_code` | `redeem_code/` | CommandPlugin `/兑换码`/`/兌換碼` | 兑换码系统：一次性兑换码，回调发放奖励 |
 
 ## 通知/请求处理
@@ -57,7 +57,7 @@
 | 35 | `shop_weekly_rotation` | `redeem_shop/` | 每周一 08:00 | 刷新商店货架 |
 | 36 | `startup_changelog` | `startup_changelog/` | 启动后首次 meta | 发送"早上好！小埃同学开机啦" |
 | 37 | `weekly_quest_reset` | `weekly_quest/` | 每周一 08:00 | 清理过期任务进度 |
-| 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配截止结束、网页接力提交补推进 |
+| 38 | `activity_timer` | `activity/` | 每 60 秒（meta 心跳） | 活动计时：接龙超时跳过、匹配/征集截止结束、网页接力提交补推进 |
 | 44 | `forum_notify` | `forum_notify/` | 每分钟（meta 心跳） | 议事厅新帖群通知 + 过期投票自动关闭 |
 | 47 | `weekly_report` | `weekly_report/` | 每周一 08:00 | 聚合消息日志与玩法数据，生成群周报并归档；出版后默认群通知 + 时间线事件（`config.yaml` `weekly.notify` 可关）；仅日志覆盖到的完整周出报，启动补漏不越过日志起点 |
 
