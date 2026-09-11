@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from core import config
 from core.base import SUPER_USER
-from core.config import ACTIVITY_ROOT
+from core.config import ACTIVITY_ROOT, WEB_BASE_URL
 from core.context import DEFAULT_GROUP_ID
 from core.database_manager import DbManager
 from core.onebot_client import resolve_display_name
@@ -70,7 +70,8 @@ def _announcement(act: dict) -> str:
         lines.append(f"描述：{tiptap_to_plain(act['description'])}")
     if act.get("signup_deadline"):
         lines.append(f"报名截止：{act['signup_deadline']}（到点自动开始）")
-    lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
+    lines.append(f"回复 /活动 加入 {act['id']} 报名，报名完成后由创建人 /活动 开始 {act['id']}")
+    lines.append(f"详情：{WEB_BASE_URL}/activities/{act['id']}")
     return "\n".join(lines)
 
 

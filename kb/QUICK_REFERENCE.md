@@ -33,7 +33,7 @@
 | `auth` | `salt` | ✅ | 登录密钥盐（HMAC；bot 生成与 webapp 验证共用） |
 | | `old_salts` | ❌ | 换盐后旧盐列表，旧密钥无感迁移 |
 | `timeline` | `url` / `token` | 私有✅ | Event Server 基地址与系统间事件令牌；社区形态可省（留空 = 上报关闭） |
-| `weekly` | `web_base_url` / `notify` | ❌ | 周报链接前缀 / 出版通知开关 |
+| `weekly` | `web_base_url` / `notify` | ❌ | 站内链接前缀（周报/活动公告） / 出版通知开关 |
 | `uploads` | `checkin_max_images` / `checkin_max_bytes` / `forum_image_max_bytes` | ❌ | 上传限制 |
 | `thumbs` | `cache_dir` / `max_width` / `max_height` / `jpeg_quality` | ❌ | 缩略图参数 |
 | `live` | `flv_url` | ❌ | 直播 FLV 流地址 |

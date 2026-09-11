@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timedelta
 
 from core.base import Plugin
-from core.config import BOT_QQ
+from core.config import BOT_QQ, WEB_BASE_URL
 from core.cq import text
 from core.logger import logger
 from core.tiptap import plain_to_tiptap, tiptap_to_plain
@@ -417,7 +417,8 @@ class ActivityPlugin(Plugin):
             lines.append(f"描述：{params['description']}")
         if params["signup_deadline"]:
             lines.append(f"报名截止：{params['signup_deadline']}（到点自动开始）")
-        lines.append("回复 /活动 加入 报名，报名完成后由创建人 /活动 开始")
+        lines.append(f"回复 /活动 加入 {aid} 报名，报名完成后由创建人 /活动 开始 {aid}")
+        lines.append(f"详情：{WEB_BASE_URL}/activities/{aid}")
         self.api.send_msg(text("\n".join(lines)))
         _emit_timeline(aid, title, "signup", f"{_TYPE_LABEL[type_val]} · 回复 /活动 加入 报名" + (
             f" · 报名截止 {params['signup_deadline']}" if params["signup_deadline"] else ""))

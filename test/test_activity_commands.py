@@ -68,6 +68,10 @@ class TestCommands(unittest.TestCase):
         p.handle()
         self.assertIn("端午接龙", _sent_text(p))
         act = self.db.activity.get_active_activity(GID)
+        # 公告文案含活动编号与网页详情链接（多活动并行时加入需带编号）
+        t = _sent_text(p)
+        self.assertIn(f"/活动 加入 {act['id']}", t)
+        self.assertIn(f"/activities/{act['id']}", t)
         self.assertIsNotNone(act)
         self.assertEqual(act["type"], "relay")
         self.assertEqual(act["hours_per_user"], 48.0)

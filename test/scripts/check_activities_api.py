@@ -85,6 +85,8 @@ r = client.get(f"/api/activities/{mid}/announce", headers=OTH)
 check("非 owner 查公告 403", r.status_code == 403)
 r = client.get(f"/api/activities/{mid}/announce", headers=OH)
 check("owner 查公告 200", r.status_code == 200 and "活动发起" in r.json().get("announce", ""))
+_ann = r.json().get("announce", "")
+check("公告含编号加入指令与详情链", f"/活动 加入 {mid}" in _ann and f"/activities/{mid}" in _ann, _ann)
 
 # —— 编辑 ——
 r = client.patch(f"/api/activities/{mid}", headers=OTH, json={"title": "抢改"})
