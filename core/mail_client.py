@@ -6,11 +6,14 @@ API 文档：https://doc.skymail.ink/api/api-doc.html
 """
 
 import base64
+import logging
 from functools import lru_cache
 
 import requests
 
 from core import config
+
+logger = logging.getLogger(__name__)
 
 _TIMEOUT = 15
 _MAX_ATTACHMENTS = 10  # 服务端上限
@@ -32,9 +35,11 @@ def _call(method: str, path: str, *, token: str | None = None, json_body: dict |
             method, f"{config.CLOUDMAIL_URL.rstrip('/')}{path}",
             headers=headers, json=json_body, timeout=_TIMEOUT)
         data = resp.json()
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as exc:
+        logger.warning("cloud-mail 请求异常 %s %s%s: %s", method, config.CLOUDMAIL_URL, path, exc)
         return None
     if not isinstance(data, dict):
+        logger.warning("cloud-mail 响应非 JSON 对象 %s %s: HTTP %s", method, path, resp.status_code)
         return None
     return int(data.get("code") or 0), data
 
@@ -46,9 +51,14 @@ def _login(force: bool = False) -> str | None:
     result = _call("POST", "/api/login", json_body={
         "email": config.CLOUDMAIL_EMAIL, "password": config.CLOUDMAIL_PASSWORD})
     if not result or result[0] != 200:
+        logger.warning(
+            "cloud-mail 登录失败: %s",
+            result[1].get("message") if result else "请求失败（见上方异常日志）",
+        )
         return None
     token = (result[1].get("data") or {}).get("token")
     if not token:
+        logger.warning("cloud-mail 登录成功但响应缺少 token")
         return None
     _token = str(token)
     return _token
@@ -61,9 +71,14 @@ def _account_id() -> int | None:
         return None
     result = _call("GET", "/api/account/list?size=1", token=token)
     if not result or result[0] != 200:
+        logger.warning(
+            "cloud-mail 取发件账号列表失败: %s",
+            result[1].get("message") if result else "请求失败（见上方异常日志）",
+        )
         return None
     items = result[1].get("data") or []
     if not items:
+        logger.warning("cloud-mail 发件账号列表为空：请在 cloud-mail 后台创建邮箱账号")
         return None
     return int(items[0]["accountId"])
 

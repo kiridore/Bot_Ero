@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [未发布]
+
+- **内部**：cloud-mail 发信客户端（`core/mail_client.py`）失败路径补齐日志——请求异常（网络/TLS/代理）、登录失败（含服务端 message）、发件账号列表为空各自出 `WARNING`，不再静默返回 None 靠猜排查
+
 ## [1.47.0]
 
 - **个人中心邮箱绑定**：设置页新增「账号邮箱」卡片，绑定/换绑/解绑均经邮箱验证码确认（6 位数字、10 分钟有效、60 秒发送冷却、错 5 次作废）；验证邮件经 cloud-mail 发送（`config.yaml mail` 节未配置时提示功能未开启）；绑定结果存个人设置，`GET /api/me/settings` 新增 `email` 字段
