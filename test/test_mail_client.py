@@ -164,5 +164,27 @@ class MailClientTest(unittest.TestCase):
         req.assert_not_called()
 
 
+    def test_proxy_scoped_to_cloud_mail_only(self):
+        """mail.proxy 仅注入本客户端请求：配置时全部请求带 proxies，未配置时 None。"""
+        routes = {
+            "/api/login": {"code": 200, "data": {"token": "t0"}},
+            "/api/account/list?size=1": {"code": 200, "data": [{"accountId": 7}]},
+            "/api/email/send": {"code": 200, "data": {"id": 1}},
+        }
+        rec = _Recorder(routes)
+        with patch("core.mail_client.requests.request", side_effect=rec):
+            self.assertTrue(mail_client.send_email(["a@x.com"], "s", "<p>h</p>")[0])
+        self.assertTrue(rec.calls)
+        self.assertTrue(all(kw.get("proxies") is None for _, _, kw in rec.calls))
+
+        rec2 = _Recorder(routes)
+        with patch.multiple(config, CLOUDMAIL_PROXY="http://127.0.0.1:7890"):
+            with patch("core.mail_client.requests.request", side_effect=rec2):
+                self.assertTrue(mail_client.send_email(["a@x.com"], "s", "<p>h</p>")[0])
+        expected = {"http": "http://127.0.0.1:7890", "https": "http://127.0.0.1:7890"}
+        self.assertTrue(rec2.calls)
+        self.assertTrue(all(kw.get("proxies") == expected for _, _, kw in rec2.calls))
+
+
 if __name__ == "__main__":
     unittest.main()

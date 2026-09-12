@@ -30,10 +30,12 @@ def _call(method: str, path: str, *, token: str | None = None, json_body: dict |
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = token  # 文档要求：不加 Bearer 前缀
+    proxy = config.CLOUDMAIL_PROXY  # 代理仅限本客户端，避免进程级环境变量劫持其他内部调用
+    proxies = {"http": proxy, "https": proxy} if proxy else None
     try:
         resp = requests.request(
             method, f"{config.CLOUDMAIL_URL.rstrip('/')}{path}",
-            headers=headers, json=json_body, timeout=_TIMEOUT)
+            headers=headers, json=json_body, timeout=_TIMEOUT, proxies=proxies)
         data = resp.json()
     except (requests.RequestException, ValueError) as exc:
         logger.warning("cloud-mail 请求异常 %s %s%s: %s", method, config.CLOUDMAIL_URL, path, exc)

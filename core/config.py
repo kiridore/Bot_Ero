@@ -159,6 +159,7 @@ CLOUDMAIL_URL = str(_mail.get("url") or "")
 CLOUDMAIL_EMAIL = str(_mail.get("email") or "")
 CLOUDMAIL_PASSWORD = str(_mail.get("password") or "")
 CLOUDMAIL_SENDER_NAME = str(_mail.get("sender_name") or "")
+CLOUDMAIL_PROXY = _mail.get("proxy") or None  # 仅 cloud-mail 请求走此代理；None = 直连（不动进程级环境）
 
 # —— bot 内置监控面板（可选；局域网访问，图库密钥超管鉴权）——
 _panel = _sec("panel")
