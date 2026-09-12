@@ -28,6 +28,7 @@ os.environ["BOTERO_CONFIG"] = write_config(
 )
 
 from core import config  # noqa: E402
+from core import context  # noqa: E402
 from core.database_manager import init_schema  # noqa: E402
 
 _conn = sqlite3.connect(_db)
@@ -99,21 +100,45 @@ check("page2 no more", d2["has_more"] is False)
 
 rid = d1["items"][0]["id"]
 
-# --- 分享卡 ---
+# --- 头像同源代理（DOM 转图依赖；无 OneBot 源时降级 404） ---
+r404a = client.get("/api/me/avatar.png", headers=MH)
+check("avatar 无源 404", r404a.status_code == 404, str(r404a.status_code))
+
+from webapp.profile import avatar_service  # noqa: E402
+
+src_png = os.path.join(_tmp, "avatar_src.png")
+with open(src_png, "wb") as f:
+    f.write(_png(16, 16))
+_orig_url = avatar_service.resolve_avatar_url
+avatar_service.resolve_avatar_url = lambda uid: "file://" + src_png
+try:
+    ra = client.get("/api/me/avatar.png", headers=MH)
+    check("avatar 200", ra.status_code == 200, str(ra.status_code))
+    check("avatar png magic", ra.content[:8] == b"\x89PNG\r\n\x1a\n")
+    check("avatar cache-control", "max-age=86400" in ra.headers.get("cache-control", ""))
+finally:
+    avatar_service.resolve_avatar_url = _orig_url
+rb = client.get("/api/me/avatar.png", headers=MH)
+check("avatar 二次命中缓存", rb.status_code == 200 and rb.content[:8] == b"\x89PNG\r\n\x1a\n")
+
+cache_file = Path(context.python_data_path) / "avatar_cache" / f"share_{ME}.png"
+cache_file.write_bytes(b"garbage-not-a-png")
+avatar_service.resolve_avatar_url = lambda uid: "file://" + src_png
+try:
+    rc = client.get("/api/me/avatar.png", headers=MH)
+    check("avatar 损坏缓存自愈", rc.status_code == 200 and rc.content[:8] == b"\x89PNG\r\n\x1a\n", str(rc.status_code))
+finally:
+    avatar_service.resolve_avatar_url = _orig_url
+
+# --- PIL 分享链路已删除 ---
 rs = client.get(f"/api/me/checkin/{rid}/share.png", headers=MH)
-check("share 200", rs.status_code == 200, str(rs.status_code))
-check("share content-type png", rs.headers.get("content-type", "").startswith("image/png"))
-check("share png magic", rs.content[:8] == b"\x89PNG\r\n\x1a\n", repr(rs.content[:8]))
-check("share size bound", len(rs.content) < 4 * 1024 * 1024)
+check("旧分享路由已移除 404", rs.status_code == 404, str(rs.status_code))
 
-ro = client.get(f"/api/me/checkin/{rid}/share.png", headers=OH)
-check("他人记录 404", ro.status_code == 404, str(ro.status_code))
-r404 = client.get("/api/me/checkin/999999/share.png", headers=MH)
-check("不存在 404", r404.status_code == 404, str(r404.status_code))
-
-mid = cur.execute("SELECT id FROM checkin_records WHERE content='missing.png'").fetchone()[0]
-rm = client.get(f"/api/me/checkin/{mid}/share.png", headers=MH)
-check("无文件 404", rm.status_code == 404, str(rm.status_code))
+# --- profile 字段 ---
+rp = client.get("/api/me/profile", headers=MH)
+dp = rp.json()
+check("profile 200", rp.status_code == 200, str(rp.status_code))
+check("total_checkin_images=26", dp.get("total_checkin_images") == 26, str(dp.get("total_checkin_images")))
 
 ra = client.get("/api/me/checkins?page=1")
 check("未登录 401", ra.status_code == 401, str(ra.status_code))

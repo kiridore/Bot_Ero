@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from webapp.gallery.repository import (
@@ -15,10 +15,10 @@ from webapp.gallery.repository import (
 from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.web.auth_deps import get_current_user_id
+from webapp.profile.avatar_service import cached_avatar_path
 from webapp.profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from webapp.profile import email_service
 from webapp.profile.profile_service import build_profile
-from webapp.profile.share_service import build_share_png
 from webapp.profile.shop_service import get_shop, redeem_shop_item
 from webapp.profile.title_settings import (
     clear_equipped_titles,
@@ -153,19 +153,14 @@ def api_my_checkins(
     )
 
 
-@router.get("/api/me/checkin/{record_id}/share.png")
-def api_checkin_share_png(
-    record_id: int,
+@router.get("/api/me/avatar.png")
+def api_my_avatar_png(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
-    data = build_share_png(record_id, user_id)
-    if data is None:
-        raise HTTPException(status_code=404, detail="打卡记录不存在")
-    return Response(
-        content=data,
-        media_type="image/png",
-        headers={"Cache-Control": "private, max-age=300"},
-    )
+    path = cached_avatar_path(user_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="头像不可用")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
 
 def _title_settings_or_400(fn, user_id: str, *args):

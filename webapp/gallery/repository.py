@@ -174,23 +174,3 @@ def fetch_user_settlement_day(
         )
     return items
 
-
-def fetch_checkin_by_id(record_id: int) -> Optional[CheckinImage]:
-    with _connect() as conn:
-        r = conn.execute(
-            """
-            SELECT id, user_id, checkin_date, content
-            FROM checkin_records
-            WHERE id = ?
-            """,
-            (record_id,),
-        ).fetchone()
-    if r is None:
-        return None
-    return CheckinImage(
-        id=r["id"],
-        user_id=str(r["user_id"]),
-        checkin_date=r["checkin_date"],
-        content=r["content"],
-        image_path=resolve_image_path(r["user_id"], r["content"]),
-    )

@@ -916,12 +916,6 @@
   overflow-y: auto;
 }
 
-.share-dialog-body img {
-  display: block;
-  width: 100%;
-  border-radius: var(--radius-sm);
-}
-
 .share-dialog-actions {
   display: flex;
   justify-content: center;
@@ -935,6 +929,95 @@
   color: #fff;
   text-decoration: none;
   font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.share-card-host {
+  overflow: hidden;
+}
+
+.share-card {
+  width: 1080px;
+  background: #f5f5f5;
+  color: #2d2d2d;
+  padding: 36px 40px 32px;
+  box-sizing: border-box;
+  transform-origin: top left;
+}
+
+.share-card-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.share-card-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.share-card-initial {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e1e4e9;
+  color: #2d2d2d;
+  font-size: 44px;
+}
+
+.share-card-name {
+  font-size: 40px;
+  font-weight: 700;
+}
+
+.share-card-date {
+  margin-top: 12px;
+  font-size: 28px;
+  color: #6e6e6e;
+}
+
+.share-photo {
+  position: relative;
+  margin-top: 24px;
+  overflow: hidden;
+}
+
+.share-photo-bg {
+  position: absolute;
+  inset: -40px;
+  background-position: center;
+  background-size: cover;
+  filter: blur(40px) brightness(1.08);
+}
+
+.share-photo img {
+  position: relative;
+  display: block;
+  max-width: 1000px;
+  max-height: 1250px;
+  margin: 0 auto;
+}
+
+.share-card-stats {
+  margin-top: 28px;
+  font-size: 30px;
+  color: #6e6e6e;
+}
+
+.share-card-footer {
+  margin-top: 16px;
+  font-size: 26px;
+  color: #6e6e6e;
+  text-align: right;
 }
 
 /* ---- 账号邮箱卡片 ---- */

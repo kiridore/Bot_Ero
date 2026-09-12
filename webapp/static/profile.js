@@ -6,7 +6,6 @@ const dayDialogClose = document.getElementById("dayDialogClose");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxClose = document.getElementById("lightboxClose");
-const shareImg = document.getElementById("shareImg");
 const loginDialog = document.getElementById("loginDialog");
 const loginForm = document.getElementById("loginForm");
 const loginKey = document.getElementById("loginKey");
@@ -17,7 +16,7 @@ let profileData = null;
 let titleFilter = "all";
 let activeTab = "titles";
 let checkinState = { loaded: false, page: 0, hasMore: true, loading: false, lastMonth: "" };
-let currentRecordId = null;
+let currentRecord = null;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -64,11 +63,11 @@ function renderAuthChip() {
   area.appendChild(link);
 }
 
-function openLightbox(url, recordId = null) {
-  lightboxImg.src = url;
-  currentRecordId = recordId;
+function openLightbox(record) {
+  lightboxImg.src = record.image_url;
+  currentRecord = record;
   const shareBtn = document.getElementById("lightboxShare");
-  if (shareBtn) shareBtn.classList.toggle("hidden", recordId == null);
+  if (shareBtn) shareBtn.classList.toggle("hidden", record.id == null);
   lightbox.classList.remove("hidden");
 }
 
@@ -99,7 +98,7 @@ async function openDay(date) {
     img.loading = "lazy";
     img.src = item.thumbnail_url || item.image_url;
     img.alt = item.checkin_date;
-    img.addEventListener("click", () => openLightbox(item.image_url, item.id));
+    img.addEventListener("click", () => openLightbox(item));
     dayDialogGrid.appendChild(img);
   }
 }
@@ -219,7 +218,7 @@ function appendCheckinCards(items) {
     label.className = "checkin-card-date";
     label.textContent = it.checkin_date.slice(0, 16);
     card.append(img, label);
-    card.addEventListener("click", () => openLightbox(it.image_url, it.id));
+    card.addEventListener("click", () => openLightbox(it));
     grid.appendChild(card);
   }
 }
@@ -361,16 +360,117 @@ const shareDialog = document.getElementById("shareDialog");
 const shareDialogClose = document.getElementById("shareDialogClose");
 const lightboxShareBtn = document.getElementById("lightboxShare");
 
+const WEEKDAY_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+function formatCheckinDateCN(s) {
+  const d = new Date(String(s).replace(" ", "T"));
+  if (isNaN(d)) return s;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${WEEKDAY_CN[d.getDay()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function buildShareCardNode(record) {
+  const p = profileData || {};
+  const name = p.display_name || "打卡用户";
+  const card = document.createElement("div");
+  card.className = "share-card";
+
+  const header = document.createElement("div");
+  header.className = "share-card-header";
+  const avatar = document.createElement("img");
+  avatar.className = "share-card-avatar";
+  avatar.src = "/api/me/avatar.png";
+  avatar.alt = name;
+  const initial = document.createElement("div");
+  initial.className = "share-card-initial";
+  initial.textContent = name.trim().slice(0, 1) || "?";
+  avatar.onerror = () => avatar.replaceWith(initial);
+  const headText = document.createElement("div");
+  const nameEl = document.createElement("div");
+  nameEl.className = "share-card-name";
+  nameEl.textContent = name;
+  const dateEl = document.createElement("div");
+  dateEl.className = "share-card-date";
+  dateEl.textContent = formatCheckinDateCN(record.checkin_date);
+  headText.append(nameEl, dateEl);
+  header.append(avatar, headText);
+
+  const photo = document.createElement("div");
+  photo.className = "share-photo";
+  const bg = document.createElement("div");
+  bg.className = "share-photo-bg";
+  bg.style.backgroundImage = `url("${record.image_url}")`;
+  const img = document.createElement("img");
+  img.src = record.image_url;
+  img.alt = "打卡图片";
+  img.addEventListener("load", fitShareCardHost);
+  img.onerror = () => { photo.style.minHeight = "240px"; };
+  photo.append(bg, img);
+
+  const stats = document.createElement("div");
+  stats.className = "share-card-stats";
+  const streak = (p.streaks && p.streaks.current_daily) || 0;
+  stats.textContent = `连续打卡 ${streak} 天 · 累计 ${p.total_checkin_images || 0} 张`;
+
+  const footer = document.createElement("div");
+  footer.className = "share-card-footer";
+  footer.textContent = "Power by 小埃同学";
+
+  card.append(header, photo, stats, footer);
+  return card;
+}
+
+function fitShareCardHost() {
+  const host = document.getElementById("shareCardHost");
+  const node = host && host.querySelector(".share-card");
+  if (!host || !node) return;
+  const scale = host.clientWidth / 1080;
+  node.style.transform = `scale(${scale})`;
+  host.style.height = node.offsetHeight * scale + "px";
+}
+
 function openShareCard() {
-  if (currentRecordId == null) return;
-  const url = `/api/me/checkin/${currentRecordId}/share.png`;
-  shareImg.src = url;
-  const dl = document.getElementById("shareDownload");
-  dl.href = url;
-  shareDialog.showModal();
+  if (!currentRecord) return;
+  shareDialog.showModal(); // 先开弹层，hidden 状态下 clientWidth 为 0
+  const host = document.getElementById("shareCardHost");
+  host.innerHTML = "";
+  const node = buildShareCardNode(currentRecord);
+  host.appendChild(node);
+  fitShareCardHost();
+}
+
+async function downloadShareCard() {
+  const node = document.querySelector("#shareCardHost .share-card");
+  if (!node) return;
+  if (typeof htmlToImage === "undefined") {
+    alert("图片转换组件未加载，请刷新页面重试");
+    return;
+  }
+  const btn = document.getElementById("shareDownload");
+  btn.disabled = true;
+  btn.textContent = "生成中…";
+  try {
+    const dataUrl = await htmlToImage.toPng(node, {
+      width: 1080,
+      height: node.offsetHeight,
+      pixelRatio: 1,
+      backgroundColor: "#f5f5f5",
+      style: { transform: "none" },
+    });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `checkin-${currentRecord.id}.png`;
+    a.click();
+  } catch (err) {
+    alert(`生成分享卡失败：${(err && err.message) || err}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "下载图片";
+  }
 }
 
 lightboxShareBtn.addEventListener("click", openShareCard);
+document.getElementById("shareDownload").addEventListener("click", downloadShareCard);
 shareDialogClose.addEventListener("click", () => shareDialog.close());
 lightbox.addEventListener("click", (e) => {
   if (e.target === lightbox) closeLightbox();

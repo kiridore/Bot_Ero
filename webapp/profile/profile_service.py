@@ -152,6 +152,7 @@ def build_profile(user_id: str, year: int | None = None) -> dict:
         "avatar_url": resolve_avatar_url(str(user_id)),
         "year": year,
         "points": db.points.get(user_id),
+        "total_checkin_images": db.checkin.count_images(user_id),
         "streaks": streaks,
         "titles_unlocked": len(unlocked_ids),
         "titles_total": len(TITLE_DEFS),

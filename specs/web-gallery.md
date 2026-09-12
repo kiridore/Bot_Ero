@@ -209,8 +209,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/me/day` | 必须 | 某结算日的打卡详情 |
 | `GET` | `/api/me/checkins` | 必须 | 我的打卡图分页（每页 24，仅含本地文件） |
-| `GET` | `/api/me/checkin/{id}/share.png` | 必须 | 打卡分享卡 PNG（仅本人记录，404=不存在/非本人/无文件） |
-| `GET` | `/api/me/profile` | 必须 | 用户档案（热度图、称号） |
+| `GET` | `/api/me/avatar.png` | 必须 | 我的头像 PNG（同源代理 + 磁盘缓存，max-age=86400，无源 404） |
+| `GET` | `/api/me/profile` | 必须 | 用户档案（热度图、称号；含 total_checkin_images 累计打卡图数） |
 | `GET` | `/api/me/checkin/status` | 必须 | 本周打卡状态 |
 | `POST` | `/api/me/checkin` | 必须 | 网页端打卡上传（multipart） |
 | `GET` | `/api/me/shop` | 必须 | 商店货架 |
