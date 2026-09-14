@@ -15,11 +15,11 @@
   const pollSection = document.getElementById("poll-section");
   const form = document.getElementById("compose");
 
-  // 回车误触防护：title/tags 是单行文本输入，Enter 会触发表单隐式提交
-  ["title", "tags"].forEach(function (id) {
-    document.getElementById(id).addEventListener("keydown", function (e) {
-      if (e.key === "Enter") e.preventDefault();
-    });
+  // 回车误触防护：表单内任何单行输入（标题/tag/投票问题/投票选项/截止时间）Enter 都会
+  // 触发表单隐式提交（投票输入框是动态创建的），统一在表单上委托拦截；
+  // 富文本编辑器（div）与按钮不受影响
+  form.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault();
   });
 
   // 编辑模式预填：立即加载帖子，不等待 Tiptap CDN（esm.sh 慢/失败时标题/tag 也照常填充）

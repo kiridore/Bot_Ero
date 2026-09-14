@@ -1,10 +1,11 @@
-// 最小 DOM stub 验证发新帖/编辑页：title/tags 输入框按 Enter 不触发表单提交
+// 最小 DOM stub 验证发新帖/编辑页：表单内单行输入（标题/tag/投票问题/投票选项）按 Enter 不触发表单提交。
+// 防护挂在 form 上做事件委托，覆盖动态创建的投票输入框。
 
 const fs = require("fs");
 
 function makeEl(tag) {
   return {
-    tagName: tag, id: "", className: "", textContent: "", innerHTML: "",
+    tagName: String(tag).toUpperCase(), // 真实 DOM 的 tagName 是大写 id: "", className: "", textContent: "", innerHTML: "",
     children: [], attributes: {}, style: {}, dataset: {}, href: undefined,
     value: "", disabled: false, hidden: undefined,
     setAttribute(k, v) { this.attributes[k] = v; if (k === "href") this.href = v; },
@@ -19,8 +20,8 @@ function makeEl(tag) {
   };
 }
 
-function fire(el, key) {
-  const ev = { key, preventDefault() { ev._prevented = true; } };
+function fire(el, key, target) {
+  const ev = { key, target: target || el, preventDefault() { ev._prevented = true; } };
   if (el._listeners && el._listeners.keydown) el._listeners.keydown(ev);
   return ev._prevented === true;
 }
@@ -67,10 +68,11 @@ eval(newSrc);
 
 (async () => {
   await new Promise((r) => setTimeout(r, 120)); // 等 IIFE 越过 Tiptap 动态 import 失败
-  check("title 注册了 keydown 监听", typeof els.title._listeners.keydown === "function");
-  check("tags 注册了 keydown 监听", typeof els.tags._listeners.keydown === "function");
-  check("title 按 Enter → preventDefault", fire(els.title, "Enter"));
-  check("tags 按 Enter → preventDefault", fire(els.tags, "Enter"));
-  check("title 按普通键不拦截", !fire(els.title, "a"));
+  const form = els.compose;
+  check("表单注册了 keydown 委托监听", typeof form._listeners.keydown === "function");
+  check("单行输入框 Enter → preventDefault（覆盖 title/tags/投票问题/投票选项/截止时间）", fire(form, "Enter", makeEl("input")));
+  check("富文本编辑器 Enter 不拦截（正常换行）", !fire(form, "Enter", makeEl("div")));
+  check("按钮 Enter 不拦截（聚焦发布按钮回车仍可提交）", !fire(form, "Enter", makeEl("button")));
+  check("输入框普通按键不拦截", !fire(form, "a", makeEl("input")));
   process.exit(fail ? 1 : 0);
 })();
