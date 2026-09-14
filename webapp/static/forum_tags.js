@@ -8,6 +8,11 @@
   const nameInput = document.getElementById("tagName");
   const msg = document.getElementById("msg");
 
+  // 回车误触防护：tag 名输入框 Enter 不触发表单隐式提交，只能点「创建」按钮（与发帖页一致）
+  form.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault();
+  });
+
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
