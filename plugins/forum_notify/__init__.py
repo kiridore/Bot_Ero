@@ -7,6 +7,7 @@
 from datetime import datetime
 
 from core.base import Plugin
+from core.base import BOT_QQ
 from core.config import WEB_BASE_URL
 from core.cq import text
 from core.timeline_client import emit_event
@@ -53,8 +54,8 @@ class ForumNotifyPlugin(Plugin):
             if closed:
                 emit_event(
                     source="forum",
-                    actor_id="0",  # 系统事件
-                    actor_qq="0",
+                    actor_id=BOT_QQ,  # 系统事件 actor=bot 本体（同 weekly_report/activity），QQ 0 无法解析头像
+                    actor_qq=BOT_QQ,
                     title=f"投票「{title}」已结束",
                     target_url=f"/forum/{pid}",
                     dedup_key=f"forum_poll_close:{pid}",

@@ -115,7 +115,7 @@
 | source | 发送方 | 事件含义 | dedup_key 约定 |
 |---|---|---|---|
 | `checkin` | `plugins/checkin` | 完成打卡 | `checkin:<user_id>:<YYYY-MM-DD>:<message_id>`（message_id 为当次 /打卡 消息 id；**同一天多次打卡各成一条**，撤回按同 key 定位） |
-| `forum` | `webapp/forum` | 发帖 / 帖与评论编辑 / 评论与嵌套回复 / 投票关闭 | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回（评论软删占位时仅撤回自身、子回复事件保留）；帖与评论编辑=撤回旧事件并按同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
+| `forum` | `webapp/forum` · `plugins/forum_notify` | 发帖 / 帖与评论编辑 / 评论与嵌套回复 / 投票关闭（手动关闭 actor=操作者；bot 自动关位过期投票 actor=bot 本体） | `forum_post:<post_id>` / `forum_comment:<comment_id>` / `forum_poll_close:<post_id>`（删帖/删评论按同 key 撤回（评论软删占位时仅撤回自身、子回复事件保留）；帖与评论编辑=撤回旧事件并按同 key 重发最新内容——重发行带新 rowid/新 received_at，重新入列并按新事件计算未读） |
 | `tools` | `webapp/tools` | 提交 / 删除工具链接 | `tools_link:<tool_id>`（删除时按同 key 撤回事件） |
 | `weekly_report` | `plugins/weekly_report` | 周报出版（每周一 08:00 生成后，actor=bot 本体） | `weekly_report:<week_key>`（每期一条；生成幂等不重发，行被删后补偿重生成的重复提交由接收方按 dedup_key 静默忽略） |
 | `activity` | `plugins/activity` · `webapp/activities` | 活动开始报名（QQ 创建与网页创建同源） / 报名结束正式开始 / 结束归档（actor=bot 本体小埃同学） | `activity:<activity_id>:signup` / `activity:<activity_id>:start` / `activity:<activity_id>:finish`（每阶段一条；重复提交（如心跳与手动并发）由接收方按 dedup_key 静默忽略；取消不发事件） |
