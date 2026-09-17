@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime, timedelta
 
+from core import context
 from core.base import Plugin
 from core.config import BOT_QQ, WEB_BASE_URL
 from core.cq import text
@@ -562,6 +563,19 @@ class ActivityPlugin(Plugin):
 
 # ── 模块级流转辅助（Task 5） ──
 
+def _onebot_image_uri(activity_id: int, name: str) -> str:
+    """归档图片名 → OneBot 侧可见的 file:// URI（python/onebot 双路径约定，见 AGENTS.md）。
+
+    裸文件名 LLOneBot 无法解析（协议仅接受 file://、http(s)、get_image 的 file_id）；
+    归档根在 python_data_path 之外时退回本地绝对路径（同机共享文件系统场景仍可用）。
+    """
+    local = os.path.abspath(str(archive_mod.archive_dir(activity_id)))
+    py_root = os.path.abspath(str(context.python_data_path))
+    if local == py_root or local.startswith(py_root + os.sep):
+        local = context.llonebot_data_path.rstrip("/\\") + local[len(py_root):]
+    return f"file://{local.replace(os.sep, '/')}/imgs/{name}"
+
+
 def _work_segments(member: dict) -> list[dict]:
     segs = []
     if member.get("content"):
@@ -571,7 +585,7 @@ def _work_segments(member: dict) -> list[dict]:
     except (TypeError, ValueError):
         names = []
     for name in names:
-        segs.append({"type": "image", "data": {"file": name}})
+        segs.append({"type": "image", "data": {"file": _onebot_image_uri(member["activity_id"], name)}})
     return segs
 
 

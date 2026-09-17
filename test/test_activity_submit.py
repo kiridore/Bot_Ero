@@ -104,6 +104,33 @@ class TestSubmit(unittest.TestCase):
         fwd = [c for a, c in p.api.api_calls if a == "send_private_msg"]
         self.assertTrue(any(c["user_id"] == 200 for c in fwd))
 
+    def test_relay_forward_image_segments_use_file_uri(self):
+        """接龙含图提交：转发给下一位的图片段必须是 OneBot 可见的 file:// URI。
+
+        裸文件名（img_1_1.jpg）LLOneBot 无法解析，整条转发消息发送失败，
+        下一位收不到上一棒作品（回归：文本+图片提交转发丢失）。
+        """
+        from unittest.mock import patch
+        aid = _setup_activity(self.db, "relay")
+        old_llonebot = context.llonebot_data_path
+        context.llonebot_data_path = "/tmp/test_onebot_data"  # 与归档根不同，验证双路径换根
+        try:
+            p = self._submit(100, "带图的第一章")
+            p.bot_event.raw["message"].append({"type": "image", "data": {"file": "abc123.jpg"}})
+            p.api.get_image_url = lambda f: "http://example.com/abc123.jpg"
+            with patch("core.utils.download_image", return_value=(True, "下载成功")):
+                p.handle()
+        finally:
+            context.llonebot_data_path = old_llonebot
+        fwd = [c for a, c in p.api.api_calls if a == "send_private_msg"]
+        self.assertTrue(any(c["user_id"] == 200 for c in fwd), "应转发作品给下一位")
+        imgs = [seg for c in fwd if c["user_id"] == 200
+                for seg in c["message"] if seg["type"] == "image"]
+        self.assertEqual(len(imgs), 1)
+        f = imgs[0]["data"]["file"]
+        self.assertTrue(f.startswith("file://"), f"图片段必须用 file:// URI，实际 {f}")
+        self.assertEqual(f, "file:///tmp/test_onebot_data" + f"/{aid}/imgs/img_1_1.jpg")
+
     def test_submit_wrong_turn(self):
         aid = _setup_activity(self.db, "relay")
         self._submit(200, "抢先").handle()
