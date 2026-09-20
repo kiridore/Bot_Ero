@@ -6,6 +6,7 @@
 
 import json
 import re
+from urllib.parse import quote, unquote
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Annotated, Any
@@ -227,6 +228,12 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
         else:
             name, avatar = UNBOUND_LABEL, ""
         data = _loads(data_raw)
+        if isinstance(data, dict) and isinstance(data.get("images"), list):
+            # 存量事件存的是未编码 URL（文件名含 % [ ] 等会被 Caddy 400）；
+            # quote(unquote()) 幂等：raw 与已编码输入都得到同一定全编码结果
+            data = {**data, "images": [
+                quote(unquote(u), safe="/?=&") for u in data["images"]
+            ]}
         self_only = False
         images_hidden = False
         if vis is not None and viewer_id is not None and source == "checkin":

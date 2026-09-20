@@ -200,8 +200,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/checkins` | 可选 | 分页打卡图片列表 |
 | `GET` | `/api/users` | 可选 | 所有有打卡记录的用户列表 |
-| `GET` | `/thumb/{user_id}/{filename}` | 否 | 缩略图（缺失时生成，缓存到 `THUMB_CACHE`） |
-| `GET` | `/media/{user_id}/{filename}` | 否 | 原图 |
+| `GET` | `/thumb/{user_id}/{filename}` | 否 | 缩略图（缺失时生成，缓存到 `THUMB_CACHE`；filename 由 API 下发时 percent-encoded，服务端自动解码） |
+| `GET` | `/media/{user_id}/{filename}` | 否 | 原图（filename 同上；QQ 原始文件名可含 $ [ ] % 等不安全字符，生成 URL 一律 `urllib.parse.quote` 编码，时间线存量事件在读侧幂等归一） |
 
 ### 个人中心（`profile` 模块）
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -46,10 +47,11 @@ def _file_slug(content: str) -> str:
     return content.replace("{", "").replace("}", "").replace("-", "")
 
 def _media_url(user_id: str, content: str) -> str:
-    return f"/media/{user_id}/{_file_slug(content)}"
+    # 文件名来自 QQ 图片原名，可能含 $ [ ] % 等不安全字符（%1R 类非法转义会被 Caddy 400）
+    return f"/media/{user_id}/{quote(_file_slug(content))}"
 
 def _thumb_url(user_id: str, content: str) -> str:
-    return f"/thumb/{user_id}/{_file_slug(content)}"
+    return f"/thumb/{user_id}/{quote(_file_slug(content))}"
 
 
 def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:

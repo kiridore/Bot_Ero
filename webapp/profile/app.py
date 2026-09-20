@@ -1,6 +1,7 @@
 """个人中心子应用：个人主页/打卡/商店/称号/设置 5 域聚合。"""
 
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -97,11 +98,12 @@ def _file_slug(content: str) -> str:
 
 
 def _media_url(user_id: str, content: str) -> str:
-    return f"/media/{user_id}/{_file_slug(content)}"
+    # 文件名来自 QQ 图片原名，可能含 $ [ ] % 等不安全字符（%1R 类非法转义会被 Caddy 400）
+    return f"/media/{user_id}/{quote(_file_slug(content))}"
 
 
 def _thumb_url(user_id: str, content: str) -> str:
-    return f"/thumb/{user_id}/{_file_slug(content)}"
+    return f"/thumb/{user_id}/{quote(_file_slug(content))}"
 
 
 def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
