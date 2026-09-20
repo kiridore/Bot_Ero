@@ -23,6 +23,7 @@ from webapp.forum.app import router as forum_router
 from webapp.timeline.app import router as timeline_router
 from webapp.tools.app import router as tools_router
 from webapp.weekly.app import router as weekly_router
+from webapp.donate.app import router as donate_router
 
 SHARED_STATIC_DIR = Path(__file__).resolve().parent.parent / "core" / "web" / "static"
 
@@ -34,7 +35,7 @@ app = FastAPI(title="BotEro Web", version="1.0.0")
 _PUBLIC_PATHS = {"/login", "/api/auth/login", "/favicon.ico", "/favicon.png"}
 _PUBLIC_PREFIXES = ("/static/", "/shared/", "/api/timeline/events")
 # 未登录时返回 401（而非 302）的路径：API 与媒体子资源（<img> 跟随 302 会把登录页 HTML 当图片渲染）
-_UNAUTHORIZED_PREFIXES = ("/api/", "/thumb/", "/media/", "/forum/media/", "/archive/")
+_UNAUTHORIZED_PREFIXES = ("/api/", "/thumb/", "/media/", "/forum/media/", "/archive/", "/donate/media/")
 
 
 @app.middleware("http")
@@ -131,5 +132,6 @@ app.include_router(timeline_router)
 app.include_router(forum_router)
 app.include_router(tools_router)
 app.include_router(weekly_router)
+app.include_router(donate_router)
 app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

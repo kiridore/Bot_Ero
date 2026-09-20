@@ -8,7 +8,7 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
+Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`/`donate`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -23,6 +23,7 @@ Web 端按功能域拆分为 **11 个模块（`gallery`/`guestbook`/`profile`/`t
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 | 周报 | `weekly` | `/weekly`（`/weekly/{week_key}`） | 群周报归档：`GET /api/weekly` 列表、`GET /api/weekly/{week_key}` 详情；报纸排版页面 |
+| 赞赏 | `donate` | `/donate` | 收款码展示：站长手动上传图片到 `paths.donate` 目录（默认 `server_data/donate/`，无管理后台），`GET /api/donate/images` 目录扫描列表（jpg/jpeg/png/webp/gif）+ `GET /donate/media/{filename}` 提供图片（含路径穿越防护），页面按目录内容自动展示 |
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────────────────────┐
@@ -141,6 +142,7 @@ user_id = Depends(get_optional_user_id)    # 可选登录（公开+登录混合�
 | `paths.trpg_chars` | `server_data/trpg_chars` | 跑团角色卡 JSON 存储根目录 |
 | `paths.user_settings` | `server_data/user_settings` | 个人设置 JSON 存储根目录 |
 | `paths.activity` | `server_data/activity_archive` | 活动归档根目录（`<活动id>/` 子目录） |
+| `paths.donate` | `server_data/donate` | 赞赏收款码图片目录（手动上传，目录扫描即展示） |
 
 ---
 
@@ -174,7 +176,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 
 - **MUST:** 白名单之外的**全部路由**（页面、API、媒体，含各模块 router 与页面 FileResponse）一律要求登录，任何新模块**不得**自行绕过或另建门控；凭证双通道：`Authorization: Bearer` 头或 `botero_key` cookie（页面导航带不了 header，cookie 是页面门控凭据）
 - **白名单（唯一放行集）**：`/login`、`/api/auth/login`、`/static/*`、`/shared/*`、`/api/timeline/events*`（bot 事件上报，携带独立事件令牌，由路由 `_require_event_token` 校验，非用户登录）
-- 未登录响应语义：页面路径 → `302 /login?next=<原路径+查询串>`（URL 编码）；`/api/*` 与媒体路径（`/thumb/`、`/media/`、`/forum/media/`、`/archive/`）→ `401 JSON`（`<img>` 子资源不跟随重定向）
+- 未登录响应语义：页面路径 → `302 /login?next=<原路径+查询串>`（URL 编码）；`/api/*` 与媒体路径（`/thumb/`、`/media/`、`/forum/media/`、`/archive/`、`/donate/media/`）→ `401 JSON`（`<img>` 子资源不跟随重定向）
 - `/login` 页面（`webapp/static/login.html` + `login.js`）：密钥表单登录（复用 `GalleryAuth.login`），`next` 仅接受单个 `/` 开头的站内相对路径（防开放重定向），默认 `/`；带有效会话进入登录页时自动跳回 `next`（会话自愈，覆盖「cookie 被清但 localStorage 仍有效」）
 - 前端配套（`core/web/static/auth.js`，HTML 引用一律带 `?v=` 缓存版本号，当前 `?v=3`）：
   - 全局包装 `window.fetch`：同源响应 401 且非 `/api/auth/login`、非登录页自身 → 清会话并跳 `/login?next=当前路径`（页内会话失效的统一出口）

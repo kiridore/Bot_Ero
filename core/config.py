@@ -14,7 +14,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.47.5"
+BOTERO_VERSION = "1.48.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
@@ -117,6 +117,7 @@ TRPG_CHARS_ROOT = _path("trpg_chars", PROJECT_ROOT / "server_data" / "trpg_chars
 USER_SETTINGS_ROOT = _path("user_settings", PROJECT_ROOT / "server_data" / "user_settings")
 ACTIVITY_ROOT = _path("activity", PROJECT_ROOT / "server_data" / "activity_archive")
 FORUM_IMAGES_ROOT = _path("forum_images", PROJECT_ROOT / "server_data" / "forum_images")
+DONATE_DIR = _path("donate", PROJECT_ROOT / "server_data" / "donate")
 
 # —— webapp 服务 ——
 HOST = str(_sec("webapp").get("host") or "0.0.0.0")

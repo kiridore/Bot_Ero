@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>赞赏支持</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/static/timeline.css" />
+  <style>
+    .donate-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .donate-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 12px;
+      background: var(--tl-card-bg, rgba(127, 127, 127, 0.08));
+      text-decoration: none;
+      color: inherit;
+    }
+    .donate-card img {
+      width: 100%;
+      max-width: 260px;
+      aspect-ratio: 1;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #fff; /* 收款码多为白底，避免透明背景在暗色主题下发灰 */
+    }
+    .donate-card figcaption {
+      font-size: 14px;
+      opacity: 0.8;
+      word-break: break-all;
+    }
+    .donate-empty {
+      margin-top: 24px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="tl-layout">
+    <aside class="tl-sidebar">
+      <a class="tl-brand" href="/">小埃中继站</a>
+      <nav class="tl-nav" id="tlNav">
+        <div class="tl-nav-muted">功能</div>
+      </nav>
+      <div class="tl-auth auth-area" id="authArea"></div>
+    </aside>
+
+    <main class="tl-main">
+      <header class="tl-head">
+        <h1>赞赏支持</h1>
+      </header>
+      <p class="tl-desc">如果小埃同学的服务对你有帮助，可以扫码请站长喝杯奶茶～</p>
+      <div id="donateGrid" class="donate-grid"></div>
+      <p id="donateEmpty" class="donate-empty hidden">站长还没有上传收款码，敬请期待。</p>
+    </main>
+
+    <aside class="tl-rail"></aside>
+  </div>
+
+  <script src="/shared/auth.js?v=3"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/shared/motion.js"></script>
+  <script>
+    fetch("/api/donate/images").then(function (r) { return r.json(); }).then(function (d) {
+      var grid = document.getElementById("donateGrid");
+      var empty = document.getElementById("donateEmpty");
+      var names = (d && d.images) || [];
+      names.forEach(function (name) {
+        var url = "/donate/media/" + encodeURIComponent(name);
+        var a = document.createElement("a");
+        a.className = "donate-card";
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        var img = document.createElement("img");
+        img.src = url;
+        img.alt = name;
+        img.loading = "lazy";
+        var cap = document.createElement("figcaption");
+        var i = name.lastIndexOf(".");
+        cap.textContent = i > 0 ? name.slice(0, i) : name;
+        a.appendChild(img);
+        a.appendChild(cap);
+        grid.appendChild(a);
+      });
+      if (!names.length) empty.classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>
