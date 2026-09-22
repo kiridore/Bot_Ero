@@ -1,0 +1,24 @@
+# BotEro 容器化运行。
+# 前提：config.yaml 已就位（cp config.example.yaml config.yaml 并填好）。
+#
+# 网络方案二选一：
+#   A.（默认，Linux 主机）network_mode: host —— config.yaml 里 ws://127.0.0.1:3001、
+#      timeline 127.0.0.1:8765、代理 127.0.0.1:7890 等本机地址全部原样可用，零改动。
+#   B. bridge —— 注释掉 network_mode，放开下方 ports，并把 config.yaml 里的本机地址
+#      改成容器可达地址（ws_url/onebot.http_url 指向 LLOneBot 的容器名或宿主 IP）。
+#
+# 注意：BotEro 写 server_data 后用 file://<llonebot_data_path>/... 让 LLOneBot 读同一文件，
+# 若 LLOneBot 也在容器里，其容器必须把【同一宿主目录】挂到 /app/llonebot/server_data，
+# 即下方 ./server_data。
+
+services:
+  botero:
+    build: .
+    container_name: botero
+    restart: unless-stopped
+    network_mode: host
+    # ports:            # bridge 方案用这组，并删掉上面的 network_mode
+    #   - "8765:8765"   # webapp
+    #   - "8790:8790"   # bot 监控面板
+    volumes:
+      - ./:/app

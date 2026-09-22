@@ -146,7 +146,20 @@ systemctl restart botero-web
    ```
    `ps` 中 uvicorn 应只剩 1 个 web 进程。
 
-## 9. 已知限制
+## 9. Docker 运行（可选，systemd 方案的替代）
+
+仓库自带 `Dockerfile` + `docker-compose.yml`：单容器双进程（bot `main.py` + webapp `-m webapp`），代码与数据全部经 `./:/app` 挂载进容器（SQLite 单文件 bind-mount 会丢 WAL，必须挂目录）。
+
+```bash
+cp config.example.yaml config.yaml   # 填好真实值
+docker compose up -d --build         # 构建并常驻
+```
+
+- 默认 `network_mode: host`（Linux）：config.yaml 里的 `127.0.0.1` 系地址（WS/OneBot HTTP/timeline/代理）零改动可用，Caddy 反代 `127.0.0.1:8765` 亦不变；bridge 方案见 compose 注释。
+- 若 LLOneBot 也在容器里：其容器必须把**同一宿主目录**（`./server_data`）挂到 `/app/llonebot/server_data`，bot 生成的图片/排行图才能被 OneBot 端读到。
+- 镜像内固定 `TZ=Asia/Shanghai`（周界 08:00 依赖本地时区）。
+
+## 10. 已知限制
 
 - **单 origin 登录共享**：全部页面同源，登录态存于该 origin 的 localStorage，根域 cookie `botero_key` 是页面门控的导航凭据（页面跳转带不了 `Authorization` 头），任一分区登录后其余分区免重复登录；页内 fetch 401 由 `/shared/auth.js` 全局拦截并跳回 `/login`。
 - **SQLite 两写者**：`data.db` 仅剩 bot（`main.py`）与 webapp 两个写者，均为 WAL + `busy_timeout=5000`；高并发写场景（如打卡高峰期）仍可能偶发 `database is locked`，出现时重试即可。

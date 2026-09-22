@@ -1,0 +1,13 @@
+# 仅缩小构建上下文；运行时代码与数据经 compose 挂载，不进镜像。
+.git
+.venv
+.worktrees
+.pytest_cache
+.zcode
+.superpowers
+openspec
+server_data
+data.db
+config.yaml
+__pycache__
+**/__pycache__
