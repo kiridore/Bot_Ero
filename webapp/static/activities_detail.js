@@ -323,7 +323,7 @@ function renderDetail() {
     return `
       <div class="member-row ${isMe ? "member-me" : ""}">
         <span class="seq">${m.seq}.</span>
-        <span>${escapeHtml(m.nickname)}${isMe ? "（我）" : ""}</span>
+        <span class="name" title="${escapeHtml(m.nickname)}">${escapeHtml(m.nickname)}${isMe ? "（我）" : ""}</span>
         <span title="${escapeHtml(MEMBER_STATUS_LABEL[m.status] || m.status)}">
           ${MEMBER_STATUS_ICON[m.status] || ""}
         </span>

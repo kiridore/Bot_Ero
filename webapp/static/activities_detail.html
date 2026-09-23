@@ -35,13 +35,17 @@
     .member-row {
       background: var(--paper-card); border-radius: 8px; padding: 8px 12px;
       font-size: 13px; color: var(--ink-soft);
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      display: flex; align-items: center; gap: 8px;
     }
-    .member-row .seq { color: var(--ink-soft); min-width: 22px; }
+    .member-row .seq { color: var(--ink-soft); min-width: 22px; flex-shrink: 0; }
+    /* 昵称列弹性吃满剩余宽度：时间/下家恒定钉在右缘，昵称超长省略号 */
+    .member-row .name {
+      flex: 1 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     .member-row.member-me { border: 1px solid var(--accent); }
-    .member-next { margin-left: auto; color: var(--accent-ink); }
-    .member-time { margin-left: auto; color: var(--ink-soft); font-size: 13px; }
-    .member-row .member-time + .member-next { margin-left: 8px; }
+    .member-next { color: var(--accent-ink); flex-shrink: 0; }
+    .member-time { color: var(--ink-soft); font-size: 13px; white-space: nowrap; flex-shrink: 0; }
     .turn-highlight {
       background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px;
       padding: 10px 12px; margin-bottom: 10px; font-size: 14px; color: var(--accent-ink);
