@@ -312,6 +312,14 @@ function renderDetail() {
       const label = nickOf[m.next_user_id] || m.next_user_id;
       next = `<span class="member-next">下家：${escapeHtml(label)}</span>`;
     }
+    let time = "";
+    if (isRunning) {
+      if (m.status === "done" && m.submitted_at) {
+        time = `<span class="member-time">提交于 ${escapeHtml(m.submitted_at)}</span>`;
+      } else if (m.status === "pending" && m.eta_deadline) {
+        time = `<span class="member-time">预计 ${escapeHtml(m.eta_deadline)}</span>`;
+      }
+    }
     return `
       <div class="member-row ${isMe ? "member-me" : ""}">
         <span class="seq">${m.seq}.</span>
@@ -319,6 +327,7 @@ function renderDetail() {
         <span title="${escapeHtml(MEMBER_STATUS_LABEL[m.status] || m.status)}">
           ${MEMBER_STATUS_ICON[m.status] || ""}
         </span>
+        ${time}
         ${next}
       </div>`;
   }).join("");

@@ -71,7 +71,8 @@ let actData = {
   members: [
     { user_id: "333", nickname: "成员甲", seq: 1, status: "done", content: "我的文字作品",
       images: ["/archive/3/media/1-1.png"], submitted_at: "2026-09-02 10:00:00" },
-    { user_id: "444", nickname: "成员乙", seq: 2, status: "pending", images: [], content: null },
+    { user_id: "444", nickname: "成员乙", seq: 2, status: "pending", images: [], content: null,
+      eta_deadline: "2026-09-04 10:00:00" },
   ],
 };
 const posts = [];
@@ -120,6 +121,8 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   check("显示我的图片", html.includes("/archive/3/media/1-1.png"));
   check("图片为方形卡片", html.includes("img-grid") && html.includes("img-card"));
   check("可更新徽章", /已提交|可更新/.test(html));
+  check("成员行显示完成时间", html.includes("提交于 2026-09-02 10:00:00"));
+  check("成员行显示预计截止", html.includes("预计 2026-09-04 10:00:00"));
 
   // 2. can_submit=true → 表单渲染（textarea + file + 已有图卡片删除键 + 预览容器 + 按钮）
   check("含提交表单", html.includes("提交作品") && /textarea|work-input/.test(html));

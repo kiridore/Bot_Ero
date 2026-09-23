@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -97,6 +97,43 @@ def _current_turn(members: list[dict]) -> dict | None:
         if m["status"] == "pending":
             return m
     return None
+
+
+def _relay_eta_deadlines(act: dict, members: list[dict]) -> dict[str, str]:
+    """接龙 pending 成员的预计截止时间（user_id → 时间串）。
+
+    按 seq 走链：已完成者把交接时刻推进为其实际提交时间；当前棒以实际接棒时间
+    received_at 起算（缺省时用前一棒交接时刻），截止 = 交接时刻 + 每人限时，
+    与活动全局截止取较早者；队尾成员依次链式累加（假设前面每人用满限时）。
+    """
+    hours = act.get("hours_per_user") or 0
+    if act.get("type") != "relay" or act.get("status") != "running" or not hours:
+        return {}
+    fmt = "%Y-%m-%d %H:%M:%S"
+    cap = None
+    if act.get("deadline"):
+        try:
+            cap = datetime.strptime(act["deadline"], fmt)
+        except ValueError:
+            cap = None
+    out: dict[str, str] = {}
+    handover = None
+    for m in sorted(members, key=lambda x: x["seq"]):
+        if m["status"] == "done":
+            handover = m.get("submitted_at")
+        elif m["status"] == "pending":
+            start = m.get("received_at") or handover
+            if not start:
+                continue
+            try:
+                due = datetime.strptime(start, fmt) + timedelta(hours=hours)
+            except ValueError:
+                continue
+            if cap and due > cap:
+                due = cap
+            out[str(m["user_id"])] = due.strftime(fmt)
+            handover = out[str(m["user_id"])]
+    return out
 
 
 def _submission_state(user_id: str, act: dict, members: list[dict]):
@@ -404,15 +441,17 @@ def api_activity_detail(activity_id: int,
     act = db.activity.get_activity(activity_id)
     if not act:
         raise HTTPException(status_code=404, detail="活动不存在")
+    eta = _relay_eta_deadlines(act, act["members"])
     for m in act["members"]:
         m["images"] = [
             f"/archive/{activity_id}/media/{name}" for name in m.get("images", [])
         ]
-        # 隐私：进行中不外发他人提交内容（finished 后归档公开）
+        if str(m["user_id"]) in eta:
+            m["eta_deadline"] = eta[str(m["user_id"])]
+        # 隐私：进行中不外发他人提交内容（finished 后归档公开）；提交时间属元数据，保留
         if act["status"] != "finished" and str(m["user_id"]) != user_id:
             m["content"] = None
             m["images"] = []
-            m["submitted_at"] = None
     return act
 
 

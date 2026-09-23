@@ -267,7 +267,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 |------|------|------|------|
 | `GET` | `/api/activities` | 否 | 全部活动：进行中（open/running）在前且附成员列表（user_id/nickname/seq/status），归档（finished/cancelled）在后；含 created_by |
 | `GET` | `/api/me/activities` | 必须 | 当前用户参加过的全部活动（含 my_status/my_seq/my_submitted_at/进度） |
-| `GET` | `/api/activities/{id}` | 必须 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL；进行中剥离他人作品字段，本人与 finished 归档全量），不存在返回 404 |
+| `GET` | `/api/activities/{id}` | 必须 | 活动详情（成员含 next_user_id/received_at、作品文字与图片 URL；进行中剥离他人作品字段但保留提交时间，本人与 finished 归档全量；接龙 running 时 pending 成员附 `eta_deadline` 预计截止 = 实际接棒/前棒预计时刻 + 每人限时，链式顺延且封顶全局截止），不存在返回 404 |
 | `GET` | `/api/activities/{id}/me` | 必须 | 我的成员态与提交（can_submit/block_reason） |
 | `POST` | `/api/activities/{id}/join` | 必须 | 加入报名中的活动（open 期；重复/非报名期 409；昵称经 OneBot 解析，与 QQ `/活动 加入` 同语义） |
 | `POST` | `/api/activities/{id}/submit` | 必须 | 网页提交作品（multipart；增量语义：`content` 覆盖文本、`files` 追加到末尾（`{seq}-{n}` 续编号）、`removed` 列表删除对应已有图片；三者可任意组合，全部为空 400；文本编辑/删图不重置其他字段） |

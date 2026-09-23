@@ -251,7 +251,8 @@ check("文本编辑保留图片", r.json() == {"ok": True, "updated": True} and 
 r = client.get(f"/api/activities/{rid3}", headers=H333)
 me_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
 other_row = next(m for m in r.json()["members"] if m["user_id"] == "444")
-check("进行中他人作品剥离", other_row["content"] is None and other_row["images"] == []
+check("进行中他人作品剥离", other_row["content"] is None and other_row["images"] == [])
+check("进行中完成时间可见", me_row["submitted_at"] is not None
       and other_row["submitted_at"] is None)
 
 # —— 增量语义续：新图追加编号 · removed 单图删除 · 非法 removed 400 ——
@@ -325,7 +326,7 @@ check("bot 命名文件同样鉴权（不存在 404 而非 403）", r.status_cod
 r = client.get(f"/api/activities/{mid3}", headers=H333)
 row444 = next(m for m in r.json()["members"] if m["user_id"] == "444")
 check("match 他人已提交剥离", row444["content"] is None and row444["images"] == []
-      and row444["submitted_at"] is None)
+      and "eta_deadline" not in row444)  # match 无每人限时，不挂预计截止
 DB.activity.update_activity(mid3, status="finished")
 r = client.get(f"/archive/{mid3}/media/2-1.png", headers=H333)
 check("结束后成员可取归档", r.status_code == 200)
@@ -356,6 +357,38 @@ DB.activity.update_activity(cid, status="finished")  # finish 同样延迟到 bo
 r = client.get(f"/api/activities/{cid}", headers=H333)
 collect_row = next(m for m in r.json()["members"] if m["user_id"] == "333")
 check("征集归档公开", collect_row["content"] == "征集作品" and collect_row["images"] == [f"/archive/{cid}/media/1-1.png"])
+
+# —— 成员表时间信息（详情 API）：done 显示提交时间 · pending 链式预计截止 · 全局截止封顶 ——
+from datetime import datetime as _dt, timedelta as _td  # noqa: E402
+r = client.post("/api/activities", headers=OH, json={
+    "type": "relay", "title": "接龙预计截止", "hours_per_user": 24, "deadline": FUTURE2})
+rid4 = r.json()["id"]
+for uid in ("333", "444", "222"):
+    DB.activity.add_member(rid4, uid, f"成员{uid}")
+DB.activity.set_ring(rid4, [("333", None, 1), ("444", None, 2), ("222", None, 3)])
+DB.activity.update_activity(rid4, status="running")
+DB.activity.update_member(rid4, "333", received_at="2030-01-01 10:00:00",
+                          status="done", content="x", submitted_at="2030-01-01 12:00:00")
+r = client.get(f"/api/activities/{rid4}", headers=OH)
+rows = {m["user_id"]: m for m in r.json()["members"]}
+check("done 完成时间可见", rows["333"]["submitted_at"] == "2030-01-01 12:00:00")
+check("当前棒预计=前棒提交+限时", rows["444"].get("eta_deadline") == "2030-01-02 12:00:00",
+      str(rows["444"].get("eta_deadline")))
+check("队尾链式累加", rows["222"].get("eta_deadline") == "2030-01-03 12:00:00",
+      str(rows["222"].get("eta_deadline")))
+DB.activity.update_member(rid4, "444", received_at="2030-01-01 13:00:00")
+r = client.get(f"/api/activities/{rid4}", headers=OH)
+rows = {m["user_id"]: m for m in r.json()["members"]}
+check("当前棒 received_at 优先", rows["444"].get("eta_deadline") == "2030-01-02 13:00:00",
+      str(rows["444"].get("eta_deadline")))
+DB.activity.update_activity(rid4, deadline="2030-01-02 00:00:00")
+r = client.get(f"/api/activities/{rid4}", headers=OH)
+rows = {m["user_id"]: m for m in r.json()["members"]}
+check("预计封顶全局截止", rows["444"].get("eta_deadline") == "2030-01-02 00:00:00"
+      and rows["222"].get("eta_deadline") == "2030-01-02 00:00:00")
+DB.activity.update_activity(rid4, status="finished")
+r = client.get(f"/api/activities/{rid4}", headers=OH)
+check("结束后无 eta", all("eta_deadline" not in m for m in r.json()["members"]))
 
 # —— 页面路由（登录门控由 middleware 处理，Bearer 可过）——
 r = client.get("/activities/new", headers=OH, follow_redirects=False)
