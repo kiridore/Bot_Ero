@@ -17,7 +17,7 @@
 | `checkin/` | `CheckinPlugin` | `checkin` | CommandPlugin | `/打卡` + 图片 | 打卡：存储图片、解锁称号、计算满勤奖励 |
 | `checkin_recall/` | `CheckinRecallPlugin` | `checkin_recall` | notice 事件 | (notice: group_recall) | 打卡消息被撤回时回滚记录和奖励 |
 | `roll_back/` | `RollbackCheckinPlugin` | `rollback_checkin` | CommandPlugin | `/撤回打卡` | 撤回本周最近一次打卡 |
-| `remedy_checkin/` | `RemedyCheckinPlugin` | `remedy_checkin` | CommandPlugin | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` | 补卡系统：周补卡(6点)、单日补卡(2点)、管理员超级补卡 |
+| `remedy_checkin/` | `RemedyCheckinPlugin` | `remedy_checkin` | CommandPlugin | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` / `/超级单日补卡` | 补卡系统：周补卡(4点)、单日补卡(2点)、管理员超级补整周/单日（免费） |
 | `all_checkin_display/` | `AllCheckinDisplay` | `all_checkin_display` | CommandPlugin | `/ALL` | 显示全量打卡图（合并转发） |
 | `week_checkin_display/` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | CommandPlugin | `/本周打卡图` | 显示本周打卡图（私发） |
 | `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |

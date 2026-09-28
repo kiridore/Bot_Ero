@@ -101,6 +101,27 @@ class TestRemedyGuard(unittest.TestCase):
         self.assertEqual(self.db.points.get("777777"), 0)  # 免扣分
         self.assertEqual(self.db.checkin.remedy_used(datetime.now().year, "777777"), 0)  # 免额度
 
+    def test_super_single_day_denied_for_member(self):
+        plugin = self._run(f"/超级单日补卡 {PAST_MONDAY}")
+        self.assertIn("管理员", _last_text(plugin))
+        self.assertEqual(self.db.checkin.search_user_range(123456, "2000-01-01 00:00:00", "2100-01-01 00:00:00"), [])
+
+    def test_admin_super_single_day_for_other_free(self):
+        """管理员免费单日代补：免扣分、免额度、可代他人。"""
+        self.db.points.set("777777", 0)
+        plugin = self._run(f"/超级单日补卡 {PAST_MONDAY} 777777", user_id=42, role="owner")
+        self.assertIn("免费", _last_text(plugin))
+        self.assertEqual(self.db.points.get("777777"), 0)          # 免扣分
+        self.assertEqual(self.db.checkin.remedy_used(datetime.now().year, "777777"), 0)  # 免额度
+        day_start = (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d 08:00:00")
+        day_end = (datetime.now() - timedelta(days=9)).strftime("%Y-%m-%d 08:00:00")
+        self.assertNotEqual(self.db.checkin.search_user_range("777777", day_start, day_end), [])  # 补上了记录
+
+    def test_admin_super_single_day_already_checked_in_rejected(self):
+        self.db.checkin.remedy_day("777777", PAST_MONDAY)
+        plugin = self._run(f"/超级单日补卡 {PAST_MONDAY} 777777", user_id=42, role="admin")
+        self.assertIn("已经打过卡", _last_text(plugin))
+
     def test_member_past_week_succeeds_paid(self):
         self.db.points.set("123456", 10)
         plugin = self._run(f"/补卡 {PAST_MONDAY}")

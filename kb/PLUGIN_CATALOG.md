@@ -13,7 +13,7 @@
 | 3 | `checkin` | `checkin/` | CommandPlugin `/打卡` + 图片 | 打卡：存储图片、计算奖励、解锁称号 |
 | 4 | `checkin_recall` | `checkin_recall/` | notice `group_recall` | 打卡消息被撤回时回滚记录和奖励 |
 | 5 | `rollback_checkin` | `roll_back/` | CommandPlugin `/撤回打卡` | 撤回本周最近一次打卡 |
-| 6 | `remedy_checkin` | `remedy_checkin/` | CommandPlugin `/补卡`/`/单日补卡`/`/超级补卡` | 补卡系统 |
+| 6 | `remedy_checkin` | `remedy_checkin/` | CommandPlugin `/补卡`/`/单日补卡`/`/超级补卡`/`/超级单日补卡` | 补卡系统 |
 | 7 | `all_checkin_display` | `all_checkin_display/` | CommandPlugin `/ALL` | 显示全量打卡图和统计（合并转发） |
 | 8 | `week_checkin_display` | `week_checkin_display/` | CommandPlugin `/本周打卡图` | 本周打卡图（私发） |
 | 9 | `week_list` | `week_list/` | CommandPlugin `/本周板油` | 本周完成打卡的成员列表 |

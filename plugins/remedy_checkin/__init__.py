@@ -8,7 +8,8 @@ from core.utils import register_plugin
 class RemedyCheckinPlugin(CommandPlugin):
     name = 'remedy_checkin'
     description = '为用户补卡并扣除对应积分。'
-    COMMANDS = ("/补卡", "/補卡", "/单日补卡", "/單日補卡", "/超级补卡", "/超級補卡")
+    COMMANDS = ("/补卡", "/補卡", "/单日补卡", "/單日補卡",
+                "/超级补卡", "/超級補卡", "/超级单日补卡", "/超級單日補卡")
 
     YEARLY_LIMIT = 4
 
@@ -23,13 +24,13 @@ class RemedyCheckinPlugin(CommandPlugin):
         if self.bot_event.user_id == None:
             return
 
-        super_mode = self.cmd in ("/超级补卡", "/超級補卡")
+        super_mode = self.cmd in ("/超级补卡", "/超級補卡", "/超级单日补卡", "/超級單日補卡")
         if super_mode and not self.admin_user():
             self.api.send_msg(text("超级补卡是管理员指令喵！"))
             return
 
-        if self.cmd in ("/单日补卡", "/單日補卡"):
-            self.handle_single_day_remedy()
+        if self.cmd in ("/单日补卡", "/單日補卡", "/超级单日补卡", "/超級單日補卡"):
+            self.handle_single_day_remedy(super_mode=super_mode)
             return
 
         if len(self.args) > 0:
@@ -71,11 +72,14 @@ class RemedyCheckinPlugin(CommandPlugin):
         else:
             self.find_remedy()
 
-    def handle_single_day_remedy(self):
+    def handle_single_day_remedy(self, super_mode=False):
         if self.bot_event.user_id == None:
             return
 
         if len(self.args) <= 0:
+            if super_mode:
+                self.api.send_msg(text("用法：/超级单日补卡 YYYY-MM-DD [user_id]（免费补单日）"))
+                return
             suggest_day = self.find_single_day_remedy()
             if suggest_day is None:
                 self.api.send_msg(text("今年每天都打过卡了喵，不需要单日补卡"))
@@ -95,10 +99,20 @@ class RemedyCheckinPlugin(CommandPlugin):
             self.api.send_msg(text("{}这一天还没过完，不能补喵".format(self.args[0])))
             return
         user_id = self.bot_event.user_id
+        if len(self.args) > 1:
+            if not self.admin_user():
+                self.api.send_msg(text("给别人补卡是管理员指令喵！"))
+                return
+            user_id = self.args[1]  # 管理员可以给其他人补单日
 
         rows = self.dbmanager.checkin.search_user_range(user_id, day_start, day_end)
         if len(rows) > 0:
             self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[0])))
+            return
+
+        if super_mode:
+            self.dbmanager.checkin.remedy_day(user_id, self.args[0])
+            self.api.send_msg(text("{} 已免费补卡成功喵，不扣点数也不占补卡额度".format(self.args[0])))
             return
 
         if not self._check_remedy_limit(user_id, day.year):
