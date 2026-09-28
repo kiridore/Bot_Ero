@@ -117,7 +117,7 @@ class TestGenImage(unittest.TestCase):
         path = GEN_IMAGE_OUTPUT / "profile_card_with_avatar_2024.png"
         img.save(path, format="PNG")
         self._assert_png_file(path)
-        self.assertIn("Power by", FOOTER_TEXT)
+        self.assertIn("Powered by", FOOTER_TEXT)
 
     def test_save_personal_record_png_writes_file(self):
         from core.gen_image.models import PersonalRecordStats

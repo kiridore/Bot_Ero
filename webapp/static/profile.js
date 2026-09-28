@@ -414,7 +414,7 @@ function buildShareCardNode(record) {
 
   const footer = document.createElement("div");
   footer.className = "share-card-footer";
-  footer.textContent = "Power by 小埃同学";
+  footer.textContent = "Powered by 小埃同学";
 
   card.append(header, photo, stats, footer);
   return card;
