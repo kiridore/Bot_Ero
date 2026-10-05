@@ -1,7 +1,8 @@
 from core import utils
 from core.base import CommandPlugin
 from core.cq import text,image
-from core.utils import get_monday_to_monday, on_quest_rollback
+from core.utils import get_monday_to_monday
+from plugins.weekly_quest.engine import on_quest_rollback
 from core.timeline_client import retract_event
 from core.logger import logger
 from datetime import datetime, timedelta

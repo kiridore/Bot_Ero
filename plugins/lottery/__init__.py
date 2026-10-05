@@ -4,7 +4,8 @@ from datetime import datetime
 from core import utils
 from core.base import BOT_QQ, NICKNAME, CommandPlugin
 from core.cq import at, text
-from core.utils import on_quest_trigger, register_plugin
+from core.utils import register_plugin
+from plugins.weekly_quest.engine import on_quest_trigger
 from plugins.title import get_title_def, evaluate_and_unlock_titles
 
 from .rewards import draw_reward

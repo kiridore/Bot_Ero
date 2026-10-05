@@ -1,6 +1,7 @@
 from core.base import CommandPlugin, TimedHeartbeatPlugin
 from core.cq import text
-from core.utils import register_plugin, get_monday_to_monday, get_quest_week_key, QUEST_DEFS
+from core.utils import register_plugin, get_monday_to_monday
+from plugins.weekly_quest.engine import QUEST_DEFS, get_quest_week_key
 
 
 @register_plugin

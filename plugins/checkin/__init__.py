@@ -2,7 +2,8 @@ import random
 from core.base import CommandPlugin
 from core.cq import text,at
 from core.logger import logger
-from core.utils import add_user_point, ensure_checkin_image, get_monday_to_monday, on_quest_trigger
+from core.utils import add_user_point, ensure_checkin_image, get_monday_to_monday
+from plugins.weekly_quest.engine import on_quest_trigger
 from core.timeline_client import emit_event
 from datetime import datetime
 from plugins.title import evaluate_and_unlock_titles, get_title_def

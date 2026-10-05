@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from core import utils
 from core.base import Plugin
 from core.cq import at, text
-from core.utils import get_monday_to_monday, on_quest_rollback
+from core.utils import get_monday_to_monday
+from plugins.weekly_quest.engine import on_quest_rollback
 from core.timeline_client import retract_event
 
 

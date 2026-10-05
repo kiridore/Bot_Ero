@@ -105,7 +105,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 **commit**：`feat(插件): 系统插件集合改为 config 配置`
 
-### T0.5 周常任务引擎迁出 core `M`
+### T0.5 周常任务引擎迁出 core `M` ✅ 已完成（2026-10-06，OpenSpec 提案 [`quest-engine-extraction`](../../openspec/changes/archive/2026-10-06-quest-engine-extraction/proposal.md)：四符号逐字迁入 plugins/weekly_quest/engine.py，5 插件 import 改造，test/test_quest_engine.py 冒烟）
 
 **目标**：玩法规则（QUEST_DEFS、on_quest_trigger/on_quest_rollback、get_quest_week_key）从 `core/utils.py` 移入 `plugins/weekly_quest/engine.py`，core 只留纯工具。行为零变化。
 
@@ -373,7 +373,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 
 **进度追踪**：
 
-- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ T0.5 T0.6 T0.7 T0.8 T0.9
+- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ ~~T0.5~~✅ T0.6 T0.7 T0.8 T0.9
 - [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
 - [ ] M2：T2.1 T2.2 T2.3 T2.4
 - [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）
