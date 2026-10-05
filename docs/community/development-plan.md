@@ -367,7 +367,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 ## 7. 执行纪律
 
 1. 严格按依赖顺序；同里程碑内无依赖任务可任意穿插。
-2. **每个任务动工前 spec 与 plan 两份文档必须齐全**（spec → `docs/superpowers/specs/YYYY-MM-DD-<名>-design.md`，plan → `docs/superpowers/plans/YYYY-MM-DD-<名>.md`，均在任务标题下挂引用链接）；S 级任务允许精简但不可缺；单点小修/纯文档除外（AGENTS.md §功能开发主流程）。缺任一文档不得写代码。
+2. **每个 bump 类任务动工前 OpenSpec 提案必须齐全**（proposal 含完整验收标准 / specs / design / tasks，流程与判据见 `specs/conventions.md` §功能开发主流程：要 bump 就要提案）；纯重构/测试任务免提案，跨文件重构建议轻量提案。任务标题下挂提案归档路径链接。缺提案不得写代码。
 3. ⚠️ 标记项在动手前找所有者确认，确认结果回写本文档（划掉待定、记录结论）。
 4. 每完成一个任务：勾选对应复选框（见下）、跑全量 pytest、按约定 commit。
 

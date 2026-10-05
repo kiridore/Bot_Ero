@@ -1,32 +1,18 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  BotEro：QQ 群聊机器人（OneBot v11 over WebSocket，事件驱动 + 插件架构，纯同步多线程）
+  + 单进程 FastAPI 社区站 webapp，同库双形态（bot.edition: private|community，差异只走 5 处接缝白名单）。
+  测试统一入口 pytest（conftest 自动隔离数据路径，绝不触真实 data.db/server_data）。
+  硬底线：主干逐 commit 必须私有形态安全（私有 config 可加载、行为零变化、全量 pytest 绿）。
+  Commit：中文 Conventional Commits，代码+测试+文档+CHANGELOG 同 commit。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+rules:
+  proposal:
+    - "必须包含「验收标准」章节：每条可独立执行验证（pytest 命令/断言/手测步骤），tasks.md 逐项与之对应"
+    - "判据：要 bump BOTERO_VERSION 就要提案；纯文档/测试/内部重构不建 change"
+    - "发现旧代码已部分实现时，提案如实记录现状并圈定剩余工作"
+  specs:
+    - "spec delta 只写外部可观察的行为契约；实现细节进 design.md"
+  tasks:
+    - "验收标准未逐条全绿不得归档；归档（openspec archive）与实现同一 commit"

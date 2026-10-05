@@ -258,20 +258,19 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ## Constraint: 功能开发主流程
 
-**多步开发任务（新功能/跨文件改动/多 commit）MUST 走完整主流程；单点小修（一行 fix、纯文档、单文件微调）不强制，避免流程税。**
+**判据：要 bump 就要提案。** 一切 bump `BOTERO_VERSION` 的用户可见变更（新功能/行为变更/修复）MUST 先有 OpenSpec 提案、验收全绿后归档；纯文档/测试/内部重构（只记 CHANGELOG `[未发布]` 不 bump 的那类）免提案——与 CHANGELOG 维护约定同口径。多步任务即便整体不 bump（如跨文件纯重构），也建议轻量提案作保险。
 
-**四步（每步产出 commit 后再进入下一步）：**
+**OpenSpec 流程（openspec CLI，工作目录 `openspec/`）：**
 
-1. **设计先行**：用 `superpowers:brainstorming` skill 澄清需求——先分类（bounded/architectural）、澄清问题一次一个、方案对比带推荐；architectural 级产出设计文档 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`（已确认决策表 D1…Dn、API 契约、边界情况、测试清单），经用户逐节确认后 commit
-2. **计划先行**：用 `superpowers:writing-plans` skill 产出实施计划 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`：头部 Goal/Architecture/Tech Stack/Spec 指针 + Global Constraints；按任务分块，每任务含精确文件清单、失败测试先行（`test/test_*.py` / `test/scripts/check_*.py` / `test/test_*.js` 按被测层选）、完整可落地代码、验证命令与预期输出、commit 步骤（遵循 §Commit 提交分块）；写完自审三查：spec 覆盖、占位符扫描、跨任务类型一致性
-3. **执行**：用 `superpowers:subagent-driven-development`（默认）逐任务派发：每任务独立实现者 + 独立审查者（spec 合规与质量双裁定）+ 修复环（≤5 轮；Minor 延期入台账不进环）；全部任务后一次全分支最终审查 + 单次修复波；台账记 `.superpowers/sdd/<plan>/progress.md`，崩溃后凭台账+git log 恢复
-4. **集成**：向用户确认 push 或保持本地（本仓库惯例：直接 push origin/master，就地 master 开发不用 worktree）
-
-**执行中裁定纪律（Rulings, not stalls）：** 计划执行不打断用户；发现计划缺陷或审查冲突当场裁定并记入台账，最终汇报全部 Ruling 供用户推翻。仅四类事项必须停下问：不可逆/破坏性操作、安全敏感、仓外副作用（push 共享分支等）、计划崩坏到处是猜测。
+1. **提案**：`openspec new change "<kebab-name>"` → 按依赖顺序生成四件套 proposal / specs / design / tasks（`openspec instructions <artifact> --change <name>` 逐步取指令）。proposal MUST 含完整**验收标准**章节——每条可独立执行验证（pytest 命令/断言/手测步骤），tasks.md 逐项与之对应。spec delta 只写外部可观察的行为契约，实现细节进 design。发现旧代码已部分实现时（如 T0.3），提案如实记录现状并圈定剩余工作
+2. **执行**：按 tasks.md 逐项实现，每完成一项勾选；执行中不打断用户，发现提案缺陷当场裁定（Ruling）并回写提案文档，最终汇报全部 Ruling 供推翻；不可逆/破坏性、安全敏感、仓外副作用（push）、提案崩坏四类仍须停下问
+3. **验收**：验收标准逐条全绿 + 全量 `pytest` 绿
+4. **归档**：`openspec archive <name> -y`（spec delta 提升进 `openspec/specs/`），归档与实现同一 commit；commit 中文 Conventional Commits，代码+测试+文档+CHANGELOG 同 commit（§Commit 提交分块）。集成惯例不变：就地 master 开发、直接 push origin/master
 
 **MUST NOT:**
-- 无计划直接开写多步任务；计划留 TBD / TODO / 「稍后补充」占位符
-- 任务审查有未处理的 Critical/Important（未修也未裁定延期）就进入下一任务
+- 无提案直接开写 bump 类变更；提案缺验收标准或验收标准不可独立执行
+- 验收未逐条全绿就归档/commit
+- 把实现细节写进 spec delta（spec 是行为契约，不是实现计划）
 
 ---
 
