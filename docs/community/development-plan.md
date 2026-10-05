@@ -118,7 +118,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 **commit**：`refactor(周常): 任务引擎从 core 迁入 weekly_quest 插件域`
 
-### T0.6 称号前缀注入钩子化 `S`
+### T0.6 称号前缀注入钩子化 `S` ✅ 已完成（2026-10-06，OpenSpec 提案 [`title-prefix-hook`](../../openspec/changes/archive/2026-10-06-title-prefix-hook/proposal.md)：core/context.py 注册点 + plugins.title 自注册 + api 接缝调用；Ruling：异常吞没单点放 api 接缝）
 
 **目标**：消除 `core/api.py → plugins.title` 反向依赖（`_build_title_prefix` L49-64 的延迟 import）。
 
@@ -373,7 +373,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 
 **进度追踪**：
 
-- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ ~~T0.5~~✅ T0.6 T0.7 T0.8 T0.9
+- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ ~~T0.5~~✅ ~~T0.6~~✅ T0.7 T0.8 T0.9
 - [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
 - [ ] M2：T2.1 T2.2 T2.3 T2.4
 - [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）

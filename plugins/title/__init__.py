@@ -1,5 +1,6 @@
 import random
 
+import core.context as runtime_context
 from core.base import CommandPlugin
 from core.cq import at, text
 from core.utils import register_plugin
@@ -12,11 +13,30 @@ from .logic import (
     _title_collection_progress,
 )
 
+def build_title_prefix(dbmanager, user_id) -> str:
+    """@ 提及前的称号前缀（core/api.py 经注册钩子调用；异常由调用方接缝吞没）。"""
+    equipped_titles = dbmanager.titles.equipped_all(user_id)[:3]
+    if len(equipped_titles) == 0:
+        return ""
+    names = []
+    for tid in equipped_titles:
+        data = get_title_def(tid)
+        if data and data.get("name"):
+            names.append(data["name"])
+    if len(names) == 0:
+        return ""
+    return "「{}」".format("·".join(names))
+
+
+runtime_context.register_title_prefix_provider(build_title_prefix)
+
+
 __all__ = [
     "TITLE_DEFS",
     "get_title_def",
     "get_lottery_title_ids",
     "evaluate_and_unlock_titles",
+    "build_title_prefix",
     "TitlePlugin",
 ]
 

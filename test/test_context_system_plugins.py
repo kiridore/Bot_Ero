@@ -25,6 +25,8 @@ class TestConfiguredSystemPlugins(unittest.TestCase):
     """bot.system_plugins 非空 → 精确替换（验收 2、3）。"""
 
     def test_custom_set_replaces_default(self):
+        _saved_provider = context.TITLE_PREFIX_PROVIDER
+        _saved_registry = list(context.plugin_registry)
         try:
             with mock.patch.object(config, "SYSTEM_PLUGINS_CONF", ["menu", "register"]):
                 importlib.reload(context)
@@ -37,7 +39,11 @@ class TestConfiguredSystemPlugins(unittest.TestCase):
                     __module__ = "plugins.message_logger"
                 self.assertFalse(context.is_plugin_enabled(_M, 12345))
         finally:
-            importlib.reload(context)  # 还原真实配置（mock 已退出）
+            importlib.reload(context)  # 还原真实配置
+            # reload 会抹掉运行期注册态（模块级全局重置为初值），保存还原：
+            # ponytail: 手工列举，context 新增运行期全局时需同步补入
+            context.TITLE_PREFIX_PROVIDER = _saved_provider
+            context.plugin_registry[:] = _saved_registry
         self.assertEqual(context.SYSTEM_PLUGINS, _DEFAULT)
 
     def test_plugin_key_unchanged(self):

@@ -33,6 +33,13 @@ SYSTEM_PLUGINS = (
     else _DEFAULT_SYSTEM_PLUGINS
 )
 
+# 称号前缀提供者（plugins.title 加载时注册；未注册 = 无称号前缀，社区裁剪形态降级）
+TITLE_PREFIX_PROVIDER = None
+
+def register_title_prefix_provider(fn) -> None:
+    global TITLE_PREFIX_PROVIDER
+    TITLE_PREFIX_PROVIDER = fn
+
 # 跑团录制状态
 recording_lock = Lock()
 recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime, "messages": list, "participants": dict}

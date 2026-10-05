@@ -47,19 +47,11 @@ class ApiWrapper:
             return {"status": "failed"}
 
     def _build_title_prefix(self, user_id):
+        provider = runtime_context.TITLE_PREFIX_PROVIDER
+        if provider is None:
+            return ""
         try:
-            equipped_titles = self.dbmanager.titles.equipped_all(user_id)[:3]
-            if len(equipped_titles) == 0:
-                return ""
-            names = []
-            from plugins.title import get_title_def
-            for tid in equipped_titles:
-                data = get_title_def(tid)
-                if data and data.get("name"):
-                    names.append(data["name"])
-            if len(names) == 0:
-                return ""
-            return "「{}」".format("·".join(names))
+            return provider(self.dbmanager, user_id)
         except Exception:
             return ""
 
