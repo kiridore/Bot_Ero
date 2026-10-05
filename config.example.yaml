@@ -15,7 +15,7 @@ bot:
   llonebot_data_path: /app/llonebot/server_data  # OneBot API 调用看到的路径（容器内）
   python_data_path: ./server_data               # Python 文件 I/O 用的路径
   onebot_qq_volume: ""      # docker 卷路径（裸机部署留空）
-  system_plugins: []        # 可选：系统插件白名单（缺省 = menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）
+  system_plugins: []        # 可选：系统插件集（不可按群禁用）。非空 = 精确替换（未列入项回归按群开关）；空/缺省 = 内置 8 项（menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）。社区形态在此裁剪，如换入 register/group_review、裁掉 message_logger/startup_changelog
 
 # OneBot HTTP（拉取 QQ 昵称；私有形态必填——webapp 昵称解析用；社区形态可省）
 onebot:

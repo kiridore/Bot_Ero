@@ -17,8 +17,8 @@ startup_changelog_sent = True
 plugin_registry: list[type["Plugin"]] = []
 DEFAULT_GROUP_ID = _config.DEFAULT_GROUP_ID  # 固定群号（config.yaml bot.default_group）
 
-# 系统级插件（不可按群禁用，始终运行）
-SYSTEM_PLUGINS = frozenset({
+# 系统级插件（不可按群禁用，始终运行）；bot.system_plugins 非空 = 精确替换，空/缺省 = 内置缺省集
+_DEFAULT_SYSTEM_PLUGINS = frozenset({
     "menu",
     "group_manager",
     "startup_changelog",
@@ -28,6 +28,10 @@ SYSTEM_PLUGINS = frozenset({
     "welcome",
     "message_logger",
 })
+SYSTEM_PLUGINS = (
+    frozenset(_config.SYSTEM_PLUGINS_CONF) if _config.SYSTEM_PLUGINS_CONF
+    else _DEFAULT_SYSTEM_PLUGINS
+)
 
 # 跑团录制状态
 recording_lock = Lock()

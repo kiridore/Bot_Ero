@@ -93,7 +93,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 **commit**：`feat(时间线): 留空配置时上报静默关闭`
 
-### T0.4 系统插件配置化 `S`
+### T0.4 系统插件配置化 `S` ✅ 已完成（2026-10-06，OpenSpec 提案 [`system-plugins-config`](../../openspec/changes/archive/2026-10-06-system-plugins-config/proposal.md)：`core/context.py` 接线 `SYSTEM_PLUGINS_CONF`，非空 = 精确替换、空/缺省 = 内置 8 项，`test/test_context_system_plugins.py` 三断言）
 
 **目标**：`SYSTEM_PLUGINS` 从硬编码 frozenset 改读 `config.yaml bot.system_plugins`（缺省 = 现值 8 个），社区配置裁掉 `message_logger`、`startup_changelog`。
 
@@ -373,7 +373,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 
 **进度追踪**：
 
-- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ T0.4 T0.5 T0.6 T0.7 T0.8 T0.9
+- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ T0.5 T0.6 T0.7 T0.8 T0.9
 - [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
 - [ ] M2：T2.1 T2.2 T2.3 T2.4
 - [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）
