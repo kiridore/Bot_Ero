@@ -12,7 +12,7 @@
 - **测试**：进程内用例进 `test/test_*.py`（conftest 自动隔离数据路径）；新集成脚本进 `test/scripts/check_*.py`（用 `_env.py::write_config`）；路径一律 `config.X` 属性访问，禁止导入期绑定。
 - **文档同步**：新增/改动指令 → `plugins/menu/bot_menu_text.py` + `kb/PLUGIN_CATALOG.md` + `specs/plugin-catalog.md`；表变更 → `kb/DATABASE.md` + `specs/database.md`；动 OneBot 协议调用 → 先查 `specs/onebot-protocol.md` 权威上游。
 - **双形态接缝白名单**（详见 `specs/conventions.md` §双形态接缝）：edition 差异只允许出现在 5 处接缝——`core/config.py`、`core/feature_packs.py`、菜单文本、plugin_pool 中央门控、权限点；**业务逻辑内禁止 `if EDITION`**。社区部署按 git tag 固化，不追主干 HEAD。
-- **回归**：每任务完成跑全量 `pytest`；M0 期间私有部署行为必须零变化。
+- **回归**：每任务完成跑全量 `pytest`；**任何改动不得影响私有版部署的运行（所有者底线）**——私有部署经 `/更新` 指令 `git pull` 主干 HEAD，主干每个 commit 都必须私有形态安全（私有 config 可加载、行为零变化、pytest 全绿），非仅发布点；M0 纯重构零行为变化，M1+ 的 edition 相关改动必须附 private 直通测试断言。
 - **规模**：S ≤ 半天 / M = 1-2 天（业余 + AI 协作口径）。
 
 ## 1. 任务总览与依赖图
@@ -83,7 +83,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 **commit**：`fix(发送): 无默认群部署丢弃群发并告警`
 
-### T0.3 时间线上报可关 `S`
+### T0.3 时间线上报可关 `S` ✅ 已完成（实现随 1.45.2 `70f1e2d` 落地；收尾测试+文档 2026-10-06，OpenSpec 提案 [`timeline-report-noop`](../../openspec/changes/archive/2026-10-06-timeline-report-noop/proposal.md)：`test/test_timeline_noop.py` 空 URL no-op 断言 + 有配置回归）
 
 **目标**：社区部署（无 webapp）`timeline.url/token` 留空 → `emit_event/retract_event` 直接 no-op，不再要求配置。
 
@@ -373,7 +373,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 
 **进度追踪**：
 
-- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ T0.3 T0.4 T0.5 T0.6 T0.7 T0.8 T0.9
+- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ T0.4 T0.5 T0.6 T0.7 T0.8 T0.9
 - [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
 - [ ] M2：T2.1 T2.2 T2.3 T2.4
 - [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）

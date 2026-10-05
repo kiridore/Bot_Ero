@@ -9,6 +9,7 @@
 - **部署**：新增 Docker 运行支持（`Dockerfile` + `docker-compose.yml`，单容器双进程 bot+webapp，宿主网络模式，见 `docs/web-apps-deployment.md` §9）
 - **内部**：cloud-mail 发信客户端（`core/mail_client.py`）失败路径补齐日志——请求异常（网络/TLS/代理）、登录失败（含服务端 message）、发件账号列表为空各自出 `WARNING`，不再静默返回 None 靠猜排查
 - **新配置 `mail.proxy`**：cloud-mail 请求可单独走指定代理出网（如 `http://127.0.0.1:7890`），替代给整个服务进程加 `HTTP(S)_PROXY` 的做法——进程级代理会把时间线自回环、OneBot 调用等内部请求一并劫走导致静默失败；留空 = 直连
+- **内部**：时间线上报空配置 no-op（社区版 T0.3，行为随 1.45.2 落地）补齐回归测试断言——`timeline.url` 留空时 emit/retract 零 HTTP 请求零异常，有配置时 URL 拼接与鉴权头不变
 
 ## [1.50.0]
 
