@@ -12,6 +12,7 @@
 - **内部**：时间线上报空配置 no-op（社区版 T0.3，行为随 1.45.2 落地）补齐回归测试断言——`timeline.url` 留空时 emit/retract 零 HTTP 请求零异常，有配置时 URL 拼接与鉴权头不变
 - **新配置 `bot.system_plugins` 生效**：系统插件集（不可按群禁用）改为可配置——非空 = 精确替换（未列入项回归按群开关机制），空/缺省 = 内置 8 项不变；社区形态可裁剪 message_logger/startup_changelog 等私域件（社区版 T0.4）
 - **新配置 `bot.text_pack` 文案包**：文案外置为 yaml 包（如 `text_packs/community.yaml`），包内键覆盖内置文案、缺键/空值/坏包回落内置基线且不崩，`{NICKNAME}` 占位符自动替换；随包发布社区中性菜单文案草稿（指令集 = 打卡基础+经济扩展+管理员，T2.4 定稿）；空/缺省 = 内置文案，私有行为零变化（社区版 T0.8，设计变更：取代原双常量方案）
+- **内部**：AGENTS.md 新增沟通规范（所有者要求）——向用户解释问题不得用自创简称和黑话，用平实完整说法；已定义术语可用，未定义概念首次出现用完整描述
 - **内部**：心跳任务多群作用域审计（社区版 T0.9，specs/plugins.md 附录）——批次 1 两心跳（商店轮换/周常清理）零问题零代码；发现 meta 路径泄漏（plugin_pool 对 meta 绕过启用检查，ff_news/weekly_report/startup_changelog 在社区形态仍会被触发、发送被 T0.2 兜底丢弃），修复方案回写 M1 T1.2 门控设计（社区 meta 插件白名单，私有直通不变）
 - **内部**：称号前缀注入改为注册式钩子——core/context.py 暴露 register_title_prefix_provider，plugins.title 加载时自注册，core/api.py 经接缝调用（未注册降级为空，异常接缝吞没），解除 core→plugins 反向依赖（社区版 T0.6，core/api.py 零插件引用）；修正 T0.4 测试 importlib.reload 抹除运行期注册态的问题（provider/plugin_registry 保存还原）；新增 test/test_title_prefix_hook.py 四向断言
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
