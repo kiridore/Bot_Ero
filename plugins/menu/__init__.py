@@ -1,5 +1,6 @@
 from core.base import CommandPlugin
 from core.cq import text
+from core.text_pack import get_text
 
 from .bot_menu_text import BOT_MENU_TEXT
 
@@ -12,4 +13,4 @@ class MenuPlugin(CommandPlugin):
     COMMANDS = ("/菜单", "/菜單")
 
     def handle(self):
-        self.api.send_forward_msg([text(BOT_MENU_TEXT)])
+        self.api.send_forward_msg([text(get_text("menu_text", BOT_MENU_TEXT))])

@@ -248,7 +248,7 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 1. `core/config.py` —— 必填键分侧、`EDITION` 常量及各 edition 专属配置访问器；
 2. `core/feature_packs.py` —— 双形态功能包表选择；
-3. `plugins/menu/bot_menu_text.py`（及其选择处）—— 双菜单文本；
+3. 文案接缝（`plugins/menu/bot_menu_text.py` 内置基线 + `core/text_pack.py` 文案包加载）—— 双形态文案差异经 `bot.text_pack` 指向的 yaml 包覆盖（缺键回落内置，私有不配即原样）；
 4. 准入门控（`main.py` plugin_pool 中央检查）—— 社区版黑名单/群激活/注册检查，私有版直通；
 5. 权限点（如 `grant_points_all` 的 `super_user()` 收紧）—— 仅限权限判定函数内的分支。
 

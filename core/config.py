@@ -89,6 +89,7 @@ SUPER_USER = [int(u) for u in _bot["super_users"]]
 # —— 部署形态（private=私有全功能；community=社区公共服务，纯 bot）——
 EDITION = str(_bot.get("edition") or "private")
 SYSTEM_PLUGINS_CONF = [str(s) for s in (_bot.get("system_plugins") or [])]  # T0.4 消费（缺省空 = 用内置集合）
+TEXT_PACK = str(_bot.get("text_pack") or "")  # 文案包路径（缺省空 = 内置文案，社区版 T0.8）
 _community = _sec("community")
 COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
 # 频控冷却秒数：显式配置不分形态生效；缺省 community=3 / private=0（关闭）

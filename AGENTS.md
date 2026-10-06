@@ -76,7 +76,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **`match()` MUST NOT have side effects**（不发消息、不写库）。
 - **Specs MUST 在同一 commit 更新**（`specs/README.md` 维护规则表）。
 - **每次用户可见变更 MUST 同 commit 更新 `CHANGELOG.md` 并 bump `core/config.py::BOTERO_VERSION`**：CHANGELOG 顶部新增 `[x.y.z]` 节，与 `BOTERO_VERSION` 一致（新功能 minor / 修复 patch）。纯文档/测试/内部重构可只记 CHANGELOG `[未发布]` 节不 bump。
-- **新增/改名指令 MUST 同 commit 更新 `plugins/menu/bot_menu_text.py`**（指令文本唯一来源，勿在他处硬编码）。
+- **新增/改名指令 MUST 同 commit 更新 `plugins/menu/bot_menu_text.py`**（指令文本唯一来源，勿在他处硬编码）；部署期文案差异（如社区中性文案）经 `bot.text_pack` 文案包覆盖（`text_packs/*.yaml` → `core/text_pack.py::get_text`，缺键回落内置，见 specs/conventions.md §双形态接缝）。
 - **改动用户可见文案/输出格式 MUST 同 commit 更新对应测试断言**；新增测试脚本 MUST 用 `test/scripts/_env.py::write_config` 生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向它，按所测模块重定向全部相关数据路径（红线：不触真实 `server_data`），路径常量用 `config.X` 属性访问、禁止导入期绑定。见 `specs/conventions.md` §测试隔离与文案同步。
 - **动协议代码**（`core/api.py`、`core/event.py`、`core/cq.py` 或任何插件的 OneBot 事件/消息段访问）**MUST 先查权威上游**——见 `specs/onebot-protocol.md` §权威上游文档；LLOneBot 文档索引镜像在 `specs/llms.txt`（编辑前 webfetch 对应单页）。
 - LLM 子系统（`core/llm/`）**已弃用**，不要新增依赖。
