@@ -167,7 +167,7 @@ M3+ 批次2/3（上线后按 §6 粗粒度展开）
 
 **commit**：`feat(菜单): 社区版菜单文本`
 
-### T0.9 心跳任务作用域审计（仅批次 1 范围）`S`
+### T0.9 心跳任务作用域审计（仅批次 1 范围）`S` ✅ 已完成（2026-10-06，纯审计零代码，结论表见 [`specs/plugins.md` 附录](../../specs/plugins.md)：批次 1 两心跳零问题；发现 meta 路径泄漏（plugin_pool 对 meta 绕过 is_plugin_enabled，ff_news/weekly_report/startup_changelog 在社区形态仍会被触发），修复归属 T1.2 已回写）
 
 **目标**：确认批次 1 唯一心跳任务 `shop_weekly_rotation`（`plugins/redeem_shop/__init__.py:25`）在社区形态正确：货架全局单份 → 轮换单次执行，无需按群；`ff_news`/`startup_changelog` 等私域播报已在 T0.4/T0.7 排除。
 
@@ -220,9 +220,9 @@ if context_is_message_or_notice(raw):
         allow = {plugin_key(c) for c in registry} & PRIVATE_WHITELIST   # 未注册私聊：仅白名单插件可见
 ```
 
-**边界确认**（写进代码注释）：`meta` 事件跳过全部门控（心跳必须活着）；`notice` 事件放行（register 插件靠 notice 触发）；私有 edition 下三道门控全部直通（`group_registry` 空 = 所有群不激活 → 必须给私有部署免检：**门控仅 `EDITION == "community"` 生效**，⚠️ 这是关键设计点——私有版零行为变化）。
+**边界确认**（写进代码注释）：`notice` 事件放行（register 插件靠 notice 触发）；私有 edition 下三道门控全部直通（`group_registry` 空 = 所有群不激活 → 必须给私有部署免检：**门控仅 `EDITION == "community"` 生效**，⚠️ 这是关键设计点——私有版零行为变化）。**`meta` 事件（T0.9 审计修正）**：社区形态下不再无条件放行——plugin_pool 对 meta 绕过 `is_plugin_enabled`，私域 meta 插件（ff_news/weekly_report/startup_changelog）仅靠门控拦截；改为 meta 经插件级白名单过滤，仅社区必需心跳（shop_weekly_rotation/weekly_quest_reset/backup/forum_notify）与社区系统插件可见，私有形态 meta 直通不变（结论表见 `specs/plugins.md` 附录）。
 
-**测试**：`test/test_gate.py`（新）：①未注册私聊仅白名单插件收到事件 ②未激活群全静默 ③黑名单用户/群全静默 ④私有 edition 直通 ⑤meta/notice 不受门控影响。
+**测试**：`test/test_gate.py`（新）：①未注册私聊仅白名单插件收到事件 ②未激活群全静默 ③黑名单用户/群全静默 ④私有 edition 直通 ⑤meta：私有直通全部插件、社区仅白名单心跳+社区系统插件可见（T0.9 审计发现补）⑥notice 不受门控影响。
 
 **commit**：`feat(社区): plugin_pool 中央门控（黑名单/群激活/注册检查）`
 
@@ -373,7 +373,7 @@ pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号�
 
 **进度追踪**：
 
-- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ ~~T0.5~~✅ ~~T0.6~~✅ ~~T0.8~~✅ T0.7 T0.9
+- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ ~~T0.5~~✅ ~~T0.6~~✅ ~~T0.8~~✅ ~~T0.9~~✅ T0.7（待所有者拍板社区包结构）
 - [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
 - [ ] M2：T2.1 T2.2 T2.3 T2.4
 - [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）

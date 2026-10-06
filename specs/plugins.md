@@ -456,3 +456,33 @@ class GrantPointsAllPlugin(CommandPlugin):
 | 13 | 使用 f-string 拼接 SQL | 始终使用参数化查询 `?` 占位符 |
 | 14 | 跨 `handle()` 调用在实例属性中存储状态 | 使用数据库或模块级变量 |
 | 15 | 修改 `context.plugin_registry` 手动注册 | 始终使用 `@register_plugin` 装饰器 |
+
+---
+
+## 附录：心跳任务多群作用域审计（社区版 T0.9，2026-10-06）
+
+> 审计范围：全部 `TimedHeartbeatPlugin` 子类 + 手动分钟去重的 meta 触发插件（`rg TimedHeartbeatPlugin` 全量核对，基线 1.50.0+）。三栏归类：私有专属（不进社区）/ 全局单次（现状即可）/ 需按群遍历（批次 2 处理）。
+
+| 插件 | 触发 | 归类 | 依据 / 风险 |
+|---|---|---|---|
+| `shop_weekly_rotation`（redeem_shop） | meta · 周一 08:00 | **全局单次（现状即可）** | `shop_stock` 表全局单份（无 group 维度，logic.py 注释明确"数据库 shop_stock 为唯一货架"），轮换单次执行正确。社区形态下货架公告经 `send_msg` 无群上下文 → T0.2 兜底丢弃（WARNING 日志），**货架刷新本身不受影响**；按群公告（iter_active_groups 遍历）留批次 2 |
+| `weekly_quest_reset`（weekly_quest） | meta · 周一 08:00 | **全局单次（现状即可）** | 纯 DB 清理（`quest.cleanup_old`），无消息发送，社区两默认包均含 |
+| `backup` | meta 心跳 + `/数据备份` 指令 | **全局单次（现状即可）** | 全库备份与形态无关，社区同样需要 |
+| `forum_notify` | meta · 每分钟（手动分钟去重，Plugin 子类） | **全局单次（现状即可）** | 轮询 forum 表；社区批次 1 不带 webapp/forum，表恒空 → handle 天然 no-op，无害 |
+| `ff_news` | meta · 整点 | **私有专属（不进社区）** | FF14 官网新闻推默认群。⚠️ 见下方"meta 路径泄漏" |
+| `weekly_report` | meta · 启动补偿 + 周一 08:00 | **私有专属（不进社区）** | 数据源 message_log（社区不启用 message_logger）；周报发默认群。⚠️ 同上 |
+| `startup_changelog` | meta · 启动首次（Plugin 子类，`startup_changelog_sent` 标志） | **私有专属（不进社区）** | ⚠️ 同上 |
+| `welcome` / `auto_friend` | notice / request 触发 | 不属心跳 | M1 由 register 插件承接（T1.3） |
+| `activity_timer`（activity） | 消息事件驱动（Plugin 子类，非心跳） | 需按群遍历（批次 2） | 自带 `activity.group_id`（23 处引用），多群并发审计归 B2.2 |
+
+### 审计发现：meta 路径泄漏（M1 T1.2 需吸收）
+
+`main.py::plugin_pool` 对 **meta 事件绕过 `is_plugin_enabled`**（`event_type != "meta" and not ...`），因此：
+
+- T0.4（`bot.system_plugins` 配置）与 T0.7（功能包按群开关）**都管不到 meta 路径**——development-plan 原"T0.4/T0.7 排除 ff_news/startup_changelog"的假设对 meta 触发插件不成立；
+- 社区形态下 `ff_news`（整点抓取+发送）、`weekly_report`（聚合+发送）、`startup_changelog`（启动播报）仍会被 meta 心跳触发：外呼/聚合白白执行，发送被 T0.2 兜底丢弃并刷 WARNING——**功能无害但属资源浪费与日志噪音**；
+- 修复归属 **M1 T1.2 中央门控**：门控设计需从"meta 事件跳过全部门控"修正为"社区形态下 meta 事件经插件级白名单过滤——仅社区必需心跳（`shop_weekly_rotation`/`weekly_quest_reset`/`backup`/`forum_notify`）与社区系统插件可见，私域 meta 插件不可见；私有形态 meta 直通不变（红线 #122）"。属双形态接缝白名单第 4 处（plugin_pool 中央门控），合法。
+
+### 批次 1 结论
+
+批次 1 范围内（shop_weekly_rotation + weekly_quest_reset）**零问题、零代码改动**；唯一发现（meta 泄漏）修复归属 T1.2，已回写 development-plan T1.2 节。
