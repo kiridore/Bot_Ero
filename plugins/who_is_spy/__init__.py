@@ -339,9 +339,11 @@ class WhoIsSpyPlugin(Plugin):
 
                     broadcast_game_over(self.api, room, winner)
 
+                    allow_titles = self.feature_enabled("title")
                     for pid, p in room["players"].items():
+                        # 战绩统计始终记录；称号关闭时只跳过新称号解锁（config-unification）
                         titles = grant_game_titles(
-                            self.dbmanager, pid, p["role"], winner
+                            self.dbmanager, pid, p["role"], winner, allow_titles=allow_titles
                         )
                         if titles:
                             from plugins.title import get_title_def

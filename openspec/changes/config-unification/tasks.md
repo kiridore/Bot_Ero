@@ -1,33 +1,46 @@
 # Tasks
 
-## 1. 部署级门控基础
+> 当前仅修订提案，以下任务全部未实施。每组交付对应测试与文档；不因提案格式校验通过就标记功能完成。
 
-- [ ] 1.1 `core/config.py`：新增 `ALLOWED_PLUGINS` 读取（`bot.allowed_plugins`，空 = None 表示全集）；`core/context.py` 暴露 frozenset 快照（AC01、AC02）
-- [ ] 1.2 `core/context.py::plugin_settings_snapshot`：返回值与部署全集相交；`main.py::plugin_pool` 删除 meta 豁免行，全部事件类型统一走 `operation.is_enabled`（AC01）
-- [ ] 1.3 启动时校验：SYSTEM_PLUGINS ⊄ ALLOWED_PLUGINS 时 `sys.exit` 报错并列出冲突插件（AC02）
-- [ ] 1.4 `test/test_deployment_gating.py`：三级叠加矩阵 + meta 路径 + 私有缺省零变化（AC01、AC02）
+## 1. 统一配置和启动校验
 
-## 2. 配置校验服务化
+- [x] 1.1 新增allowed_plugins的数据校验：缺键兼容、显式列表精确限制、空列表不扩大权限；保留描述标签但移除edition校验/默认值分支，冷却统一0（AC01、AC05）。
+- [x] 1.2 配置校验提取为可复用纯函数，供bot启动、webapp实际入口和web_panel保存使用；替换旧_REQUIRED全集，明确服务配套键（AC05）。
+- [x] 1.3 插件加载完成后、面板/事件接收前验证标识、有效系统集合、管理能力与包引用；冻结部署策略，避免空注册表误判（AC01、AC05）。
+- [x] 1.4 新增test_config_validation.py，补版名无关矩阵、旧配置、错误名单、系统冲突、注册时序及错误路径/YAML；文案安全回退不得扩大权限（AC01、AC05）。
 
-- [ ] 2.1 `core/config.py`：`_REQUIRED_PRIVATE_EXTRA` 分侧删除；timeline/onebot.http 改"非空时成对必填"；`bot.default_group` 移出必填；`_EDITIONS` 白名单移除（edition 任意值可加载，仅日志记录）（AC03）
-- [ ] 2.2 冷却默认统一 0；`config.example.yaml` 同步注释；社区模板显式写 3（AC03）
-- [ ] 2.3 `test_config_loader.py` 扩展：服务化必填、edition 值无关（同一配置仅改标签全断言一致）（AC03、AC06）
+## 2. 作用范围与管理入口
 
-## 3. 功能包数据化
+- [x] 2.1 统一部署许可与并列的群/私聊判断；保留账号三态、公共默认及操作快照。Operation消费者先查部署许可，cleanup仅允许既有局部撤销例外（AC01、AC02、AC08）。
+- [x] 2.2 group_manager和web_panel共用有效状态；拒绝开启部署禁止项，显示原因，包操作不写禁止插件；公共默认变更回执说明影响继承账号（AC02）。
+- [x] 2.3 复查跨插件写入：卧底称号、兑换码、抽奖/商店等不得间接开放目标功能；一次性复合奖励依赖不可用时在核销/扣费前拒绝；只读历史展示不受误伤（AC08）。
+- [x] 2.4 补test_deployment_gating.py、test_plugin_dependency_gating.py及现有管理测试：A群/B群/私聊分别开关、部署禁止、旧记录保留、下一次操作生效（AC01、AC02、AC08）。
 
-- [ ] 3.1 `core/feature_packs.py`：`bot.feature_packs_file` 加载（yaml 精确替换），缺省回落内置表；单一数据源（AC04）
-- [ ] 3.2 `/功能包 列表` 与监控面板核对展示一致；`test_feature_packs_config.py`（AC04）
-- [ ] 3.3 `config.example.yaml` 与社区模板的包定义文件示例（AC04）
+## 3. 心跳任务迁移
 
-## 4. 社区配置模板
+- [ ] 3.1 建立任务所属插件/作用范围约定；main不再无条件放行meta，也不拿私聊公共默认代替心跳授权；检查先于业务和去重标记消费（AC03）。
+- [ ] 3.2 闹钟、活动、仙人彩按每条记录的群/账号过滤，在发送、状态推进和结算之前检查；一个范围关闭不影响其他范围（AC03、AC04）。
+- [ ] 3.3 商店轮换、周常清理、备份、论坛维护按部署控制单次执行；公告按独立目的地判断，未发送不能标记通知成功（AC03）。
+- [ ] 3.4 新闻、周报、启动公告检查明确目标范围；无有效目标不抓取/聚合/发送。保留原目标，不隐式扩展至所有群（AC03）。
+- [ ] 3.5 补关闭/恢复的记录保留与管理员提示，沿用原到期规则，不新增退款/补开奖。测试错过窗口的已付费记录、过期提醒、活动状态与重复执行保护（AC04）。
+- [ ] 3.6 新增test_scoped_heartbeats.py、test_heartbeat_pending_tasks.py，按design第4节十类逐项验收并更新specs/plugins.md审计附录（AC03、AC04）。
 
-- [ ] 4.1 `config.example.community.yaml`：allowed_plugins（首版打卡范围）、feature_packs_file、冷却 3、system_plugins 裁剪（无 message_logger/auto_friend/welcome/startup_changelog）（AC06）
-- [ ] 4.2 文案包对齐：社区 text_pack 删除经济指令条目，与 allowed_plugins 一致（AC06、AC07）
+## 4. 功能包与有效菜单
 
-## 5. 文档与收尾
+- [ ] 4.1 加载feature_packs_file，主配置目录相对路径、整体替换、严格验证；生成默认/自定义包的同一有效视图。只改定义，不播种群/账号开关（AC06）。
+- [ ] 4.2 管理命令及面板显式接入同一有效包查询/展示，说明实际改动成员；新增成员不自动开放，新增test_feature_packs_config.py（AC02、AC06）。
+- [ ] 4.3 菜单拆为带插件归属和原权限的结构化条目，按当前位置有效集合渲染；不能靠解析自由文本推断权限（AC07）。
+- [ ] 4.4 文案包支持条目覆盖；旧整段menu_text警告并回退内置可过滤菜单，其他文案继续兼容。更新内置及社区文案、增加格式迁移说明和test_enabled_menu.py（AC07）。
 
-- [ ] 5.1 `specs/plugins.md` 附录心跳三栏表更新为"受部署门控"；删除"社区白名单"表述（AC07）
-- [ ] 5.2 `kb/QUICK_REFERENCE.md`、`specs/conventions.md` 接缝白名单第 4 条改写为"中央门控 = 部署/群/账号三级统一检查"（AC07）
-- [ ] 5.3 `docs/community/development-plan.md` T1.2/T0.7 对应条目标注由本提案替代（AC07）
-- [ ] 5.4 CHANGELOG + BOTERO_VERSION minor bump（AC05 前置）
-- [ ] 5.5 全量 pytest 绿 + `openspec validate config-unification --strict`（AC05、AC08）→ 归档同 commit
+## 5. 模板与逐步开放验收
+
+- [ ] 5.1 更新config.example.yaml，新增公开候选配置及打卡基础包文件：明确允许名单、对应系统集合、文案及冷却；不包含私域/经济扩展/尚未实现插件，不以版名隐式补能力（AC09）。
+- [ ] 5.2 写超级用户操作示例：设置私聊公共基础集合、给某群/账号加功能、查看部署禁止状态；说明公共默认和重新允许旧插件可能产生的影响（AC02、AC09）。
+- [ ] 5.3 新增test_deployment_templates.py，使用_env.write_config及会话临时数据路径验证模板加载；断言新群/账号和新增代码不因包变化意外开放，禁止访问生产DB或外部OneBot（AC05、AC09）。
+
+## 6. 文档、验收与归档
+
+- [ ] 6.1 同步kb/QUICK_REFERENCE、PLUGIN_CATALOG、specs/conventions/plugins/plugin-catalog、社区开发计划和配置说明；引用最新“仅配置差异”规则，不恢复已删除的版别白名单；标明本提案不等于公开运营验收（AC11）。
+- [ ] 6.2 逐项运行AC01–AC10并记录命令和结果；权限、积压、旁路和菜单等新增断言必须实际通过，不能只引用旧533项（AC01–AC10）。
+- [ ] 6.3 bump minor版本并增加CHANGELOG；校验链接、差异与版本一致，修订停止使用的旧T0.7/T1.2描述。确认所有新增/修改能力各在对应spec文件（AC11）。
+- [ ] 6.4 严格校验及临时副本规范合并检查均通过后才正式归档；归档与实现同一交付提交。未经授权不推送或合并master（AC11）。

@@ -67,6 +67,33 @@ def test_user_pack_three_states_and_list(management):
     assert db.execute("SELECT COUNT(*) FROM user_plugin_config WHERE plugin_name='menu'").fetchone()[0] == 0
 
 
+def test_deployment_forbidden_plugin_rejected_everywhere(management, monkeypatch):
+    import core.context as ctx
+    monkeypatch.setattr(ctx, "ALLOWED_PLUGINS", frozenset({"menu", "group_manager", "weekly_quest"}))
+    db, run = management.conn, management.run
+    # 群设置与账号设置都被拒绝，不写库
+    assert "未在本部署开放" in run("/插件", ["title", "开启", "群", "42"])
+    assert "未在本部署开放" in run("/插件", ["title", "开启", "用户", "42"])
+    assert db.execute("SELECT COUNT(*) FROM group_plugin_config WHERE plugin_name='title'").fetchone()[0] == 0
+    assert db.execute("SELECT COUNT(*) FROM user_plugin_config WHERE plugin_name='title'").fetchone()[0] == 0
+    # 列表显示部署未开放，而不是可开启
+    listing = run("/插件", ["列表"])
+    assert "🚫 title" in listing and "✅ title" not in listing
+    assert "❌ weekly_quest" in listing  # 名单内插件照常显示开关状态
+    user_listing = run("/插件", ["列表", "用户", "42"])
+    assert "🚫 title（部署未开放）" in user_listing
+
+
+def test_deployment_forbidden_pack_members_not_enabled(management, monkeypatch):
+    import core.context as ctx
+    monkeypatch.setattr(ctx, "ALLOWED_PLUGINS", frozenset({"menu", "group_manager", "title"}))
+    db, run = management.conn, management.run
+    assert "已" in run("/功能包", ["测试包", "开启", "群", "10"])  # 回执成功但只改名单内成员
+    assert enabled_plugins(db, group_id=10) == {"title": True}  # weekly_quest 不开后门
+    pack_listing = run("/功能包", ["列表"], gid=10)
+    assert "测试包 (1/1)" in pack_listing  # 名单外成员不计入包统计
+
+
 def test_system_plugin_remains_enabled_even_with_stale_override(management):
     set_user_plugins(management.conn, 42, ["menu"], False)
     assert context.plugin_settings_snapshot(None, 42)["menu"] is True

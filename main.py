@@ -9,6 +9,8 @@ from core.logger import logger
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 
+runtime_context.validate_deployment_policy()  # 注册表就绪后冻结部署策略（config-unification）
+
 from core.web_panel import start_panel
 from core.plugin_dispatch import Operation
 from core.message_output import MessageOutput, send_request

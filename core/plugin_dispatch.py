@@ -35,6 +35,12 @@ def subscribe(topic, plugin, *, order=0, cleanup=False):
     return decorate
 
 
+def _deployment_allowed(plugin: str) -> bool:
+    """部署硬边界；延迟导入避免模块期循环。手动构造的 Operation 也受同一限制。"""
+    from core import context
+    return context.plugin_allowed(plugin)
+
+
 class Operation:
     MAX_NOTIFICATIONS = 1000
 
@@ -102,9 +108,16 @@ class Operation:
                 topic, payload, ancestry = self._pending.popleft()
                 self._ancestry = ancestry
                 for sub in self.subscriptions:
-                    if sub.topic == topic and (sub.cleanup or self.is_enabled(sub.plugin)):
-                        # 每个消费者各拿一份数据，不能篡改其他消费者所见内容。
-                        self.execute(sub.plugin, lambda s=sub: s.handler(self, deepcopy(payload)))
+                    if sub.topic != topic:
+                        continue
+                    # cleanup 只绕过局部新奖励开关，绕不过部署禁止（config-unification）
+                    if sub.cleanup:
+                        if not _deployment_allowed(sub.plugin):
+                            continue
+                    elif not self.is_enabled(sub.plugin):
+                        continue
+                    # 每个消费者各拿一份数据，不能篡改其他消费者所见内容。
+                    self.execute(sub.plugin, lambda s=sub: s.handler(self, deepcopy(payload)))
         finally:
             self._ancestry = ()
             self._draining = False

@@ -42,7 +42,9 @@ def _list_plugins_text(group_id: int) -> str:
     lines = []
     for cls in runtime_context.plugin_registry:
         key = runtime_context.plugin_key(cls)
-        if key in runtime_context.SYSTEM_PLUGINS:
+        if not runtime_context.plugin_allowed(key):
+            status = "🚫"  # 部署未开放：不能通过群/账号设置启用
+        elif key in runtime_context.SYSTEM_PLUGINS:
             status = "🔒"
         elif key in enabled:
             status = "✅"
@@ -56,10 +58,13 @@ def _list_packs_text(group_id: int) -> str:
     enabled = _get_config(group_id)
     lines = []
     for name, pack in FEATURE_PACKS.items():
-        pset = set(pack["plugins"])
+        pset = {key for key in pack["plugins"]
+                if key not in runtime_context.SYSTEM_PLUGINS and runtime_context.plugin_allowed(key)}
         total = len(pset)
         on = len(pset & enabled)
-        if on == 0:
+        if total == 0:
+            icon = "🚫"  # 本部署未开放该包任何插件
+        elif on == 0:
             icon = "❌"
         elif on == total:
             icon = "✅"
@@ -81,6 +86,8 @@ def _set_pack_config(group_id: int, pack_name: str, enable: bool):
             for key in pack["plugins"]:
                 if key in runtime_context.SYSTEM_PLUGINS:
                     continue
+                if enable and not runtime_context.plugin_allowed(key):
+                    continue  # 部署未开放的成员不开后门；关闭操作仍允许清理旧开启行
                 if enable:
                     conn.execute(
                         "INSERT OR IGNORE INTO group_plugin_config (group_id, plugin_name) VALUES (?, ?)",
@@ -200,7 +207,9 @@ class GroupManagerPlugin(CommandPlugin):
                     lines.append("系统插件不参与账号覆盖，始终运行")
                 else:
                     for key in sorted(_all_plugin_names()):
-                        if key in runtime_context.SYSTEM_PLUGINS:
+                        if not runtime_context.plugin_allowed(key):
+                            lines.append(f"🚫 {key}（部署未开放）")
+                        elif key in runtime_context.SYSTEM_PLUGINS:
                             lines.append(f"🔒 {key}（系统插件）")
                         else:
                             origin = "单独设置" if key in overrides else "沿用默认"
@@ -221,6 +230,9 @@ class GroupManagerPlugin(CommandPlugin):
                 if name in runtime_context.SYSTEM_PLUGINS:
                     self.api.send_msg(text("系统插件不支持账号覆盖设置"))
                     return
+                if not runtime_context.plugin_allowed(name):
+                    self.api.send_msg(text(f"插件「{name}」未在本部署开放，不能设置；如需开放请修改配置 allowed_plugins"))
+                    return
                 names = [name]
             set_user_plugins(conn, target, names, None if action == "default" else action == "on")
             label = {"on": "开启", "off": "关闭", "default": "恢复默认"}[action]
@@ -239,6 +251,9 @@ class GroupManagerPlugin(CommandPlugin):
             return
         if name in runtime_context.SYSTEM_PLUGINS:
             self.api.send_msg(text("系统插件始终运行，不支持单独开关"))
+            return
+        if not runtime_context.plugin_allowed(name):
+            self.api.send_msg(text(f"插件「{name}」未在本部署开放，不能开启或关闭；如需开放请修改配置 allowed_plugins"))
             return
         enable = action == "on"
         _set_config(target_gid, name, enable)

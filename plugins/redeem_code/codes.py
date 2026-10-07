@@ -4,6 +4,7 @@
 返回值非空时拼在"兑换成功"回复末尾，用于描述发放的奖励。
 积分: from core.utils import add_user_point; add_user_point(db, user_id, n)
 称号: db.titles.unlock(user_id, title_id)
+依赖: 声明 requires 元组——目标功能未开放时整次拒绝兑换（不核销、不发部分奖励）。
 """
 import re
 from typing import Optional
@@ -36,9 +37,11 @@ REDEEM_CODES = {
     "TEST-CODE-TEST": {
         "description": "解锁「测试员」称号",
         "callback": _grant_tester_title,
+        "requires": ("title",),
     },
     "ONLY-YEAR-ONCE": {
         "description": "一周年专属：解锁「1st」称号 + 10 积分",
         "callback": _grant_first_anniversary,
+        "requires": ("title",),
     },
 }
