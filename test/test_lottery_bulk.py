@@ -4,6 +4,7 @@
 import os
 import sys
 import sqlite3
+from types import SimpleNamespace
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -87,11 +88,30 @@ class TestLotteryBulk(unittest.TestCase):
         plugin.bot_event = Event(raw)
         plugin.api = MockApiWrapper(raw)
         plugin.dbmanager = self.db
+        plugin.operation = SimpleNamespace(is_enabled=lambda key: True)
         plugin.match("message")
         return plugin
 
     def _run(self, text_body, user_id=123456):
         return self._run_raw(make_group_message(text_body, user_id=user_id), user_id=user_id)
+
+    def test_title_disabled_rejects_before_any_draw_side_effect(self):
+        for factory in (make_group_message, make_private_message):
+            for command in ("/抽奖", "/一键抽奖"):
+                with self.subTest(factory=factory.__name__, command=command):
+                    p = self._run_raw(factory(command, user_id=123456))
+                    p.operation = SimpleNamespace(is_enabled=lambda key: False)
+                    before = list(self.conn.iterdump())
+                    p.handle()
+                    self.assertIn("称号功能已关闭", _last_text(p))
+                    self.assertEqual(list(self.conn.iterdump()), before)
+                    self.assertEqual(self.db.lottery.draw_count(123456, self.today), 0)
+
+    def test_title_disabled_allows_spending_query(self):
+        p = self._run("/抽卡消费")
+        p.operation = SimpleNamespace(is_enabled=lambda key: False)
+        p.handle()
+        self.assertIn("累计抽卡消费", _last_text(p))
 
     def test_bulk_draws_all_remaining_no_checkin(self):
         """未打卡上限 2 次：连抽 2 次，首抽免费、第二次扣 1 积分；

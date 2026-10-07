@@ -6,6 +6,7 @@ from core.utils import register_plugin
 import core.context as runtime_context
 from core import config
 from core.feature_packs import FEATURE_PACKS
+from core.db.plugin_settings import enabled_plugins, set_user_plugins
 
 ACTIONS = {"on": "on", "开启": "on", "off": "off", "关闭": "off"}
 
@@ -134,6 +135,12 @@ class GroupManagerPlugin(CommandPlugin):
         if not self.super_user():
             self.api.send_msg(text("仅超级用户可管理插件"))
             return
+        if "用户" in self.args or "群" in self.args:
+            self._explicit_target()
+            return
+        if "默认" in self.args:
+            self.api.send_msg(text("恢复默认仅用于：/插件 <名称> 默认 用户 <账号>"))
+            return
         parsed = self._parse()
         if isinstance(parsed, str):
             self.api.send_msg(text(parsed))
@@ -144,6 +151,66 @@ class GroupManagerPlugin(CommandPlugin):
         else:
             self._pack(name, action, target_gid)
 
+    def _explicit_target(self):
+        args = self.args
+        if (len(args) not in (3, 4) or args[-2] not in ("群", "用户")
+                or not args[-1].isascii() or not args[-1].isdigit() or len(args[-1]) > 19
+                or not 0 < int(args[-1]) <= 9223372036854775807):
+            self.api.send_msg(text(f"用法：{self.cmd} <名称> <开启|关闭|默认> <群|用户> <编号>；列表可省略动作"))
+            return
+        name, scope, target = args[0], args[-2], int(args[-1])
+        action = ACTIONS.get(args[1]) if len(args) == 4 else "on"
+        if len(args) == 4 and args[1] == "默认":
+            action = "default"
+        if action is None or (name != "列表" and len(args) != 4):
+            self.api.send_msg(text("请明确指定开启、关闭或默认"))
+            return
+        if scope == "群":
+            if action == "default":
+                self.api.send_msg(text("群设置不支持账号的恢复默认操作"))
+                return
+            if self.cmd == "/插件":
+                self._plugin(name, action, target)
+            else:
+                self._pack(name, action, target)
+            return
+        conn = sqlite3.connect(str(config.DB_PATH))
+        try:
+            if name == "列表":
+                settings = enabled_plugins(conn, user_id=target)
+                overrides = dict(conn.execute(
+                    "SELECT plugin_name, enabled FROM user_plugin_config WHERE user_id = ?", (str(target),)
+                ))
+                lines = [f"用户{target}的私聊插件设置："]
+                for key in sorted(_all_plugin_names()):
+                    if key in runtime_context.SYSTEM_PLUGINS:
+                        lines.append(f"🔒 {key}（系统插件）")
+                    else:
+                        origin = "单独设置" if key in overrides else "沿用默认"
+                        lines.append(f"{'✅' if settings.get(key, False) else '❌'} {key}（{origin}）")
+                self.api.send_msg(text("\n".join(lines)))
+                return
+            if self.cmd == "/功能包":
+                pack = _find_pack(name)
+                if pack is None:
+                    self.api.send_msg(text(f"功能包「{name}」不存在"))
+                    return
+                names = [key for key in FEATURE_PACKS[pack]["plugins"]
+                         if key not in runtime_context.SYSTEM_PLUGINS]
+            else:
+                if name not in _all_plugin_names():
+                    self.api.send_msg(text(f"插件「{name}」不存在"))
+                    return
+                if name in runtime_context.SYSTEM_PLUGINS:
+                    self.api.send_msg(text("系统插件不支持账号覆盖设置"))
+                    return
+                names = [name]
+            set_user_plugins(conn, target, names, None if action == "default" else action == "on")
+            label = {"on": "开启", "off": "关闭", "default": "恢复默认"}[action]
+            self.api.send_msg(text(f"已为用户{target}{label}「{name}」"))
+        finally:
+            conn.close()
+
     def _plugin(self, name: str, action: str, target_gid: int):
         if name == "列表":
             self.api.send_msg(text(_list_plugins_text(target_gid)))
@@ -152,6 +219,9 @@ class GroupManagerPlugin(CommandPlugin):
         if name not in valid:
             lines = "\n".join(sorted(valid))
             self.api.send_msg(text(f"插件「{name}」不存在\n可用插件：\n{lines}"))
+            return
+        if name in runtime_context.SYSTEM_PLUGINS:
+            self.api.send_msg(text("系统插件始终运行，不支持单独开关"))
             return
         enable = action == "on"
         _set_config(target_gid, name, enable)

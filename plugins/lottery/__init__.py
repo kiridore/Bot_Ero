@@ -268,6 +268,9 @@ class LotteryPlugin(CommandPlugin):
             spent = self.dbmanager.lottery.spent(target_user_id)
             self.api.send_msg(at(user_id), text(f"用户 {target_user_id} 累计抽卡消费：{spent} 积分"))
             return
+        if not self.feature_enabled("title"):
+            self.api.send_msg(text("称号功能已关闭，暂时无法抽奖。请联系超级用户开启称号功能。"))
+            return
         if self.cmd in ("/一键抽奖", "/一鍵抽獎"):
             self._handle_bulk_draw(user_id)
             return

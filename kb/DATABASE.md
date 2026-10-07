@@ -1,10 +1,18 @@
 # 数据库 Schema
 
-> `data.db` 全部 44 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
+> `data.db` 全部 46 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
 >
 > 参见 `specs/database.md` 获取更简化的概述
 
 ---
+
+## 插件账号设置与奖励记录（plugin-event-dispatch 实施中）
+
+- `user_plugin_config`：`user_id INTEGER`、`plugin_name TEXT` 联合主键，`enabled INTEGER CHECK enabled IN (0,1)`。无行沿用私聊公共设置；0 为明确关闭，1 为明确开启；恢复默认删除行。群聊不读取账号覆盖。
+- `plugin_reward_records`：`id INTEGER PRIMARY KEY AUTOINCREMENT`；`plugin_name TEXT`、`user_id INTEGER`、`reward_key TEXT`、`source_operation TEXT`、`source_scope TEXT`、`amount INTEGER CHECK amount>=0` 均非空；`granted_at TEXT DEFAULT CURRENT_TIMESTAMP`；可空的 `revoked_at TEXT` 与 `revoke_operation TEXT`。
+- `plugin_reward_active`：对未撤销记录的 `(plugin_name,user_id,reward_key)` 唯一索引。同一有效奖励只能领取一次。
+- `plugin_reward_source`：`(plugin_name,user_id,reward_key,source_operation)` 唯一，防止旧操作在撤销后被重复通知再次发奖。新的合法操作仍可在重新达标后领取。
+- `core/db/rewards.py` 用短 `BEGIN IMMEDIATE` 事务更新领取状态、奖励记录与积分；回调不得自行 commit 或发消息。拒绝隐式提交调用方尚未完成的事务。业务插件接入及旧数据兼容仍按提案实施，不能仅凭新表创建宣布迁移完成。
 
 ## 用户与积分
 

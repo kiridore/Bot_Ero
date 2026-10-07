@@ -19,6 +19,25 @@ class Plugin:
         self.bot_event = Event(raw_context)
         self.api = ApiWrapper(raw_context)
         self.dbmanager = DbManager()
+        self.operation = raw_context.get("_operation")
+
+    def feature_enabled(self, plugin_name):
+        operation = getattr(self, "operation", None)
+        if operation is not None:
+            return operation.is_enabled(plugin_name)
+        from core.context import plugin_settings_snapshot
+        return plugin_settings_snapshot(self.bot_event.group_id, self.bot_event.user_id).get(plugin_name, False)
+
+    def submit_message(self, *message, merge=None, order=0, target=None, kind="segments"):
+        """迁移后的插件提交输出；旧的独立调用路径由调用者显式提供 operation。"""
+        if self.operation is None:
+            raise RuntimeError("提交消息需要事件处理上下文")
+        if kind == "segments" and all(seg.get("type") == "text" for seg in message):
+            content = "".join(seg["data"]["text"] for seg in message)
+            kind = "text"
+        else:
+            content = list(message)
+        self.operation.output.submit(content, target=target, kind=kind, merge=merge, order=order)
 
     def match(self, event_type = "message") -> bool:
         return False

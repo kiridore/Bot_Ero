@@ -74,10 +74,24 @@ def is_plugin_allowed_during_recording(key: str) -> bool:
 def plugin_key(plugin_cls: type["Plugin"]) -> str:
     return plugin_cls.__module__.split(".", 1)[1]
 
-def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
+def plugin_settings_snapshot(group_id=None, user_id=None) -> dict[str, bool]:
+    from core.database_manager import DbManager
+    from core.db.plugin_settings import enabled_plugins
+    db = DbManager()
+    try:
+        settings = enabled_plugins(db.conn, group_id, user_id)
+    finally:
+        db.conn.close()
+    settings.update({key: True for key in SYSTEM_PLUGINS})
+    return settings
+
+
+def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None, user_id=None) -> bool:
     key = plugin_key(plugin_cls)
     if key in SYSTEM_PLUGINS:
         return True
+    if group_id is None and user_id is not None:
+        return plugin_settings_snapshot(group_id, user_id).get(key, False)
     gid = group_id if group_id is not None else 0
     try:
         conn = sqlite3.connect(str(_config.DB_PATH))

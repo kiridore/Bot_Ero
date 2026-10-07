@@ -75,7 +75,7 @@ while True:
 
 ---
 
-## Constraint: 事件分发模型（一线程每事件每插件）
+## Constraint: 事件分发模型（每事件一个线程）
 
 每个 OneBot 事件触发时，`on_message` 回调执行：
 
@@ -93,33 +93,17 @@ def on_message(_, message):
         t.start()
 ```
 
-`plugin_pool()` 遍历所有已注册插件（框架层统一 try/except，插件异常不会静默死线程）：
-
-```python
-def plugin_pool(context, event_type):
-    group_id = context.get("group_id")
-    for plugin_cls in runtime_context.plugin_registry:
-        if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
-            continue   # 系统插件始终启用；群/私聊按 group_plugin_config 表判断
-        # 跑团录制期间跳过非跑团功能包插件
-        if group_id is not None and runtime_context.is_group_recording(group_id):
-            if not runtime_context.is_plugin_allowed_during_recording(
-                runtime_context.plugin_key(plugin_cls)
-            ):
-                continue
-        plugin = plugin_cls(context)
-        try:
-            if plugin.match(event_type):
-                plugin.handle()
-        except Exception:
-            logger.exception("插件 %s 处理失败", plugin_cls.__name__)
-```
+`plugin_pool()` 为本次事件读取插件开关快照，创建独立 `Operation`，在同一线程依次创建、匹配并处理插件。外部 meta 事件仍沿用原来的直达规则；内部通知按订阅所属插件的快照判断是否运行，历史奖励撤销另行依据记录判断。
 
 **关键属性:**
-- 每个事件触发 N 个线程（N = 已注册插件数）
-- 每个线程创建一个新的插件实例
-- 插件之间**无执行顺序保证**
-- 插件之间**无同步机制**（需自行处理并发）
+- 每个外部事件一个线程，不是每插件一个线程；不同事件仍并发。
+- 每次处理创建新的插件实例，不依赖实例跨事件存储状态。
+- 内部通知在当前事件线程顺序消费，无后台消费者；子通知在处理函数成功后才接收。
+- 一次操作一个消息输出列表，待内部通知处理完后统一发送；未迁移插件暂时保留原发送方式。
+- 处理函数失败丢弃未确认输出和子通知，记录错误并继续其他独立处理；已经保存的业务不会因此撤销。
+- 数据库奖励事务负责跨事件并发的正确性，不能以“同一事件内部串行”代替事务和唯一约束。
+
+本次插件重构得到所有者明确许可：私有版也采用关闭插件后停止新联动的语义及新消息合并方式；不扩大为修改无关玩法的许可。
 
 ---
 
