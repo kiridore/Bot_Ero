@@ -17,8 +17,8 @@
 ## 3. 私聊账号开关
 
 - [x] 3.1 在集中 schema 新增账号覆盖表与查询/更新方法，保留公共默认和群表；test/test_plugin_controls.py 验证三态、默认继承、账号群隔离、旧库增量升级和事务一致快照（AC02、AC10）。
-- [ ] 3.2 扩展 group_manager 显式群/用户目标及恢复默认命令，保留旧语法；验证全部修改入口仅超级用户可用、系统组件不可关闭、包批量设置一致（AC02）。
-- [ ] 3.3 同步菜单、kb/QUICK_REFERENCE.md、kb/PLUGIN_CATALOG.md、specs/plugin-catalog.md 与数据库文档；以测试逐项核对指令示例与权限（AC02、AC09）。
+- [x] 3.2 扩展 group_manager 显式群/用户目标及恢复默认命令，保留旧语法；验证全部修改入口仅超级用户可用、系统组件不可关闭、包批量设置一致（AC02）。
+- [x] 3.3 同步菜单、kb/QUICK_REFERENCE.md、kb/PLUGIN_CATALOG.md、specs/plugin-catalog.md 与数据库文档；以测试逐项核对指令示例与权限（AC02、AC09）。
 
 ## 4. 奖励记录与撤销
 

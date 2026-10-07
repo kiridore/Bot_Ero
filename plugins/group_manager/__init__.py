@@ -76,22 +76,24 @@ def _set_pack_config(group_id: int, pack_name: str, enable: bool):
     if pack is None:
         return False
     conn = sqlite3.connect(str(config.DB_PATH))
-    for key in pack["plugins"]:
-        if key in runtime_context.SYSTEM_PLUGINS:
-            continue
-        if enable:
-            conn.execute(
-                "INSERT OR IGNORE INTO group_plugin_config (group_id, plugin_name) VALUES (?, ?)",
-                (group_id, key)
-            )
-        else:
-            conn.execute(
-                "DELETE FROM group_plugin_config WHERE group_id = ? AND plugin_name = ?",
-                (group_id, key)
-            )
-    conn.commit()
-    conn.close()
-    return True
+    try:
+        with conn:
+            for key in pack["plugins"]:
+                if key in runtime_context.SYSTEM_PLUGINS:
+                    continue
+                if enable:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO group_plugin_config (group_id, plugin_name) VALUES (?, ?)",
+                        (group_id, key)
+                    )
+                else:
+                    conn.execute(
+                        "DELETE FROM group_plugin_config WHERE group_id = ? AND plugin_name = ?",
+                        (group_id, key)
+                    )
+        return True
+    finally:
+        conn.close()
 
 
 def _find_pack(name: str) -> str | None:
@@ -117,7 +119,10 @@ class GroupManagerPlugin(CommandPlugin):
 
     def _parse(self) -> tuple[str, str, int] | str:
         if not self.args:
-            return f"用法：{self.cmd} <名称|列表> [off|关闭] [群号]"
+            return (f"用法：{self.cmd} <名称|列表> [off|关闭] [群号]\n"
+                    f"账号设置：{self.cmd} <名称> <开启|关闭|默认> 用户 <账号>\n"
+                    f"账号列表：{self.cmd} 列表 用户 <账号>\n"
+                    "默认表示沿用私聊公共设置；只有超级用户可以修改")
         first = self.args[0]
         rest = self.args[1:]
         action = "on"
@@ -127,6 +132,9 @@ class GroupManagerPlugin(CommandPlugin):
                 action = ACTIONS[a]
             else:
                 clean.append(a)
+        if (len(clean) > 1 or (clean and (not clean[0].isascii() or not clean[0].isdigit()
+                or len(clean[0]) > 19 or int(clean[0]) > 9223372036854775807))):
+            return "群号须为非负整数；账号设置请使用 用户 <账号>"
         gid = self.bot_event.group_id
         target_gid = _resolve_target_gid(clean, gid)
         return first, action, target_gid
@@ -181,13 +189,22 @@ class GroupManagerPlugin(CommandPlugin):
                 overrides = dict(conn.execute(
                     "SELECT plugin_name, enabled FROM user_plugin_config WHERE user_id = ?", (str(target),)
                 ))
-                lines = [f"用户{target}的私聊插件设置："]
-                for key in sorted(_all_plugin_names()):
-                    if key in runtime_context.SYSTEM_PLUGINS:
-                        lines.append(f"🔒 {key}（系统插件）")
-                    else:
-                        origin = "单独设置" if key in overrides else "沿用默认"
-                        lines.append(f"{'✅' if settings.get(key, False) else '❌'} {key}（{origin}）")
+                lines = [f"用户{target}的私聊{'功能包' if self.cmd == '/功能包' else '插件'}设置："]
+                if self.cmd == "/功能包":
+                    for pack_name, pack in FEATURE_PACKS.items():
+                        names = set(pack["plugins"]) - runtime_context.SYSTEM_PLUGINS
+                        total = len(names)
+                        on = sum(bool(settings.get(key, False)) for key in names)
+                        icon = "🔒" if not total else "❌" if not on else "✅" if on == total else "⚡"
+                        lines.append(f"{icon} {pack_name} ({on}/{total})")
+                    lines.append("系统插件不参与账号覆盖，始终运行")
+                else:
+                    for key in sorted(_all_plugin_names()):
+                        if key in runtime_context.SYSTEM_PLUGINS:
+                            lines.append(f"🔒 {key}（系统插件）")
+                        else:
+                            origin = "单独设置" if key in overrides else "沿用默认"
+                            lines.append(f"{'✅' if settings.get(key, False) else '❌'} {key}（{origin}）")
                 self.api.send_msg(text("\n".join(lines)))
                 return
             if self.cmd == "/功能包":
