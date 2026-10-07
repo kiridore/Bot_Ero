@@ -38,7 +38,7 @@ class WeeklyQuestPlugin(CommandPlugin):
             lines.append(f"{mark} {q['name']}  [{cur}/{q['goal']}]  +{q['reward']}  {status}")
             lines.append(f"   {bar}")
 
-        self.api.send_msg(text("\n".join(lines)))
+        self.submit_message(text("\n".join(lines)))
 
 
 def _make_bar(cur, goal, width=12):

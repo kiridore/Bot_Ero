@@ -39,12 +39,12 @@
 |---|---|---|
 | AC01 | `python -m pytest test/test_plugin_dispatch.py -k thread` | 生产者、消费者和最终发送在同一事件线程；两个并发事件的通知和输出不混用；处理可继续产生通知直至本次完成 |
 | AC02 | `python -m pytest test/test_plugin_controls.py test/test_plugin_management.py test/test_web_panel.py` | 群设置、私聊公共默认、账号三态覆盖、恢复默认、非超级用户拒绝、旧指令兼容、群号与账号明确区分、当前操作固定开关以及新操作看到新值 |
-| AC03 | `python -m pytest test/test_plugin_event_integration.py -k disable` | 分别关闭周常、称号、商店时，仅对应新业务停止；打卡和其他启用插件继续；私有和社区采用一致规则；重新开启不自动补发 |
-| AC04 | `python -m pytest test/test_plugin_output.py` | 标记/接收方/操作边界、无标记单发、稳定显示顺序、换行、图片和转发独立、群私聊隔离、失败输出丢弃、发送失败不重跑业务不自动重发 |
+| AC03 | `python -m pytest test/test_plugin_event_integration.py test/test_lottery_events.py -k disable` | 分别关闭周常、称号、商店时，仅对应新业务停止；打卡和其他启用插件继续；私有和社区采用一致规则；重新开启不自动补发 |
+| AC04 | `python -m pytest test/test_plugin_output.py test/test_plugin_send_compatibility.py` | 标记/接收方/操作边界、无标记单发、稳定显示顺序、换行、图片和转发独立、群私聊隔离、失败输出丢弃、发送失败不重跑业务不自动重发 |
 | AC05 | `python -m pytest test/test_plugin_dispatch.py -k failure` | 一个处理函数失败不阻止其他独立函数；已保存打卡不丢失；失败函数未确认提示和子通知不发布；错误日志和用户提示存在且不泄露内部异常细节 |
-| AC06 | `python -m pytest test/test_reward_records.py` | 发奖/撤奖记录与积分原子提交；故障注入回滚；同一业务奖励重复通知、跨线程竞争只能发一次；同一撤销只能扣一次；撤销后合法重新达标可再次发奖 |
+| AC06 | `python -m pytest test/test_reward_records.py test/test_lottery_events.py` | 发奖/撤奖记录与积分原子提交；故障注入回滚；同一业务奖励重复通知、跨线程竞争只能发一次；同一撤销只能扣一次；撤销后合法重新达标可再次发奖 |
 | AC07 | `python -m pytest test/test_reward_compatibility.py` | 关闭周常后仍能撤回旧奖励；未曾发奖不扣分；旧记录可撤销且与新记录不双扣；不收回已解锁称号，不改变累计周常完成和历史全清的现有规则 |
-| AC08 | `python -m pytest test/test_plugin_event_integration.py` | 打卡、消息撤回、指令撤回、单抽和一键抽奖完整流程；奖励插件全开时数值/记录与改造前一致，输出符合新合并规则；第一阶段发送均走统一模块 |
+| AC08 | `python -m pytest test/test_plugin_event_integration.py test/test_lottery_events.py test/test_lottery_bulk.py test/test_plugin_command_output.py` | 打卡、消息撤回、指令撤回、单抽和一键抽奖完整流程；奖励插件全开时数值/记录与改造前一致，输出符合新合并规则；第一阶段发送均走统一模块 |
 | AC09 | 审阅 `migration.md`；`git -c core.whitespace=cr-at-eol diff --check` | 所有 bot 插件直接/间接发送位置有逐文件清单，第一阶段范围与后续阶段明确；未迁移不标完成；相关 specs、kb、菜单和 CHANGELOG 更新，版本号一致 |
 | AC10 | `python -m pytest`；`openspec validate plugin-event-dispatch --strict` | 全量回归与提案校验均通过；测试绝不触碰真实 data.db/server_data；旧私有配置可加载，schema 增量升级不丢数据 |
 

@@ -13,6 +13,7 @@ class SendRequest:
     kind: str = "text"
     merge: str | None = None
     order: int = 0
+    node: int | None = None
 
 
 def send_request(request):
@@ -45,7 +46,7 @@ class MessageOutput:
         self._staged = None
         self._flushed = False
 
-    def submit(self, content, *, target=None, kind="text", merge=None, order=0):
+    def submit(self, content, *, target=None, kind="text", merge=None, order=0, node=None):
         if self._flushed:
             raise RuntimeError("本次操作已经发送完毕")
         target = self.default_target if target is None else target
@@ -54,13 +55,15 @@ class MessageOutput:
                 and isinstance(target[1], int) and not isinstance(target[1], bool)
                 and target[1] > 0):
             raise ValueError("发送位置必须明确为群号或私聊账号")
-        if kind not in ("text", "segments", "forward", "nodes"):
+        if kind not in ("text", "segments", "forward", "nodes", "forward_text"):
             raise ValueError("不支持的发送类型")
-        if kind == "text" and not isinstance(content, str):
+        if kind in ("text", "forward_text") and not isinstance(content, str):
             raise TypeError("普通文本请求必须是字符串")
         if merge is not None and not isinstance(merge, str):
             raise TypeError("合并标记必须是字符串")
-        request = SendRequest(target, deepcopy(content), kind, merge, order)
+        if kind == "forward_text" and (not merge or not isinstance(node, int) or isinstance(node, bool) or node < 0):
+            raise ValueError("转发文本必须指定合并标记和非负节点序号")
+        request = SendRequest(target, deepcopy(content), kind, merge, order, node)
         (self._requests if self._staged is None else self._staged).append(request)
 
     @contextmanager
@@ -89,8 +92,8 @@ class MessageOutput:
         self._flushed = True  # 失败或超时也不再次发送结果不明的请求
         groups = {}
         for sequence, request in enumerate(self._requests):
-            key = ((request.target, request.merge) if request.kind == "text" and request.merge
-                   else ("single", sequence))
+            key = ((request.kind, request.target, request.merge)
+                   if request.kind in ("text", "forward_text") and request.merge else ("single", sequence))
             groups.setdefault(key, []).append((sequence, request))
         batches = sorted(groups.values(), key=lambda items: min(
             (r.order, seq) for seq, r in items
@@ -98,7 +101,20 @@ class MessageOutput:
         for batch_number, items in enumerate(batches, 1):
             items.sort(key=lambda item: (item[1].order, item[0]))
             request = items[0][1]
-            if request.kind == "text":
+            if request.kind == "forward_text":
+                from core.config import BOT_QQ, NICKNAME
+                nodes = {}
+                for _, part in items:
+                    nodes.setdefault(part.node, []).append(part.content)
+                bodies = ["\n".join(nodes[index]) for index in sorted(nodes)]
+                chunks = [body[start:start + self.max_text_chars] for body in bodies
+                          for start in range(0, max(1, len(body)), self.max_text_chars)]
+                contents = [[{"type": "node", "data": {
+                    "user_id": int(BOT_QQ), "nickname": NICKNAME,
+                    "content": [{"type": "text", "data": {"text": chunk}}],
+                }} for chunk in chunks]]
+                request = SendRequest(request.target, contents[0], "nodes")
+            elif request.kind == "text":
                 body = "\n".join(r.content for _, r in items)
                 contents = [body[i:i + self.max_text_chars]
                             for i in range(0, len(body), self.max_text_chars)] or [""]

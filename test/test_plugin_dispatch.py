@@ -144,6 +144,18 @@ def test_snapshot_cleanup_and_payload_isolation():
     assert seen == ["mutate", "cleanup"]
 
 
+def test_failure_cycle_with_changing_source_is_bounded():
+    output = MessageOutput(lambda r: 1)
+    def repeat(op, payload):
+        op.publish("repeat", {"source_operation": str(int(payload["source_operation"]) + 1)})
+    op = Operation({"p": True}, output, subscriptions=[Subscription("repeat", "p", repeat)])
+    op.MAX_NOTIFICATIONS = 5
+    op.publish("repeat", {"source_operation": "0"})
+    op.finish()
+    assert op.failures == ["p"]
+    assert op._published == 5
+
+
 def test_failure_cycle_is_bounded():
     output = MessageOutput(lambda r: 1)
     op = Operation({"p": True}, output, subscriptions=[

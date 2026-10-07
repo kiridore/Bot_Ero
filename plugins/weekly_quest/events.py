@@ -20,6 +20,21 @@ def checkin_completed(operation, payload):
         db.conn.close()
 
 
+@subscribe("lottery.draw.completed", "weekly_quest", order=10)
+def lottery_completed(operation, payload):
+    db = DbManager()
+    try:
+        completed = on_quest_trigger(
+            db, payload["user_id"], "lottery", source_operation=payload["source_operation"],
+            source_scope=payload.get("source_scope", ""),
+        )
+        if completed:
+            names = " | ".join(f"{q['name']} +{q['reward']}" for q in completed)
+            operation.output.submit("🎯 " + names, **payload["output"], order=30)
+    finally:
+        db.conn.close()
+
+
 @subscribe("checkin.retracted", "weekly_quest", order=40, cleanup=True)
 def checkin_retracted(operation, payload):
     # cleanup 绕过新奖励开关，但引擎仅撤销实际领取且已不满足条件的奖励。

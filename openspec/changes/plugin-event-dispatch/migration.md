@@ -9,16 +9,17 @@
 | plugins/checkin/__init__.py | 已迁移：submit_message + checkin.completed；称号提示由 title/events.py 提交 | 打卡全开/逐一关闭对照，合并文本和 @ 不重复 |
 | plugins/checkin_recall/__init__.py | 已迁移：submit_message + checkin.retracted | 群撤回多图与奖励撤销 |
 | plugins/roll_back/__init__.py | 已迁移：submit_message + checkin.retracted | 指令撤回、图片结构及奖励撤销 |
-| plugins/lottery/__init__.py | send_msg、send_forward_nodes | 单抽与一键抽奖；称号关闭提前拒绝 |
-| plugins/weekly_quest/__init__.py | send_msg | 任务进度；定时清理无输出 |
-| plugins/title/__init__.py | send_msg、send_forward_msg | 所有称号管理分支、合并转发、解锁通知 |
-| plugins/redeem_shop/__init__.py | send_msg、send_forward_msg | 货架查询、购买、手动刷新、定时刷新 |
+| plugins/lottery/__init__.py | 已迁移：submit_message + lottery.draw.requested | 单抽与一键抽奖；称号关闭提前拒绝 |
+| plugins/lottery/events.py | 已迁移：output.submit + lottery.draw.completed | 逐次结果、错误提示、合并转发节点与下次抽取 |
+| plugins/weekly_quest/__init__.py | 已迁移：submit_message | 任务进度；定时清理无输出 |
+| plugins/title/__init__.py | 已迁移：submit_message（含forward） | 称号命令、合并转发、解锁通知 |
+| plugins/redeem_shop/__init__.py | 已迁移：submit_message（含forward） | 货架查询、购买、手动刷新、定时刷新；无默认接收方仍刷新但不发公告 |
 | plugins/checkin/events.py | 已迁移：全勤奖励提交输出，撤销只按历史记录处理 | 全勤失败不影响其他消费者、新旧领取混合撤销 |
 | plugins/weekly_quest/events.py | 已迁移：operation.output.submit 普通文本 | 周常奖励通知、相同标记文本合并 |
 | plugins/title/events.py | 已迁移：operation.output.submit 消息段 | 称号通知及用户提及，不作为纯文本拼接 |
 | plugins/redeem_shop/events.py | 已迁移：operation.output.submit 普通文本 | 道具奖励通知及重复来源处理 |
 
-原直接调用中的 checkin → 商店/称号/周常、两撤回 → 周常现已改为通知订阅。仍待迁移：lottery → weekly_quest.on_quest_trigger / title.evaluate_and_unlock_titles；lottery.rewards → titles.unlock 与重复称号返点。打卡全勤奖励现由 checkin/events.py 订阅处理，两种撤回共用其历史清理函数；全勤领取、奖励记录和积分已同事务处理。抽奖的称号奖项不只是展示，详见 implementation-findings.md 的所有者裁定。
+原直接调用中的 checkin → 商店/称号/周常、两撤回 → 周常现已改为通知订阅。lottery 对周常和条件称号的直接调用已改为通知；lottery.rewards 的抽奖奖品（称号及重复返点）属于单抽事务，称号关闭时入口与消费者均拒绝抽奖。打卡全勤奖励现由 checkin/events.py 订阅处理，两种撤回共用其历史清理函数；全勤领取、奖励记录和积分已同事务处理。抽奖的称号奖项不只是展示，详见 implementation-findings.md 的所有者裁定。
 
 ## 后续第二阶段（必须另建提案）
 
@@ -102,11 +103,11 @@
 | plugins/title/logic.py、events.py | 时段/日期、打卡累计、抽奖画像、周常历史、称号收藏与装备共同决定解锁；打卡的称号评估必须先于本次周常次数更新，不能因重构提前解锁 | test_plugin_event_integration.py::test_title_evaluation_precedes_new_quest_completion |
 | plugins/weekly_quest/engine.py / core/db/quest.py | 打卡1/3/7天分别奖励1/2/3；抽奖3/7/15次分别奖励1/2/5；按账号/任务/周领取一次；全清要求全部六任务。回退不减少累计完成和历史全清次数 | test_plugin_migration_baseline.py、test_reward_compatibility.py |
 | plugins/checkin_recall/__init__.py / plugins/roll_back/__init__.py | 消息撤回按message_id删除该消息全部图片；指令撤回删除本周最近一条记录并显示图片。保留两者现有粒度差异；撤销周常和全勤，不删除已拥有称号 | test_plugin_event_integration.py、test_reward_compatibility.py |
-| plugins/lottery/__init__.py | 上限：未打卡2次、已打卡5次，另叠加商店加成；首抽免费，之后每次1积分。先费用/免单道具→次数/消费统计→周常→抽奖结果→抽奖画像→称号评估→流水→回复；一键抽奖逐次处理，积分不足停止 | test_lottery_bulk.py，称号关闭的拒绝必须早于上述所有写入 |
+| plugins/lottery/__init__.py | 上限：未打卡2次、已打卡5次，另叠加商店加成；首抽免费，之后每次1积分。原顺序为费用/次数→周常→奖品/画像→称号→流水；现将费用、次数、奖品、画像、流水、来源记录原子提交，再通知周常→条件称号→输出与下次抽取。保持称号晚于本次周常，下一次抽取可使用本次周常奖励；一键抽奖逐次处理，积分不足停止 | test_lottery_bulk.py，称号关闭的拒绝必须早于上述所有写入 |
 | plugins/lottery/rewards.py | 积分奖项合计79%；普通/稀有/传奇称号12%/5%/4%；重复称号返1/2/3积分。draw_reward 不只是读奖表，会直接写称号和返点，后续不可当作纯抽样函数迁移 | test_plugin_migration_baseline.py 的奖表与重复称号对照 |
 | plugins/redeem_shop/__init__.py、logic.py / core/db/shop.py | 货架全局单份；随机4个称号，各库存2，稀有度售价3/6/10。功能商品价格6/2/3/1；商店直接写称号、打卡道具、抽奖道具和次数。redeem 中扣分/扣库存/发商品按原事务处理 | test_shop_shelf.py（已有）、test_plugin_migration_baseline.py |
 
-两种撤回的全勤重复代码已合并，但保留不同业务周/自然周的旧时间范围。仍需在后续实现中处理：抽奖自身消费商店道具的依赖；商店称号商品与关闭称号的组合；已消费道具不因奖励通知失败再次消耗。此前“全部耦合只有八处”的说法不完整，以上实际数据库写入同样属于后续迁移范围。
+两种撤回的全勤重复代码已合并，但保留不同业务周/自然周的旧时间范围。抽奖消费商店道具现遵守商店开关，关闭时不使用加成或消耗道具，已存权益保留。仍需在后续实现中处理：商店称号商品与关闭称号的组合；已消费道具不因奖励通知失败再次消耗。此前“全部耦合只有八处”的说法不完整，以上实际数据库写入同样属于后续迁移范围。
 
 ## 1.2 清单覆盖检查
 
@@ -124,6 +125,7 @@
 | https://api.luckylillia.com/schema-189483991.md | TextSegment 为 type=text、data.text 字符串 |
 | https://api.luckylillia.com/api-226194727.md | 私聊发送需明确 user_id 和 message，响应 data.message_id 用于确认结果 |
 | https://api.luckylillia.com/schema-189484004.md | NodeSegment 支持已有消息id或自定义content；OneBot字段为user_id/nickname，同时列出uin/name兼容字段 |
+| https://api.luckylillia.com/api-226189040.md | 私聊合并转发使用user_id与messages节点数组；迁移保留正文构造方式，由现有ApiWrapper包装 |
 | https://api.luckylillia.com/api-226189162.md | 群合并转发需group_id和messages节点数组；示例采用uin/name，不能因此把已有OneBot节点擅自全部改名 |
 
 specs/architecture.md 已纠正错误的每插件线程描述，specs/plugins.md 已记录同步通知、成功后确认输出、快照与历史奖励清理要求。所有者仅授权本次私有版开关语义和消息合并变化，未授权改概率、价格或扩大社区首版范围。

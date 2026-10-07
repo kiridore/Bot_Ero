@@ -8,6 +8,22 @@ from core.plugin_dispatch import subscribe
 from plugins.title.logic import evaluate_and_unlock_titles, get_title_def
 
 
+@subscribe("lottery.draw.completed", "title", order=20)
+def lottery_completed(operation, payload):
+    db = DbManager()
+    try:
+        with RewardManager(db.conn).transaction():
+            unlocked = evaluate_and_unlock_titles(db, payload["user_id"], commit=False)
+        if unlocked:
+            lines = ["解锁新称号："]
+            for tid in unlocked:
+                data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown", "description": "无"}
+                lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']}) - {data['description']}")
+            operation.output.submit("\n".join(lines), **payload["output"], order=10)
+    finally:
+        db.conn.close()
+
+
 @subscribe("checkin.completed", "title", order=20)
 def checkin_completed(operation, payload):
     db = DbManager()

@@ -36,6 +36,8 @@ def subscribe(topic, plugin, *, order=0, cleanup=False):
 
 
 class Operation:
+    MAX_NOTIFICATIONS = 1000
+
     def __init__(self, enabled, output, *, subscriptions=None, operation_id=None):
         if output.operation_id is not None:
             raise ValueError("不同操作不能共用消息输出列表")
@@ -48,6 +50,7 @@ class Operation:
             key=lambda s: s.order,
         ))
         self._pending = deque()
+        self._published = 0
         self._staged = None
         self._ancestry = ()
         self._draining = False
@@ -58,9 +61,14 @@ class Operation:
 
     def publish(self, topic, payload):
         # 同一业务记录允许不同类型通知，但不允许从子通知重新通知其祖先。
-        if topic in self._ancestry:
+        # 不同抽取序号可重复同一通知类型；总数上限阻止不断换来源的错误循环。
+        if self._published >= self.MAX_NOTIFICATIONS:
+            raise ValueError("单次操作内部通知超出安全上限")
+        self._published += 1
+        identity = (topic, payload.get("source_operation"))
+        if identity in self._ancestry:
             raise ValueError("内部通知发生循环")
-        item = (topic, deepcopy(payload), self._ancestry + (topic,))
+        item = (topic, deepcopy(payload), self._ancestry + (identity,))
         if self._staged is None:
             self._pending.append(item)
         else:

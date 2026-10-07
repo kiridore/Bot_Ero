@@ -400,6 +400,14 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         ON plugin_reward_records(plugin_name, user_id, reward_key, source_operation);
     """)
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS lottery_operation_receipts (
+            source_operation TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            outcome TEXT NOT NULL,
+            completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS plugin_reward_reversals (
             plugin_name TEXT NOT NULL,
             user_id INTEGER NOT NULL,
