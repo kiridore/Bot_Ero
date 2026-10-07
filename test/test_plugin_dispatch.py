@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, get_ident
 
+from core.logger import logger
 from core.message_output import MessageOutput
 from core.plugin_dispatch import Operation, Subscription
 
@@ -47,7 +48,7 @@ def test_thread_main_entry_uses_snapshot_and_flushes_once():
         is_group_recording=lambda gid: False,
     )
     namespace = {"runtime_context": runtime, "Operation": Operation, "MessageOutput": MessageOutput,
-                 "send_request": lambda request: sent.append(request) or 1}
+                 "send_request": lambda request: sent.append(request) or 1, "logger": logger}
     exec(compile(ast.Module(body=[function], type_ignores=[]), "main.py", "exec"), namespace)
     namespace["plugin_pool"]({"group_id": 1, "user_id": 2}, "message")
     assert seen == [thread, thread]

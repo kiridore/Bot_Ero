@@ -21,6 +21,19 @@ class Plugin:
         self.dbmanager = DbManager()
         self.operation = raw_context.get("_operation")
 
+    def publish_event(self, topic, **data):
+        if self.operation is None:
+            raise RuntimeError("内部通知需要事件处理上下文")
+        uid = self.bot_event.user_id
+        gid = self.bot_event.group_id
+        scope = f"group:{gid}" if gid is not None else f"private:{uid}"
+        message_id = self.bot_event.message_id
+        source = message_id if message_id is not None else self.operation.id
+        payload = {"user_id": uid, "source_scope": scope,
+                   "source_operation": f"{topic}:{scope}:{uid}:{source}"}
+        payload.update(data)
+        self.operation.publish(topic, payload)
+
     def feature_enabled(self, plugin_name):
         operation = getattr(self, "operation", None)
         if operation is not None:

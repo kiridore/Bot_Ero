@@ -13,6 +13,7 @@ class TestQuestEngine(unittest.TestCase):
         db = DbManager()
         db.conn.execute("DELETE FROM checkin_records WHERE user_id = ?", (UID,))
         db.conn.execute("DELETE FROM quest_progress WHERE user_id = ?", (UID,))
+        db.conn.execute("DELETE FROM plugin_reward_records WHERE user_id = ?", (UID,))
         db.conn.execute("DELETE FROM quest_completion_stats WHERE user_id = ?", (UID,))
         db.conn.execute("DELETE FROM quest_weekly_clears WHERE user_id = ?", (UID,))
         db.conn.execute("DELETE FROM user_assets WHERE user_id = ?", (UID,))

@@ -7,19 +7,35 @@ from core.db.points import PointsManager
 class RewardManager:
     def __init__(self, conn):
         self.conn = conn
+        self._depth = 0
 
     @contextmanager
     def transaction(self):
+        if self._depth:
+            # 同一消费者可提交多笔奖励；即使调用方捕获异常，失败子操作也必须回滚。
+            self.conn.execute("SAVEPOINT reward_nested")
+            try:
+                yield
+            except BaseException:
+                self.conn.execute("ROLLBACK TO reward_nested")
+                self.conn.execute("RELEASE reward_nested")
+                raise
+            else:
+                self.conn.execute("RELEASE reward_nested")
+            return
         # 不悄悄提交调用方未完成的业务，也不让“发奖成功”依赖未知外层事务。
         if self.conn.in_transaction:
             raise RuntimeError("奖励处理前必须完成当前数据库事务")
         self.conn.execute("BEGIN IMMEDIATE")
+        self._depth = 1
         try:
             yield
             self.conn.commit()
         except BaseException:
             self.conn.rollback()
             raise
+        finally:
+            self._depth = 0
 
     def grant(self, plugin, user_id, reward_key, source_operation, amount,
               *, source_scope="", update_state=None):

@@ -37,7 +37,10 @@ def subscribe(topic, plugin, *, order=0, cleanup=False):
 
 class Operation:
     def __init__(self, enabled, output, *, subscriptions=None, operation_id=None):
+        if output.operation_id is not None:
+            raise ValueError("不同操作不能共用消息输出列表")
         self.id = operation_id or uuid4().hex
+        output.operation_id = self.id
         self.enabled = MappingProxyType(dict(enabled))
         self.output = output
         self.subscriptions = tuple(sorted(

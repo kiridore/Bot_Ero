@@ -2,7 +2,6 @@ from core import utils
 from core.base import CommandPlugin
 from core.cq import text,image
 from core.utils import get_monday_to_monday
-from plugins.weekly_quest.engine import on_quest_rollback
 from core.timeline_client import retract_event
 from core.logger import logger
 from datetime import datetime, timedelta
@@ -62,12 +61,12 @@ class RollbackCheckinPlugin(CommandPlugin):
         start_date, end_date = get_monday_to_monday()
         rows = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
         if len(rows) <= 0:
-            self.api.send_msg(text("本周你还没打过卡呢！"))
+            self.submit_message(text("本周你还没打过卡呢！"))
         else:
             del_image = self.api.get_image(rows[0][3])
             del_time = rows[0][2]
             logger.debug(rows)
-            self.api.send_msg(text("成功撤回了本周最近一次打卡喵:\n{}".format(del_time)), image(del_image))
+            self.submit_message(text("成功撤回了本周最近一次打卡喵:\n{}".format(del_time)), image(del_image))
 
             if len(rows) == 1:
                 week_start = start_date.split(" ")[0]
@@ -84,5 +83,5 @@ class RollbackCheckinPlugin(CommandPlugin):
                 "checkin",
                 dedup_key="checkin:%s:%s:%s" % (self.bot_event.user_id, dt.strftime("%Y-%m-%d"), rows[0][4]),
             )
-            on_quest_rollback(self.dbmanager, self.bot_event.user_id, "checkin")
+            self.publish_event("checkin.retracted")
             self._rollback_attendance_rewards(self.bot_event.user_id, dt)

@@ -4,7 +4,6 @@ from core import utils
 from core.base import Plugin
 from core.cq import at, text
 from core.utils import get_monday_to_monday
-from plugins.weekly_quest.engine import on_quest_rollback
 from core.timeline_client import retract_event
 
 
@@ -104,9 +103,9 @@ class CheckinRecallPlugin(Plugin):
             if month_weekly_points > 0:
                 utils.add_user_point(self.dbmanager, user_id, -month_weekly_points)
         self._rollback_attendance_rewards(user_id, dt)
-        on_quest_rollback(self.dbmanager, user_id, "checkin")
+        self.publish_event("checkin.retracted")
 
-        self.api.send_msg(
+        self.submit_message(
             at(user_id),
             text("已撤销你撤回的那条打卡消息对应的记录（含{}张图）".format(deleted)),
         )

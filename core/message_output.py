@@ -38,6 +38,7 @@ class MessageOutput:
         if max_text_chars <= 0:
             raise ValueError("文本分段长度必须为正数")
         self.send = send
+        self.operation_id = None  # Operation 绑定；不得供多个事件共用
         self.default_target = default_target
         self.max_text_chars = max_text_chars
         self._requests = []
@@ -94,7 +95,7 @@ class MessageOutput:
         batches = sorted(groups.values(), key=lambda items: min(
             (r.order, seq) for seq, r in items
         ))
-        for items in batches:
+        for batch_number, items in enumerate(batches, 1):
             items.sort(key=lambda item: (item[1].order, item[0]))
             request = items[0][1]
             if request.kind == "text":
@@ -103,10 +104,16 @@ class MessageOutput:
                             for i in range(0, len(body), self.max_text_chars)] or [""]
             else:
                 contents = [request.content]
-            for content in contents:
+            for part_number, content in enumerate(contents, 1):
                 try:
                     result = self.send(SendRequest(request.target, content, request.kind))
                     if not result:
-                        logger.warning("消息发送失败，类型=%s 目标=%s，不自动重试", request.kind, request.target)
+                        logger.warning(
+                            "消息发送失败，操作=%s 批次=%s 分段=%s 类型=%s 目标=%s，不自动重试",
+                            self.operation_id, batch_number, part_number, request.kind, request.target,
+                        )
                 except Exception:
-                    logger.exception("消息发送异常，类型=%s 目标=%s，不自动重试", request.kind, request.target)
+                    logger.exception(
+                        "消息发送异常，操作=%s 批次=%s 分段=%s 类型=%s 目标=%s，不自动重试",
+                        self.operation_id, batch_number, part_number, request.kind, request.target,
+                    )

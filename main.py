@@ -43,6 +43,8 @@ def plugin_pool(context: dict, event_type: str):
         logger.exception("读取插件设置失败，本次事件不执行，防止绕过关闭设置")
         return
     operation = Operation(settings, MessageOutput(send_request, target))
+    logger.debug("操作 %s 开始：类型=%s 消息=%s 群=%s 用户=%s",
+                 operation.id, event_type, context.get("message_id"), group_id, user_id)
     context = dict(context, _operation=operation)
     for plugin_cls in tuple(runtime_context.plugin_registry):
         if event_type != "meta" and not operation.is_enabled(runtime_context.plugin_key(plugin_cls)):
