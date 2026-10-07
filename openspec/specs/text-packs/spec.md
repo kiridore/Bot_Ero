@@ -1,7 +1,7 @@
 # text-packs Specification
 
 ## Purpose
-TBD - created by archiving change text-pack-loading. Update Purpose after archive.
+允许部署通过启动时加载的文案包覆盖内置提示，保留缺失或无效配置时的默认文案回退，避免为不同部署维护重复的业务代码。
 
 ## Requirements
 

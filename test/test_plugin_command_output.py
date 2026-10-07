@@ -22,7 +22,7 @@ def db(tmp_path, monkeypatch):
     value.conn.close()
 
 
-def run(cls, db, command=None, target=("group", 10), extra=None, fail_send=False):
+def run(cls, db, command=None, target=("group", 10), extra=None, fail_send=False, enabled=None):
     raw = {"post_type": "message", "user_id": 42, "message_id": 1,
            "message": [{"type": "text", "data": {"text": command or ""}}] + (extra or [])}
     if target and target[0] == "group":
@@ -38,7 +38,7 @@ def run(cls, db, command=None, target=("group", 10), extra=None, fail_send=False
             raise TimeoutError("internal-timeout")
         return 1
 
-    op = Operation({}, MessageOutput(send, target), subscriptions=[])
+    op = Operation(enabled or {}, MessageOutput(send, target), subscriptions=[])
     plugin.operation = op
     if command is not None and hasattr(cls, "COMMANDS"):
         assert plugin.match("message")
@@ -118,6 +118,23 @@ def test_shop_refresh_and_no_default_destination(db, cls, target):
     assert len(sent) == (1 if target else 0)
     if sent:
         assert "已刷新" in body(sent[0])
+
+
+def test_shop_title_purchase_respects_title_switch_before_spending(db):
+    from plugins.redeem_shop.logic import title_price_from_def
+    tid = next(iter(TITLE_DEFS))
+    product = f"title_{tid}"
+    db.shop.replace_shelf({product: 2})
+    db.points.set(42, 20)
+    before = list(db.conn.iterdump())
+    sent, op = run(RedeemShopPlugin, db, f"/商店 {product}")
+    assert not op.failures and "称号功能已关闭" in body(sent[0])
+    assert list(db.conn.iterdump()) == before
+    sent, op = run(RedeemShopPlugin, db, f"/商店 {product}", enabled={"title": True})
+    assert not op.failures and "兑换成功" in body(sent[0])
+    assert db.titles.has(42, tid)
+    assert db.points.get(42) == 20 - title_price_from_def(TITLE_DEFS[tid])
+    assert db.shop.stock(product) == 1
 
 
 def test_shop_failures_do_not_expose_internal_details(db, monkeypatch):

@@ -66,6 +66,17 @@ def test_bulk_quest_results_stay_in_each_draw_node(db, private):
     assert db.conn.execute("SELECT COUNT(*) FROM lottery_operation_receipts").fetchone()[0] == 5
 
 
+@pytest.mark.parametrize("edition", ["private", "community"])
+def test_plugin_switch_behavior_is_shared_across_editions(db, monkeypatch, edition):
+    monkeypatch.setattr(config, "EDITION", edition)
+    db.checkin.insert(42, ["test.png"])
+    op, sent = run(db, disabled=("weekly_quest", "redeem_shop"))
+    assert not op.failures
+    assert db.points.get(42) == 6
+    assert db.conn.execute("SELECT COUNT(*) FROM quest_progress").fetchone()[0] == 0
+    assert len(sent) == 1 and len(sent[0].content) == 6
+
+
 def test_disable_quest_does_not_change_draws_or_grant_quest_rewards(db):
     db.checkin.insert(42, ["test.png"])
     op, sent = run(db, disabled=("weekly_quest",))

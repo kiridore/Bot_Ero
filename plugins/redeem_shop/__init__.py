@@ -97,6 +97,10 @@ class RedeemShopPlugin(CommandPlugin):
             self.submit_message(at(user_id), text(f"未知商品 id：{product_id}，发送 /商店 查看列表。"))
             return
 
+        if product_id.startswith("title_") and not self.feature_enabled("title"):
+            self.submit_message(at(user_id), text("称号功能已关闭，暂时无法兑换称号。其他商品仍可兑换。"))
+            return
+
         meta = SHOP_ITEMS[product_id]
         cost = int(meta["cost"])
         apply_fn: ShopApply = meta["apply"]

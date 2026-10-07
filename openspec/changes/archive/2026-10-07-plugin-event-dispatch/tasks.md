@@ -1,6 +1,6 @@
 # Tasks
 
-> 当前全部未实施。每组同时交付对应测试与文档；AC 编号对应 proposal.md 验收表。
+> 第一阶段19项任务已完成，验收及归档后回归结果见acceptance.md。后续插件迁移不属于本次完成范围，详见migration.md。AC编号对应proposal.md验收表。
 
 ## 1. 补全第一阶段调用与发送清单
 
@@ -35,6 +35,6 @@
 
 ## 6. 集成验收与交付
 
-- [ ] 6.1 逐条运行 proposal.md AC01–AC10，记录命令、断言和结果；全量 pytest 必须绿色，任何失败不得归档（AC01–AC10）。
-- [ ] 6.2 bump BOTERO_VERSION minor、增加同版本 CHANGELOG，更新社区计划说明先完成本次重构、不扩大经济扩展开放范围；检查所有文档链接与 git diff --check（AC09、AC10）。
-- [ ] 6.3 验收通过后运行 openspec archive plugin-event-dispatch，归档与第一阶段实现同一逻辑提交；记录后续全部插件迁移仍未完成。未经授权不推送（AC09、AC10）。
+- [x] 6.1 逐条运行 proposal.md AC01–AC10，记录命令、断言和结果；全量 pytest 必须绿色，任何失败不得归档（AC01–AC10）。
+- [x] 6.2 bump BOTERO_VERSION minor、增加同版本 CHANGELOG，更新社区计划说明先完成本次重构、不扩大经济扩展开放范围；检查所有文档链接与 git diff --check（AC09、AC10）。
+- [x] 6.3 验收通过后运行 openspec archive plugin-event-dispatch，归档与第一阶段实现同一逻辑提交；记录后续全部插件迁移仍未完成。未经授权不推送（AC09、AC10）。
