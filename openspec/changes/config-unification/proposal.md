@@ -1,47 +1,65 @@
-# 配置统一化：部署行为完全由配置值决定
+# 配置统一化：按群和私聊账号逐步开放插件
 
 ## Why
 
-所有者已确认原则：社区与私有部署共用同一实现，行为只由实际配置值决定，不允许按版本名维护两套逻辑（`docs/community/config-only-plan-review.md`，2026-10-07）。当前遗留三处差距：
+公开实例由一个QQ号服务多个群和私聊账号。超级用户需要先向少量使用者开放功能，再逐步扩大范围，降低新功能缺陷的影响，并给使用者学习时间。私域定制插件必须能在公开部署中彻底禁止；两种部署仍共用同一实现，不按edition选择业务流程。
 
-1. **meta 路径绕过部署级开关**：`main.py::plugin_pool` 中 meta 事件跳过 `operation.is_enabled` 检查——一批心跳插件（ff_news/weekly_report/startup_changelog/forum_notify）到达设定时间仍会执行，不受任何群/账号/部署开关限制。社区版审计（`specs/plugins.md` 附录 T0.9）已记录该风险，修复归属原定 T1.2，但当时方案仍是"社区白名单"，不符合新原则。
-2. **配置校验按 edition 分侧**：`core/config.py` 按 `bot.edition` 决定必填键集合与冷却默认值——这是仅存的两处 edition 运行时分支。
-3. **功能包表不可配置**：`core/feature_packs.py` 单表硬编码，包定义/默认开启集无法由配置数据决定；原 T0.7 "双表按版选择"方案已被 config-only 核查明确废止。
-
-本提案将三者统一为"同一检查函数 + 配置数据驱动"，是 config-only 核查推荐顺序第 2 步，也为后续注册/审核/黑名单/频控（第 3 步）铺平分发层地基。
+现有群与私聊账号开关可复用，但心跳绕过局部开关、历史撤销消费者绕过普通启用检查、配置加载仍有edition分支。现有菜单也不能随每个使用对象的插件集合变化。仅增加部署名单不足以完成逐步开放。
 
 ## What Changes
 
-- **统一插件允许集合**：新增部署级"允许插件全集"概念（config 键 `bot.allowed_plugins`，缺省空 = 全部已注册插件，私有兼容）。`plugin_settings_snapshot` 在群/账号开关之上叠加该集合：不在全集内的插件对消息/通知/请求/notice/meta 全事件类型失效，心跳与内部通知一并停止。
-- **meta 路径收口**：`plugin_pool` 对 meta 事件同样走 `operation.is_enabled`（快照对无群无账号的 meta 取部署级全集 ∩ 系统插件约定）。心跳类插件从此受部署开关约束；全局单次任务（shop_weekly_rotation/weekly_quest_reset/backup）语义不变。
-- **配置校验去 edition 化**：必填键改为"按实际启用的服务检查"——`timeline.url` 有值才要求配套键、`webapp` 不跑则不要求网页侧参数；`edition` 键保留为纯描述标签，不参与任何控制流。冷却默认统一（缺省 0），差异进社区模板显式值。
-- **功能包数据化**：`FEATURE_PACKS` 保留为兼容缺省，新增 config 键 `bot.feature_packs_file`（yaml，结构与现字典一致）允许部署自定义包定义与默认开启集；解析与管理逻辑单一，无双表选择。
-- **私有零变化（硬底线）**：旧私有配置不补任何新键即可加载，行为与 1.51.0 逐项一致（空 allowed_plugins = 不裁剪；meta 收口后私有心跳插件全部在允许全集内，实际运行不变）。
-- **权限硬限制不放松**：`/插件` `/功能包` 审核操作仍仅超级用户；系统插件保护与部署禁用的冲突按"部署禁用优先、启动时报错并列出冲突项"处理，不静默。
+1. **部署允许范围**：`bot.allowed_plugins` 声明本实例允许提供哪些插件，不能被群/账号设置或系统插件身份绕过。缺键保留旧配置兼容（允许已安装插件），显式空列表不等于全部开放。公开模板必须使用明确名单，新增代码不会自动进入该名单。
+2. **每个使用对象独立开放**：群聊只查所在群；私聊先查账号覆盖，没有覆盖才继承编号0的公共默认。账号可覆盖默认的开或关，两者不是层层相交。只有超级用户可以修改；公共默认影响所有继承者，管理回执明确说明。
+3. **心跳遵守实际作用范围**：部署禁止时不进入match/handle；按群或账号的定时任务在修改状态、结算、发送之前检查所属对象。共享货架、备份、全局进度维护由部署允许范围控制，不因一个群关闭而停止其他群需要的共享维护。
+4. **内部通知及其他入口统一判断**：所有内部消费者先受部署硬限制。保留此前已确认的“局部关闭后可按记录撤销旧奖励”例外，但它不能绕过部署禁用。核查兑换码、卧底游戏等已知直接发称号路径，避免其他插件间接开放被禁止的新业务。
+5. **菜单跟随实际开放集合**：按插件归属及现有权限展示指令，关闭或部署禁止的功能不显示；不把整张社区菜单一次发给所有用户。
+6. **配置与功能包统一**：移除edition校验及默认值分支；复用统一校验器供启动和管理面板使用。`bot.feature_packs_file` 只定义方便批量设置的插件集合，不自动开启、不新增一层权限，也不承诺配置“默认开启包”。
+7. **兼容与可观察性**：旧配置可加载、已有开关和用户数据保留。旧的“关闭但后台仍运行”、菜单显示未开放指令是本次明确修正的行为，不能声称这些行为也原样保留。
+
+## Scope / Non-Goals
+
+- 本次覆盖部署边界、各群/账号设置、已识别的十类心跳、有效菜单及必要的跨插件写入检查。
+- 不重做注册/群审核/黑名单/频控业务，不开放群管理员自治，不实现自动分批发布平台。
+- 不以新配置清空数据库，不因关闭回收历史奖励，不新增自动退款或重算历史奖励。
+- 不建设统一暂停/补跑系统。恢复后按各插件既有到期规则运行；可能处理积压，也可能错过原执行窗口。记录不得丢失，存在待办时管理回执或日志必须告知，已付费未结算任务不得静默作废。未来若要统一补偿规则另建提案。
+- 不把此次交付等同于公开服务上线；注册、审核和其他运营验收仍属后续任务。
 
 ## Capabilities
 
-- **New**：`deployment-gating`——部署级插件全集与全事件类型统一门控契约
-- **Modified**：`system-plugins`（meta 不再无条件直达）、`plugin-event-processing`（快照叠加部署全集）
+### New Capabilities
+- `deployment-gating`：部署允许范围、并列的群与私聊设置、管理入口一致性。
+- `scoped-heartbeats`：按任务所属对象执行及共享任务约束。
+- `config-validation`：与版名无关的校验、错误配置处理及兼容。
+- `feature-packs`：包定义数据化与批量操作，不自动开放。
+- `enabled-menu`：按有效插件及权限展示菜单。
+
+### Modified Capabilities
+- `system-plugins`：系统身份不能绕过部署边界，移除meta无条件直达。
+- `plugin-event-processing`：内部消费者的部署限制、局部设置与历史撤销例外。
+- `text-packs`：菜单改为结构化条目覆盖，旧整段menu_text警告并安全回退；其他文案规则保持。
 
 ## Impact
 
-涉及 `core/config.py`、`core/context.py`、`core/plugin_dispatch.py`、`main.py`、`core/feature_packs.py`、`config.example.yaml`、新增社区配置模板；schema 无新增表（allowed_plugins 为进程内配置，不落库）。用户可见行为变化仅"部署禁用的心跳插件不再执行"（原为缺陷语义），记 CHANGELOG 并 bump minor。
+涉及core/config/context/plugin_dispatch/base/feature_packs/web_panel、main、group_manager/menu、心跳插件及其任务查询、兑换码/卧底称号发放路径、配置和文案包、测试与文档。名单不落库，复用已有群/账号表；后台任务按原业务记录保存，不引入新队列或后台线程。若实现发现必须新增持久状态，应先回写设计与schema验收，不隐式扩大范围。
+
+用户可见变更需minor版本及CHANGELOG，包含菜单过滤、权限提示和后台开关行为修正。当前基线1.51.0，原533项仅是回归基线，不能代替新增验收。暂停中的community-feature-packs旧草案不实施；本提案替代其数据化包定义部分，不恢复旧版别双表。
 
 ## 验收标准
 
+以下测试文件由实现交付，当前不声称已通过。
+
 | 编号 | 独立验证命令 | 必须验证的结果 |
 |---|---|---|
-| AC01 | `python -m pytest test/test_deployment_gating.py -k meta` | meta 事件下，不在 allowed_plugins 的心跳插件不执行；在集合内者照常；私有缺省配置（不配该键）全部心跳照常 |
-| AC02 | `python -m pytest test/test_deployment_gating.py` | 群/账号/部署三级开关叠加语义正确：部署禁用优先于群开启；系统插件身份不能绕过部署禁用；冲突配置启动报错并列出冲突项 |
-| AC03 | `python -m pytest test/test_config_loader.py test/test_config_wiring.py` | 旧私有配置零新增键可加载、行为不变；必填校验按实际启用服务判定（无 timeline.url 不报错，有则要求配套）；edition 为任意值/缺失不影响校验与默认值 |
-| AC04 | `python -m pytest test/test_feature_packs_config.py` | feature_packs_file 自定义包生效；未配置时回落内置表；`/功能包 列表` 展示与配置一致；无第二处硬编码包表 |
-| AC05 | `python -m pytest`（全量） | 全量回归绿；含 plugin-event-dispatch 既有 533 项 |
-| AC06 | 同一测试套件换配置矩阵跑 | 同一有效配置仅改 edition 标签，全部断言结果一致（config-only 核查"共同验收规则"第 1、2 条落地） |
-| AC07 | 审阅 `specs/plugins.md` 附录更新 + `kb/QUICK_REFERENCE.md` | 心跳插件三栏归类表更新为"受部署门控"；文档与实现一致，无"社区白名单"残留表述 |
-| AC08 | `openspec validate config-unification --strict` | 提案校验通过 |
+| AC01 | `python -m pytest test/test_deployment_gating.py` | 部署禁止先于match/handle/内部消费者；cleanup不能绕过；新安装但未列入的插件在明确名单部署不运行；系统冲突及未知名称启动失败 |
+| AC02 | `python -m pytest test/test_plugin_controls.py test/test_plugin_management.py test/test_web_panel.py` | A群开/B群关/账号私聊设置互不影响；私聊覆盖可从默认关变为开；部署禁止不能被命令或面板重新开启；仅超级用户修改；公共默认影响说明 |
+| AC03 | `python -m pytest test/test_scoped_heartbeats.py` | 十类任务逐项覆盖：所属群/账号关闭时无发送、状态推进、扣费或派奖；另一个开启范围正常；不把多个群的维护重复运行；无目标不发默认兜底消息；先过滤后到期去重 |
+| AC04 | `python -m pytest test/test_heartbeat_pending_tasks.py` | 关闭不删除或标记历史任务完成；恢复按原到期规则；重复执行防护保留；无新增退款/历史奖励补发；已付费未结算和错过窗口任务可定位并告知管理员 |
+| AC05 | `python -m pytest test/test_config_loader.py test/test_config_wiring.py test/test_config_validation.py` | 旧配置可加载；有效配置仅改变/删除edition标签结果一致；启用服务的配套字段校验；启动与面板保存结果一致；错误类型/路径/YAML不扩大允许范围 |
+| AC06 | `python -m pytest test/test_feature_packs_config.py` | 默认和自定义包采用同一解析；只替换定义，不播种开关；升级包定义不自动开放新增成员；管理命令和界面使用相同有效集合；错误配置明确失败 |
+| AC07 | `python -m pytest test/test_enabled_menu.py` | 不同群/私聊看到各自已开放指令，权限段正确；新增插件不自动出现在菜单；文案覆盖不能泄露未开放功能；旧文案包安全回退有告警 |
+| AC08 | `python -m pytest test/test_plugin_dependency_gating.py test/test_reward_compatibility.py` | 卧底、兑换码及已迁移插件不能绕过目标插件的新业务开关；必要依赖缺失时在核销/扣费前拒绝；局部历史撤销例外保留且受部署边界限制 |
+| AC09 | `python -m pytest test/test_deployment_templates.py` | 使用隔离测试配置启动加载公开模板；名单不含私域插件、未实现插件；新群未自动开启，新私聊只继承明确公共默认；两版标签不参与路径选择；首版名单与菜单一致 |
+| AC10 | `python -m pytest` | 全量回归及新增测试通过；不触碰生产数据；对旧的错误开关行为采用新断言，不把所有旧输出不变当作唯一标准 |
+| AC11 | `openspec validate config-unification --strict`；`git -c core.whitespace=cr-at-eol diff --check` | 无格式错误及“归档会拒绝”的提示；规范按能力独立存放，版本、配置说明、数据库使用和开发计划一致；归档前用临时副本验证规范合并 |
 
-## 后续（不在本提案范围）
-
-- 注册/群审核/黑名单/频控按统一配置实施（config-only 核查第 3 步，另建提案）
-- 社区配置模板定稿与首版功能范围纠偏（第 4 步）
+以上全部通过后才归档，与实现一起提交；不得把模板样例或普通pytest通过当作已完成公开运营验收。
