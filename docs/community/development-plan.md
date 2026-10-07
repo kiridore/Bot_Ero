@@ -11,7 +11,7 @@
 - **Commit**：中文 Conventional Commits，一个任务 = 一个逻辑 commit（代码 + 测试 + spec + 菜单文本 + CHANGELOG 同 commit，见 `specs/conventions.md` §Commit 提交分块）；纯重构记 CHANGELOG `[未发布]` 不 bump；用户可见变更 bump `BOTERO_VERSION`。
 - **测试**：进程内用例进 `test/test_*.py`（conftest 自动隔离数据路径）；新集成脚本进 `test/scripts/check_*.py`（用 `_env.py::write_config`）；路径一律 `config.X` 属性访问，禁止导入期绑定。
 - **文档同步**：新增/改动指令 → `plugins/menu/bot_menu_text.py` + `kb/PLUGIN_CATALOG.md` + `specs/plugin-catalog.md`；表变更 → `kb/DATABASE.md` + `specs/database.md`；动 OneBot 协议调用 → 先查 `specs/onebot-protocol.md` 权威上游。
-- **双形态接缝白名单**（详见 `specs/conventions.md` §双形态接缝）：edition 差异只允许出现在 5 处接缝——`core/config.py`、`core/feature_packs.py`、菜单文本、plugin_pool 中央门控、权限点；**业务逻辑内禁止 `if EDITION`**。社区部署按 git tag 固化，不追主干 HEAD。
+- **仅配置差异**（所有者最新要求）：社区与私有部署共用同一实现，不按edition切换功能包、准入、权限或默认值；旧五处白名单废弃。**本文T0.7及M1等条目仍保留历史方案，实施前必须依照 [逐项核查报告](config-only-plan-review.md) 修订对应提案**。首版开放打卡基础与积分系统，经济扩展关闭；审核默认播种不得照旧启用经济扩展。社区部署按git tag固化不变。
 - **回归**：每任务完成跑全量 `pytest`；**任何改动不得影响私有版部署的运行（所有者底线）**——私有部署经 `/更新` 指令 `git pull` 主干 HEAD，主干每个 commit 都必须私有形态安全（私有 config 可加载、行为零变化、pytest 全绿），非仅发布点；M0 纯重构零行为变化，M1+ 的 edition 相关改动必须附 private 直通测试断言。
 - **规模**：S ≤ 半天 / M = 1-2 天（业余 + AI 协作口径）。
 
