@@ -64,6 +64,8 @@ class RewardManager:
     def revoke(self, plugin, user_id, reward_key, source_operation, *, update_state=None):
         uid = str(user_id)
         with self.transaction():
+            if self.was_reversed(plugin, uid, reward_key, source_operation):
+                return None
             row = self.conn.execute("""
                 SELECT id, amount FROM plugin_reward_records
                 WHERE plugin_name = ? AND user_id = ? AND reward_key = ? AND revoked_at IS NULL
@@ -77,10 +79,77 @@ class RewardManager:
                 WHERE id = ? AND revoked_at IS NULL
             """, (source_operation, row[0]))
             PointsManager(self.conn).adjust(uid, -row[1], commit=False)
+            self._record_reversal(plugin, uid, reward_key, source_operation, row[1])
             return row[1]
 
+    def was_reversed(self, plugin, user_id, reward_key, source_operation):
+        return self.conn.execute("""
+            SELECT 1 FROM plugin_reward_reversals
+            WHERE plugin_name = ? AND user_id = ? AND reward_key = ? AND source_operation = ?
+        """, (plugin, str(user_id), reward_key, source_operation)).fetchone() is not None
+
+    def _record_reversal(self, plugin, user_id, reward_key, source_operation, amount):
+        self.conn.execute("""
+            INSERT INTO plugin_reward_reversals (plugin_name, user_id, reward_key, source_operation, amount)
+            VALUES (?, ?, ?, ?, ?)
+        """, (plugin, str(user_id), reward_key, source_operation, amount))
+
+    def revoke_legacy(self, plugin, user_id, reward_key, source_operation, amount, *, update_state):
+        if not isinstance(amount, int) or isinstance(amount, bool) or amount < 0:
+            raise ValueError("撤销积分必须为非负整数")
+        with self.transaction():
+            if self.was_reversed(plugin, user_id, reward_key, source_operation):
+                return None
+            if self.has_active(plugin, user_id, reward_key):
+                raise ValueError("当前新奖励不能走旧记录撤销路径")
+            if update_state(self.conn) is False:
+                return None
+            PointsManager(self.conn).adjust(user_id, -amount, commit=False)
+            # 只记录实际发生的扣回，不补造无法确认的旧发奖来源。
+            self._record_reversal(plugin, user_id, reward_key, source_operation, amount)
+            return amount
+
+    def grant_attendance(self, user_id, reward_type, period_key, source_operation, amount=1, *, source_scope=""):
+        from core.db.checkin import CheckinManager
+        checkin = CheckinManager(self.conn)
+        return self.grant(
+            "checkin", user_id, f"attendance:{reward_type}:{period_key}", source_operation, amount,
+            source_scope=source_scope,
+            update_state=lambda conn: checkin.claim_attendance(user_id, reward_type, period_key, amount, commit=False),
+        )
+
+    def revoke_attendance(self, user_id, reward_type, period_key, source_operation):
+        from core.db.checkin import CheckinManager
+        checkin = CheckinManager(self.conn)
+        key = f"attendance:{reward_type}:{period_key}"
+        with self.transaction():
+            if self.has_active("checkin", user_id, key):
+                amount = self.revoke(
+                    "checkin", user_id, key, source_operation,
+                    update_state=lambda conn: checkin.revoke_attendance(user_id, reward_type, period_key, commit=False) > 0,
+                )
+                return 0 if amount is None else amount
+            # 历史曾有新记录不代表当前领取也属于新记录：网页等旧入口可能再次发放。
+            row = self.conn.execute("""
+                SELECT points FROM user_attendance_reward_claims
+                WHERE user_id = ? AND reward_type = ? AND period_key = ?
+            """, (user_id, reward_type, period_key)).fetchone()
+            if row is None or row[0] <= 0:
+                return 0
+            amount = self.revoke_legacy(
+                "checkin", user_id, key, source_operation, row[0],
+                update_state=lambda conn: checkin.revoke_attendance(user_id, reward_type, period_key, commit=False) > 0,
+            )
+            return 0 if amount is None else amount
+
+    def has_active(self, plugin, user_id, reward_key):
+        return self.conn.execute("""
+            SELECT 1 FROM plugin_reward_records
+            WHERE plugin_name = ? AND user_id = ? AND reward_key = ? AND revoked_at IS NULL LIMIT 1
+        """, (plugin, str(user_id), reward_key)).fetchone() is not None
+
     def has_history(self, plugin, user_id, reward_key):
-        """新记录已接管的业务不能再次走旧记录扣分路径。"""
+        """是否曾处理该来源；不能据此判定当前领取是否由新记录接管。"""
         return self.conn.execute("""
             SELECT 1 FROM plugin_reward_records
             WHERE plugin_name = ? AND user_id = ? AND reward_key = ? LIMIT 1

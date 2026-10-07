@@ -1,7 +1,7 @@
 from core.base import CommandPlugin
 from core.cq import text,at
 from core.logger import logger
-from core.utils import add_user_point, ensure_checkin_image, get_monday_to_monday
+from core.utils import ensure_checkin_image, get_monday_to_monday
 from core.timeline_client import emit_event
 from datetime import datetime
 
@@ -78,35 +78,11 @@ class CheckinPlugin(CommandPlugin):
             else:
                 display_str += "这周已经提交了{}张图了喵".format(len(checkin_list))
 
-            bonus_total = 0
-            bonus_lines = []
-            week_start = start_date.split(" ")[0]
-
-            now_dt = datetime.now()
-
-            # 自然月全勤奖励（每自然月一次）
-            month_start = now_dt.replace(day=1)
-            if month_start.month == 12:
-                next_month_start = month_start.replace(year=month_start.year + 1, month=1, day=1)
-            else:
-                next_month_start = month_start.replace(month=month_start.month + 1, day=1)
-            month_full_days = self.dbmanager.checkin.count_days(
-                self.bot_event.user_id,
-                month_start.strftime("%Y-%m-%d 00:00:00"),
-                next_month_start.strftime("%Y-%m-%d 00:00:00"),
+            self.publish_event(
+                "checkin.completed", checkin_at=checkin_at.isoformat(),
+                reward_at=datetime.now().isoformat(), is_first=is_first,
+                week_start=start_date.split(" ")[0],
             )
-            month_days = (next_month_start - month_start).days
-            if is_first and month_full_days >= month_days and self.dbmanager.checkin.claim_attendance(
-                self.bot_event.user_id, "full_month_weekly_check", week_start, 1
-            ):
-                bonus_total += 1
-                bonus_lines.append("当月全勤奖励 +1")
-
-            if bonus_total > 0:
-                add_user_point(self.dbmanager, self.bot_event.user_id, bonus_total)
-                display_str += "\n" + "\n".join(bonus_lines)
-
-            self.publish_event("checkin.completed", checkin_at=checkin_at.isoformat())
 
             if streak_res["current_weekly"] > 1:
                 display_str += "\n已经连续打卡了{}周了，真厉害喵！".format(streak_res["current_weekly"])

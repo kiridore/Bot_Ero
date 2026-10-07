@@ -400,6 +400,17 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         ON plugin_reward_records(plugin_name, user_id, reward_key, source_operation);
     """)
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS plugin_reward_reversals (
+            plugin_name TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            reward_key TEXT NOT NULL,
+            source_operation TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount >= 0),
+            reversed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (plugin_name, user_id, reward_key, source_operation)
+        );
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS user_plugin_config (
             user_id INTEGER NOT NULL,
             plugin_name TEXT NOT NULL,

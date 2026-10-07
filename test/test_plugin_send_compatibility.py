@@ -132,7 +132,7 @@ def test_business_failure_drops_success_output_without_leaking_exception(transpo
 
 
 def test_migrated_sources_do_not_keep_legacy_send_calls():
-    files = ["checkin/__init__.py", "checkin_recall/__init__.py", "roll_back/__init__.py",
+    files = ["checkin/__init__.py", "checkin/events.py", "checkin_recall/__init__.py", "roll_back/__init__.py",
              "weekly_quest/events.py", "title/events.py", "redeem_shop/events.py"]
     for relative in files:
         path = ROOT / "plugins" / relative

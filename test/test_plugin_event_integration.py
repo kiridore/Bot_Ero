@@ -1,4 +1,5 @@
 """通过真实打卡插件和周常消费者验证开关与关闭后的奖励撤销。"""
+from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +7,10 @@ import pytest
 from core import config, context
 from core.database_manager import DbManager
 from core.db.plugin_settings import set_user_plugins
+from core.db.rewards import RewardManager
+from core.db.points import PointsManager
+from core.db.checkin import CheckinManager
+from core.utils import get_monday_to_monday
 from core.event import Event
 from core.message_output import MessageOutput
 from core.plugin_dispatch import Operation
@@ -136,6 +141,103 @@ def test_recalled_multi_image_message_revokes_once_while_quest_disabled(db):
     _, sent = run_plugin(CheckinRecallPlugin, db)
     assert not sent
     assert points(db) == 0
+
+
+@pytest.mark.parametrize("plugin_cls", [RollbackCheckinPlugin, CheckinRecallPlugin])
+def test_mixed_old_new_attendance_revoked_once_by_either_entry(db, plugin_cls):
+    run_plugin(CheckinPlugin, db)
+    today = datetime.now().strftime("%Y-%m-%d")
+    week = get_monday_to_monday()[0].split(" ")[0]
+    assert db.checkin.claim_attendance(42, "full_week_daily", today, 1)
+    db.points.adjust(42, 1)
+    assert RewardManager(db.conn).grant_attendance(42, "full_month_weekly_check", week, "new-month")
+    assert points(db) == 2
+    # 两个奖励插件都没有开启，旧奖励清理仍执行。
+    run_plugin(plugin_cls, db)
+    assert points(db) == 0
+    assert db.conn.execute("SELECT COUNT(*) FROM user_attendance_reward_claims").fetchone()[0] == 0
+    run_plugin(plugin_cls, db)
+    assert points(db) == 0
+
+
+def test_attendance_keeps_existing_week_and_month_boundaries(db):
+    from plugins.checkin.events import revoke_attendance
+    for kind, period in (("full_week_daily", "2026-10-04"),
+                         ("full_week_daily", "2026-10-05"),
+                         ("full_month_weekly_check", "2026-09-28")):
+        assert db.checkin.claim_attendance(42, kind, period, 1)
+        db.points.adjust(42, 1)
+    op = Operation({}, MessageOutput(lambda r: 1, ("private", 42)))
+    assert op.execute("checkin", lambda: revoke_attendance(op, {
+        "user_id": 42, "removed_at": "2026-10-05T07:00:00", "source_operation": "boundary",
+    }))
+    # 08:00业务周为空，撤销上周起点的月奖励；自然周仍从00:00开始。
+    assert points(db) == 1
+    assert [tuple(row) for row in db.conn.execute("SELECT reward_type, period_key FROM user_attendance_reward_claims")] == [
+        ("full_week_daily", "2026-10-04"),
+    ]
+
+
+def test_monthly_reward_failure_does_not_stop_quest_or_remove_checkin(db, monkeypatch):
+    from core.plugin_dispatch import Subscription
+    from plugins.checkin.events import award_attendance
+    from plugins.weekly_quest.events import checkin_completed
+    db.checkin.insert(42, ["saved.png"], message_id=100)
+    original_count = CheckinManager.count_days
+    original_grant = RewardManager.grant_attendance
+
+    def full_month(self, uid, start, end):
+        return 31 if start.endswith("00:00:00") else original_count(self, uid, start, end)
+
+    def fail_after_grant(self, *args, **kwargs):
+        original_grant(self, *args, **kwargs)
+        raise RuntimeError("全勤奖励中途失败")
+
+    monkeypatch.setattr(CheckinManager, "count_days", full_month)
+    monkeypatch.setattr(RewardManager, "grant_attendance", fail_after_grant)
+    sent = []
+    op = Operation({"checkin": True, "weekly_quest": True}, MessageOutput(
+        lambda r: sent.append(r) or 1, ("private", 42)), subscriptions=[
+            Subscription("checkin.completed", "checkin", award_attendance, 30),
+            Subscription("checkin.completed", "weekly_quest", checkin_completed, 40),
+        ])
+    now = datetime.now()
+    op.publish("checkin.completed", {"user_id": 42, "is_first": True,
+        "reward_at": now.isoformat(), "week_start": get_monday_to_monday()[0].split(" ")[0],
+        "source_operation": "test-month-failure", "source_scope": "private:42"})
+    op.finish()
+    assert op.failures == ["checkin"]
+    assert db.conn.execute("SELECT COUNT(*) FROM checkin_records").fetchone()[0] == 1
+    assert db.conn.execute("SELECT COUNT(*) FROM user_attendance_reward_claims").fetchone()[0] == 0
+    assert points(db) == 1  # 只有成功的周常奖励
+    assert not any(r.content == "当月全勤奖励 +1" for r in sent)
+    assert any(r.content == "🎯 打个卡先 +1" for r in sent)
+
+
+def test_attendance_cleanup_failure_does_not_partially_refund(db, monkeypatch):
+    from plugins.checkin.events import revoke_attendance
+    now = datetime.now()
+    week = get_monday_to_monday()[0].split(" ")[0]
+    rewards = RewardManager(db.conn)
+    rewards.grant_attendance(42, "full_month_weekly_check", week, "month")
+    rewards.grant_attendance(42, "full_week_daily", now.strftime("%Y-%m-%d"), "week")
+    original = PointsManager.adjust
+    attempts = []
+
+    def fail_second(self, uid, delta, commit=True):
+        original(self, uid, delta, commit=commit)
+        attempts.append(delta)
+        if len(attempts) == 2:
+            raise RuntimeError("第二笔撤销失败")
+
+    monkeypatch.setattr(PointsManager, "adjust", fail_second)
+    op = Operation({}, MessageOutput(lambda r: 1, ("private", 42)))
+    assert not op.execute("checkin", lambda: revoke_attendance(op, {
+        "user_id": 42, "removed_at": now.isoformat(), "source_operation": "undo",
+    }))
+    assert points(db) == 2
+    assert db.conn.execute("SELECT COUNT(*) FROM user_attendance_reward_claims").fetchone()[0] == 2
+    assert db.conn.execute("SELECT COUNT(*) FROM plugin_reward_records WHERE revoked_at IS NULL").fetchone()[0] == 2
 
 
 def test_disabled_quest_still_revokes_real_reward(db):

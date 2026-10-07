@@ -65,12 +65,14 @@ def on_quest_rollback(db, user_id, trigger_type, *, source_operation=None):
             key = f"{week_key}:{q['id']}"
             def revoke(conn, quest=q):
                 return db.quest.revoke_reward(user_id, quest["id"], week_key, commit=False)
-            if rewards.has_history("weekly_quest", user_id, key):
+            if rewards.has_active("weekly_quest", user_id, key):
                 amount = rewards.revoke("weekly_quest", user_id, key, source_operation, update_state=revoke)
                 if amount is not None:
                     revoked.append(q)
-            elif revoke(db.quest.conn):
-                # 旧领取没有来源记录：只撤销已领取状态，不补造历史发奖。
-                db.points.adjust(user_id, -q["reward"], commit=False)
-                revoked.append(q)
+            else:
+                amount = rewards.revoke_legacy(
+                    "weekly_quest", user_id, key, source_operation, q["reward"], update_state=revoke,
+                )
+                if amount is not None:
+                    revoked.append(q)
     return revoked

@@ -1,6 +1,6 @@
 # 数据库 Schema
 
-> `data.db` 全部 46 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
+> `data.db` 全部 47 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
 >
 > 参见 `specs/database.md` 获取更简化的概述
 
@@ -12,7 +12,8 @@
 - `plugin_reward_records`：`id INTEGER PRIMARY KEY AUTOINCREMENT`；`plugin_name TEXT`、`user_id INTEGER`、`reward_key TEXT`、`source_operation TEXT`、`source_scope TEXT`、`amount INTEGER CHECK amount>=0` 均非空；`granted_at TEXT DEFAULT CURRENT_TIMESTAMP`；可空的 `revoked_at TEXT` 与 `revoke_operation TEXT`。
 - `plugin_reward_active`：对未撤销记录的 `(plugin_name,user_id,reward_key)` 唯一索引。同一有效奖励只能领取一次。
 - `plugin_reward_source`：`(plugin_name,user_id,reward_key,source_operation)` 唯一，防止旧操作在撤销后被重复通知再次发奖。新的合法操作仍可在重新达标后领取。
-- `core/db/rewards.py` 用短 `BEGIN IMMEDIATE` 事务更新领取状态、奖励记录与积分；回调不得自行 commit 或发消息。拒绝隐式提交调用方尚未完成的事务。业务插件接入及旧数据兼容仍按提案实施，不能仅凭新表创建宣布迁移完成。
+- `plugin_reward_reversals`：`plugin_name TEXT`、`user_id INTEGER`、`reward_key TEXT`、`source_operation TEXT` 联合主键，`amount INTEGER CHECK amount>=0`，`reversed_at TEXT DEFAULT CURRENT_TIMESTAMP`。记录真实发生的扣回；包括没有可确认发奖来源的旧领取。重复旧撤回通知不能扣掉后来重新领取的奖励，不会补造旧发奖历史。
+- `core/db/rewards.py` 用短 `BEGIN IMMEDIATE` 事务更新领取状态、奖励记录与积分；回调不得自行 commit 或发消息。拒绝隐式提交调用方尚未完成的事务。周常、打卡全勤及幸运道具奖励已接入；领取状态与积分一并提交。撤销检查当前有效奖励记录，而不是仅检查是否曾有历史记录；历史新奖励已撤销、随后由网页等旧入口重新领取的奖励，仍按当前旧领取记录扣回，不能漏扣或双扣。旧记录不补造发奖历史。抽奖其他业务迁移仍按提案后续任务实施。
 
 ## 用户与积分
 

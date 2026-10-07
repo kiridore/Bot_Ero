@@ -38,6 +38,18 @@ def test_grant_revoke_repeat_and_requalify(conn):
     assert conn.execute("SELECT COUNT(*) FROM plugin_reward_records").fetchone()[0] == 2
 
 
+def test_repeated_old_reversal_cannot_take_a_later_reward(conn):
+    rewards = RewardManager(conn)
+    assert rewards.grant("p", 1, "r", "first", 2)
+    assert rewards.revoke("p", 1, "r", "first-undo") == 2
+    assert rewards.grant("p", 1, "r", "second", 2)
+    assert rewards.revoke("p", 1, "r", "first-undo") is None
+    assert balance(conn) == 2
+    assert rewards.has_active("p", 1, "r")
+    assert rewards.revoke("p", 1, "r", "second-undo") == 2
+    assert balance(conn) == 0
+
+
 def test_failure_rolls_back_state_and_points(conn):
     rewards = RewardManager(conn)
 
@@ -57,6 +69,19 @@ def test_failure_rolls_back_state_and_points(conn):
     assert conn.execute("SELECT COUNT(*) FROM group_plugin_config").fetchone()[0] == 0
 
 
+def test_reversal_receipt_failure_rolls_back_balance_and_reward(conn):
+    rewards = RewardManager(conn)
+    rewards.grant("p", 1, "r", "op", 3)
+    conn.execute("""CREATE TRIGGER reject_reversal BEFORE INSERT ON plugin_reward_reversals
+                    BEGIN SELECT RAISE(ABORT, 'receipt write failure'); END""")
+    conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        rewards.revoke("p", 1, "r", "undo")
+    assert balance(conn) == 3
+    assert rewards.has_active("p", 1, "r")
+    assert conn.execute("SELECT COUNT(*) FROM plugin_reward_reversals").fetchone()[0] == 0
+
+
 def test_revoke_failure_is_atomic(conn):
     rewards = RewardManager(conn)
     rewards.grant("p", 1, "r", "op", 3)
@@ -66,7 +91,8 @@ def test_revoke_failure_is_atomic(conn):
     assert conn.execute("SELECT revoked_at FROM plugin_reward_records").fetchone()[0] is None
 
 
-def test_concurrent_grant_and_revoke(tmp_path):
+@pytest.mark.parametrize("attendance", [False, True])
+def test_concurrent_grant_and_revoke(tmp_path, attendance):
     path = tmp_path / "rewards.db"
     db = sqlite3.connect(path)
     init_schema(db, db.cursor())
@@ -80,6 +106,11 @@ def test_concurrent_grant_and_revoke(tmp_path):
             try:
                 rewards = RewardManager(db)
                 barrier.wait(timeout=5)
+                if attendance:
+                    if revoke:
+                        amount = rewards.revoke_attendance(1, "full_month_weekly_check", "2026-10-05", f"undo:{number}")
+                        return amount or None
+                    return rewards.grant_attendance(1, "full_month_weekly_check", "2026-10-05", f"op:{number}", 3)
                 if revoke:
                     return rewards.revoke("p", 1, "r", f"undo:{number}")
                 return rewards.grant("p", 1, "r", f"op:{number}", 3)

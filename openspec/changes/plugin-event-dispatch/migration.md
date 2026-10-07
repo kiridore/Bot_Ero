@@ -13,11 +13,12 @@
 | plugins/weekly_quest/__init__.py | send_msg | 任务进度；定时清理无输出 |
 | plugins/title/__init__.py | send_msg、send_forward_msg | 所有称号管理分支、合并转发、解锁通知 |
 | plugins/redeem_shop/__init__.py | send_msg、send_forward_msg | 货架查询、购买、手动刷新、定时刷新 |
+| plugins/checkin/events.py | 已迁移：全勤奖励提交输出，撤销只按历史记录处理 | 全勤失败不影响其他消费者、新旧领取混合撤销 |
 | plugins/weekly_quest/events.py | 已迁移：operation.output.submit 普通文本 | 周常奖励通知、相同标记文本合并 |
 | plugins/title/events.py | 已迁移：operation.output.submit 消息段 | 称号通知及用户提及，不作为纯文本拼接 |
 | plugins/redeem_shop/events.py | 已迁移：operation.output.submit 普通文本 | 道具奖励通知及重复来源处理 |
 
-原直接调用中的 checkin → 商店/称号/周常、两撤回 → 周常现已改为通知订阅。仍待迁移：lottery → weekly_quest.on_quest_trigger / title.evaluate_and_unlock_titles；lottery.rewards → titles.unlock 与重复称号返点。打卡的全勤奖励与撤销重复代码属于本次事务与兼容测试范围。抽奖的称号奖项不只是展示，详见 implementation-findings.md 的所有者裁定。
+原直接调用中的 checkin → 商店/称号/周常、两撤回 → 周常现已改为通知订阅。仍待迁移：lottery → weekly_quest.on_quest_trigger / title.evaluate_and_unlock_titles；lottery.rewards → titles.unlock 与重复称号返点。打卡全勤奖励现由 checkin/events.py 订阅处理，两种撤回共用其历史清理函数；全勤领取、奖励记录和积分已同事务处理。抽奖的称号奖项不只是展示，详见 implementation-findings.md 的所有者裁定。
 
 ## 后续第二阶段（必须另建提案）
 
@@ -96,7 +97,7 @@
 |---|---|---|
 | main.py / core/base.py / core/context.py | 外部事件一个线程；顺序创建插件实例；不是每个插件一个线程。系统插件始终运行；群/账号设置在操作开始时固定；未采用 economy_active 或按包名决定联动 | test_plugin_dispatch.py、test_plugin_controls.py |
 | core/api.py / core/message_output.py | send_msg 优先群、其次私聊、无目标才回落配置默认群；提及前注入称号；send_forward_msg 构造节点，send_forward_nodes 使用已有节点；发送结果为0视为失败，不重执行业务 | test_api_send_fallback.py、test_title_prefix_hook.py、test_plugin_output.py |
-| plugins/checkin/__init__.py | 图片必填；保存打卡及图片→时间线上报→打卡自身全勤规则→完成通知及回执。周界仍为周一08:00；月全勤+1仍受本周首次打卡与旧 full_month_weekly_check 领取条件限制，本任务不修订这条条件 | test_checkin_privacy.py、test_plugin_event_integration.py |
+| plugins/checkin/__init__.py | 图片必填；保存打卡及图片→时间线上报→完成通知及回执；全勤消费者执行原有规则。周界仍为周一08:00；月全勤+1仍受本周首次打卡与旧 full_month_weekly_check 领取条件限制，本任务不修订这条条件 | test_checkin_privacy.py、test_plugin_event_integration.py |
 | plugins/redeem_shop/events.py | 先消费幸运道具，再按10%概率决定+1；与道具消耗同事务；该消费者先于称号和周常 | test_plugin_event_integration.py 的道具关闭/重复来源断言 |
 | plugins/title/logic.py、events.py | 时段/日期、打卡累计、抽奖画像、周常历史、称号收藏与装备共同决定解锁；打卡的称号评估必须先于本次周常次数更新，不能因重构提前解锁 | test_plugin_event_integration.py::test_title_evaluation_precedes_new_quest_completion |
 | plugins/weekly_quest/engine.py / core/db/quest.py | 打卡1/3/7天分别奖励1/2/3；抽奖3/7/15次分别奖励1/2/5；按账号/任务/周领取一次；全清要求全部六任务。回退不减少累计完成和历史全清次数 | test_plugin_migration_baseline.py、test_reward_compatibility.py |
@@ -105,7 +106,7 @@
 | plugins/lottery/rewards.py | 积分奖项合计79%；普通/稀有/传奇称号12%/5%/4%；重复称号返1/2/3积分。draw_reward 不只是读奖表，会直接写称号和返点，后续不可当作纯抽样函数迁移 | test_plugin_migration_baseline.py 的奖表与重复称号对照 |
 | plugins/redeem_shop/__init__.py、logic.py / core/db/shop.py | 货架全局单份；随机4个称号，各库存2，稀有度售价3/6/10。功能商品价格6/2/3/1；商店直接写称号、打卡道具、抽奖道具和次数。redeem 中扣分/扣库存/发商品按原事务处理 | test_shop_shelf.py（已有）、test_plugin_migration_baseline.py |
 
-仍需在后续实现中处理而不是本次审计偷偷改掉：两种撤回中的全勤重复代码及不同历史时间范围；抽奖自身消费商店道具的依赖；商店称号商品与关闭称号的组合；已消费道具不因奖励通知失败再次消耗。此前“全部耦合只有八处”的说法不完整，以上实际数据库写入同样属于后续迁移范围。
+两种撤回的全勤重复代码已合并，但保留不同业务周/自然周的旧时间范围。仍需在后续实现中处理：抽奖自身消费商店道具的依赖；商店称号商品与关闭称号的组合；已消费道具不因奖励通知失败再次消耗。此前“全部耦合只有八处”的说法不完整，以上实际数据库写入同样属于后续迁移范围。
 
 ## 1.2 清单覆盖检查
 
