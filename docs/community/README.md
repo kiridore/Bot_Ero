@@ -9,5 +9,7 @@ BotEro 从私域小群走向对外公开 QQ 机器人服务的文档集（决策
 | [architecture-overview.md](architecture-overview.md) | 工程架构纵览 + 耦合点 C1-C8 分析（事实底座） | 1 |
 | [community-edition-plan.md](community-edition-plan.md) | 社区版开发计划：决策记录 D1-D10、W1-W3 工作流、分批释出路线（决策层） | 2 |
 | [development-plan.md](development-plan.md) | 细粒度任务拆分与执行计划（T0.x/T1.x/T2.x + 批次 2/3 粗粒度，含改动文件/步骤/测试/验收/commit 建议） | 3（执行入口） |
+| [rollout-operations.md](rollout-operations.md) | 公开候选配置模板与逐步开放操作手册 | 4（上线手册） |
+| [sustainability.md](sustainability.md) | **维护者可持续性守则**：防燃尽红线，批次验收的可持续性检查（2026-10-09） | 4（与运营平级，每次开放功能前对照） |
 
 > 最新“仅配置差异”要求优先，详见 config-only-plan-review.md 与 community-edition-plan.md 的更新D5。历史计划中的edition分支和首版默认经济扩展不能继续照旧实施。
