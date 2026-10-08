@@ -1,11 +1,11 @@
 from core.base import CommandPlugin
 from core.cq import text
-from core.text_pack import get_text
 
-from .bot_menu_text import BOT_MENU_TEXT
-
+from .entries import render_menu
 
 from core.utils import register_plugin
+
+
 @register_plugin
 class MenuPlugin(CommandPlugin):
     name = 'show_menu'
@@ -13,4 +13,7 @@ class MenuPlugin(CommandPlugin):
     COMMANDS = ("/菜单", "/菜單")
 
     def handle(self):
-        self.api.send_forward_msg([text(get_text("menu_text", BOT_MENU_TEXT))])
+        # 按当前位置有效插件集合过滤：群聊查群设置，私聊查账号/公共默认（快照来自事件入口）
+        enabled = dict(self.operation.enabled) if self.operation is not None else {}
+        in_group = self.bot_event.group_id is not None
+        self.api.send_forward_msg([text(render_menu(enabled, self.super_user(), in_group))])

@@ -102,8 +102,8 @@ def test_system_plugin_remains_enabled_even_with_stale_override(management):
 def test_menu_and_community_pack_explain_account_commands():
     from plugins.menu.bot_menu_text import BOT_MENU_TEXT
     root = Path(__file__).resolve().parents[1]
-    community = yaml.safe_load((root / "text_packs/community.yaml").read_text(encoding="utf-8"))["menu_text"]
-    for menu in (BOT_MENU_TEXT, community):
+    community = yaml.safe_load((root / "text_packs/community.yaml").read_text(encoding="utf-8"))
+    for menu in (BOT_MENU_TEXT,):  # 社区包不再整段覆盖菜单，改为逐条覆盖
         for expected in (
             "/插件 <name> <开启|关闭|默认> 用户 <账号>",
             "/功能包 <name> <开启|关闭|默认> 用户 <账号>",
@@ -111,6 +111,7 @@ def test_menu_and_community_pack_explain_account_commands():
             "私聊修改私聊公共设置", "系统插件不能关闭",
         ):
             assert expected in menu
+    assert "menu_text" not in community
 
 
 def test_help_explains_restore_default(management):
