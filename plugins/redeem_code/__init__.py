@@ -28,6 +28,11 @@ class RedeemCodePlugin(CommandPlugin):
             if entry is None:
                 self.api.send_msg(text("兑换码不存在或已失效"))
                 return
+            missing = [name for name in entry.get("requires", ()) if not self.feature_enabled(name)]
+            if missing:
+                # 依赖功能未开放：整次拒绝，不核销、不发部分奖励，允许改好开关后重试
+                self.api.send_msg(text("该兑换码需要的功能未开放：{}，请联系管理员后再试".format("、".join(missing))))
+                return
             if not self.dbmanager.redeem.claim(user_id, code):
                 self.api.send_msg(text("你已使用过该兑换码，无法重复兑换"))
                 return

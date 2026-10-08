@@ -1,12 +1,9 @@
-import random
 from core.base import CommandPlugin
 from core.cq import text,at
 from core.logger import logger
-from core.utils import add_user_point, ensure_checkin_image, get_monday_to_monday
-from plugins.weekly_quest.engine import on_quest_trigger
+from core.utils import ensure_checkin_image, get_monday_to_monday
 from core.timeline_client import emit_event
 from datetime import datetime
-from plugins.title import evaluate_and_unlock_titles, get_title_def
 
 from core.utils import register_plugin
 # 打卡插件
@@ -25,7 +22,7 @@ class CheckinPlugin(CommandPlugin):
             if message_unit['type'] == 'image':
                 img_list.append(message_unit['data']['file'])
         if len(img_list) <= 0:
-            self.api.send_msg(text("没有图片是没办法打卡的喵"))
+            self.submit_message(text("没有图片是没办法打卡的喵"))
         else:
             for img_name in img_list :
                 # 找到的图片列表
@@ -47,17 +44,7 @@ class CheckinPlugin(CommandPlugin):
             # 图片即时落盘：时间线事件引用的 /thumb/ URL 立即可用（08:00 备份任务兜底）
             for img in img_list:
                 ensure_checkin_image(self.api, self.bot_event.user_id, img)
-            checkin_luck_bonus = 0
-            if self.dbmanager.shop.pop_luck(self.bot_event.user_id):
-                if random.random() < 0.1:
-                    checkin_luck_bonus = 1
-            unlocked = evaluate_and_unlock_titles(self.dbmanager, self.bot_event.user_id, datetime.now())
-            if unlocked:
-                lines = ["解锁新称号："]
-                for tid in unlocked:
-                    data = get_title_def(tid) or {"name": "未知称号", "rarity": "unknown", "description": "无"}
-                    lines.append(f"[{tid}] 「{data['name']}」 ({data['rarity']}) - {data['description']}")
-                self.api.send_msg(at(self.bot_event.user_id), text("\n".join(lines)))
+            checkin_at = datetime.now()
 
             # 后搜索
             checkin_list = self.dbmanager.checkin.search_user_range(self.bot_event.user_id, start_date, end_date)
@@ -91,44 +78,13 @@ class CheckinPlugin(CommandPlugin):
             else:
                 display_str += "这周已经提交了{}张图了喵".format(len(checkin_list))
 
-            bonus_total = 0
-            bonus_lines = []
-            week_start = start_date.split(" ")[0]
-
-            now_dt = datetime.now()
-
-            # 自然月全勤奖励（每自然月一次）
-            month_start = now_dt.replace(day=1)
-            if month_start.month == 12:
-                next_month_start = month_start.replace(year=month_start.year + 1, month=1, day=1)
-            else:
-                next_month_start = month_start.replace(month=month_start.month + 1, day=1)
-            month_full_days = self.dbmanager.checkin.count_days(
-                self.bot_event.user_id,
-                month_start.strftime("%Y-%m-%d 00:00:00"),
-                next_month_start.strftime("%Y-%m-%d 00:00:00"),
+            self.publish_event(
+                "checkin.completed", checkin_at=checkin_at.isoformat(),
+                reward_at=datetime.now().isoformat(), is_first=is_first,
+                week_start=start_date.split(" ")[0],
             )
-            month_days = (next_month_start - month_start).days
-            if is_first and month_full_days >= month_days and self.dbmanager.checkin.claim_attendance(
-                self.bot_event.user_id, "full_month_weekly_check", week_start, 1
-            ):
-                bonus_total += 1
-                bonus_lines.append("当月全勤奖励 +1")
-
-            if checkin_luck_bonus:
-                bonus_total += checkin_luck_bonus
-                bonus_lines.append("打卡增强：概率奖励 +1")
-
-            if bonus_total > 0:
-                add_user_point(self.dbmanager, self.bot_event.user_id, bonus_total)
-                display_str += "\n" + "\n".join(bonus_lines)
-
-            completed = on_quest_trigger(self.dbmanager, self.bot_event.user_id, "checkin")
-            if completed:
-                names = [f"{q['name']} +{q['reward']}" for q in completed]
-                display_str += "\n🎯 " + " | ".join(names)
 
             if streak_res["current_weekly"] > 1:
                 display_str += "\n已经连续打卡了{}周了，真厉害喵！".format(streak_res["current_weekly"])
 
-            self.api.send_msg(at(self.bot_event.user_id), text(display_str))
+            self.submit_message(at(self.bot_event.user_id), text(display_str), order=20)

@@ -68,23 +68,23 @@ class TestBadPackDegrades(unittest.TestCase):
 
 
 class TestCommunityPack(unittest.TestCase):
-    """社区包静态断言（验收 5）。"""
+    """社区包静态断言：结构化菜单后不再整段覆盖，逐条覆盖需中性化。"""
 
     def setUp(self):
         self.pack = yaml.safe_load(Path("text_packs/community.yaml").read_text(encoding="utf-8"))
 
-    def test_valid_menu_text(self):
-        self.assertIsInstance(self.pack.get("menu_text"), str)
-        self.assertGreater(len(self.pack["menu_text"]), 100)
+    def test_no_legacy_menu_text(self):
+        self.assertNotIn("menu_text", self.pack)
 
-    def test_has_nickname_placeholder(self):
-        self.assertIn("{NICKNAME}", self.pack["menu_text"])
+    def test_overrides_are_strings(self):
+        for key, value in self.pack.items():
+            self.assertTrue(key.startswith("menu."), f"非菜单覆盖键：{key}")
+            self.assertIsInstance(value, str)
 
     def test_no_private_jargon(self):
-        # 板油仅允许作为既有触发词出现（描述已中性化，触发词改名是独立任务）
-        for word in ("FF14", "FF新闻", "喵"):
-            self.assertNotIn(word, self.pack["menu_text"], f"社区文案含私域词：{word}")
-        self.assertIn("/本周板油 查看本周打卡成员", self.pack["menu_text"])
+        for key, value in self.pack.items():
+            for word in ("FF14", "FF新闻", "喵", "板油"):
+                self.assertNotIn(word, value, f"社区文案含私域词：{key}")
 
 
 if __name__ == "__main__":

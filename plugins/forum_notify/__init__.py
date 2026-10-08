@@ -8,8 +8,10 @@ from datetime import datetime
 
 from core.base import Plugin
 from core.base import BOT_QQ
+from core import config as _config
 from core.config import WEB_BASE_URL
 from core.cq import text
+from core.logger import logger
 from core.timeline_client import emit_event
 from core.utils import register_plugin
 
@@ -31,10 +33,21 @@ class ForumNotifyPlugin(Plugin):
         return True
 
     def handle(self):
+        from core import context as runtime_context
         db = self.dbmanager
+        # 新帖通知：默认群未启用（或未配置）时不发送、不标记已通知，帖子保留待重新开启
+        notify_target_ok = (
+            _config.DEFAULT_GROUP_ID is not None
+            and runtime_context.effective_for_scope("forum_notify", group_id=_config.DEFAULT_GROUP_ID)
+        )
         # 1. 新帖通知
         posts = db.forum.list_unnotified_posts(limit=10)
-        if posts:
+        if posts and not notify_target_ok:
+            logger.info(
+                "论坛有 %s 条新帖未通知（默认群未启用 forum_notify），已保留待重新开启",
+                len(posts),
+            )
+        elif posts:
             for pid, ptype, title, _ in posts:
                 url = f"{WEB_BASE_URL}/forum/{pid}"
                 prefix = {

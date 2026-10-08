@@ -9,7 +9,11 @@ from core.logger import logger
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 
+runtime_context.validate_deployment_policy()  # 注册表就绪后冻结部署策略（config-unification）
+
 from core.web_panel import start_panel
+from core.plugin_dispatch import Operation
+from core.message_output import MessageOutput, send_request
 
 start_panel()
 
@@ -31,8 +35,26 @@ def resolve_event_type(context: dict) -> str:
 
 def plugin_pool(context: dict, event_type: str):
     group_id = context.get("group_id")
-    for plugin_cls in runtime_context.plugin_registry:
-        if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
+    user_id = context.get("user_id")
+    target = (("group", group_id) if group_id is not None else
+              ("private", user_id) if user_id is not None else
+              ("group", runtime_context.DEFAULT_GROUP_ID) if runtime_context.DEFAULT_GROUP_ID else None)
+    try:
+        settings = runtime_context.plugin_settings_snapshot(group_id, user_id)
+    except Exception:
+        logger.exception("读取插件设置失败，本次事件不执行，防止绕过关闭设置")
+        return
+    operation = Operation(settings, MessageOutput(send_request, target))
+    logger.debug("操作 %s 开始：类型=%s 消息=%s 群=%s 用户=%s",
+                 operation.id, event_type, context.get("message_id"), group_id, user_id)
+    context = dict(context, _operation=operation)
+    for plugin_cls in tuple(runtime_context.plugin_registry):
+        key = runtime_context.plugin_key(plugin_cls)
+        if event_type == "meta":
+            # 心跳无群号：先过部署硬边界；局部开关由各任务按所属对象自行检查（config-unification）
+            if not runtime_context.plugin_allowed(key):
+                continue
+        elif not operation.is_enabled(key):
             continue
         # 录制期间跳过非跑团功能包插件
         if group_id is not None and runtime_context.is_group_recording(group_id):
@@ -40,12 +62,13 @@ def plugin_pool(context: dict, event_type: str):
                 runtime_context.plugin_key(plugin_cls)
             ):
                 continue
-        plugin = plugin_cls(context)
-        try:
+        def handle(cls=plugin_cls):
+            plugin = cls(context)
             if plugin.match(event_type):
                 plugin.handle()
-        except Exception:
-            logger.exception("插件 %s 处理失败", plugin_cls.__name__)
+        operation.execute(runtime_context.plugin_key(plugin_cls), handle)
+        operation.drain()
+    operation.finish()
 
 
 def on_message(_, message):

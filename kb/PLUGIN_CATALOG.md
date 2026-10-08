@@ -69,7 +69,7 @@
 | 40 | `monitor` | `monitor/` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
 | 41 | `update` | `update/` | `/更新` | super_user() | git pull + os.execv 重启 |
 | 42 | `shop_manual_refresh` | `redeem_shop/` | `/刷新商店` | admin_user() | 手动刷新商店 |
-| 43 | `group_manager` | `group_manager/` | CommandPlugin `/插件`/`/功能包`，参数 `<名称\|列表> [off\|关闭] [群号]` | super_user() | 管理各群插件/功能包启用状态 |
+| 43 | `group_manager` | `group_manager/` | CommandPlugin `/插件`/`/功能包`；保留旧参数，新增 `<名称> <开启\|关闭\|默认> 用户 <账号>`、`列表 用户 <账号>`、`<名称> <开启\|关闭> 群 <群号>` | 仅 super_user() | 群设置与账号私聊三态覆盖；缺省沿用私聊公共设置，默认=删除覆盖；系统插件不可覆盖，功能包批量修改同事务 |
 
 ## 功能包
 

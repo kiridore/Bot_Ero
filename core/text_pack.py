@@ -17,6 +17,10 @@ if config.TEXT_PACK:
         _loaded = yaml.safe_load(Path(config.TEXT_PACK).read_text(encoding="utf-8"))
         if isinstance(_loaded, dict):
             _pack = _loaded
+            if "menu_text" in _pack:
+                # 旧整段菜单覆盖已停用（config-unification）：菜单按有效插件过滤，文字不能绕过
+                logger.warning(
+                    "文案包含 menu_text 整段覆盖：已停用并忽略，菜单改用结构化条目（menu.<指令词> 逐条覆盖）；请迁移")
         else:
             logger.warning("文案包顶层不是映射，忽略: %s", config.TEXT_PACK)
     except Exception:

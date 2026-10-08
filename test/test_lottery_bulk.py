@@ -4,6 +4,9 @@
 import os
 import sys
 import sqlite3
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from types import MappingProxyType
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +15,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from core import config
 from core.event import Event
+from core.cq import text
+from core.message_output import MessageOutput
+from core.plugin_dispatch import Operation
 from core.base import NICKNAME
 from core.db._base import init_schema
 from core.db.checkin import CheckinManager
@@ -21,7 +28,7 @@ from core.db.points import PointsManager
 from core.db.quest import QuestManager
 from core.db.shop import ShopManager
 from core.db.titles import TitlesManager
-from plugins import lottery as lottery_module
+from plugins.lottery import engine as lottery_module
 from plugins.lottery import LotteryPlugin
 from test.helper import MockApiWrapper, make_group_message, make_private_message
 
@@ -31,6 +38,7 @@ DB_PATH = "/tmp/test_lottery_bulk.db"
 class _Db:
     """测试用：仅挂抽奖流程依赖的管理器，跳过真实 DbManager 的全局库。"""
     def __init__(self, conn):
+        self.conn = conn
         self.checkin = CheckinManager(conn)
         self.lottery = LotteryManager(conn)
         self.points = PointsManager(conn)
@@ -68,30 +76,69 @@ def _node_text(node):
 
 class TestLotteryBulk(unittest.TestCase):
     def setUp(self):
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
-        self.conn = sqlite3.connect(DB_PATH)
+        self.temp = TemporaryDirectory()
+        self.config_patch = patch.object(config, "DB_PATH", Path(self.temp.name) / "lottery.db")
+        self.config_patch.start()
+        self.counter = 0
+        self.conn = sqlite3.connect(str(config.DB_PATH))
         init_schema(self.conn, self.conn.cursor())
         self.db = _Db(self.conn)
         self.today = datetime.now().strftime("%Y-%m-%d")
         self._orig_draw_reward = lottery_module.draw_reward
         # 固定奖励，保证结果可断言（首抽免费，后续每次 1 积分）
-        lottery_module.draw_reward = lambda db, uid: {"type": "points", "value": 2}
+        lottery_module.draw_reward = lambda db, uid, **kwargs: {"type": "points", "value": 2}
 
     def tearDown(self):
         lottery_module.draw_reward = self._orig_draw_reward
         self.conn.close()
+        self.config_patch.stop()
+        self.temp.cleanup()
 
     def _run_raw(self, raw, user_id=123456):
+        self.counter += 1
+        raw = dict(raw, message_id=self.counter)
         plugin = LotteryPlugin.__new__(LotteryPlugin)
         plugin.bot_event = Event(raw)
         plugin.api = MockApiWrapper(raw)
         plugin.dbmanager = self.db
+        target = ("group", raw["group_id"]) if raw.get("group_id") else ("private", raw["user_id"])
+        def send(request):
+            if request.kind == "nodes":
+                return plugin.api.send_forward_nodes(request.content)
+            if request.kind == "text":
+                return plugin.api.send_msg(text(request.content))
+            return plugin.api.send_msg(*request.content)
+        plugin.operation = Operation({key: True for key in ("lottery", "title", "weekly_quest", "redeem_shop")},
+                                     MessageOutput(send, target))
         plugin.match("message")
+        handle = plugin.handle
+        def run():
+            self.assertTrue(plugin.operation.execute("lottery", handle))
+            plugin.operation.finish()
+            self.assertEqual(plugin.operation.failures, [])
+        plugin.handle = run
         return plugin
 
     def _run(self, text_body, user_id=123456):
         return self._run_raw(make_group_message(text_body, user_id=user_id), user_id=user_id)
+
+    def test_title_disabled_rejects_before_any_draw_side_effect(self):
+        for factory in (make_group_message, make_private_message):
+            for command in ("/抽奖", "/一键抽奖"):
+                with self.subTest(factory=factory.__name__, command=command):
+                    p = self._run_raw(factory(command, user_id=123456))
+                    p.operation.enabled = MappingProxyType({})
+                    before = list(self.conn.iterdump())
+                    p.handle()
+                    self.assertIn("称号功能已关闭", _last_text(p))
+                    self.assertEqual(list(self.conn.iterdump()), before)
+                    self.assertEqual(self.db.lottery.draw_count(123456, self.today), 0)
+
+    def test_title_disabled_allows_spending_query(self):
+        p = self._run("/抽卡消费")
+        p.operation.enabled = MappingProxyType({})
+        p.handle()
+        self.assertIn("累计抽卡消费", _last_text(p))
 
     def test_bulk_draws_all_remaining_no_checkin(self):
         """未打卡上限 2 次：连抽 2 次，首抽免费、第二次扣 1 积分；
@@ -121,7 +168,7 @@ class TestLotteryBulk(unittest.TestCase):
 
     def test_bulk_stops_on_insufficient_points(self):
         """奖励为 0 时：免费首抽后积分不足，停止并提示（独立子消息）。"""
-        lottery_module.draw_reward = lambda db, uid: {"type": "points", "value": 0}
+        lottery_module.draw_reward = lambda db, uid, **kwargs: {"type": "points", "value": 0}
         p = self._run("/一键抽奖")
         p.handle()
         nodes = _forward_nodes(p)

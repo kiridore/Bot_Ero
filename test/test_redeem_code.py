@@ -12,6 +12,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.event import Event
+from core.message_output import MessageOutput
+from core.plugin_dispatch import Operation
 from core.db._base import init_schema
 from core.db.points import PointsManager
 from core.db.redeem import RedeemManager
@@ -73,6 +75,9 @@ class TestRedeemCode(unittest.TestCase):
         plugin.bot_event = Event(raw)
         plugin.api = MockApiWrapper(raw)
         plugin.dbmanager = self.db
+        # 依赖功能开启的操作快照（兑换码 requires 检查，config-unification）
+        plugin.operation = Operation({"redeem_code": True, "title": True},
+                                     MessageOutput(lambda r: 1, ("group", raw["group_id"])))
         plugin.match("message")  # CommandPlugin 填充 self.args
         return plugin
 

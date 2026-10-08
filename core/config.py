@@ -14,26 +14,56 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.50.0"
+BOTERO_VERSION = "1.52.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
-# 必填键（点路径），按部署形态拆分：
-# - 两种形态共有的 bot 基础项 + auth.salt
-# - 私有形态额外要求：默认群（单群假设兜底）、OneBot HTTP（webapp 昵称解析）、
-#   时间线上报（webapp Event Server 地址）
-_EDITIONS = ("private", "community")
+# 必填键（点路径）：进程启动必需项。部署差异不按键名分侧：
+# - 服务配套键按实际启用判定（timeline/onebot 配了 URL 就要求 token，见 validate_config）
+# - bot.default_group 不再必填（空 = 发送兜底丢弃，T0.2）
 _REQUIRED_BOT = (
     "bot.qq", "bot.nickname", "bot.super_users",
     "bot.ws_url", "bot.ws_token", "bot.llonebot_data_path", "bot.python_data_path",
     "auth.salt",
 )
-_REQUIRED_PRIVATE_EXTRA = (
-    "bot.default_group",
-    "onebot.http_url", "onebot.token",
-    "timeline.url", "timeline.token",
-)
-_REQUIRED = _REQUIRED_BOT + _REQUIRED_PRIVATE_EXTRA  # 兼容 web_panel 存盘校验（私有全集，语义不变）
+_REQUIRED = _REQUIRED_BOT  # 兼容旧引用；启动与面板存盘共用 validate_config
+
+
+def _present(value) -> bool:
+    return value is not None and value != "" and value != []
+
+
+def validate_config(data: dict) -> list[str]:
+    """纯校验：返回错误列表（空 = 通过）。启动加载与管理面板保存共用；
+    与版名（bot.edition）无关——它只是描述标签，不参与任何判定。"""
+    errors: list[str] = []
+    for dotted in _REQUIRED_BOT:
+        section, _, key = dotted.partition(".")
+        value = (data.get(section) or {}).get(key)
+        if not _present(value):
+            errors.append(f"缺少必填项 {dotted}")
+    bot = data.get("bot") or {}
+    if "feature_packs_file" in bot and not str(bot["feature_packs_file"] or "").strip():
+        errors.append("bot.feature_packs_file 不能为空字符串；使用内置包请删除该键")
+    if "allowed_plugins" in bot:
+        raw = bot["allowed_plugins"]
+        if not isinstance(raw, list) or not all(isinstance(s, str) and s.strip() for s in raw):
+            errors.append("bot.allowed_plugins 必须是插件标识（字符串）列表")
+        elif not raw:
+            errors.append("bot.allowed_plugins 不能为空列表；不限制请删除该键")
+    if "system_plugins" in bot:
+        raw = bot["system_plugins"]
+        if not isinstance(raw, list) or not all(isinstance(s, str) and s.strip() for s in raw):
+            errors.append("bot.system_plugins 必须是插件标识（字符串）列表")
+        elif not raw:
+            errors.append("bot.system_plugins 不能为空列表；使用内置集合请删除该键")
+    timeline = data.get("timeline") or {}
+    if _present(timeline.get("url")) != _present(timeline.get("token")):
+        errors.append("timeline.url 与 timeline.token 必须成对配置（都不填 = 上报关闭）")
+    onebot = data.get("onebot") or {}
+    if _present(onebot.get("http_url")) != _present(onebot.get("token")):
+        errors.append("onebot.http_url 与 onebot.token 必须成对配置（都不填 = 不启用 HTTP）")
+    return errors
 
 
 def _load(path: Path) -> dict:
@@ -43,15 +73,9 @@ def _load(path: Path) -> dict:
             f"请先复制模板并填写：cp config.example.yaml config.yaml"
         )
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    edition = str((data.get("bot") or {}).get("edition") or "private")
-    if edition not in _EDITIONS:
-        sys.exit(f"配置文件 {path} 的 bot.edition 非法：{edition}（可选 {'/'.join(_EDITIONS)}）")
-    required = _REQUIRED_BOT + (_REQUIRED_PRIVATE_EXTRA if edition == "private" else ())
-    for dotted in required:
-        section, _, key = dotted.partition(".")
-        value = (data.get(section) or {}).get(key)
-        if value is None or value == "" or value == []:
-            sys.exit(f"配置文件 {path} 缺少必填项 {dotted}")
+    errors = validate_config(data)
+    if errors:
+        sys.exit(f"配置文件 {path} 无效：\n- " + "\n- ".join(errors))
     return data
 
 
@@ -86,15 +110,22 @@ BOT_QQ = str(_bot["qq"])
 NICKNAME = str(_bot["nickname"])
 SUPER_USER = [int(u) for u in _bot["super_users"]]
 
-# —— 部署形态（private=私有全功能；community=社区公共服务，纯 bot）——
+# —— 部署描述标签（纯日志/展示用途，不参与控制流）——
 EDITION = str(_bot.get("edition") or "private")
 SYSTEM_PLUGINS_CONF = [str(s) for s in (_bot.get("system_plugins") or [])]  # T0.4 消费（缺省空 = 用内置集合）
+# 部署允许范围（config-unification）：缺键 = 兼容模式（允许全部已安装插件，公开部署应显式配置名单）；
+# 非空列表 = 精确限定。空列表在 validate_config 报错，不会解释为"全部开放"。
+# 标识使用模块名（runtime_context.plugin_key），如 redeem_shop、weekly_quest。
+_allowed_raw = _bot.get("allowed_plugins")
+ALLOWED_PLUGINS_CONF = [str(s) for s in _allowed_raw] if _allowed_raw else None
+# —— 功能包定义文件（config-unification）：缺键 = 内置包；非空路径 = 整体替换（严格校验，错误即退出）
+FEATURE_PACKS_FILE = str(_bot.get("feature_packs_file") or "")
 TEXT_PACK = str(_bot.get("text_pack") or "")  # 文案包路径（缺省空 = 内置文案，社区版 T0.8）
 _community = _sec("community")
 COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
-# 频控冷却秒数：显式配置不分形态生效；缺省 community=3 / private=0（关闭）
+# 频控冷却秒数：显式配置生效；缺省统一 0（关闭）。部署差异写进各自配置模板。
 _cooldown_raw = _community.get("cmd_cooldown_seconds")
-COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else (3 if EDITION == "community" else 0)
+COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else 0
 
 _default_group = _bot.get("default_group")
 DEFAULT_GROUP_ID = int(_default_group) if _default_group else None  # 社区形态可无默认群（发送兜底见 T0.2）

@@ -284,7 +284,7 @@ class CheckinManager:
         self.conn.commit()
         return ok
 
-    def claim_attendance(self, user_id, reward_type, period_key, points):
+    def claim_attendance(self, user_id, reward_type, period_key, points, *, commit=True):
         self.cur.execute("""
             INSERT OR IGNORE INTO user_attendance_reward_claims (user_id, reward_type, period_key, points, claimed_at)
             VALUES (?, ?, ?, ?, ?)
@@ -296,10 +296,11 @@ class CheckinManager:
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ))
         ok = self.cur.rowcount > 0
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return ok
 
-    def revoke_attendance(self, user_id, reward_type, period_key):
+    def revoke_attendance(self, user_id, reward_type, period_key, *, commit=True):
         self.cur.execute("""
             SELECT points
             FROM user_attendance_reward_claims
@@ -314,7 +315,8 @@ class CheckinManager:
             DELETE FROM user_attendance_reward_claims
             WHERE user_id = ? AND reward_type = ? AND period_key = ?
         """, (int(user_id), str(reward_type), str(period_key)))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return points
 
     def revoke_attendance_prefix(self, user_id, reward_type, period_prefix):

@@ -32,6 +32,61 @@ SYSTEM_PLUGINS = (
     frozenset(_config.SYSTEM_PLUGINS_CONF) if _config.SYSTEM_PLUGINS_CONF
     else _DEFAULT_SYSTEM_PLUGINS
 )
+# 部署允许范围（config-unification）：None = 兼容模式（全部已注册插件，旧配置零变化）；
+# frozenset = 明确名单。冻结后只读；与注册表/系统集合的一致性由 validate_deployment_policy 保证。
+ALLOWED_PLUGINS = frozenset(_config.ALLOWED_PLUGINS_CONF) if _config.ALLOWED_PLUGINS_CONF else None
+
+
+def plugin_allowed(key: str) -> bool:
+    """部署级硬边界：不在名单内的插件在任何事件类型、任何局部开关下都不可运行。"""
+    return ALLOWED_PLUGINS is None or key in ALLOWED_PLUGINS
+
+
+def effective_for_scope(plugin_key: str, group_id=None, user_id=None) -> bool:
+    """心跳等无消息上下文任务用：某群/某账号当前对该插件是否生效。
+
+    部署许可 + 局部开关（群聊查群设置；私聊查账号覆盖/公共默认）。
+    ponytail: 每次调用开独立 DB 连接，每分钟扫描量级足够；
+    若任务量增大再考虑调用方批量快照。
+    """
+    if not plugin_allowed(plugin_key):
+        return False
+    return plugin_settings_snapshot(group_id, user_id).get(plugin_key, False)
+
+
+def validate_deployment_policy() -> None:
+    """在全部插件完成自动导入后、start_panel/事件接收前调用（main.py）。
+
+    校验部署策略引用与冲突，失败即退出，不静默取舍：
+    - allowed_plugins/system_plugins 引用的标识必须真实存在（防拼错悄悄失效）；
+    - 生效系统集合必须是部署允许子集（防偷偷启用）；
+    - 自定义功能包文件引用的插件必须真实存在；
+    - 注册表为空说明调用时机错误（不能把"全部插件"冻结成空集）。
+    """
+    import sys
+    registered = {plugin_key(cls) for cls in plugin_registry}
+    problems: list[str] = []
+    if not registered:
+        problems.append("插件注册表为空：部署策略校验必须在 import plugins 之后调用")
+    if _config.SYSTEM_PLUGINS_CONF:
+        unknown_sys = sorted(set(_config.SYSTEM_PLUGINS_CONF) - registered)
+        if unknown_sys:
+            problems.append(f"bot.system_plugins 含未注册插件：{', '.join(unknown_sys)}")
+    if ALLOWED_PLUGINS is not None:
+        unknown_allowed = sorted(ALLOWED_PLUGINS - registered)
+        if unknown_allowed:
+            problems.append(f"bot.allowed_plugins 含未注册插件：{', '.join(unknown_allowed)}")
+        conflicts = sorted(SYSTEM_PLUGINS - ALLOWED_PLUGINS)
+        if conflicts:
+            problems.append(f"系统插件不在 allowed_plugins 内：{', '.join(conflicts)}")
+    if _config.FEATURE_PACKS_FILE:
+        from core.feature_packs import FEATURE_PACKS
+        for pack_name, pack in FEATURE_PACKS.items():
+            unknown_pack = sorted(set(pack["plugins"]) - registered)
+            if unknown_pack:
+                problems.append(f"功能包「{pack_name}」含未注册插件：{', '.join(unknown_pack)}")
+    if problems:
+        sys.exit("部署配置校验失败：\n- " + "\n- ".join(problems))
 
 # 称号前缀提供者（plugins.title 加载时注册；未注册 = 无称号前缀，社区裁剪形态降级）
 TITLE_PREFIX_PROVIDER = None
@@ -74,10 +129,29 @@ def is_plugin_allowed_during_recording(key: str) -> bool:
 def plugin_key(plugin_cls: type["Plugin"]) -> str:
     return plugin_cls.__module__.split(".", 1)[1]
 
-def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
+def plugin_settings_snapshot(group_id=None, user_id=None) -> dict[str, bool]:
+    from core.database_manager import DbManager
+    from core.db.plugin_settings import enabled_plugins
+    db = DbManager()
+    try:
+        settings = enabled_plugins(db.conn, group_id, user_id)
+    finally:
+        db.conn.close()
+    if ALLOWED_PLUGINS is not None:
+        # 部署硬边界：不在名单内的插件对任何事件、任何局部开关都不可运行（config-unification）
+        settings = {key: value for key, value in settings.items() if key in ALLOWED_PLUGINS}
+    settings.update({key: True for key in SYSTEM_PLUGINS})
+    return settings
+
+
+def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None, user_id=None) -> bool:
     key = plugin_key(plugin_cls)
+    if not plugin_allowed(key):
+        return False
     if key in SYSTEM_PLUGINS:
         return True
+    if group_id is None and user_id is not None:
+        return plugin_settings_snapshot(group_id, user_id).get(key, False)
     gid = group_id if group_id is not None else 0
     try:
         conn = sqlite3.connect(str(_config.DB_PATH))

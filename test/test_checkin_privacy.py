@@ -14,6 +14,8 @@ if str(PROJECT_ROOT) not in sys.path:
 import test.helper  # noqa: F401  桩掉 core.api.WS_APP，必须在导入插件前执行
 
 from core.event import Event
+from core.plugin_dispatch import Operation
+from core.message_output import MessageOutput
 from core.db._base import init_schema
 from core.db.checkin import CheckinManager
 from core.db.lottery import LotteryManager
@@ -67,6 +69,9 @@ class TestCheckinPrivateFlag(unittest.TestCase):
         plugin.api = MockApiWrapper(raw)
         plugin.api.get_image = lambda name: ""  # 图片即时下载走 clean failed 分支
         plugin.dbmanager = self.db
+        target = (("group", raw["group_id"]) if raw.get("group_id") is not None
+                  else ("private", raw["user_id"]))
+        plugin.operation = Operation({}, MessageOutput(lambda request: 1, target), subscriptions=[])
         plugin.match("message")
         plugin.handle()
         return plugin

@@ -33,16 +33,17 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
         return self.should_run_on_heartbeat(event_type)
 
     def handle(self):
-        try:
-            picked = weekly_refresh_shop_shelf(self.dbmanager)
-            logger.info(
-                "积分商店已刷新（本周随机称号 %s 个）：%s",
-                len(picked),
-                picked,
-            )
-            self.api.send_msg(text(format_shop_weekly_announcement(self.dbmanager)))
-        except Exception as e:
-            logger.exception("积分商店周刷新失败: %s", e)
+        picked = weekly_refresh_shop_shelf(self.dbmanager)
+        logger.info("积分商店已刷新（本周随机称号 %s 个）：%s", len(picked), picked)
+        # 社区部署未配置默认群时，仍刷新货架，但不尝试发送无目的地公告。
+        target = self.operation.output.default_target
+        if target is not None:
+            from core import context as runtime_context
+            if target[0] == "group" and not runtime_context.effective_for_scope(
+                    "redeem_shop", group_id=target[1]):
+                logger.info("商店已刷新，但目标群 %s 未启用 redeem_shop，不发公告", target[1])
+                return
+            self.submit_message(text(format_shop_weekly_announcement(self.dbmanager)))
 
 
 @register_plugin
@@ -61,16 +62,12 @@ class ShopManualRefreshPlugin(Plugin):
         if self.bot_event.user_id is None:
             return
         uid = self.bot_event.user_id
-        try:
-            picked = weekly_refresh_shop_shelf(self.dbmanager)
-            logger.info("管理员手动刷新积分商店（随机称号 id）：%s", picked)
-            self.api.send_msg(
-                at(uid),
-                text(f"商店已刷新。本周随机上架称号（共 {len(picked)} 个）：{picked}"),
-            )
-        except Exception as e:
-            logger.exception("管理员刷新商店失败: %s", e)
-            self.api.send_msg(at(uid), text(f"刷新失败：{e}"))
+        picked = weekly_refresh_shop_shelf(self.dbmanager)
+        logger.info("管理员手动刷新积分商店（随机称号 id）：%s", picked)
+        self.submit_message(
+            at(uid),
+            text(f"商店已刷新。本周随机上架称号（共 {len(picked)} 个）：{picked}"),
+        )
 
 
 @register_plugin
@@ -98,24 +95,28 @@ class RedeemShopPlugin(CommandPlugin):
         refresh_shop_items_from_database(self.dbmanager)
 
         if len(self.args) < 1:
-            self.api.send_forward_msg([text(self._format_list())])
+            self.submit_message(text(self._format_list()), kind="forward")
             return
 
         product_id = self.args[0].strip()
         if product_id not in SHOP_ITEMS:
-            self.api.send_msg(at(user_id), text(f"未知商品 id：{product_id}，发送 /商店 查看列表。"))
+            self.submit_message(at(user_id), text(f"未知商品 id：{product_id}，发送 /商店 查看列表。"))
+            return
+
+        if product_id.startswith("title_") and not self.feature_enabled("title"):
+            self.submit_message(at(user_id), text("称号功能已关闭，暂时无法兑换称号。其他商品仍可兑换。"))
             return
 
         meta = SHOP_ITEMS[product_id]
         cost = int(meta["cost"])
         apply_fn: ShopApply = meta["apply"]
         if apply_fn is None:
-            self.api.send_msg(at(user_id), text("该商品未配置发放逻辑。"))
+            self.submit_message(at(user_id), text("该商品未配置发放逻辑。"))
             return
 
         points = self.dbmanager.points.get(user_id)
         if points < cost:
-            self.api.send_msg(
+            self.submit_message(
                 at(user_id),
                 text(f"积分不足：需要 {cost}，当前 {points}。"),
             )
@@ -128,7 +129,7 @@ class RedeemShopPlugin(CommandPlugin):
             except (ValueError, IndexError):
                 tid = None
             if tid is not None and self.dbmanager.titles.has(uid, tid):
-                self.api.send_msg(at(user_id), text("你已拥有该称号，无需重复兑换。"))
+                self.submit_message(at(user_id), text("你已拥有该称号，无需重复兑换。"))
                 return
 
         def grant() -> None:
@@ -136,7 +137,10 @@ class RedeemShopPlugin(CommandPlugin):
 
         ok, err = self.dbmanager.shop.redeem(product_id, user_id, cost, grant)
         if not ok:
-            self.api.send_msg(at(user_id), text(f"兑换失败：{err}"))
+            if err not in {"积分不足", "商品不存在", "库存不足", "你已拥有该称号"}:
+                logger.error("商店兑换失败，操作=%s：%s", self.operation.id, err)
+                err = "商品暂时无法发放，请联系管理员"
+            self.submit_message(at(user_id), text(f"兑换失败：{err}"))
             return
 
         rest = self.dbmanager.points.get(user_id)
@@ -156,4 +160,4 @@ class RedeemShopPlugin(CommandPlugin):
                 msg = f"兑换成功，剩余积分 {rest}。"
         else:
             msg = f"兑换成功，剩余积分 {rest}。"
-        self.api.send_msg(at(user_id), text(msg))
+        self.submit_message(at(user_id), text(msg))

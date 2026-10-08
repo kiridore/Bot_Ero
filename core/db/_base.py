@@ -377,6 +377,56 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         );
     """)
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS plugin_reward_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            plugin_name TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            reward_key TEXT NOT NULL,
+            source_operation TEXT NOT NULL,
+            source_scope TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount >= 0),
+            granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            revoked_at TEXT,
+            revoke_operation TEXT
+        );
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS plugin_reward_active
+        ON plugin_reward_records(plugin_name, user_id, reward_key)
+        WHERE revoked_at IS NULL;
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS plugin_reward_source
+        ON plugin_reward_records(plugin_name, user_id, reward_key, source_operation);
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS lottery_operation_receipts (
+            source_operation TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            outcome TEXT NOT NULL,
+            completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS plugin_reward_reversals (
+            plugin_name TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            reward_key TEXT NOT NULL,
+            source_operation TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount >= 0),
+            reversed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (plugin_name, user_id, reward_key, source_operation)
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_plugin_config (
+            user_id INTEGER NOT NULL,
+            plugin_name TEXT NOT NULL,
+            enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+            PRIMARY KEY (user_id, plugin_name)
+        );
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS user_game_stats (
             user_id TEXT PRIMARY KEY,
             total_games INTEGER DEFAULT 0,

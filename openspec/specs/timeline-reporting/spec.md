@@ -1,7 +1,7 @@
 # timeline-reporting Specification
 
 ## Purpose
-TBD - created by archiving change timeline-report-noop. Update Purpose after archive.
+以时间线上报地址控制事件发送与撤回，确保关闭上报时不产生网络请求、不干扰机器人主流程，并在启用时保留正确的地址和鉴权行为。
 
 ## Requirements
 

@@ -31,7 +31,8 @@ def _ensure_stats_table():
     conn.close()
 
 
-def grant_game_titles(dbmanager: DbManager, user_id: str, role: str, winner: str):
+def grant_game_titles(dbmanager: DbManager, user_id: str, role: str, winner: str, *, allow_titles: bool = True):
+    """记录对局统计；allow_titles=False 时跳过新称号解锁与称号评估（战绩照记）。"""
     _ensure_stats_table()
     uid = str(user_id)
     is_winner = role == winner
@@ -61,6 +62,9 @@ def grant_game_titles(dbmanager: DbManager, user_id: str, role: str, winner: str
 
     stats = {"total_games": row[0], "total_wins": row[1], "civilian_wins": row[2], "spy_wins": row[3]}
     newly = []
+
+    if not allow_titles:
+        return []
 
     for stat_key, threshold, tid in GAME_TITLE_THRESHOLDS:
         if stats[stat_key] >= threshold and not dbmanager.titles.has(uid, tid):

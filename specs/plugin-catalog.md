@@ -73,7 +73,7 @@
 | `monitor/` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
 | `update/` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop/` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
-| `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件 <name\|列表> [off] [群号]` `/功能包 <name\|列表> [off] [群号]` | `super_user()` | 管理插件/功能包：列表、启用、禁用（超级用户） |
+| `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件`、`/功能包` 保留 `<name\|列表> [off] [群号]`；新增 `<name> <开启\|关闭\|默认> 用户 <账号>`、`列表 用户 <账号>`、`<name> <开启\|关闭> 群 <群号>` | 仅 `super_user()` | 群与账号私聊独立控制；账号缺省沿用公共默认，默认动作删除覆盖；系统插件始终运行；功能包批量设置原子提交 |
 
 ---
 

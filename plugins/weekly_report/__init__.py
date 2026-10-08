@@ -119,6 +119,13 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
             self._generate_week(start, end)
 
     def _generate_week(self, start: str, end: str):
+        from core import context as runtime_context
+        if GROUP_ID is None:
+            return  # 未配置默认群：不生成、不保存、不通知
+        if not runtime_context.effective_for_scope("weekly_report", group_id=int(GROUP_ID)):
+            from core.logger import logger
+            logger.info("目标群 %s 未启用 weekly_report，跳过本周周报生成与通知", GROUP_ID)
+            return
         week_key = start.split(" ")[0]
         group_id = int(GROUP_ID)
         db = self.dbmanager

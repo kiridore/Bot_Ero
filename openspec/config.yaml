@@ -2,9 +2,9 @@ schema: spec-driven
 
 context: |
   BotEro：QQ 群聊机器人（OneBot v11 over WebSocket，事件驱动 + 插件架构，纯同步多线程）
-  + 单进程 FastAPI 社区站 webapp，同库双形态（bot.edition: private|community，差异只走 5 处接缝白名单）。
+  + 单进程 FastAPI 社区站 webapp。社区与私有部署仅配置不同，共用同一实现；禁止按edition选择业务、权限、准入流程或隐式默认值。旧五处edition分支白名单已废弃，见docs/community/config-only-plan-review.md。
   测试统一入口 pytest（conftest 自动隔离数据路径，绝不触真实 data.db/server_data）。
-  硬底线：主干逐 commit 必须私有形态安全（私有 config 可加载、行为零变化、全量 pytest 绿）。
+  硬底线：主干逐 commit 必须私有部署安全（旧配置兼容、全量 pytest 绿）；未经授权不得改变行为。plugin-event-dispatch仅获准改变独立开关与消息合并语义，不是任意行为变更许可。
   Commit：中文 Conventional Commits，代码+测试+文档+CHANGELOG 同 commit。
 
 rules:
