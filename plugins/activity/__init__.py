@@ -768,10 +768,22 @@ class ActivityTimerPlugin(Plugin):
 
     def _scan(self):
         from .logic import is_timeout, current_turn
+        from core import context as runtime_context
         now = datetime.now()
+        skipped_groups = set()
+
+        def _active(act):
+            """活动所属群未启用 activity：本轮全部跳过，状态不推进（config-unification）。"""
+            if runtime_context.effective_for_scope("activity", group_id=act["group_id"]):
+                return True
+            skipped_groups.add(act["group_id"])
+            return False
+
         # 报名截止到点 → 自动开始（人数不足则取消）
         for act in self.dbmanager.activity.get_active_activities():
             if act["status"] != "open" or not act.get("signup_deadline"):
+                continue
+            if not _active(act):
                 continue
             try:
                 due = datetime.strptime(act["signup_deadline"], "%Y-%m-%d %H:%M:%S")
@@ -783,6 +795,8 @@ class ActivityTimerPlugin(Plugin):
                     self.dbmanager.activity.update_activity(act["id"], status="cancelled")
                     self._announce_group(act["group_id"], f"报名截止，{err}，活动已取消")
         for act in self.dbmanager.activity.get_running_activities():
+            if not _active(act):
+                continue
             members = self.dbmanager.activity.get_members(act["id"])
             if act["type"] == "relay":
                 if _relay_catchup(self.api, self.dbmanager, act, members):
@@ -822,3 +836,8 @@ class ActivityTimerPlugin(Plugin):
                         self.dbmanager.activity.update_member(
                             act["id"], m["user_id"], status="missed")
                 _finish_activity(self.api, self.dbmanager, act)
+        if skipped_groups:
+            logger.info(
+                "活动心跳跳过群 %s（未启用 activity），状态不推进；重新开启后按原到期规则处理",
+                ", ".join(map(str, sorted(skipped_groups))),
+            )

@@ -36,7 +36,13 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
         picked = weekly_refresh_shop_shelf(self.dbmanager)
         logger.info("积分商店已刷新（本周随机称号 %s 个）：%s", len(picked), picked)
         # 社区部署未配置默认群时，仍刷新货架，但不尝试发送无目的地公告。
-        if self.operation.output.default_target is not None:
+        target = self.operation.output.default_target
+        if target is not None:
+            from core import context as runtime_context
+            if target[0] == "group" and not runtime_context.effective_for_scope(
+                    "redeem_shop", group_id=target[1]):
+                logger.info("商店已刷新，但目标群 %s 未启用 redeem_shop，不发公告", target[1])
+                return
             self.submit_message(text(format_shop_weekly_announcement(self.dbmanager)))
 
 

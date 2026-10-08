@@ -42,6 +42,18 @@ def plugin_allowed(key: str) -> bool:
     return ALLOWED_PLUGINS is None or key in ALLOWED_PLUGINS
 
 
+def effective_for_scope(plugin_key: str, group_id=None, user_id=None) -> bool:
+    """心跳等无消息上下文任务用：某群/某账号当前对该插件是否生效。
+
+    部署许可 + 局部开关（群聊查群设置；私聊查账号覆盖/公共默认）。
+    ponytail: 每次调用开独立 DB 连接，每分钟扫描量级足够；
+    若任务量增大再考虑调用方批量快照。
+    """
+    if not plugin_allowed(plugin_key):
+        return False
+    return plugin_settings_snapshot(group_id, user_id).get(plugin_key, False)
+
+
 def validate_deployment_policy() -> None:
     """在全部插件完成自动导入后、start_panel/事件接收前调用（main.py）。
 

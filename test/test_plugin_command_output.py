@@ -112,6 +112,11 @@ def test_shop_query_purchase_and_invalid_product(db):
                                         (ShopWeeklyRotationPlugin, ("group", 10)),
                                         (ShopWeeklyRotationPlugin, None)])
 def test_shop_refresh_and_no_default_destination(db, cls, target):
+    if target:
+        # 目标群启用 redeem_shop 后才发公告（config-unification：公告检查目的地开关）
+        db.conn.execute(
+            "INSERT OR IGNORE INTO group_plugin_config VALUES (?, 'redeem_shop')", (target[1],))
+        db.conn.commit()
     sent, op = run(cls, db, target=target)
     assert not op.failures
     assert db.shop.all_stock()

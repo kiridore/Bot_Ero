@@ -471,9 +471,9 @@ class GrantPointsAllPlugin(CommandPlugin):
 
 ---
 
-## 附录：心跳任务多群作用域审计（社区版 T0.9，2026-10-06）
+## 附录：心跳任务多群作用域审计（社区版 T0.9，2026-10-06；作用域修复 2026-10-09 config-unification 任务组3）
 
-> 审计范围：全部 `TimedHeartbeatPlugin` 子类 + 手动分钟去重的 meta 触发插件（`rg TimedHeartbeatPlugin` 全量核对，基线 1.50.0+）。三栏归类：私有专属（不进社区）/ 全局单次（现状即可）/ 需按群遍历（批次 2 处理）。
+> 审计范围：全部 `TimedHeartbeatPlugin` 子类 + 手动分钟/秒级去重的 meta 触发插件。原三栏归类已被 config-unification 统一规则取代：**部署许可（`bot.allowed_plugins`）+ 按任务所属群/账号的局部开关**，不再有“私有专属/社区白名单”两套路径。
 
 | 插件 | 触发 | 归类 | 依据 / 风险 |
 |---|---|---|---|
@@ -487,7 +487,16 @@ class GrantPointsAllPlugin(CommandPlugin):
 | `welcome` / `auto_friend` | notice / request 触发 | 不属心跳 | M1 由 register 插件承接（T1.3） |
 | `activity_timer`（activity） | 消息事件驱动（Plugin 子类，非心跳） | 需按群遍历（批次 2） | 自带 `activity.group_id`（23 处引用），多群并发审计归 B2.2 |
 
-### 审计发现：meta 路径泄漏（M1 T1.2 需吸收）
+### 2026-10-09 修复现状（config-unification 任务组3）
+
+- `main.py::plugin_pool` 对 meta 事件不再绕过门控：先过部署许可（`plugin_allowed`），局部开关由各任务按所属对象自查（`context.effective_for_scope`）。
+- 按所属对象过滤（检查先于发送/状态推进/结算）：`group_alarm`（私聊查创建者账号、群聊查所属群）、`activity_timer`（活动所属群）、`immortal_lottery` 开奖（下注群；已付注单保留并 WARNING 可定位）。
+- 目的地过滤：商店公告（目标群未启用不发，货架照常刷新）、`ff_news`（无有效目标不请求官网）、`forum_notify`（不发送不标记已通知，帖子保留）、`weekly_report`（目标群未启用不生成不通知）。
+- 共享维护任务（货架刷新、`weekly_quest_reset` 清理、`backup`）只受部署许可控制，不因单群关闭而停。
+- 关闭不删记录：闹钟/注单/帖子/活动状态保留，重新开启后按原到期规则处理；重复执行防护（fired 标志/开奖结果唯一）不变。详见 `openspec/changes/config-unification/` 与 `test/test_scoped_heartbeats.py`、`test/test_heartbeat_pending_tasks.py`。
+- 历史注记：下方“meta 路径泄漏”发现已被上述修复取代，双形态白名单方案已废弃（仅配置差异原则）。
+
+### 原 2026-10-06 审计记录（历史）
 
 `main.py::plugin_pool` 对 **meta 事件绕过 `is_plugin_enabled`**（`event_type != "meta" and not ...`），因此：
 

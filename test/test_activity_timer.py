@@ -55,6 +55,13 @@ class TestTimer(unittest.TestCase):
                     os.remove(p)
         self.conn = sqlite3.connect(DB_PATH)
         init_schema(self.conn, self.conn.cursor())
+        # 心跳作用域检查经 plugin_settings_snapshot 读 config.DB_PATH（config-unification）
+        from core import config as _config
+        self._old_cfg_db = _config.DB_PATH
+        _config.DB_PATH = DB_PATH
+        self.conn.execute(
+            "INSERT INTO group_plugin_config (group_id, plugin_name) VALUES (?, 'activity')", (GID,))
+        self.conn.commit()
         self.db = _Db(self.conn)
         self._old_python_data_path = context.python_data_path
         context.python_data_path = "/tmp/test_activity_archive_timer"
@@ -62,6 +69,8 @@ class TestTimer(unittest.TestCase):
 
     def tearDown(self):
         context.python_data_path = self._old_python_data_path
+        from core import config as _config
+        _config.DB_PATH = self._old_cfg_db
         self.conn.close()
 
     def _plugin(self):

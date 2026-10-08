@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import requests
 
+from core import config as _config
 from core.base import TimedHeartbeatPlugin
 from core.cq import image, text
 from core.utils import register_plugin
@@ -85,6 +86,11 @@ class FfNewsPlugin(TimedHeartbeatPlugin):
         self.api.send_msg(text("\n".join(lines)))
 
     def _handle_hourly(self):
+        from core import context as runtime_context
+        # 无有效通知目标（未配置默认群或目标群未启用）：不请求官网（config-unification）
+        if _config.DEFAULT_GROUP_ID is None or not runtime_context.effective_for_scope(
+                "ff_news", group_id=_config.DEFAULT_GROUP_ID):
+            return
         try:
             payload = self._fetch_payload(1)
         except Exception:

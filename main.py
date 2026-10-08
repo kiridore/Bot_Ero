@@ -49,7 +49,12 @@ def plugin_pool(context: dict, event_type: str):
                  operation.id, event_type, context.get("message_id"), group_id, user_id)
     context = dict(context, _operation=operation)
     for plugin_cls in tuple(runtime_context.plugin_registry):
-        if event_type != "meta" and not operation.is_enabled(runtime_context.plugin_key(plugin_cls)):
+        key = runtime_context.plugin_key(plugin_cls)
+        if event_type == "meta":
+            # 心跳无群号：先过部署硬边界；局部开关由各任务按所属对象自行检查（config-unification）
+            if not runtime_context.plugin_allowed(key):
+                continue
+        elif not operation.is_enabled(key):
             continue
         # 录制期间跳过非跑团功能包插件
         if group_id is not None and runtime_context.is_group_recording(group_id):
