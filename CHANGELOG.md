@@ -6,7 +6,6 @@
 
 ## [未发布]
 
-- **开发中**：配置统一化任务组1、2——部署硬边界（`bot.allowed_plugins`）上线：名单外插件对消息、通知、心跳与撤销消费者全部失效；`/插件`、`/功能包`、监控面板对部署未开放项显示🚫并拒绝开启；卧底战绩照记但称号关闭不发新称号，兑换码声明依赖、目标未开放时整次拒绝不核销；配置校验去edition化并与面板存盘共用，冷却缺省统一0。版名仅作描述标签。最终验收与归档待任务组3–6。
 - **文档**：按“社区与私有部署仅配置不同、共用实现”核查后续计划，废弃五处edition分支白名单，标记功能包、准入、权限和首版范围的历史冲突；未修改运行代码。
 - **部署**：新增 Docker 运行支持（`Dockerfile` + `docker-compose.yml`，单容器双进程 bot+webapp，宿主网络模式，见 `docs/web-apps-deployment.md` §9）
 - **内部**：cloud-mail 发信客户端（`core/mail_client.py`）失败路径补齐日志——请求异常（网络/TLS/代理）、登录失败（含服务端 message）、发件账号列表为空各自出 `WARNING`，不再静默返回 None 靠猜排查
@@ -19,6 +18,16 @@
 - **内部**：称号前缀注入改为注册式钩子——core/context.py 暴露 register_title_prefix_provider，plugins.title 加载时自注册，core/api.py 经接缝调用（未注册降级为空，异常接缝吞没），解除 core→plugins 反向依赖（社区版 T0.6，core/api.py 零插件引用）；修正 T0.4 测试 importlib.reload 抹除运行期注册态的问题（provider/plugin_registry 保存还原）；新增 test/test_title_prefix_hook.py 四向断言
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
+
+## [1.52.0]
+
+- **部署边界**：新配置 `bot.allowed_plugins` 限定本实例可提供的插件——名单外插件对消息、心跳、内部通知与奖励撤销全部失效，管理指令和监控面板也不能开启；新装插件不自动开放。启动时校验名单引用与系统集合冲突。
+- **逐步开放**：群聊按本群、私聊按账号（无单独设置继承公共默认）分别开放插件；新配置 `bot.feature_packs_file` 可自定义功能包分组，修改分组或安装新插件都不会自动开启任何功能。操作手册见 `docs/community/rollout-operations.md`。
+- **心跳遵守开关**：闹钟、活动计时、仙人彩开奖按所属群/账号检查，关闭时不发送、不推进状态、不结算（已付注单保留并在日志中可定位）；商店公告、FF14 新闻、论坛新帖通知、周报按目的地检查。关闭只停止后续执行，不删除历史记录与已发奖励。
+- **菜单随开放集合过滤**：每个群、每个私聊账号只看到自己已开放的功能；管理员段仅超级用户可见。文案包改为逐条覆盖（`menu.<指令词>`），旧 `menu_text` 整段覆盖停用。
+- **配置统一**：`bot.edition` 降为纯描述标签；必填项与版名无关，可选服务成对校验；冷却缺省统一 0；监控面板存盘与启动共用同一校验。
+- **功能依赖**：称号关闭时卧底游戏照记战绩不发新称号；兑换码声明依赖，目标未开放时整次拒绝不核销。
+- **公开部署候选模板**：`config.public.example.yaml`（打卡基础九件套 + 系统五件 + 状态监控）与 `feature_packs_public.yaml`；注册、群审核、黑名单等运营能力仍属后续计划，本版不等于公开运营验收。
 
 ## [1.51.0]
 
