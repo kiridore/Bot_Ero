@@ -60,6 +60,7 @@ def validate_deployment_policy() -> None:
     校验部署策略引用与冲突，失败即退出，不静默取舍：
     - allowed_plugins/system_plugins 引用的标识必须真实存在（防拼错悄悄失效）；
     - 生效系统集合必须是部署允许子集（防偷偷启用）；
+    - 自定义功能包文件引用的插件必须真实存在；
     - 注册表为空说明调用时机错误（不能把"全部插件"冻结成空集）。
     """
     import sys
@@ -78,6 +79,12 @@ def validate_deployment_policy() -> None:
         conflicts = sorted(SYSTEM_PLUGINS - ALLOWED_PLUGINS)
         if conflicts:
             problems.append(f"系统插件不在 allowed_plugins 内：{', '.join(conflicts)}")
+    if _config.FEATURE_PACKS_FILE:
+        from core.feature_packs import FEATURE_PACKS
+        for pack_name, pack in FEATURE_PACKS.items():
+            unknown_pack = sorted(set(pack["plugins"]) - registered)
+            if unknown_pack:
+                problems.append(f"功能包「{pack_name}」含未注册插件：{', '.join(unknown_pack)}")
     if problems:
         sys.exit("部署配置校验失败：\n- " + "\n- ".join(problems))
 

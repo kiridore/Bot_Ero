@@ -4,21 +4,23 @@
 # 修改后需重启对应进程生效。
 
 bot:
-  edition: private              # 部署形态：private=私有全功能 | community=社区公共服务（纯 bot，见 docs/community/）
+  edition: private              # 部署描述标签（仅日志展示，不参与任何控制流；两种部署只靠配置值区分）
   qq: "3915014383"            # Bot 的 QQ 号（必须加引号保持字符串）
   nickname: 小埃同学           # 机器人昵称
-  super_users: [1057613133]   # 超级用户 QQ 号列表
-  default_group: 296470819    # 默认群号（私有形态必填；社区形态可省 = 无默认群，无群上下文的群发将被丢弃——见 api.py 兜底）
+  super_users: [1057613133]   # 超级用户 QQ 号列表（插件/功能包/账号设置仅超级用户可改）
+  default_group: 296470819    # 默认群号（可选：无群上下文的公告/周报目的地；省略 = 无默认群，无群上下文的群发将被丢弃）
   ws_url: ws://127.0.0.1:3001   # OneBot v11 WebSocket 地址
   ws_token: "123456"            # WS 鉴权 token
   download_proxy: "http://127.0.0.1:7890"  # 图片下载代理；留空 "" 直连
   llonebot_data_path: /app/llonebot/server_data  # OneBot API 调用看到的路径（容器内）
   python_data_path: ./server_data               # Python 文件 I/O 用的路径
   onebot_qq_volume: ""      # docker 卷路径（裸机部署留空）
-  system_plugins: []        # 可选：系统插件集（不可按群禁用）。非空 = 精确替换（未列入项回归按群开关）；空/缺省 = 内置 8 项（menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）。社区形态在此裁剪，如换入 register/group_review、裁掉 message_logger/startup_changelog
-  text_pack: ""             # 可选：文案包路径（如 text_packs/community.yaml）。包内键覆盖内置文案，缺键回落；空/缺省 = 内置文案（bot_menu_text.py 等代码内基线），重启生效
+  allowed_plugins: []       # 部署允许范围（config-unification）：缺省 = 允许全部已安装插件（旧配置兼容）；非空列表 = 精确限定（名单外插件对消息/心跳/内部通知全部失效，管理命令不能开启）；空列表无效。公开部署应显式配置，新增插件不自动开放。标识见 kb/PLUGIN_CATALOG.md
+  system_plugins: []        # 可选：系统插件集（不可按群禁用）。非空 = 精确替换（未列入项回归按群开关）；空/缺省 = 内置 8 项（menu/group_manager/startup_changelog/backup/update/auto_friend/welcome/message_logger）。系统集合必须是 allowed_plugins 子集
+  feature_packs_file: ""    # 可选：功能包定义文件（如 feature_packs_public.yaml）。缺省 = 内置 6 包；非空 = 整体替换（相对路径以本配置所在目录为基准）；只定义分组，不自动开启。包内引用未注册插件启动报错
+  text_pack: ""             # 可选：文案包路径（如 text_packs/community.yaml）。包内键覆盖内置文案，缺键回落；空/缺省 = 内置文案（bot_menu_text.py 等代码内基线），重启生效。菜单已结构化：menu.<指令词> 逐条覆盖；旧 menu_text 整段覆盖已停用
 
-# OneBot HTTP（拉取 QQ 昵称；私有形态必填——webapp 昵称解析用；社区形态可省）
+# OneBot HTTP（拉取 QQ 昵称；配置 http_url 则必须同配 token——与时间线同理按实际启用校验）
 onebot:
   http_url: http://192.168.0.103:3000  # OneBot HTTP（拉取 QQ 昵称）
   token: "123456"
@@ -78,6 +80,6 @@ panel:
   host: "0.0.0.0"    # bot 内置监控面板（局域网访问；仅本机改 127.0.0.1）
   port: 8790
 
-community:                 # 仅 edition: community 生效（见 docs/community/community-edition-plan.md）
+community:                 # 逐步开放公共部署的运营参数（与描述标签无关，任何部署配置即生效）
   max_groups: 50               # 最大激活群数（入群审核超限直接拒绝）
-  cmd_cooldown_seconds: 3      # 同用户同指令冷却秒数（0=关闭；私有形态缺省 0）
+  cmd_cooldown_seconds: 0      # 同用户同指令冷却秒数（缺省统一 0=关闭；部署差异写进各自配置）

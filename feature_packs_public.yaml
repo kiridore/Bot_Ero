@@ -1,0 +1,14 @@
+# 功能包定义 —— 公开（社区）部署候选
+# 用法：config.yaml bot.feature_packs_file: feature_packs_public.yaml
+# 只定义"哪些插件属于一组"，供 /功能包 <名称> 开启|关闭|默认 群 <群号>／用户 <账号> 批量设置；
+# 修改本文件、安装新插件都不会自动开放任何功能。成员必须都在 bot.allowed_plugins 内才能被开启。
+打卡基础:
+  - checkin
+  - checkin_recall
+  - roll_back
+  - remedy_checkin
+  - week_checkin_display
+  - all_checkin_display
+  - week_list
+  - personal_records
+  - leaderboard

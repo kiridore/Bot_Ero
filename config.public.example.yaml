@@ -1,0 +1,80 @@
+# BotEro 公开（社区）部署候选配置模板 —— config-unification 任务组5
+# 与私有部署共用同一实现；差异只来自本文件的配置值（allowed_plugins / 功能包 / 文案 / 冷却）。
+# 首版范围：打卡基础九件套 + 积分系统（积分为基础数据，随打卡/排行开放）；经济扩展不开放。
+# 使用：cp config.public.example.yaml config.yaml 后填写真实值。
+
+bot:
+  edition: community            # 仅描述标签：不参与任何控制流（校验/默认值/路径与其无关）
+  qq: "1000000000"              # 公开账号 QQ 号（必须加引号保持字符串）
+  nickname: 小埃同学
+  super_users: [10001]          # 运营超管（插件/功能包/账号设置仅超级用户可改，永不对普通用户开放）
+  # 公开部署无默认群：无群上下文的公告/群发被丢弃；商店货架仍按周刷新但不发公告
+  ws_url: ws://127.0.0.1:3001
+  ws_token: "ChangeMe"
+  download_proxy: ""
+  llonebot_data_path: /app/llonebot/server_data
+  python_data_path: ./server_data
+  onebot_qq_volume: ""
+  allowed_plugins:              # 部署硬边界：名单外插件对消息/心跳/内部通知全部失效，管理命令不能开启
+    - menu                      # —— 系统：菜单/管理/维护 ——
+    - group_manager
+    - backup
+    - update
+    - auto_friend
+    - monitor                   # —— 运维：/系统状态（超管）——
+    - checkin                   # —— 打卡基础九件套（首版开放集合）——
+    - checkin_recall
+    - roll_back
+    - remedy_checkin
+    - week_checkin_display
+    - all_checkin_display
+    - week_list
+    - personal_records
+    - leaderboard
+    # 后续批次在此逐个追加（如 title、lottery、weekly_quest、redeem_shop），配合 /功能包 分群逐步开放
+  system_plugins:               # 系统集必须是 allowed_plugins 子集，否则启动失败
+    - menu
+    - group_manager
+    - backup
+    - update
+    - auto_friend
+  feature_packs_file: feature_packs_public.yaml   # 打卡基础包（批量开/关用）
+  text_pack: text_packs/community.yaml            # 中性文案（触发词不变）
+
+# 公开首版纯 bot：OneBot HTTP 与时间线上报均不配置（成对校验：都不填 = 关闭，不因标签要求）
+
+paths:
+  db: data.db
+  message_log_db: server_data/message_log.db
+  images: server_data/record_images
+  trpg_chars: server_data/trpg_chars
+  user_settings: server_data/user_settings
+  activity: server_data/activity_archive
+  forum_images: server_data/forum_images
+
+webapp:
+  host: 127.0.0.1
+  port: 8765
+
+auth:
+  salt: ChangeMe-Public-Salt
+  old_salts: []
+
+uploads:
+  checkin_max_images: 9
+  checkin_max_bytes: 10485760
+  forum_image_max_bytes: 10485760
+
+thumbs:
+  cache_dir: server_data/thumb_cache
+  max_width: 480
+  max_height: 720
+  jpeg_quality: 82
+
+panel:
+  host: "127.0.0.1"
+  port: 8790
+
+community:                 # 逐步开放运营参数
+  max_groups: 50               # 最大激活群数（超限拒绝）
+  cmd_cooldown_seconds: 3      # 同用户同指令冷却（0=关闭）

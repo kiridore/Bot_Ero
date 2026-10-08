@@ -43,6 +43,8 @@ def validate_config(data: dict) -> list[str]:
         if not _present(value):
             errors.append(f"缺少必填项 {dotted}")
     bot = data.get("bot") or {}
+    if "feature_packs_file" in bot and not str(bot["feature_packs_file"] or "").strip():
+        errors.append("bot.feature_packs_file 不能为空字符串；使用内置包请删除该键")
     if "allowed_plugins" in bot:
         raw = bot["allowed_plugins"]
         if not isinstance(raw, list) or not all(isinstance(s, str) and s.strip() for s in raw):
@@ -116,6 +118,8 @@ SYSTEM_PLUGINS_CONF = [str(s) for s in (_bot.get("system_plugins") or [])]  # T0
 # 标识使用模块名（runtime_context.plugin_key），如 redeem_shop、weekly_quest。
 _allowed_raw = _bot.get("allowed_plugins")
 ALLOWED_PLUGINS_CONF = [str(s) for s in _allowed_raw] if _allowed_raw else None
+# —— 功能包定义文件（config-unification）：缺键 = 内置包；非空路径 = 整体替换（严格校验，错误即退出）
+FEATURE_PACKS_FILE = str(_bot.get("feature_packs_file") or "")
 TEXT_PACK = str(_bot.get("text_pack") or "")  # 文案包路径（缺省空 = 内置文案，社区版 T0.8）
 _community = _sec("community")
 COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
