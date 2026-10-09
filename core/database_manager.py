@@ -17,6 +17,7 @@ from core.db.timeline import TimelineManager
 from core.db.forum import ForumManager
 from core.db.tools import ToolsManager
 from core.db.weekly import WeeklyReportManager
+from core.db.community import CommunityManager
 
 
 class DbManager:
@@ -45,6 +46,7 @@ class DbManager:
         self.forum = ForumManager(self.conn)
         self.tools = ToolsManager(self.conn)
         self.weekly = WeeklyReportManager(self.conn)
+        self.community = CommunityManager(self.conn)
 
     def __del__(self):
         try:

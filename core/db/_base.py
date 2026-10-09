@@ -370,6 +370,45 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         );
     """)
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_accounts (
+            user_id INTEGER PRIMARY KEY,
+            created_at TEXT NOT NULL
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS group_registry (
+            group_id INTEGER PRIMARY KEY,
+            name TEXT,
+            invited_by INTEGER,
+            approved_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active'
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS group_requests (
+            group_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            flag TEXT NOT NULL,
+            sub_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (group_id, user_id, created_at)
+        );
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_group_requests_flag
+        ON group_requests (flag);
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS blacklist (
+            scope TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            reason TEXT,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (scope, target_id)
+        );
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS group_plugin_config (
             group_id INTEGER NOT NULL,
             plugin_name TEXT NOT NULL,

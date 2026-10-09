@@ -650,7 +650,11 @@ user_id_str = str(user_id)
 - 补救打卡：`content = "remedy_checkin"`
 - Web 端查询打卡数据时需要排除补救标记记录
 
-### 日期格式
+## 社区准入数据（M1 T1.1）
+
+`user_accounts`（注册账号，幂等）、`group_registry`（active|removed，移出保留历史）、`group_requests`（加群申请队列，flag 唯一索引去重，pending|approved|rejected 终态不可逆）、`blacklist`（scope user|group，可解除）。全部部署统一建表，空表零行为影响；读写集中 `core/db/community.py::CommunityManager`，禁止其他模块裸 SQL。契约见 `openspec/specs/community-access-registry/spec.md`。
+
+## 日期格式
 
 - `checkin_date`: `"YYYY-MM-DD HH:MM:SS"`（始终带时间）
 - `fire_at`, `created_at`, `claimed_at`, `drawn_at`: `"YYYY-MM-DD HH:MM:SS"`

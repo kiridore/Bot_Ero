@@ -1,6 +1,6 @@
 # 数据库 Schema
 
-> `data.db` 全部 48 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
+> `data.db` 全部 52 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
 >
 > 参见 `specs/database.md` 获取更简化的概述
 
@@ -251,6 +251,41 @@ CREATE TABLE guestbook_likes (
     created_at TEXT NOT NULL,
     PRIMARY KEY (entry_id, user_id),
     FOREIGN KEY (entry_id) REFERENCES guestbook_entries(id)
+);
+```
+
+## 社区准入数据（M1 T1.1，`core/db/community.py::CommunityManager`，挂 `DbManager.community`）
+
+四张表在**所有部署**启动时幂等创建（空表 = 零行为影响，无版本分支）；供后续注册、群审核、黑名单检查使用。
+
+```sql
+CREATE TABLE user_accounts (           -- 已注册账号（幂等，重复注册不改首次时间）
+    user_id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE group_registry (          -- 已批准群：status active|removed（被移出只改状态，保留审核历史；重新激活保留首次 approved_at）
+    group_id INTEGER PRIMARY KEY,
+    name TEXT,
+    invited_by INTEGER,
+    approved_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active'
+);
+CREATE TABLE group_requests (          -- 加群申请队列：存 OneBot 凭证 flag（唯一索引去重）；status pending|approved|rejected 终态不可逆
+    group_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    flag TEXT NOT NULL,
+    sub_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (group_id, user_id, created_at)
+);
+CREATE UNIQUE INDEX idx_group_requests_flag ON group_requests (flag);
+CREATE TABLE blacklist (               -- 黑名单：scope ∈ 'user'|'group'，(scope, target_id) 唯一，可解除
+    scope TEXT NOT NULL,
+    target_id INTEGER NOT NULL,
+    reason TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (scope, target_id)
 );
 ```
 
