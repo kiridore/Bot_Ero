@@ -270,14 +270,18 @@ CREATE TABLE group_registry (          -- 已批准群：status active|removed�
     approved_at TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active'
 );
-CREATE TABLE group_requests (          -- 加群申请队列：存 OneBot 凭证 flag（唯一索引去重）；status pending|approved|rejected 终态不可逆
+CREATE TABLE group_requests (          -- 进行中的群审核提案扩展：flag 去重，id 精确审批
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL DEFAULT 'invite', -- invite / manual
+    joined INTEGER NOT NULL DEFAULT 0,  -- 已确认机器人入群
+    decision TEXT,                      -- approve / reject
+    remote_state TEXT NOT NULL DEFAULT 'none', -- none / unknown / ok / failed
     group_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     flag TEXT NOT NULL,
     sub_type TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (group_id, user_id, created_at)
+    created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX idx_group_requests_flag ON group_requests (flag);
 CREATE TABLE blacklist (               -- 黑名单：scope ∈ 'user'|'group'，(scope, target_id) 唯一，可解除

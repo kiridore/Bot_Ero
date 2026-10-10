@@ -22,6 +22,7 @@ bot:
     - update
     - auto_friend
     - register                  # —— 注册流程（M1）——
+    - group_review              # —— 群邀请与超级用户审批 ——
     - monitor                   # —— 运维：/系统状态（超管）——
     - checkin                   # —— 打卡基础九件套（首版开放集合）——
     - checkin_recall
@@ -40,6 +41,7 @@ bot:
     - update
     - auto_friend
     - register
+    - group_review
   feature_packs_file: feature_packs_public.yaml   # 打卡基础包（批量开/关用）
   text_pack: text_packs/community.yaml            # 中性文案（触发词不变）
 
@@ -80,6 +82,10 @@ panel:
 community:                 # 逐步开放运营参数
   max_groups: 50               # 最大激活群数（超限拒绝）
   cmd_cooldown_seconds: 3      # 同用户同指令冷却（0=关闭）
+
+group_review:              # 群审核：未批准群不执行消息业务和群定时任务
+  require: true
+  default_pack: 打卡基础   # 批准后仅给该群开启此包；旧开关记录保留
 
 register:                  # 私聊注册准入（M1）
   require: true                # 未注册私聊仅可用 /注册 /菜单 /同意EULA

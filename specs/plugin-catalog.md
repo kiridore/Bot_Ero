@@ -72,6 +72,7 @@
 |------|------|--------|------|------|------|
 | `grant_points_all/` | `GrantPointsAllPlugin` | `grant_points_all` | CommandPlugin + `admin_user()` | `/发金币 <数量>` | 给所有用户统一发积分 |
 | `monitor/` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
+| `group_review/` | `GroupReviewPlugin` | `group_review` | 群邀请、机器人自身进退群；`/待审`、`/审核 <群号> <通过\|拒绝> [申请编号]` | 审批仅 `super_user()` | require缺省false；同群多条申请须指定编号；未批准群只接收审核生命周期通知，消息业务及群心跳不执行 |
 | `update/` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop/` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
 | `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件`、`/功能包` 保留 `<name\|列表> [off] [群号]`；新增 `<name> <开启\|关闭\|默认> 用户 <账号>`、`列表 用户 <账号>`、`<name> <开启\|关闭> 群 <群号>` | 仅 `super_user()` | 群与账号私聊独立控制；账号缺省沿用公共默认，默认动作删除覆盖；系统插件始终运行；功能包批量设置原子提交 |

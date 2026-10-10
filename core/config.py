@@ -14,7 +14,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.53.0"
+BOTERO_VERSION = "1.54.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
@@ -78,6 +78,20 @@ def validate_config(data: dict) -> list[str]:
                 value = register.get(key)
                 if value is not None and (not isinstance(value, str) or not value.strip()):
                     errors.append(f"register.{key} 必须是非空字符串")
+    review = data.get("group_review", {})
+    if not isinstance(review, dict):
+        errors.append("group_review 节必须是键值映射")
+    else:
+        if type(review.get("require", False)) is not bool:
+            errors.append("group_review.require 必须是布尔值")
+        pack = review.get("default_pack", "打卡基础")
+        if not isinstance(pack, str) or not pack.strip():
+            errors.append("group_review.default_pack 必须是非空字符串")
+    community = data.get("community", {})
+    if not isinstance(community, dict):
+        errors.append("community 节必须是键值映射")
+    elif type(community.get("max_groups", 50)) is not int or community.get("max_groups", 50) < 1:
+        errors.append("community.max_groups 必须是正整数")
     return errors
 
 
@@ -137,7 +151,10 @@ ALLOWED_PLUGINS_CONF = [str(s) for s in _allowed_raw] if _allowed_raw else None
 FEATURE_PACKS_FILE = str(_bot.get("feature_packs_file") or "")
 TEXT_PACK = str(_bot.get("text_pack") or "")  # 文案包路径（缺省空 = 内置文案，社区版 T0.8）
 _community = _sec("community")
-COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
+COMMUNITY_MAX_GROUPS = int(_community.get("max_groups", 50))
+_group_review = _sec("group_review")
+GROUP_REVIEW_REQUIRE = _group_review.get("require", False)
+GROUP_REVIEW_DEFAULT_PACK = _group_review.get("default_pack", "打卡基础")
 # —— 注册（M1，community-registration 提案）：require 缺省 False = 私有版现状零行为 ——
 _register_sec = _sec("register")
 REGISTER_REQUIRE = bool(_register_sec.get("require", False))

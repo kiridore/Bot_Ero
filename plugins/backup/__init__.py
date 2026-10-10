@@ -1,3 +1,4 @@
+from core import config, context
 from core.base import SUPER_USER, TimedHeartbeatPlugin
 from core.cq import at, text
 from core.utils import register_plugin, ensure_checkin_image
@@ -25,6 +26,12 @@ class BackupPlugin(TimedHeartbeatPlugin):
         # ponytail: 空记录视为 100%（无失败），避免每天空 @ 超管；有记录时成功率 = 非失败占比
         safe_pct = (total - error_cnt) / total * 100 if total else 100.0
 
+        raw = self.bot_event.raw
+        if config.GROUP_REVIEW_REQUIRE and 'meta_event_type' in raw and (
+            config.DEFAULT_GROUP_ID is None
+            or not context.effective_for_scope('backup', group_id=config.DEFAULT_GROUP_ID)
+        ):
+            return  # 图片维护照常；未批准的默认群不接收备份公告
         if safe_pct < 100:
             self.api.send_msg(*[at(uid) for uid in SUPER_USER], text(f"警告！数据校验成功率：{safe_pct:.2f}%"))
         else:

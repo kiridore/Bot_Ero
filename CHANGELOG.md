@@ -6,6 +6,7 @@
 
 ## [未发布]
 
+- **测试**：同步所有者定稿的注册完成文案断言，不改实际文案；修复公开模板子进程测试的数据路径隔离，所有数据路径改为临时绝对路径，避免连接项目根目录的数据库。
 - **内部**：新增社区准入数据层（M1 T1.1）——注册账号/群登记/加群申请队列/黑名单四表与统一读写接口，全部署幂等建表、空表零行为影响，无用户可见变化。
 - **文档**：按“社区与私有部署仅配置不同、共用实现”核查后续计划，废弃五处edition分支白名单，标记功能包、准入、权限和首版范围的历史冲突；未修改运行代码。
 - **部署**：新增 Docker 运行支持（`Dockerfile` + `docker-compose.yml`，单容器双进程 bot+webapp，宿主网络模式，见 `docs/web-apps-deployment.md` §9）
@@ -19,6 +20,13 @@
 - **内部**：称号前缀注入改为注册式钩子——core/context.py 暴露 register_title_prefix_provider，plugins.title 加载时自注册，core/api.py 经接缝调用（未注册降级为空，异常接缝吞没），解除 core→plugins 反向依赖（社区版 T0.6，core/api.py 零插件引用）；修正 T0.4 测试 importlib.reload 抹除运行期注册态的问题（provider/plugin_registry 保存还原）；新增 test/test_title_prefix_hook.py 四向断言
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
+
+## [1.54.0]
+
+- **群审核**：新增`/待审`与`/审核 <群号> <通过|拒绝> [申请编号]`，仅超级用户审批；邀请与手动入群均需批准，公开模板只开启打卡基础包。
+- **范围控制**：未批准群不运行业务或群定时任务；离群保留历史数据和开关，再次加入重新审核。`group_review.require`缺省关闭，旧配置不要求补登记，两种部署共用实现。
+- **审批可靠性**：请求独立编号、旧表原子迁移；并发批准预留容量，远端结果持久化，本地群激活、包开启和审批终态同事务；未知结果不自动重复调用。欢迎发送失败不撤销批准。
+- **运维**：新增群审核操作及故障恢复手册；真实QQ邀请与消息可达性需公开试运行确认，未知拒绝仍可能需要维护者核实。
 
 ## [1.53.0]
 

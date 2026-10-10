@@ -2,6 +2,7 @@ import os
 import subprocess
 
 import core.context as runtime_context
+from core import config
 from core.base import Plugin
 from core.config import NICKNAME
 from core.cq import text
@@ -23,6 +24,11 @@ class StartupChangelogPlugin(Plugin):
         if runtime_context.startup_changelog_sent:
             return
 
+        if config.GROUP_REVIEW_REQUIRE and (
+            runtime_context.DEFAULT_GROUP_ID is None
+            or not runtime_context.effective_for_scope('startup_changelog', group_id=runtime_context.DEFAULT_GROUP_ID)
+        ):
+            return
         msg = f"早上好！{NICKNAME}开机啦"
 
         self.api.send_msg(text(msg))

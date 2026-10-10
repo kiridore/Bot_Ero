@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 TEMPLATE = PROJECT_ROOT / "config.public.example.yaml"
 PACKS = PROJECT_ROOT / "feature_packs_public.yaml"
 
-SYSTEM = {"menu", "group_manager", "backup", "update", "auto_friend", "register"}
+SYSTEM = {"menu", "group_manager", "backup", "update", "auto_friend", "register", "group_review"}
 BASICS = {"checkin", "checkin_recall", "roll_back", "remedy_checkin",
           "week_checkin_display", "all_checkin_display", "week_list",
           "personal_records", "leaderboard"}
@@ -99,12 +99,21 @@ class TemplateIsolatedLoadTest(unittest.TestCase):
             PACKS.read_text(encoding="utf-8"), encoding="utf-8")
         (workdir / "community.yaml").write_text(
             (PROJECT_ROOT / "text_packs/community.yaml").read_text(encoding="utf-8"), encoding="utf-8")
-        (workdir / "config.yaml").write_text(
-            TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
+        from test.scripts._env import write_config
+        data = yaml.safe_load(TEMPLATE.read_text(encoding="utf-8"))
+        data['paths'] = {key: str(workdir / value) for key, value in data['paths'].items()}
+        data['bot']['python_data_path'] = str(workdir / 'server_data')
+        data['bot']['llonebot_data_path'] = str(workdir / 'onebot_data')
+        data['thumbs']['cache_dir'] = str(workdir / 'thumb_cache')
+        data['onebot'] = {'http_url': '', 'token': ''}
+        data['timeline'] = {'url': '', 'token': ''}
+        write_config(str(workdir), **data)
         script = (
             "import os, json\n"
             "os.environ['BOTERO_CONFIG'] = r'%s'\n"
             "from core import config\n"
+            "assert config.DB_PATH.is_relative_to(config.CONFIG_PATH.parent)\n"
+            "assert config.MESSAGE_LOG_DB_PATH.is_relative_to(config.CONFIG_PATH.parent)\n"
             "import core.context as context\n"
             "import plugins  # 自动注册\n"
             "context.validate_deployment_policy()\n"
@@ -135,7 +144,7 @@ class TemplateIsolatedLoadTest(unittest.TestCase):
         self.assertEqual(set(out["packs"]["打卡基础"]), BASICS)
         self.assertFalse(out["new_group_checkin"])      # 新群默认关闭
         self.assertFalse(out["new_private_leaderboard"])  # 新账号默认关闭
-        self.assertTrue(out["menu_plugin_on"])          # 系统插件恒开
+        self.assertFalse(out["menu_plugin_on"])         # 未批准群连系统菜单也不响应
         self.assertEqual(out["cooldown"], 3)            # 模板显式配置
 
 

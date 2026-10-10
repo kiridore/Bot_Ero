@@ -52,7 +52,36 @@ def effective_for_scope(plugin_key: str, group_id=None, user_id=None) -> bool:
     """
     if not plugin_allowed(key=plugin_key):
         return False
+    if group_id is not None and not group_business_allowed(group_id):
+        return False
     return plugin_settings_snapshot(group_id, user_id).get(plugin_key, False)
+
+
+def group_business_allowed(group_id) -> bool:
+    """审核关闭时完全兼容；开启时仅已批准群可执行消息业务或目的地心跳。"""
+    if not _config.GROUP_REVIEW_REQUIRE or group_id is None:
+        return True
+    from core.database_manager import DbManager
+    from core.logger import logger
+    db = None
+    try:
+        db = DbManager()
+        return db.community.is_group_active(group_id)
+    except Exception:
+        logger.exception("读取群审核状态失败，群 %s 不运行业务", group_id)
+        return False
+    finally:
+        if db is not None:
+            db.conn.close()
+
+
+def group_event_gate(raw: dict) -> frozenset | None:
+    gid = raw.get("group_id")
+    if gid is not None and not group_business_allowed(gid):
+        if raw.get('post_type') == 'message':
+            return frozenset()  # 未批准群不能通过审核指令绕过，超管需私聊审批
+        return frozenset({"group_review"})
+    return None
 
 
 # —— 私聊注册准入（M1 community-registration）：require=False 时全部函数零行为 ——
@@ -158,6 +187,16 @@ def validate_deployment_policy() -> None:
         from core.feature_packs import FEATURE_PACKS
         if _config.REGISTER_DEFAULT_PACK not in FEATURE_PACKS:
             problems.append(f"register.default_pack 不是已定义功能包：{_config.REGISTER_DEFAULT_PACK}")
+    if _config.GROUP_REVIEW_REQUIRE:
+        from core.feature_packs import FEATURE_PACKS
+        for name in ("group_review", "group_manager", "menu"):
+            if name not in registered or name not in SYSTEM_PLUGINS or not plugin_allowed(name):
+                problems.append(f"群审核开启必须允许并设为系统插件：{name}")
+        pack = FEATURE_PACKS.get(_config.GROUP_REVIEW_DEFAULT_PACK)
+        if pack is None:
+            problems.append("group_review.default_pack 不是已定义功能包")
+        elif any(not plugin_allowed(name) for name in pack["plugins"]):
+            problems.append("group_review.default_pack 包含部署未开放的插件")
     if problems:
         sys.exit("部署配置校验失败：\n- " + "\n- ".join(problems))
 
@@ -214,12 +253,16 @@ def plugin_settings_snapshot(group_id=None, user_id=None) -> dict[str, bool]:
         # 部署硬边界：不在名单内的插件对任何事件、任何局部开关都不可运行（config-unification）
         settings = {key: value for key, value in settings.items() if key in ALLOWED_PLUGINS}
     settings.update({key: True for key in SYSTEM_PLUGINS})
+    if group_id is not None and not group_business_allowed(group_id):
+        return {key: value for key, value in settings.items() if key == "group_review"}
     return settings
 
 
 def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None, user_id=None) -> bool:
     key = plugin_key(plugin_cls)
     if not plugin_allowed(key):
+        return False
+    if key != "group_review" and group_id is not None and not group_business_allowed(group_id):
         return False
     if key in SYSTEM_PLUGINS:
         return True

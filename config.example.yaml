@@ -83,3 +83,7 @@ panel:
 community:                 # 逐步开放公共部署的运营参数（与描述标签无关，任何部署配置即生效）
   max_groups: 50               # 最大激活群数（入群审核超限直接拒绝）
   cmd_cooldown_seconds: 0      # 同用户同指令冷却秒数（缺省统一 0=关闭；部署差异写进各自配置）
+
+group_review:
+  require: false             # 缺省关闭，旧部署无需群审核；开启后须将group_review加入允许名单及系统集
+  default_pack: 基础包       # 本模板用内置包；公开模板使用打卡基础包

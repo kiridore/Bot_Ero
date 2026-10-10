@@ -81,6 +81,44 @@ def _migrate_forum_polls(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         cur.execute("PRAGMA foreign_keys=ON")
 
 
+def _migrate_group_requests(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
+    """旧请求表原子迁移；独立编号避免同秒不同凭证误丢，并持久化审批恢复状态。"""
+    if "id" in {row[1] for row in cur.execute("PRAGMA table_info(group_requests)")}:
+        return
+    conn.commit()
+    cur.execute("BEGIN IMMEDIATE")
+    try:
+        # 获取写锁后复查，允许两个进程同时启动。
+        if "id" not in {row[1] for row in cur.execute("PRAGMA table_info(group_requests)")}:
+            cur.execute("ALTER TABLE group_requests RENAME TO group_requests_legacy")
+            cur.execute("""
+                CREATE TABLE group_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    kind TEXT NOT NULL DEFAULT 'invite',
+                    joined INTEGER NOT NULL DEFAULT 0,
+                    decision TEXT,
+                    remote_state TEXT NOT NULL DEFAULT 'none',
+                    group_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    flag TEXT NOT NULL,
+                    sub_type TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cur.execute("""
+                INSERT INTO group_requests (group_id, user_id, flag, sub_type, status, created_at)
+                SELECT group_id, user_id, flag, sub_type, status, created_at
+                FROM group_requests_legacy ORDER BY rowid
+            """)
+            cur.execute("DROP TABLE group_requests_legacy")
+            cur.execute("CREATE UNIQUE INDEX idx_group_requests_flag ON group_requests (flag)")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     cur.execute("""
     CREATE TABLE IF NOT EXISTS checkin_records (
@@ -392,15 +430,20 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     """)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS group_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL DEFAULT 'invite',
+            joined INTEGER NOT NULL DEFAULT 0,
+            decision TEXT,
+            remote_state TEXT NOT NULL DEFAULT 'none',
             group_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             flag TEXT NOT NULL,
             sub_type TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
-            created_at TEXT NOT NULL,
-            PRIMARY KEY (group_id, user_id, created_at)
+            created_at TEXT NOT NULL
         );
     """)
+    _migrate_group_requests(conn, cur)
     cur.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS idx_group_requests_flag
         ON group_requests (flag);

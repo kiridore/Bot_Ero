@@ -44,6 +44,7 @@ def plugin_pool(context: dict, event_type: str):
     except Exception:
         logger.exception("读取插件设置失败，本次事件不执行，防止绕过关闭设置")
         return
+    group_gate = runtime_context.group_event_gate(context)
     gate = runtime_context.register_gate(event_type, group_id, user_id)
     if gate is not None and runtime_context.should_remind_register(user_id, context):
         try:
@@ -58,6 +59,8 @@ def plugin_pool(context: dict, event_type: str):
     context = dict(context, _operation=operation)
     for plugin_cls in tuple(runtime_context.plugin_registry):
         key = runtime_context.plugin_key(plugin_cls)
+        if group_gate is not None and key not in group_gate:
+            continue  # 未批准群只让审核插件接收入群/移出通知与审批，不运行业务
         if gate is not None and key not in gate:
             continue  # 未注册私聊：仅放行注册与菜单（community-registration）
         if event_type == "meta":
@@ -67,7 +70,7 @@ def plugin_pool(context: dict, event_type: str):
         elif not operation.is_enabled(key):
             continue
         # 录制期间跳过非跑团功能包插件
-        if group_id is not None and runtime_context.is_group_recording(group_id):
+        if key != "group_review" and group_id is not None and runtime_context.is_group_recording(group_id):
             if not runtime_context.is_plugin_allowed_during_recording(
                 runtime_context.plugin_key(plugin_cls)
             ):

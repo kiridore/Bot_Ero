@@ -6,6 +6,10 @@
 
 ---
 
+## Constraint: 群审核入口
+
+启用`group_review.require`时，群许可是插件遍历前的限制：未active群只放行审核生命周期，普通消息（包括超管命令）不进入业务match/handle。批准群仍受部署许可、群插件开关和既有权限约束。读取审核状态异常按不允许处理，记录日志。群目的地心跳通过context.effective_for_scope检查active；私聊注册与全局维护不因此停止。审批API不占SQLite写事务，审批结果独立持久化以支持远端/本地部分完成后的恢复。
+
 ## Constraint: 整体架构
 
 ```

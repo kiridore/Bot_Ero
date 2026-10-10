@@ -45,6 +45,7 @@ def test_thread_main_entry_uses_snapshot_and_flushes_once():
         DEFAULT_GROUP_ID=None, plugin_registry=[First, Second],
         plugin_key=lambda cls: cls.__module__.split(".")[1],
         plugin_settings_snapshot=lambda *args: settings,
+        group_event_gate=lambda *a: None,
         register_gate=lambda *a: None,
         should_remind_register=lambda *a: False,
         is_group_recording=lambda gid: False,

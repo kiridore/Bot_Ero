@@ -652,7 +652,7 @@ user_id_str = str(user_id)
 
 ## 社区准入数据（M1 T1.1）
 
-`user_accounts`（注册账号，幂等）、`group_registry`（active|removed，移出保留历史）、`group_requests`（加群申请队列，flag 唯一索引去重，pending|approved|rejected 终态不可逆）、`blacklist`（scope user|group，可解除）。全部部署统一建表，空表零行为影响；读写集中 `core/db/community.py::CommunityManager`，禁止其他模块裸 SQL。契约见 `openspec/specs/community-access-registry/spec.md`。
+`user_accounts`（注册账号，幂等）、`group_registry`（active|removed，移出保留历史）、`group_requests`（flag唯一、独立id；pending|processing|uncertain|approved|rejected，终态不可逆；kind区分邀请/手动入群，joined记录入群事实，decision与remote_state保存审批方向/结果。旧复合主键表在写锁事务内原子重建，保留全部历史。预留容量及本地激活/播种分别原子提交；处理中与结果未知记录占用批准名额，不能盲目重调远端。此业务接线尚属进行中的community-group-review提案）、`blacklist`（scope user|group，可解除）。全部部署统一建表，空表零行为影响；读写集中 `core/db/community.py::CommunityManager`，禁止其他模块裸 SQL。契约见 `openspec/specs/community-access-registry/spec.md`。
 
 ## 日期格式
 

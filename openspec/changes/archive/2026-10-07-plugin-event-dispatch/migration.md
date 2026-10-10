@@ -20,6 +20,7 @@
 | plugins/redeem_shop/events.py | 已迁移：operation.output.submit 普通文本 | 道具奖励通知及重复来源处理 |
 | plugins/register/__init__.py | 例外：直接发送（Ruling）——时序敏感的分段对话需段间停顿，统一输出在事件结束时集中送达无法承载；仅限注册流程消息 | 定稿文案逐句、停顿、合并转发协议 |
 | plugins/personal_records/events.py | 已迁移：output.submit 消息段（注册资料卡） | 注册完成通知发卡；插件未开放时静默跳过 |
+| plugins/group_review/__init__.py | 后续新增：submit_message，统一输出 | 群审核管理员回执、入群欢迎与拒绝提示；不重复发送已终态申请 |
 
 原直接调用中的 checkin → 商店/称号/周常、两撤回 → 周常现已改为通知订阅。lottery 对周常和条件称号的直接调用已改为通知；lottery.rewards 的抽奖奖品（称号及重复返点）属于单抽事务，称号关闭时入口与消费者均拒绝抽奖。打卡全勤奖励现由 checkin/events.py 订阅处理，两种撤回共用其历史清理函数；全勤领取、奖励记录和积分已同事务处理。抽奖的称号奖项不只是展示，详见 implementation-findings.md 的所有者裁定。
 

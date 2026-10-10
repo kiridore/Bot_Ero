@@ -88,6 +88,8 @@ from core.text_pack import get_text
     ("/数据备份 手动执行备份", "backup", True),
     ("/系统状态 查看运行状态（超级用户）", "monitor", True),
     ("/更新 拉取更新并重启（超级用户）", "update", True),
+    ("/待审 查看群申请及需要确认的审批（超级用户私聊）", "group_review", True),
+    ("/审核 <群号> <通过|拒绝> [申请编号] 审批群申请；多条时须指定编号（超级用户私聊）", "group_review", True),
     ("/插件 <name|列表> [off] [群号] 管理插件：列表/启用/禁用（超级用户）", "group_manager", True),
     ("/功能包 <name|列表> [off] [群号] 管理功能包：列表/开启/关闭（超级用户）", "group_manager", True),
     ("/插件 <name> <开启|关闭|默认> 用户 <账号> 设置该账号的私聊插件（超级用户）", "group_manager", True),
