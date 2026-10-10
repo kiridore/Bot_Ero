@@ -44,12 +44,22 @@ def plugin_pool(context: dict, event_type: str):
     except Exception:
         logger.exception("读取插件设置失败，本次事件不执行，防止绕过关闭设置")
         return
+    gate = runtime_context.register_gate(event_type, group_id, user_id)
+    if gate is not None and runtime_context.should_remind_register(user_id, context):
+        try:
+            from core.api import ApiWrapper
+            from core.cq import text as _text
+            ApiWrapper(dict(context)).send_private_msg(_text("先完成注册哦，回复 /注册 开始~"))
+        except Exception:
+            logger.exception("注册提醒发送失败（用户 %s）", user_id)
     operation = Operation(settings, MessageOutput(send_request, target))
     logger.debug("操作 %s 开始：类型=%s 消息=%s 群=%s 用户=%s",
                  operation.id, event_type, context.get("message_id"), group_id, user_id)
     context = dict(context, _operation=operation)
     for plugin_cls in tuple(runtime_context.plugin_registry):
         key = runtime_context.plugin_key(plugin_cls)
+        if gate is not None and key not in gate:
+            continue  # 未注册私聊：仅放行注册与菜单（community-registration）
         if event_type == "meta":
             # 心跳无群号：先过部署硬边界；局部开关由各任务按所属对象自行检查（config-unification）
             if not runtime_context.plugin_allowed(key):

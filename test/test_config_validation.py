@@ -30,6 +30,53 @@ class TestValidateConfig(unittest.TestCase):
     def test_minimal_bot_only_passes(self):
         self.assertEqual(config.validate_config(_base_data()), [])
 
+    def test_register_section_shape(self):
+        ok = _base_data()
+        ok["register"] = {"require": True, "eula_file": "docs/eula/v1.md",
+                          "default_pack": "打卡基础", "reminder_minutes": 30}
+        self.assertEqual(config.validate_config(ok), [])
+        cases = [
+            ({"require": "yes"}, "require 必须是布尔值"),
+            ({"reminder_minutes": -1}, "reminder_minutes"),
+            ({"reminder_minutes": "30"}, "reminder_minutes"),
+            ({"eula_file": ""}, "eula_file"),
+            ({"default_pack": 7}, "default_pack"),
+        ]
+        for section, expected in cases:
+            data = _base_data()
+            data["register"] = section
+            errors = config.validate_config(data)
+            self.assertTrue(any(expected in e for e in errors), (section, errors))
+        # 缺省 register 节 = 不启用，零错误
+        self.assertEqual(config.validate_config(_base_data()), [])
+
+    def test_required_registration_validates_eula_and_pack(self):
+        import core.context as context
+        saved = (config.REGISTER_REQUIRE, config.REGISTER_EULA_FILE,
+                 config.REGISTER_DEFAULT_PACK, context.plugin_registry,
+                 context.ALLOWED_PLUGINS, config.SYSTEM_PLUGINS_CONF)
+        try:
+            context.plugin_registry = [type("R1", (), {"__module__": "plugins.checkin"})]
+            context.ALLOWED_PLUGINS = None
+            config.SYSTEM_PLUGINS_CONF = []
+            config.REGISTER_REQUIRE = True
+            config.REGISTER_DEFAULT_PACK = "基础包"
+            config.REGISTER_EULA_FILE = "docs/eula/v1.md"
+            context.validate_deployment_policy()  # 文件存在、包存在 → 通过
+            config.REGISTER_EULA_FILE = "docs/eula/missing.md"
+            with self.assertRaises(SystemExit) as ctx1:
+                context.validate_deployment_policy()
+            self.assertIn("register.eula_file", str(ctx1.exception))
+            config.REGISTER_EULA_FILE = "docs/eula/v1.md"
+            config.REGISTER_DEFAULT_PACK = "不存在的包"
+            with self.assertRaises(SystemExit) as ctx2:
+                context.validate_deployment_policy()
+            self.assertIn("default_pack", str(ctx2.exception))
+        finally:
+            (config.REGISTER_REQUIRE, config.REGISTER_EULA_FILE,
+             config.REGISTER_DEFAULT_PACK, context.plugin_registry,
+             context.ALLOWED_PLUGINS, config.SYSTEM_PLUGINS_CONF) = saved
+
     def test_missing_required_reports_all(self):
         data = _base_data()
         del data["bot"]["qq"]

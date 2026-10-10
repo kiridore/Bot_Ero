@@ -20,6 +20,15 @@
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
 
+## [1.53.0]
+
+- **注册流程（公开部署）**：新插件 `/注册` 与 `/同意EULA`（大小写不敏感）——分段文案引导、合并转发《用户协议》（`docs/eula/v1.md`，草稿待定稿）、同意凭证（版本与时间）持久化、为账号自动播种 `register.default_pack` 功能包，并通过内部通知发送新用户资料卡（personal_records 未开放时静默跳过）。
+- **私聊准入**：`register.require`（缺省 false）开启后，未注册账号私聊仅可用注册与菜单指令，其余指令收到限频提醒（默认 30 分钟一次）；超级用户、群消息与已注册账号不受影响。关闭时两种部署行为均不变。
+- **欢迎文案**：好友欢迎消息支持文案包键 `welcome.friend_add` 覆盖，内置默认与原私有文案一致。
+- **菜单**：新增 `/注册` 条目；准入开启时未注册用户的菜单只显示注册与菜单相关行。
+- **启动校验**：require 开启时协议文件与默认功能包缺失将拒绝启动；注册状态读取失败按未注册限制处理（防绕过）。
+- **配置模板**：公开候选模板加入 `register` 插件与 `register:` 配置节。
+
 ## [1.52.1]
 
 - **权限**：`/发金币` 统一为仅超级用户可用（两种部署同一规则）；群管理员、群主不再响应该指令，超级用户使用方式不变。

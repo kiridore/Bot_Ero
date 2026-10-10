@@ -119,6 +119,20 @@ class CommunityDbTest(unittest.TestCase):
         self.assertFalse(self.db.unban("user", 1001))           # 再解除无行可删
         self.assertTrue(self.db.is_banned("group", 4001))
 
+    # —— 注册凭证（community-registration）——
+
+    def test_agree_eula_persists_and_is_idempotent(self):
+        self.assertTrue(self.db.agree_eula(1001, "v1"))
+        row = self.conn.execute(
+            "SELECT created_at, eula_version, agreed_at FROM user_accounts WHERE user_id = 1001").fetchone()
+        self.assertEqual(tuple(row)[1], "v1")
+        self.assertIsNotNone(row[2])
+        self.assertFalse(self.db.agree_eula(1001, "v2"))   # 已注册：不改写首次凭证
+        after = self.conn.execute(
+            "SELECT created_at, eula_version, agreed_at FROM user_accounts WHERE user_id = 1001").fetchone()
+        self.assertEqual(tuple(row), tuple(after))
+        self.assertTrue(self.db.is_registered(1001))
+
     # —— 建表幂等与挂载 ——
 
     def test_init_schema_twice_idempotent(self):

@@ -9,6 +9,7 @@ from core.text_pack import get_text
 # (整行文案, 插件标识或 None=始终显示, admin=仅超级用户, group_only=仅群聊显示)
 通用 = [
     ("/菜单 查看菜单", "menu", False, False),
+    ("/注册 开始注册（新用户）", "register", False, False),
     ("/打卡 + 图片 完成打卡", "checkin", False, False),
     ("/档案 [年份] 查看个人打卡档案", "personal_records", False, False),
     ("/本周打卡图 查看本周打卡图", "week_checkin_display", False, False),

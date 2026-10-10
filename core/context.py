@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 import sqlite3
+import time
 from threading import Lock
 
 if TYPE_CHECKING:
@@ -49,9 +50,70 @@ def effective_for_scope(plugin_key: str, group_id=None, user_id=None) -> bool:
     ponytail: 每次调用开独立 DB 连接，每分钟扫描量级足够；
     若任务量增大再考虑调用方批量快照。
     """
-    if not plugin_allowed(plugin_key):
+    if not plugin_allowed(key=plugin_key):
         return False
     return plugin_settings_snapshot(group_id, user_id).get(plugin_key, False)
+
+
+# —— 私聊注册准入（M1 community-registration）：require=False 时全部函数零行为 ——
+REGISTRATION_ALLOWLIST = frozenset({"register", "show_menu"})
+_REGISTER_REMINDER_COMMANDS = {"/注册", "/同意eula", "/菜单", "/菜單"}
+_register_reminder_at: dict[int, float] = {}
+_register_reminder_lock = Lock()
+
+
+def registration_required() -> bool:
+    return _config.REGISTER_REQUIRE
+
+
+def is_super_user(user_id) -> bool:
+    return int(user_id) in {int(u) for u in _config.SUPER_USER}
+
+
+def _ci_ascii(word: str) -> str:
+    return "".join(c.lower() if c.isascii() else c for c in word)
+
+
+def register_gate(event_type: str, group_id, user_id) -> frozenset | None:
+    """未注册私聊用户的插件放行集；None = 不限制。
+
+    仅约束 message 事件；超级用户、群消息、require 关闭一律不限制。
+    """
+    if (not _config.REGISTER_REQUIRE or event_type != "message"
+            or group_id is not None or user_id is None or is_super_user(user_id)):
+        return None
+    from core.database_manager import DbManager
+    db = DbManager()
+    try:
+        registered = db.community.is_registered(user_id)
+    except Exception:
+        # 读取失败按未注册限制处理（fail-closed，防绕过）
+        return REGISTRATION_ALLOWLIST
+    finally:
+        db.conn.close()
+    return None if registered else REGISTRATION_ALLOWLIST
+
+
+def should_remind_register(user_id, context: dict) -> bool:
+    """命令样式的未注册消息是否该提醒；限频窗口内只提醒一次。"""
+    if not _config.REGISTER_REQUIRE or is_super_user(user_id):
+        return False
+    first = ""
+    for seg in context.get("message") or []:
+        if isinstance(seg, dict) and seg.get("type") == "text":
+            first = str(seg.get("data", {}).get("text", "")).strip()
+            break
+    if not first.startswith("/"):
+        return False
+    if _ci_ascii(first.split()[0]) in _REGISTER_REMINDER_COMMANDS:
+        return False
+    now = time.monotonic()
+    with _register_reminder_lock:
+        last = _register_reminder_at.get(int(user_id))
+        if last is not None and now - last < _config.REGISTER_REMINDER_MINUTES * 60:
+            return False
+        _register_reminder_at[int(user_id)] = now
+        return True
 
 
 def validate_deployment_policy() -> None:
@@ -85,6 +147,17 @@ def validate_deployment_policy() -> None:
             unknown_pack = sorted(set(pack["plugins"]) - registered)
             if unknown_pack:
                 problems.append(f"功能包「{pack_name}」含未注册插件：{', '.join(unknown_pack)}")
+    if _config.REGISTER_REQUIRE:
+        # 注册开启：协议文件与播种包必须真实可用（两种部署同一规则）
+        from pathlib import Path
+        eula = Path(_config.REGISTER_EULA_FILE)
+        if not eula.is_absolute():
+            eula = _config.PROJECT_ROOT / eula
+        if not eula.is_file():
+            problems.append(f"register.eula_file 不存在：{eula}")
+        from core.feature_packs import FEATURE_PACKS
+        if _config.REGISTER_DEFAULT_PACK not in FEATURE_PACKS:
+            problems.append(f"register.default_pack 不是已定义功能包：{_config.REGISTER_DEFAULT_PACK}")
     if problems:
         sys.exit("部署配置校验失败：\n- " + "\n- ".join(problems))
 

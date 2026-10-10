@@ -9,6 +9,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from core import config
+from core.database_manager import DbManager
 from core.event import Event
 from core.message_output import MessageOutput
 from core.plugin_dispatch import Operation
@@ -124,6 +126,51 @@ class MenuPluginHandleTest(unittest.TestCase):
         p2 = self._plugin(RenderMenuTest.SYSTEM_ON, uid=8)  # 默认关闭
         p2.handle()
         self.assertNotIn("/补卡", _menu_text(p2))
+
+
+class UnregisteredMenuTest(unittest.TestCase):
+    """准入开启时，未注册私聊菜单只显示注册与菜单相关行（AC4）。"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._old_db = config.DB_PATH
+        config.DB_PATH = Path(self._tmp.name) / "menu.db"
+        self.db = DbManager()
+        self._saved = (config.REGISTER_REQUIRE, config.SUPER_USER)
+        config.REGISTER_REQUIRE = True
+        config.SUPER_USER = [1]
+
+    def tearDown(self):
+        config.REGISTER_REQUIRE, config.SUPER_USER = self._saved
+        self.db.conn.close()
+        config.DB_PATH = self._old_db
+        self._tmp.cleanup()
+
+    def _menu(self, uid, enabled):
+        p = MenuPlugin.__new__(MenuPlugin)
+        p.bot_event = Event({"post_type": "message", "message_type": "private", "user_id": uid,
+                             "message_id": 3, "message": [{"type": "text", "data": {"text": "/菜单"}}]})
+        p.api = MockApiWrapper({"user_id": uid})
+        p._captured = []
+        p.api.send_forward_msg = lambda message: p._captured.append(message) or 0
+        p.operation = Operation(enabled, MessageOutput(lambda r: 1, ("private", uid)))
+        p.match("message")
+        p.handle()
+        return _menu_text(p)
+
+    def test_unregistered_private_menu_only_registration_lines(self):
+        enabled = {"register": True, "show_menu": True, "checkin": True, "leaderboard": True}
+        menu = self._menu(9, enabled)
+        self.assertIn("/注册 开始注册", menu)
+        self.assertIn("/菜单 查看菜单", menu)
+        self.assertNotIn("/打卡", menu)          # 业务条目不显示
+        self.assertNotIn("/排名", menu)
+        self.assertNotIn("/同意EULA", menu)      # 流程内部指令不进菜单
+
+    def test_registered_private_menu_unrestricted(self):
+        self.db.community.agree_eula(9, "v1")
+        menu = self._menu(9, {"register": True, "show_menu": True, "checkin": True})
+        self.assertIn("/打卡", menu)
 
 
 if __name__ == "__main__":

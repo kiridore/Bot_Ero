@@ -46,7 +46,8 @@
 | # | 插件名 | 文件 | 触发 | 功能 |
 |---|--------|------|------|------|
 | 32 | `auto_friend` | `auto_friend/` | `request_type == "friend"` | 自动同意好友请求 |
-| 33 | `welcome` | `welcome/` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
+| 33 | `welcome` | `welcome/` | `notice_type == "friend_add"` | 发送欢迎私聊消息（文案可经文案包键 `welcome.friend_add` 覆盖） |
+| 47 | `register` | `register/` | CommandPlugin `/注册` `/同意EULA`（大小写不敏感） | 公开部署注册流程：合并转发《用户协议》、同意凭证落库、播种默认功能包、发布注册完成通知；私聊准入见 main.py 门控 |
 | 46 | `message_logger` | `message_logger/` | 所有群消息（系统插件） | 记录群消息到独立库 `server_data/message_log.db`（周报数据源，永久保留） |
 
 ## 定时/心跳

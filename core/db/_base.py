@@ -375,6 +375,12 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             created_at TEXT NOT NULL
         );
     """)
+    cur.execute("PRAGMA table_info(user_accounts)")
+    _ua_cols = [row[1] for row in cur.fetchall()]
+    if "eula_version" not in _ua_cols:
+        cur.execute("ALTER TABLE user_accounts ADD COLUMN eula_version TEXT")
+    if "agreed_at" not in _ua_cols:
+        cur.execute("ALTER TABLE user_accounts ADD COLUMN agreed_at TEXT")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS group_registry (
             group_id INTEGER PRIMARY KEY,

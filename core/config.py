@@ -14,7 +14,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.52.1"
+BOTERO_VERSION = "1.53.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
@@ -63,6 +63,21 @@ def validate_config(data: dict) -> list[str]:
     onebot = data.get("onebot") or {}
     if _present(onebot.get("http_url")) != _present(onebot.get("token")):
         errors.append("onebot.http_url 与 onebot.token 必须成对配置（都不填 = 不启用 HTTP）")
+    register = data.get("register") or {}
+    if register:
+        if not isinstance(register, dict):
+            errors.append("register 节必须是键值映射")
+        else:
+            require = register.get("require", False)
+            if not isinstance(require, bool):
+                errors.append("register.require 必须是布尔值")
+            reminder = register.get("reminder_minutes", 30)
+            if not isinstance(reminder, int) or isinstance(reminder, bool) or reminder < 0:
+                errors.append("register.reminder_minutes 必须是非负整数")
+            for key in ("eula_file", "default_pack"):
+                value = register.get(key)
+                if value is not None and (not isinstance(value, str) or not value.strip()):
+                    errors.append(f"register.{key} 必须是非空字符串")
     return errors
 
 
@@ -123,6 +138,12 @@ FEATURE_PACKS_FILE = str(_bot.get("feature_packs_file") or "")
 TEXT_PACK = str(_bot.get("text_pack") or "")  # 文案包路径（缺省空 = 内置文案，社区版 T0.8）
 _community = _sec("community")
 COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
+# —— 注册（M1，community-registration 提案）：require 缺省 False = 私有版现状零行为 ——
+_register_sec = _sec("register")
+REGISTER_REQUIRE = bool(_register_sec.get("require", False))
+REGISTER_EULA_FILE = str(_register_sec.get("eula_file") or "docs/eula/v1.md")
+REGISTER_DEFAULT_PACK = str(_register_sec.get("default_pack") or "打卡基础")
+REGISTER_REMINDER_MINUTES = int(_register_sec.get("reminder_minutes") or 30)
 # 频控冷却秒数：显式配置生效；缺省统一 0（关闭）。部署差异写进各自配置模板。
 _cooldown_raw = _community.get("cmd_cooldown_seconds")
 COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else 0

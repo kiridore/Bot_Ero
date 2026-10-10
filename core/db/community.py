@@ -33,6 +33,22 @@ class CommunityManager:
             "SELECT 1 FROM user_accounts WHERE user_id = ?", (int(user_id),))
         return self.cur.fetchone() is not None
 
+    def agree_eula(self, user_id, eula_version: str) -> bool:
+        """记录注册与协议同意凭证；已注册返回 False 且绝不改写首次时间（幂等）。"""
+        uid = int(user_id)
+        self.cur.execute(
+            "SELECT 1 FROM user_accounts WHERE user_id = ?", (uid,))
+        if self.cur.fetchone() is not None:
+            self.conn.commit()
+            return False
+        now = _now()
+        self.cur.execute(
+            "INSERT INTO user_accounts (user_id, created_at, eula_version, agreed_at)"
+            " VALUES (?, ?, ?, ?)",
+            (uid, now, str(eula_version), now))
+        self.conn.commit()
+        return True
+
     # —— 群登记 ——————————————————————————————————
 
     def activate_group(self, group_id, name=None, invited_by=None) -> None:

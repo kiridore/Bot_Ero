@@ -78,7 +78,7 @@ class TestCommunityPack(unittest.TestCase):
 
     def test_overrides_are_strings(self):
         for key, value in self.pack.items():
-            self.assertTrue(key.startswith("menu."), f"非菜单覆盖键：{key}")
+            self.assertTrue(key.startswith(("menu.", "welcome.")), f"非文案覆盖键：{key}")
             self.assertIsInstance(value, str)
 
     def test_no_private_jargon(self):

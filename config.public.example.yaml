@@ -21,6 +21,7 @@ bot:
     - backup
     - update
     - auto_friend
+    - register                  # —— 注册流程（M1）——
     - monitor                   # —— 运维：/系统状态（超管）——
     - checkin                   # —— 打卡基础九件套（首版开放集合）——
     - checkin_recall
@@ -38,6 +39,7 @@ bot:
     - backup
     - update
     - auto_friend
+    - register
   feature_packs_file: feature_packs_public.yaml   # 打卡基础包（批量开/关用）
   text_pack: text_packs/community.yaml            # 中性文案（触发词不变）
 
@@ -78,3 +80,9 @@ panel:
 community:                 # 逐步开放运营参数
   max_groups: 50               # 最大激活群数（超限拒绝）
   cmd_cooldown_seconds: 3      # 同用户同指令冷却（0=关闭）
+
+register:                  # 私聊注册准入（M1）
+  require: true                # 未注册私聊仅可用 /注册 /菜单 /同意EULA
+  eula_file: docs/eula/v1.md
+  default_pack: 打卡基础       # 注册完成时为账号播种的功能包
+  reminder_minutes: 30        # 未注册提醒限频
