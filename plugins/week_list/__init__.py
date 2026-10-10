@@ -11,7 +11,7 @@ from core.utils import register_plugin
 class WeekListPlugin(CommandPlugin):
     name = 'show_weekly_checkin_members'
     description = '展示本周完成打卡的成员列表。'
-    COMMANDS = ("/本周板油", "/本週板油")
+    COMMANDS = ("/本周板油", "/本週板油", "/本周群打卡")
 
     def _format_title_prefix(self, user_id):
         titles = self.dbmanager.titles.equipped_all(user_id)[:3]

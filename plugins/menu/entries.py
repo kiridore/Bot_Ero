@@ -71,7 +71,7 @@ from core.text_pack import get_text
 ]
 
 群聊 = [
-    ("/本周板油 查看本周打卡成员", "week_list", False),
+    ("/本周群打卡 查看本周打卡成员", "week_list", False),
     ("/闹钟 … 定时提醒（仅发 /闹钟 可看完整用法；/闹钟 一览 / /闹钟 取消 <编号>）", "group_alarm", False),
     ("/群头衔 [文本] 设置群头衔（留空为取消）", "set_group_title", False),
     ("回复一条消息并发送 /全体成员 可@全体并转发该消息内容", "at_all_reply", False),
