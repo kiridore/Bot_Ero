@@ -83,7 +83,7 @@ class RegisterFlowTest(unittest.TestCase):
 
         self._run("/同意eula", published)  # 大小写不敏感
         self.assertEqual(self.sent[3], "太好了！感谢你的理解，那我先帮你登记*写写*")  # 星号原样
-        self.assertEqual(self.sent[4], "完成啦，这是你的个人资料卡，基础功能已开放，更多功能会逐步开放，用“/菜单”指令看看现在有什么吧~")
+        self.assertEqual(self.sent[4], "完成啦，已经开放基础功能权限，更多功能会逐步开发中，用“/菜单”指令看看现在有什么吧~")
         self.assertEqual([t for t, _ in published], ["register.completed"])
         self.assertNotIn(UID, _SESSIONS)
         row = self.db.conn.execute(
