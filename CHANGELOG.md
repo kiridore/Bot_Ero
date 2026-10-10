@@ -20,6 +20,10 @@
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
 
+## [1.52.1]
+
+- **权限**：`/发金币` 统一为仅超级用户可用（两种部署同一规则）；群管理员、群主不再响应该指令，超级用户使用方式不变。
+
 ## [1.52.0]
 
 - **部署边界**：新配置 `bot.allowed_plugins` 限定本实例可提供的插件——名单外插件对消息、心跳、内部通知与奖励撤销全部失效，管理指令和监控面板也不能开启；新装插件不自动开放。启动时校验名单引用与系统集合冲突。

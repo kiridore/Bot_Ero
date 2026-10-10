@@ -65,7 +65,7 @@
 
 | # | 插件名 | 文件 | 触发 | 权限 | 功能 |
 |---|--------|------|------|------|------|
-| 39 | `grant_points_all` | `grant_points_all/` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
+| 39 | `grant_points_all` | `grant_points_all/` | CommandPlugin `/发金币` | super_user() | 全员发积分 |
 | 40 | `monitor` | `monitor/` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
 | 41 | `update` | `update/` | `/更新` | super_user() | git pull + os.execv 重启 |
 | 42 | `shop_manual_refresh` | `redeem_shop/` | `/刷新商店` | admin_user() | 手动刷新商店 |
