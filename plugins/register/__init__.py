@@ -103,4 +103,4 @@ class RegisterPlugin(CommandPlugin):
         self.publish_event("register.completed")
         self._send(text("太好了！感谢你的理解，那我先帮你登记*写写*"))
         self._pause()
-        self._send(text("完成啦，这是你的个人资料卡，基础功能已开放，更多功能会逐步开放，用“/菜单”指令看看现在有什么吧~"))
+        self._send(text("完成啦，已经开放基础功能权限，更多功能会逐步开发中，用“/菜单”指令看看现在有什么吧~"))
