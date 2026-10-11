@@ -147,11 +147,18 @@ class ApiWrapper:
 
 
     def get_qq_avatar(self, user_id) -> str:
-        """OneBot `get_qq_avatar`，成功返回头像 URL，失败返回空串。"""
+        """OneBot `get_qq_avatar`，成功返回头像 URL，失败回退公开头像地址。
+
+        LLOneBot 提供此扩展 API；NapCat 不支持（"不支持的API"），
+        回退 qlogo.cn 公开 URL——双端行为一致，且省一次 API 往返。
+        """
         params = {"user_id": user_id}
         ret = self.call_api("get_qq_avatar", params)
         if not ret or ret.get("status") != "ok":
-            return ""
+            try:
+                return f"https://q1.qlogo.cn/g?b=qq&nk={int(user_id)}&s=640"
+            except (TypeError, ValueError):
+                return ""
         data = ret.get("data")
         if not isinstance(data, dict):
             return ""
