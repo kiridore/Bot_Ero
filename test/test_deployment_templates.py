@@ -82,7 +82,7 @@ class TemplateContentTest(unittest.TestCase):
         enabled = {key: True for key in SYSTEM | BASICS}
         menu = render_menu(enabled, is_super=False, in_group=True)
         for expected in ("/打卡", "/补卡", "/单日补卡", "/撤回打卡", "/本周打卡图",
-                         "/ALL", "/本周板油", "/档案", "/排名"):
+                         "/ALL", "/本周群打卡", "/档案", "/排名"):
             self.assertIn(expected, menu)
         for absent in ("/抽奖", "/一键抽奖", "/周常", "/商店", "/称号", "/仙人彩",
                        "/占卜", "/创建游戏", "/活动", "/跑团", "/FF新闻"):
