@@ -6,19 +6,10 @@ from core.utils import register_plugin
 import core.context as runtime_context
 from core import config
 from core.feature_packs import FEATURE_PACKS
-from core.db.plugin_settings import enabled_plugins, set_user_plugins
+from core.db.plugin_settings import set_user_plugins
+from plugins.group_manager.status import query_text
 
 ACTIONS = {"on": "on", "开启": "on", "off": "off", "关闭": "off"}
-
-
-def _get_config(group_id: int) -> set[str]:
-    conn = sqlite3.connect(str(config.DB_PATH))
-    rows = conn.execute(
-        "SELECT plugin_name FROM group_plugin_config WHERE group_id = ?",
-        (group_id,)
-    ).fetchall()
-    conn.close()
-    return {row[0] for row in rows}
 
 
 def _set_config(group_id: int, plugin_name: str, enable: bool):
@@ -35,45 +26,6 @@ def _set_config(group_id: int, plugin_name: str, enable: bool):
         )
     conn.commit()
     conn.close()
-
-
-def _list_plugins_text(group_id: int) -> str:
-    enabled = _get_config(group_id)
-    lines = []
-    for cls in runtime_context.plugin_registry:
-        key = runtime_context.plugin_key(cls)
-        if not runtime_context.plugin_allowed(key):
-            status = "🚫"  # 部署未开放：不能通过群/账号设置启用
-        elif key in runtime_context.SYSTEM_PLUGINS:
-            status = "🔒"
-        elif key in enabled:
-            status = "✅"
-        else:
-            status = "❌"
-        lines.append(f"{status} {key}")
-    return "\n".join(lines)
-
-
-def _list_packs_text(group_id: int) -> str:
-    enabled = _get_config(group_id)
-    lines = []
-    for name, pack in FEATURE_PACKS.items():
-        pset = {key for key in pack["plugins"]
-                if key not in runtime_context.SYSTEM_PLUGINS and runtime_context.plugin_allowed(key)}
-        total = len(pset)
-        on = len(pset & enabled)
-        if total == 0:
-            icon = "🚫"  # 本部署未开放该包任何插件
-        elif on == 0:
-            icon = "❌"
-        elif on == total:
-            icon = "✅"
-        else:
-            icon = "⚡"
-        lines.append(f"{icon} {name} ({on}/{total})")
-    lines.append("")
-    lines.append("🔒 系统插件始终运行")
-    return "\n".join(lines)
 
 
 def _set_pack_config(group_id: int, pack_name: str, enable: bool):
@@ -129,7 +81,9 @@ class GroupManagerPlugin(CommandPlugin):
             return (f"用法：{self.cmd} <名称|列表> [off|关闭] [群号]\n"
                     f"账号设置：{self.cmd} <名称> <开启|关闭|默认> 用户 <账号>\n"
                     f"账号列表：{self.cmd} 列表 用户 <账号>\n"
-                    "默认表示沿用私聊公共设置；只有超级用户可以修改")
+                    f"公共默认：{self.cmd} 列表 公共默认（兼容 列表 0）\n"
+                    "无目标列表：私聊查本人，群聊查本群；私聊无目标开启/关闭仍修改公共默认，影响继承账号\n"
+                    "默认表示沿用私聊公共设置；只有超级用户可以查询和修改")
         first = self.args[0]
         rest = self.args[1:]
         action = "on"
@@ -150,6 +104,9 @@ class GroupManagerPlugin(CommandPlugin):
         if not self.super_user():
             self.api.send_msg(text("仅超级用户可管理插件"))
             return
+        if self.args and self.args[0] == "列表":
+            self._query()
+            return
         if "用户" in self.args or "群" in self.args:
             self._explicit_target()
             return
@@ -165,6 +122,27 @@ class GroupManagerPlugin(CommandPlugin):
             self._plugin(name, action, target_gid)
         else:
             self._pack(name, action, target_gid)
+
+    def _query(self):
+        tail = [arg for arg in self.args[1:] if arg not in ACTIONS and arg != '默认']
+        scope, target = None, None
+        if not tail:
+            scope = 'group' if self.bot_event.group_id is not None else 'user'
+            target = self.bot_event.group_id if scope == 'group' else self.bot_event.user_id
+        elif tail in (['公共默认'], ['0']):
+            scope = 'defaults'
+        elif len(tail) == 1:
+            scope, target = 'group', tail[0]
+        elif len(tail) == 2 and tail[0] in ('用户', '群'):
+            scope, target = ('user' if tail[0] == '用户' else 'group'), tail[1]
+        if scope != 'defaults':
+            number = str(target)
+            if (scope is None or not number.isascii() or not number.isdecimal()
+                    or len(number) > 19 or not 0 < int(number) <= 9223372036854775807):
+                self.api.send_msg(text(f'用法：{self.cmd} 列表 [用户 <账号>|群 <群号>|公共默认]'))
+                return
+            target = int(number)
+        self.api.send_msg(text(query_text(scope, target, FEATURE_PACKS, self.cmd == '/功能包')))
 
     def _explicit_target(self):
         args = self.args
@@ -191,31 +169,6 @@ class GroupManagerPlugin(CommandPlugin):
             return
         conn = sqlite3.connect(str(config.DB_PATH))
         try:
-            if name == "列表":
-                settings = enabled_plugins(conn, user_id=target)
-                overrides = dict(conn.execute(
-                    "SELECT plugin_name, enabled FROM user_plugin_config WHERE user_id = ?", (str(target),)
-                ))
-                lines = [f"用户{target}的私聊{'功能包' if self.cmd == '/功能包' else '插件'}设置："]
-                if self.cmd == "/功能包":
-                    for pack_name, pack in FEATURE_PACKS.items():
-                        names = set(pack["plugins"]) - runtime_context.SYSTEM_PLUGINS
-                        total = len(names)
-                        on = sum(bool(settings.get(key, False)) for key in names)
-                        icon = "🔒" if not total else "❌" if not on else "✅" if on == total else "⚡"
-                        lines.append(f"{icon} {pack_name} ({on}/{total})")
-                    lines.append("系统插件不参与账号覆盖，始终运行")
-                else:
-                    for key in sorted(_all_plugin_names()):
-                        if not runtime_context.plugin_allowed(key):
-                            lines.append(f"🚫 {key}（部署未开放）")
-                        elif key in runtime_context.SYSTEM_PLUGINS:
-                            lines.append(f"🔒 {key}（系统插件）")
-                        else:
-                            origin = "单独设置" if key in overrides else "沿用默认"
-                            lines.append(f"{'✅' if settings.get(key, False) else '❌'} {key}（{origin}）")
-                self.api.send_msg(text("\n".join(lines)))
-                return
             if self.cmd == "/功能包":
                 pack = _find_pack(name)
                 if pack is None:
@@ -241,9 +194,6 @@ class GroupManagerPlugin(CommandPlugin):
             conn.close()
 
     def _plugin(self, name: str, action: str, target_gid: int):
-        if name == "列表":
-            self.api.send_msg(text(_list_plugins_text(target_gid)))
-            return
         valid = _all_plugin_names()
         if name not in valid:
             lines = "\n".join(sorted(valid))
@@ -257,13 +207,10 @@ class GroupManagerPlugin(CommandPlugin):
             return
         enable = action == "on"
         _set_config(target_gid, name, enable)
-        scope = "全局" if target_gid == 0 else f"群{target_gid}"
+        scope = "私聊公共默认（影响继承账号）" if target_gid == 0 else f"群{target_gid}"
         self.api.send_msg(text(f"已{scope}{'启用' if enable else '禁用'}插件「{name}」"))
 
     def _pack(self, name: str, action: str, target_gid: int):
-        if name == "列表":
-            self.api.send_msg(text(_list_packs_text(target_gid)))
-            return
         pk = _find_pack(name)
         if pk is None:
             lines = "\n".join(FEATURE_PACKS)
@@ -271,5 +218,5 @@ class GroupManagerPlugin(CommandPlugin):
             return
         enable = action == "on"
         _set_pack_config(target_gid, pk, enable)
-        scope = "全局" if target_gid == 0 else f"群{target_gid}"
+        scope = "私聊公共默认（影响继承账号）" if target_gid == 0 else f"群{target_gid}"
         self.api.send_msg(text(f"已{scope}{'开启' if enable else '关闭'}功能包「{pk}」"))

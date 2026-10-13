@@ -21,6 +21,12 @@
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
 
+## [1.54.1]
+
+- **插件查询修复**：私聊`/插件 列表`与`/功能包 列表`改查当前账号，群聊查当前群，避免注册后基础包已开启却误查公共默认。新增`列表 公共默认`，兼容旧`列表 0`及数字群号。
+- **状态展示**：列表说明部署禁止、未注册、群未批准及账号设置来源；插件去重，功能包按同一有效状态计数。查询只读，失败显示无法确认。
+- **管理兼容**：开启/关闭/恢复默认的权限与写入目标不变，私聊无目标修改仍影响公共默认；菜单、帮助、回执和操作手册明确提示两者区别。
+
 ## [1.54.0]
 
 - **群审核**：新增`/待审`与`/审核 <群号> <通过|拒绝> [申请编号]`，仅超级用户审批；邀请与手动入群均需批准，公开模板只开启打卡基础包。

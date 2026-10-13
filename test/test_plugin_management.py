@@ -81,7 +81,7 @@ def test_deployment_forbidden_plugin_rejected_everywhere(management, monkeypatch
     assert "🚫 title" in listing and "✅ title" not in listing
     assert "❌ weekly_quest" in listing  # 名单内插件照常显示开关状态
     user_listing = run("/插件", ["列表", "用户", "42"])
-    assert "🚫 title（部署未开放）" in user_listing
+    assert "🚫 title（部署未开放；沿用默认）" in user_listing
 
 
 def test_deployment_forbidden_pack_members_not_enabled(management, monkeypatch):
