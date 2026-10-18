@@ -39,6 +39,12 @@
 
 ---
 
+## 社区版计划与交付
+
+- [当前需求与首版范围](docs/community/community-edition-plan.md)：仅实际配置不同，首版打卡基础和积分系统，经济扩展不开放。
+- [开发与完成清单](docs/community/development-plan.md)：交付证据、残留缺陷、防滥用及上线验收；不以历史架构/市场构想作为实施依据。
+- [社区文档入口](docs/community/README.md)：运营手册、维护者可持续性规则及历史资料位置。
+
 ## 目录结构
 
 ```

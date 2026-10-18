@@ -1,386 +1,75 @@
-# BotEro 社区版 · 开发任务拆分计划
+# 社区版开发与完成清单
 
-> **文档性质**：可逐个执行/验收的细粒度任务清单，是 [community-edition-plan.md](community-edition-plan.md)（决策与工作流）的执行细化。所有任务基于 1.37.2 实际代码核对（行号与调用点已验证）。
-> **用法**：按依赖顺序执行；每个任务独立 commit、独立验收；设计存疑处标 ⚠️ 待定，执行前找所有者确认。
-> **起草日期**：2026-09-08 · 基线 1.37.2
-> **当前前置工作**：先交付 `plugin-event-dispatch` 的插件同步通知重构第一阶段（1.51.0），再按 [仅配置差异核查](config-only-plan-review.md) 修订配置与准入提案。社区首版仍仅开放打卡基础与积分系统，不默认开放经济扩展。新表与源码位置以当前实现为准，旧基线行号/表数不可直接用于实施。
+> 按当前1.54.2代码与归档核对，替代旧1.37.2任务步骤；只列有效方案，不保留旧代码片段。范围以[当前需求](community-edition-plan.md)为准。最近实现回归：689 passed（注册入口修复交付时），不等于真实QQ或公开上线验收。
 
----
+## 1. 总体状态
 
-## 0. 全局约定（每个任务默认遵守，后文不再重复）
+- [x] M0：T0.1–T0.9的目标已由现有配置化和通知改造实现，不再开发另一套功能包/菜单。
+- [ ] M1：注册、群审核、权限和模板主体已交付；注册入口与欢迎模板已修复，仍有防滥用和跨对象验收。
+- [ ] M2：没有完整的公开实例真实QQ试运行及上线验收证据，不能标完成。
+- [ ] M3+：候选功能按反馈选择，不预先承诺全部开放。
 
-- **Commit**：中文 Conventional Commits，一个任务 = 一个逻辑 commit（代码 + 测试 + spec + 菜单文本 + CHANGELOG 同 commit，见 `specs/conventions.md` §Commit 提交分块）；纯重构记 CHANGELOG `[未发布]` 不 bump；用户可见变更 bump `BOTERO_VERSION`。
-- **测试**：进程内用例进 `test/test_*.py`（conftest 自动隔离数据路径）；新集成脚本进 `test/scripts/check_*.py`（用 `_env.py::write_config`）；路径一律 `config.X` 属性访问，禁止导入期绑定。
-- **文档同步**：新增/改动指令 → `plugins/menu/bot_menu_text.py` + `kb/PLUGIN_CATALOG.md` + `specs/plugin-catalog.md`；表变更 → `kb/DATABASE.md` + `specs/database.md`；动 OneBot 协议调用 → 先查 `specs/onebot-protocol.md` 权威上游。
-- **仅配置差异**（所有者最新要求）：社区与私有部署共用同一实现，不按edition切换功能包、准入、权限或默认值；旧五处白名单废弃。**本文T0.7及M1等条目仍保留历史方案，实施前必须依照 [逐项核查报告](config-only-plan-review.md) 修订对应提案**。首版开放打卡基础与积分系统，经济扩展关闭；审核默认播种不得照旧启用经济扩展。社区部署按git tag固化不变。
-- **回归**：每任务完成跑全量 `pytest`；**任何改动不得影响私有版部署的运行（所有者底线）**——私有部署经 `/更新` 指令 `git pull` 主干 HEAD，主干每个 commit 都必须私有形态安全（私有 config 可加载、行为零变化、pytest 全绿），非仅发布点；M0 纯重构零行为变化，M1+ 的 edition 相关改动必须附 private 直通测试断言。
-- **规模**：S ≤ 半天 / M = 1-2 天（业余 + AI 协作口径）。
+## 2. 已完成项：需求、现状与证据
 
-## 1. 任务总览与依赖图
+| 编号 | 当前交付 | 对应需求及设计原因 | 证据 |
+|---|---|---|---|
+| T0.1 | 配置统一校验，edition仅描述，缺省一致 | 同样配置同样行为，不维护两套加载逻辑 | [config-unification](../../openspec/changes/archive/2026-10-08-config-unification/acceptance.md)、core/config.py |
+| T0.2 | 无接收群且无默认群时丢弃群发 | 公开实例不能误向某个私域群发送 | test/test_api_send_fallback.py |
+| T0.3 | 时间线上报空配置关闭 | 首版纯bot不依赖webapp | [timeline-report-noop](../../openspec/changes/archive/2026-10-06-timeline-report-noop/proposal.md) |
+| T0.4 | 系统插件集合配置化，部署名单仍为上限 | 必要管理能力可配置，不能绕过部署禁止 | [system-plugins规范](../../openspec/specs/system-plugins/spec.md) |
+| T0.5 | 周常引擎移至插件目录 | 玩法不反向嵌入公共工具 | [quest-engine-extraction](../../openspec/changes/archive/2026-10-06-quest-engine-extraction/proposal.md) |
+| T0.6 | 称号前缀通过注册提供者接入 | core不直接依赖称号插件 | [title-prefix-hook](../../openspec/changes/archive/2026-10-06-title-prefix-hook/proposal.md) |
+| T0.7 | 功能包文件、部署允许名单、按群/账号开关 | 功能包仅批量设置；新增代码不自动开放 | core/feature_packs.py、feature_packs_public.yaml、config-unification |
+| T0.8 | 结构化有效菜单和逐条文案包 | 同功能同规则，文字可按配置替换 | [enabled-menu](../../openspec/specs/enabled-menu/spec.md)、[text-packs](../../openspec/specs/text-packs/spec.md) |
+| T0.9 | 心跳部署限制及按任务所属对象检查 | 不允许关闭后仍推进群/账号任务 | [scoped-heartbeats](../../openspec/specs/scoped-heartbeats/spec.md)、test/test_scoped_heartbeats.py |
+| T1.1 | 账号、群登记、申请、黑名单存储；申请独立编号与迁移 | 运营状态可恢复，不将存表误作业务已完成 | [community-access-registry](../../openspec/specs/community-access-registry/spec.md)、test/test_community_db.py、test/test_group_review_data.py |
+| T1.3 主体 | 主动注册、协议同意、账号基础包与资料卡 | 同意后才登记，按账号逐步开放 | [community-registration](../../openspec/changes/archive/2026-10-10-community-registration/proposal.md)、test/test_register_flow.py；残留见R1/R2 |
+| T1.4 | QQ超管审核、容量预留、远端/本地恢复、群业务限制 | 控制接入规模，失败不盲目重复批准 | [群审核验收](../../openspec/changes/archive/2026-10-10-community-group-review/acceptance.md)、[操作手册](group-review-operations.md) |
+| T1.6 | 插件管理/账号设置/审核/批量发积分仅超管 | 群管理者不能修改全实例或其他对象 | test/test_plugin_management.py、[grant-points-superuser](../../openspec/changes/archive/2026-10-10-grant-points-superuser/proposal.md)；不代表所有玩法权限均已公开化审核 |
+| T1.7 主体 | config.public.example.yaml、基础包文件及操作手册 | 可用同一程序装配公开实例 | test/test_deployment_templates.py；欢迎/升级限制见R2/R3 |
+| 查询修复 | 私聊列表查本人，明确查询公共默认，显示有效状态及来源 | 避免注册后误查公共默认，保留原修改语义 | [plugin-query-scope](../../openspec/changes/archive/2026-10-13-plugin-query-scope/acceptance.md)，1.54.1 |
+| 通知迁移第一阶段 | 打卡、撤回、抽奖、周常、称号、商店相关通知/输出与奖励事务 | 独立开关不再依赖直接调用，失败不产生部分积分记录 | [plugin-event-dispatch](../../openspec/changes/archive/2026-10-07-plugin-event-dispatch/acceptance.md)，1.51.0；并非所有插件发送入口均已迁移 |
 
-```
-M0 清障（纯重构，私有部署零行为变化）
- T0.1 配置分侧+edition ──► T0.2 发送兜底 ──► T0.3 时间线上报 no-op
- T0.4 系统插件配置化（依赖 T0.1）
- T0.5 周常引擎迁移（独立）
- T0.6 称号前缀钩子化（独立）
- T0.7 功能包双表（依赖 T0.1）
- T0.8 菜单双文本（依赖 T0.1、T0.7）
- T0.9 心跳任务作用域审计（依赖 T0.7，只修批次1范围）
-M1 准入与运营
- T1.1 社区表 DDL+manager（依赖 M0 全部）
- T1.2 中央门控（依赖 T1.1）
- T1.3 register 插件（依赖 T1.1、T1.2、T0.4）
- T1.4 群审核（依赖 T1.1、T1.2、T0.4）
- T1.5 拉黑+频控（依赖 T1.2）
- T1.6 管理指令权限适配（依赖 T0.1）
- T1.7 社区配置模板（依赖 M0 全部）
- T1.8 跨群一致性测试（独立，可与 T1.2 并行）
-M2 上线装配
- T2.1 私有部署回归 ─► T2.2 社区实例部署+试运行 ─► T2.3 批次1验收 ─► T2.4 运营物料
-M3+ 批次2/3（上线后按 §6 粗粒度展开）
-```
+T1.2不是一个还要重做的“总开关”：部署许可、账号设置、注册要求、群审核已经分别交付；未完成的黑名单及频控列在T1.5。T1.8仍需要明确的跨群/私聊验收记录，不能只凭共享账号表推断完成。
 
-| 里程碑 | 任务数 | 出口标准 |
+## 3. M1 剩余任务（先确认设计，再写相应提案）
+
+| 编号与状态 | 做什么 | 所服务的要求与原因 | 完成条件 |
+|---|---|---|---|
+| R1 已修复（1.54.2） | 允许集合统一为menu，并仅对真正message执行注册限制，避免拦住好友申请；test/test_registration_entry.py覆盖真实入口 | 用户同意前需要可达的注册/菜单入口；不扩大为全部功能可用 | 未注册普通用户仅允许指定入口，已注册与超管不退化；实际main集成测试及菜单测试通过 |
+| R2 已修复（1.54.2） | 公开模板两份名单加入welcome，好友同意/欢迎/主动注册独立；已有配置需按[操作说明](registration-entry-operations.md)补齐并重启 | 好友申请由auto_friend、欢迎由welcome、注册由register分别负责，不能重复或遗漏 | 隔离模板启动后模拟好友请求及好友添加通知，欢迎仅一次、不会自动注册；真实送达在M2确认 |
+| T1.5 待提案 | 完整黑名单限制与管理入口，统一指令频控 | 防止一个用户/群的滥用影响其他对象；现有表、群审核检查及冷却配置不等于全流程防护 | 先确认管理入口是QQ还是本地控制台，以及被拉黑用户跨群/私聊、群任务、历史撤销和生命周期的规则；测试覆盖拒绝无写入/发奖、并发、不同对象互不影响与解除后行为 |
+| R3 待方案确认 | 固定版本部署与现有/更新拉主干的冲突 | 公开服务需要可控升级，不能因管理员操作越过已验收版本 | 确认统一配置控制或公开部署禁用更新插件并使用运维升级；验证版本固定、备份及恢复。未经确认不改变私有更新行为 |
+| R4 待权限确认 | remedy_checkin仍使用admin_user限制管理补卡，核对公开群管理员免费/代他人补卡规则；核查扣费与额度一致性 | 首版包含补卡，不能把插件管理仅超管误认为所有补卡权限也已收紧 | 所有者明确权限，随后按统一规则验收普通用户/群管理员/超管与并发扣费、失败回滚；不得按版名分支 |
+| T1.8 待完整验收 | 首版账号跨A群/B群/私聊的数据与权限矩阵 | 一个账号共享积分和打卡，群与私聊开关却互不影响；真实组合需验证 | 同账号多入口数据一致、不同账号隔离、A开B关、账号覆盖和注册/审核限制；旧配置兼容、仅改edition无行为差异。已有测试复用，缺的再补 |
+
+T1.5设计约束：match保持无副作用，冷却时间戳与并发竞争应在执行控制处处理；不开新版本分支，不让各插件各写一份限制。尚未确定的键、提示频率、豁免和存储方式不能当成已批准方案。
+
+建议执行顺序：R1/R2已交付，接续T1.5提案与实施 → R3/R4确定并处理 → T1.8完整核对。独立事项可调整顺序，但不能跳过上线前验收。
+
+## 4. M2 上线清单（均未取得完整完成证据）
+
+| 编号 | 工作与验收 | 所服务的要求与设计原因 |
 |---|---|---|
-| M0 | T0.1-T0.9 | pytest 全绿；私有部署行为不变；`edition=community` 配置可冷启动 bot 单进程 |
-| M1 | T1.1-T1.8 | 注册→私聊指令→拉群→审核→群激活全链路可演示；门控/频控测试过 |
-| M2 | T2.1-T2.4 | community-edition-plan §4 批次 1 验收逐条通过，对外放号 |
-| M3+ | §6 | 每批独立验收 |
-
----
-
-## 2. M0 · 清障（W3 细化，纯重构）
-
-### T0.1 配置分侧与 edition 引入 `M` ✅ 已完成（`0e5fe4f`，2026-09-08，SDD 全流程：spec + plan + 4 任务逐个审查 + 最终全分支审查）
-
-> 执行计划：`docs/superpowers/plans/2026-09-08-config-edition-split.md`（任务级细化，含完整测试/实现代码）
-
-**目标**：`config.yaml` 增加 `bot.edition: private|community`（缺省 private）；必填键按部署形态拆分，社区版（纯 bot）不强制 webapp/OneBot-HTTP 侧配置。
-
-**改动**：`core/config.py`、`config.example.yaml`、`test/test_config_loader.py`、`test/test_config_wiring.py`
-
-**步骤**：
-1. `_REQUIRED` 拆为 `_REQUIRED_BOT`（qq/nickname/super_users/ws_url/ws_token/llonebot_data_path/python_data_path/auth.salt）+ `_REQUIRED_PRIVATE`（bot.default_group、onebot.http_url、onebot.token、timeline.url、timeline.token）；`edition != "private"` 时只校验 `_REQUIRED_BOT`。
-2. 新导出：`EDITION`、`SYSTEM_PLUGINS_CONF = _bot.get("system_plugins")`（T0.4 消费）、`COMMUNITY = _sec("community")` 的访问器（`community.max_groups` 缺省 50、`community.cmd_cooldown_seconds` 缺省 3）。
-3. `DEFAULT_GROUP_ID` 改 `Optional[int]`：`bot.default_group` 缺省时为 `None`（`GROUP_ID` 别名跟随）；`webapp` 侧使用处（`weekly/app.py` 等）在 private edition 下语义不变。
-4. `config.example.yaml` 注释标注各键的 edition 适用性。
-
-**验收**：private 配置行为与现状完全一致；缺 `default_group/timeline/onebot.http` 的 community 配置可加载；pytest 全绿。
-
-**commit**：`feat(配置): bot.edition 部署形态与必填键分侧`
-
-### T0.2 发送兜底适配（DEFAULT_GROUP_ID 可空）`S` ✅ 已完成（`55f28b0`，2026-09-08，spec + plan + SDD 全流程审查）
-
-> spec：`docs/superpowers/specs/2026-09-08-send-fallback-drop-design.md` · plan：`docs/superpowers/plans/2026-09-08-send-fallback-drop.md`
-
-**目标**：社区版无默认群时，无群上下文的群发不再隐式发往某个群。
-
-**改动**：`core/api.py`（3 处：`send_group_msg` L98、`send_group_forward_msg` L171、`send_group_forward_nodes` L191 的 `if not group_id: group_id = runtime_context.DEFAULT_GROUP_ID`）
-
-**步骤**：`DEFAULT_GROUP_ID` 为 `None` 时记 `logger.warning("无群上下文且未配置默认群，丢弃发送")` 并返回 0。私有版（有默认群）行为不变。
-
-**测试**：`test/test_api_send_fallback.py`（新增）：mock runtime_context.DEFAULT_GROUP_ID=None，断言不发 WS 帧且返回 0。
-
-**commit**：`fix(发送): 无默认群部署丢弃群发并告警`
-
-### T0.3 时间线上报可关 `S` ✅ 已完成（实现随 1.45.2 `70f1e2d` 落地；收尾测试+文档 2026-10-06，OpenSpec 提案 [`timeline-report-noop`](../../openspec/changes/archive/2026-10-06-timeline-report-noop/proposal.md)：`test/test_timeline_noop.py` 空 URL no-op 断言 + 有配置回归）
-
-**目标**：社区部署（无 webapp）`timeline.url/token` 留空 → `emit_event/retract_event` 直接 no-op，不再要求配置。
-
-**改动**：`core/timeline_client.py`（模块入口判 `TIMELINE_URL`/`TIMELINE_TOKEN` 为空 → `return`），`core/config.py`（`TIMELINE_URL` 允许空串）
-
-**测试**：现有时间线相关用例补"空配置 no-op"断言。
-
-**commit**：`feat(时间线): 留空配置时上报静默关闭`
-
-### T0.4 系统插件配置化 `S` ✅ 已完成（2026-10-06，OpenSpec 提案 [`system-plugins-config`](../../openspec/changes/archive/2026-10-06-system-plugins-config/proposal.md)：`core/context.py` 接线 `SYSTEM_PLUGINS_CONF`，非空 = 精确替换、空/缺省 = 内置 8 项，`test/test_context_system_plugins.py` 三断言）
-
-**目标**：`SYSTEM_PLUGINS` 从硬编码 frozenset 改读 `config.yaml bot.system_plugins`（缺省 = 现值 8 个），社区配置裁掉 `message_logger`、`startup_changelog`。
-
-**改动**：`core/context.py`（`SYSTEM_PLUGINS = frozenset(config.SYSTEM_PLUGINS_CONF or 默认集)`）、`config.example.yaml`
-
-**说明**：消费方（`main.py` plugin_pool、`group_manager` 的 🔒 展示、监控面板）全部经 `runtime_context.SYSTEM_PLUGINS` 引用，改一处数据源即全生效，无需逐处改。
-
-**测试**：`test/test_context_system_plugins.py`：自定义 system_plugins 配置生效；不在集合内的 message_logger 类插件对 meta 事件仍运行（心跳插件绕过启用检查是既有语义，本任务不改——见 T1.2 门控兜底）。
-
-**commit**：`feat(插件): 系统插件集合改为 config 配置`
-
-### T0.5 周常任务引擎迁出 core `M` ✅ 已完成（2026-10-06，OpenSpec 提案 [`quest-engine-extraction`](../../openspec/changes/archive/2026-10-06-quest-engine-extraction/proposal.md)：四符号逐字迁入 plugins/weekly_quest/engine.py，5 插件 import 改造，test/test_quest_engine.py 冒烟）
-
-**目标**：玩法规则（QUEST_DEFS、on_quest_trigger/on_quest_rollback、get_quest_week_key）从 `core/utils.py` 移入 `plugins/weekly_quest/engine.py`，core 只留纯工具。行为零变化。
-
-**改动**：
-- 新建 `plugins/weekly_quest/engine.py`：迁入 `QUEST_DEFS`、`get_quest_week_key`、`on_quest_trigger`、`on_quest_rollback`（内部继续用 `core.utils.get_monday_to_monday/add_user_point`——绝对导入，符合规范）
-- 改 import（5 处）：`plugins/checkin/__init__.py:5,125`、`plugins/lottery/__init__.py:7,66`、`plugins/checkin_recall/__init__.py:6,106`、`plugins/roll_back/__init__.py:4,86`、`plugins/weekly_quest/__init__.py:3,23,30,58`
-- `core/utils.py` 删除对应定义（保留 `get_monday_to_monday`、`add_user_point` 等纯工具）
-
-**测试**：现有周常/打卡/抽奖回归全绿即证明等价；补 `test/test_quest_engine.py`（新家地址）冒烟：trigger 达标发奖、rollback 撤奖。
-
-**commit**：`refactor(周常): 任务引擎从 core 迁入 weekly_quest 插件域`
-
-### T0.6 称号前缀注入钩子化 `S` ✅ 已完成（2026-10-06，OpenSpec 提案 [`title-prefix-hook`](../../openspec/changes/archive/2026-10-06-title-prefix-hook/proposal.md)：core/context.py 注册点 + plugins.title 自注册 + api 接缝调用；Ruling：异常吞没单点放 api 接缝）
-
-**目标**：消除 `core/api.py → plugins.title` 反向依赖（`_build_title_prefix` L49-64 的延迟 import）。
-
-**改动**：
-- `core/context.py`：`TITLE_PREFIX_PROVIDER = None` + `def register_title_prefix_provider(fn)`
-- `plugins/title/__init__.py`：模块级注册 `runtime_context.register_title_prefix_provider(build_title_prefix)`（把现 `_build_title_prefix` 主体迁来，含 `dbmanager.titles.equipped_all` + `get_title_def` 逻辑与异常吞掉）
-- `core/api.py`：`_build_title_prefix` 改为调 `runtime_context.TITLE_PREFIX_PROVIDER(dbmanager, user_id)`，未注册返回 `""`（title 插件不在 registry 时的降级，与现状一致）
-
-**测试**：现有 @ 提及称号注入用例回归；补"未注册 provider 时消息原样"断言。
-
-**commit**：`refactor(称号): 前缀注入改为注册式钩子解除 core 反向依赖`
-
-### T0.7 功能包双表与社区包定义 `M`
-
-**目标**：功能包按 edition 选择；定义社区版包结构（剔除私域插件、补齐游离插件）。
-
-**改动**：`core/feature_packs.py`、`plugins/group_manager/__init__.py`（4 处 `FEATURE_PACKS` → `ACTIVE_PACKS`）、`kb/PLUGIN_CATALOG.md`、`specs/plugin-catalog.md`
-
-**社区包定义**（⚠️ 待定：包名与归组可调）：
-
-| 包 | 插件 |
-|---|---|
-| 打卡基础 | checkin、checkin_recall、roll_back、remedy_checkin、week_checkin_display、all_checkin_display、week_list、personal_records、leaderboard |
-| 经济扩展 | lottery、redeem_shop、redeem_code、grant_points_all、title、weekly_quest |
-| 娱乐工具 | group_alarm、dice、divination、random_reference |
-| 活动 | activity（现游离于任何包，补齐） |
-| 匿名游戏 | who_is_spy（批次 2 开放） |
-| 跑团 | trpg_dice、trpg_session、trpg_char（批次 3 开放） |
-| 群管理 | group_essence、set_group_title、recall_message（批次 2，默认关；at_all_reply 不释出） |
-
-私有包 `FEATURE_PACKS` 原样保留。社区部署默认启用"打卡基础 + 经济扩展"（T1.4 审核通过时播种）。
-
-**测试**：`test/test_feature_packs.py`：edition 选择正确；社区包不含 ff_news/immortal_lottery/message_logger/call。
-
-**commit**：`feat(功能包): 双形态包表与社区包定义`
-
-### T0.8 菜单双文本 `M` ✅ 已完成（2026-10-07，设计变更：文案包机制取代双常量，OpenSpec 提案 [`text-pack-loading`](../../openspec/changes/archive/2026-10-06-text-pack-loading/proposal.md)：`bot.text_pack` → yaml 包，缺键回落内置，`core/text_pack.py::get_text`；`text_packs/community.yaml` 社区中性文案草稿（T2.4 定稿）；私有不配键 = 内置文案零变化）
-
-**目标**：社区版菜单中性文案（去私域梗：板油、FF14、"小埃同学"人设），按 edition 切换。
-
-**改动**：`plugins/menu/bot_menu_text.py`（新增 `COMMUNITY_MENU_TEXT` 常量）、`plugins/menu/__init__.py`（按 `config.EDITION` 选）、菜单相关测试断言、`kb/QUICK_REFERENCE.md`（指令表标注 edition 差异）
-
-**⚠️ 待定**：社区版收录指令清单 = 打卡基础 + 经济扩展两包的全部指令（与 T0.7 默认包一致）；文案基调（"喵"等人设语气保留与否）由所有者定稿。
-
-**测试**：`test/test_menu_text.py`：两套文本均为合法指令超集；edition 切换生效。
-
-**commit**：`feat(菜单): 社区版菜单文本`
-
-### T0.9 心跳任务作用域审计（仅批次 1 范围）`S` ✅ 已完成（2026-10-06，纯审计零代码，结论表见 [`specs/plugins.md` 附录](../../specs/plugins.md)：批次 1 两心跳零问题；发现 meta 路径泄漏（plugin_pool 对 meta 绕过 is_plugin_enabled，ff_news/weekly_report/startup_changelog 在社区形态仍会被触发），修复归属 T1.2 已回写）
-
-**目标**：确认批次 1 唯一心跳任务 `shop_weekly_rotation`（`plugins/redeem_shop/__init__.py:25`）在社区形态正确：货架全局单份 → 轮换单次执行，无需按群；`ff_news`/`startup_changelog` 等私域播报已在 T0.4/T0.7 排除。
-
-**步骤**：逐个 grep `TimedHeartbeatPlugin` 子类 → 列"私有专属（不进社区）/全局单次（现状即可）/需按群遍历（批次 2 处理）"三栏结论表，写入 `specs/plugins.md` 附录；本任务只修"批次 1 范围内"的问题（预期为零代码改动，纯审计产出）。
-
-**commit**：`docs(插件): 心跳任务多群作用域审计结论`
-
----
-
-## 3. M1 · 准入与运营（W1+W2 细化）
-
-### T1.1 社区表 DDL 与 manager `M`
-
-**新表**（DDL 进 `core/db/_base.py::init_schema`，读写集中新文件 `core/db/community.py::CommunityManager`；`DbManager` 挂 `self.community`）：
-
-```sql
-user_accounts(user_id INTEGER PRIMARY KEY, created_at TEXT NOT NULL)          -- 注册即插入；封禁走 blacklist，不设 status 列（对总计划的简化）
-group_registry(group_id INTEGER PRIMARY KEY, name TEXT, invited_by INTEGER,
-               approved_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active')  -- status: active|removed（bot 被移出群时标记，保留记录）
-group_requests(group_id INTEGER NOT NULL, user_id INTEGER NOT NULL, flag TEXT NOT NULL,
-               sub_type TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',   -- pending|approved|rejected
-               created_at TEXT NOT NULL, PRIMARY KEY (group_id, user_id, created_at))
-blacklist(scope TEXT NOT NULL, target_id INTEGER NOT NULL, reason TEXT,
-          created_at TEXT NOT NULL, PRIMARY KEY (scope, target_id))             -- scope ∈ 'user'|'group'
-```
-
-**步骤**：DDL + `CommunityManager`（register_user / is_registered / upsert_request / pending_requests / resolve_request / activate_group / is_group_active / iter_active_groups / ban / unban / is_banned）+ 文档同步（`kb/DATABASE.md`、`specs/database.md`，表总数 44→48）。
-
-**测试**：`test/test_community_db.py`：CRUD + 状态流转 + 幂等（重复注册、重复入队同 flag 去重）。
-
-**commit**：`feat(社区): 账号/群注册/审核/黑名单表与数据层`
-
-### T1.2 中央门控 `M`
-
-**目标**：`plugin_pool`（`main.py:29`）在现有 `is_plugin_enabled` 检查前增加三道集中检查——黑名单 → 群激活 → 私聊注册。一处实现，全部插件零改动。
-
-**改动**：`main.py`、`core/context.py`（新增 `PRIVATE_WHITELIST = frozenset({"register", "menu"})` 常量，⚠️ 待定集合内容）
-
-**逻辑**（每事件**一次**查询，结果缓存供循环复用，不逐插件查）：
-
-```python
-# plugin_pool 顶部，进循环前：
-if context_is_message_or_notice(raw):
-    uid, gid = raw.get("user_id"), raw.get("group_id")
-    if community.is_banned("user", uid) or (gid and community.is_banned("group", gid)):
-        return                                  # 黑名单：整事件丢弃
-    if gid is not None and not community.is_group_active(gid):
-        return                                  # 未激活群：整事件丢弃（含被移出后 status=removed）
-    if gid is None and not community.is_registered(uid):
-        allow = {plugin_key(c) for c in registry} & PRIVATE_WHITELIST   # 未注册私聊：仅白名单插件可见
-```
-
-**边界确认**（写进代码注释）：`notice` 事件放行（register 插件靠 notice 触发）；私有 edition 下三道门控全部直通（`group_registry` 空 = 所有群不激活 → 必须给私有部署免检：**门控仅 `EDITION == "community"` 生效**，⚠️ 这是关键设计点——私有版零行为变化）。**`meta` 事件（T0.9 审计修正）**：社区形态下不再无条件放行——plugin_pool 对 meta 绕过 `is_plugin_enabled`，私域 meta 插件（ff_news/weekly_report/startup_changelog）仅靠门控拦截；改为 meta 经插件级白名单过滤，仅社区必需心跳（shop_weekly_rotation/weekly_quest_reset/backup/forum_notify）与社区系统插件可见，私有形态 meta 直通不变（结论表见 `specs/plugins.md` 附录）。
-
-**测试**：`test/test_gate.py`（新）：①未注册私聊仅白名单插件收到事件 ②未激活群全静默 ③黑名单用户/群全静默 ④私有 edition 直通 ⑤meta：私有直通全部插件、社区仅白名单心跳+社区系统插件可见（T0.9 审计发现补）⑥notice 不受门控影响。
-
-**commit**：`feat(社区): plugin_pool 中央门控（黑名单/群激活/注册检查）`
-
-### T1.3 register 插件（注册流程）`M`
-
-**目标**：新插件 `plugins/register/`，社区形态下承接 auto_friend + welcome 职责。
-
-**流程**（⚠️ 文案与确认方式待所有者定稿）：
-
-```
-request_type=friend ──► set_friend_add_request(approve=True)（沿用 auto_friend 逻辑）
-notice friend_add   ──► 私聊发注册引导（社区简介 + 规则摘要 + "回复 /注册 完成注册"）
-/注册（私聊）        ──► 已注册 → 提示；未注册 → user_accounts 插入 + 欢迎语（引导拉群："把我拉进你的群，等待审核通过后群内功能开放"）
-/菜单（私聊，白名单内）──► 已在 T0.8 支持；未注册用户看到的菜单 = 社区简介变体（⚠️ 待定）
-```
-
-**配置配合**：社区 `bot.system_plugins` 含 `register`、不含 `auto_friend/welcome`（T1.7 模板落值）。
-
-**测试**：`test/scripts/check_register_flow.py`（独立进程集成脚本）：好友请求自动通过（mock API 断言）、friend_add 发引导、/注册落库、重复注册幂等。
-
-**commit**：`feat(注册): 好友自动通过与注册流程插件`
-
-### T1.4 群审核 `M` ✅ 1.54.0
-
-**交付说明（以下原流程作为历史设计保留，以本段及正式规范为准）**：独立`group_review`插件，只处理invite及机器人自身进退群；普通成员add不处理。超级用户通过QQ `/待审`、`/审核 <群号> <通过|拒绝> [申请编号]`审批，多个凭证须选编号。批准后仅开启配置指定包（公开模板为打卡基础，不含经济扩展）；原开关保留。容量含批准中的预留名额，远端结果持久化、本地登记同事务，失败不盲目再批准。require缺省false保持旧部署行为；未批准群的消息及所属后台任务不运行，生命周期通知仍可处理。此设计满足逐群开放和限制维护负担的要求，不增加Web界面。
-
-验收：`test/test_group_review.py`、`test/test_group_review_data.py`及既有心跳/模板测试。操作与故障恢复见[group-review-operations.md](group-review-operations.md)。真实QQ联调属于试运行上线条件，非模拟测试所能证明。
-
-**以下为已被上述交付替代的原始草案，不得照此再开发：**
-
-**目标**：处理 `request_type=group`（sub_type=add/invite）事件 → 审核队列 → 超管指令批准/拒绝 → 激活播种。
-
-**改动**：新插件 `plugins/group_review/`（或并入 register 插件目录，⚠️ 待定归属；建议独立——职责不同）；**先查 `specs/onebot-protocol.md` 与上游 OneBot v11 文档核对 `set_group_add_request` 参数（flag + sub_type + approve）**。
-
-**流程**：
-
-```
-request_type=group ──► 黑名单群直接 reject；超限（community.max_groups / iter_active_groups 计数）直接 reject + 私聊告知邀请人
-                    └─► group_requests 入队（存 flag/sub_type）+ 私聊通知全部超管：
-                        "入群申请：群 {group_id}（名称经 get_group_info 解析，失败显示群号）· 邀请人 {user_id}\n/审核 {group_id} 通过|拒绝"
-/待审（超管，私聊）──► 列出 pending 队列
-/审核 <群号> <通过|拒绝>（超管，私聊）──► set_group_add_request(flag, sub_type, approve)
-        通过 ──► group_registry 激活 + 播种默认功能包（打卡基础+经济扩展，复用 group_manager 的 _set_pack_config 逻辑——抽公共函数）
-                 + 群内欢迎公告（⚠️ 文案待定）
-        拒绝 ──► 标记 rejected + 私聊回执邀请人（best-effort）
-notice group_increase（bot 自身入群）──► 若群不在 registry（如超管手动拉入）→ 入队并通知超管补审（不自动激活，门控挡着）
-notice group_decrease（bot 被移出/退群）──► group_registry.status=removed（保留审核记录，防重复入队通知刷屏——同群再邀请重新走审核）
-```
-
-**测试**：`test/scripts/check_group_review.py`：入队→通知→通过→激活+播种→群事件放行；拒绝路径；超限路径；bot 被移出后群事件再次被门控拦截。
-
-**commit**：`feat(审核): 拉群审核队列与超管批准流程`
-
-### T1.5 拉黑与指令频控 `M`
-
-**目标**：反滥用最小集。
-
-**改动**：`core/base.py`（频控）+ 复用 T1.1 blacklist 表 + 新超管指令（建议挂 `plugins/group_manager/` 或 register 插件，⚠️ 待定归属——建议 group_manager，它已是管理指令聚集地）。
-
-**频控设计**（中央一处，全部 CommandPlugin 自动受益）：
-- `CommandPlugin.match` 尾部（命令已匹配后）：`uid = user_id`，键 `(uid, cmd)`，距上次执行 < `community.cmd_cooldown_seconds`（私有 edition 缺省 0 = 关闭）→ `return False` 静默忽略；内存 dict + 类级锁，重启清零（`# ponytail: 内存频控，重启清零；需持久化时落表`）。只读检查，不违反"match 无副作用"。
-- 自定义 match 的插件（activity/who_is_spy 等）批次 2 各自补（任务里列出）。
-
-**拉黑指令**：`/拉黑 用户|群 <id> [原因]`、`/解除 用户|群 <id>`（超管，写 blacklist；门控 T1.2 生效）。菜单文本同步。
-
-**测试**：`test/test_cooldown.py`（同用户同指令冷却内二次 match 为 False、不同用户互不影响）；拉黑指令读写 + 门控联动（T1.2 已有，补指令路径）。
-
-**commit**：`feat(风控): 指令频控与黑名单指令`
-
-### T1.6 管理权限收紧 `S`
-
-**目标**：管理/配置操作全部仅限 config 设定的超级用户——群主自治不开放（2026-09-08 所有者决策，总计划 D11，原待定项已否决）。
-
-**改动**：
-- `plugins/grant_points_all`：`admin_user()` → `super_user()`（仅社区 edition；私有版保持 admin_user，用 `config.EDITION` 分支——权限点属允许的 edition 接缝）。该项已在总计划 §8-3 落定。
-- `plugins/group_manager` 的 `/插件` `/功能包`：**两形态均维持现状仅超管**，不做任何群自治开放；跨群操作沿用现有 `[群号]` 参数语法，超管无需进群即可远程开关任意群的功能包。
-- T1.4 审核播种后的包调整：超管经 `/功能包 <名> [off|关闭] <群号>` 操作（既有能力，零新增代码）。
-
-**测试**：`test/test_group_manager_perms.py`（新）：两形态下群管理员使用 /插件、/功能包 均被拒；超管跨群开关生效；grant_points_all 社区版群管理员被拒、私有版群管理员放行。
-
-**commit**：`feat(管理): 社区版管理权限收紧为仅超级用户`
-
-### T1.7 社区配置模板 `S`
-
-**产出**：`config.example.community.yaml`（完整可用模板）：
-- `bot.edition: community`、新 QQ 号占位、`super_users`、WS 连接
-- `bot.system_plugins: [menu, group_manager, backup, update, register, group_review, monitor]`（无 message_logger/startup_changelog/auto_friend/welcome）
-- 无 `timeline`/`onebot`/`webapp`/`live`/`weekly` 节（或留空）
-- `community: {max_groups: 50, cmd_cooldown_seconds: 3}`
-
-**同步**：`docs/community/` 增补部署小节（bot 单进程 systemd unit 参照 `docs/web-apps-deployment.md` 裁剪）；部署按 **git tag 固化**（本任务打出首个社区部署 tag，如 `community-v1`，后续升级 = 显式 bump tag）。
-
-**验收**：`BOTERO_CONFIG=config.example.community.yaml python -c "import main"` 级别的干跑不退出（实际为 `import core.config` 成功）+ 插件全部注册。
-
-**commit**：`feat(社区): 社区版配置模板与部署说明`
-
-### T1.8 跨群一致性测试（W2 落地）`S`
-
-**目标**：以测试固化"用户全局账户"语义。
-
-**内容**：`test/test_cross_group_identity.py`：同一 user_id 在群 A、群 B、私聊三个上下文各执行打卡/抽卡 → 断言：钱包余额唯一变化、`count_days`/周常进度单份、称号单套；同日多群打卡 = 同日多次打卡语义（第二条记录存在、连续天数不变）。
-
-**commit**：`test(社区): 跨群私聊全局账户一致性断言`
-
----
-
-## 4. M2 · 上线装配
-
-### T2.1 私有部署全量回归 `S`
-
-pytest 全量 + 手工冒烟清单（打卡/补卡/撤回/抽卡/商店/称号装备/周常/排行/闹钟/活动/网页打卡/论坛）逐项过；任何回归回到对应任务修复，不带病上线。
-
-### T2.2 社区实例部署与试运行 `M`
-
-新 QQ 号 + NapCat 容器接入（复用现有部署方案）；`config.yaml`（社区模板落值）；systemd 单 unit；工作目录 checkout 固定 tag（T1.7 打出，升级时显式 bump）；**先拉自有试运行群跑 1-2 周**（运营建议：注册分时段放量，防新号风控）。观察项：好友请求频次、审核队列时延、频控误伤。
-
-### T2.3 批次 1 正式验收 `S`
-
-按 community-edition-plan §4 批次 1 验收逐条执行并记录：冷启动全链路（加好友→注册→私聊打卡→拉群→审核→群内全流程）、跨群+私聊唯一账户、私有部署回归。
-
-### T2.4 运营物料 `S`（⚠️ 内容全部待所有者定稿）
-
-注册引导文案、社区规则摘要（含 AI 作品政策占位——总计划 §8-4）、群欢迎公告、社区版菜单文案终稿、（可选）推广说明。仅改 `plugins/register/`、`bot_menu_text.py` 常量与配置。
-
----
-
-## 5. M3+ · 批次 2/3 粗粒度任务（上线后按同格式细化）
-
-| 任务 | 内容 | 已知前置工作 |
-|---|---|---|
-| B2.1 娱乐工具包释出 | dice/divination/random_reference/group_alarm 群审核通过后可开；group_alarm 已带 group_id，审计私聊闹钟（group_id=0）在多群服务的语义 | T0.9 审计结论 |
-| B2.2 活动包释出 | activity 指令 + 网页接力提交的 bot 侧心跳（activity_timer）多群并发审计（按 activity.group_id 遍历，现结构已支持，需回归） | T0.9；`/活动` 群内创建固定 `DEFAULT_GROUP_ID` 处改为 `bot_event.group_id`（grep 确认改造点） |
-| B2.3 卧底释出 | who_is_spy；`context.game_rooms` 已按群 keyed，补多群并发回归；跨群统计全局（D4 口径） | — |
-| B2.4 群管理工具释出 | group_essence/set_group_title/recall_message 默认关、群主可开；需 bot 群管理员身份的使用提示 | T1.6 权限模式 |
-| B3.1 跑团包释出 | trpg 三插件；`core/context.py` 录制状态（recording_sessions/group_roles/GAME_SYSTEM）迁入 `plugins/trpg_session`，`core/api.py` 录制钩子的 `is_group_recording` 调用改经注册式 hook（复用 T0.6 模式） | T0.6 模式 |
-| B3.2 周报社区化评估 | weekly_report 数据源站内化（去 message_logger 依赖）后评估是否进社区包；不进则永久私有 | 市场计划 4.1 |
-
-## 6. 明确不做（防执行时顺手扩散）
-
-- 不拆仓库/不建包管理结构（D5 同代码库）；
-- 不动 web 侧任何表与模块（批次 1 不带 webapp）；
-- 不引入账号密码/网页注册/多平台适配（D2/D3）；
-- 不做内容审核系统（举报/机审/处置流）——后置到 web 社区化阶段；
-- 不动 `immortal_lottery`/`ff_news`/`message_logger`/`weekly_report` 本体（社区直接不启用）。
-
----
-
-## 7. 执行纪律
-
-1. 严格按依赖顺序；同里程碑内无依赖任务可任意穿插。
-2. **每个 bump 类任务动工前 OpenSpec 提案必须齐全**（proposal 含完整验收标准 / specs / design / tasks，流程与判据见 `specs/conventions.md` §功能开发主流程：要 bump 就要提案）；纯重构/测试任务免提案，跨文件重构建议轻量提案。任务标题下挂提案归档路径链接。缺提案不得写代码。
-3. ⚠️ 标记项在动手前找所有者确认，确认结果回写本文档（划掉待定、记录结论）。
-4. 每完成一个任务：勾选对应复选框（见下）、跑全量 pytest、按约定 commit。
-
-**进度追踪**：
-
-- [ ] M0：~~T0.1~~✅ ~~T0.2~~✅ ~~T0.3~~✅ ~~T0.4~~✅ ~~T0.5~~✅ ~~T0.6~~✅ ~~T0.8~~✅ ~~T0.9~~✅ T0.7（待所有者拍板社区包结构）
-- [ ] M1：T1.1 T1.2 T1.3 T1.4 T1.5 T1.6 T1.7 T1.8
-- [ ] M2：T2.1 T2.2 T2.3 T2.4
-- [ ] M3+：批次 2（B2.1-B2.4）· 批次 3（B3.1-B3.2）
+| T2.1 私有部署回归 | 同一待上线版本全量pytest；私有实际配置启动与关键玩法/网页交互冒烟；不将/更新执行成功视为全部回归通过 | 私有服务持续可用，代码测试无法替代真实外部服务验证 |
+| T2.2 公开实例试运行 | 独立QQ号、DB及媒体目录；明确QQ后端/进程守护/固定版本升级；备份恢复和异常通知实际演练；先小范围群及账号 | 限制事故影响，确认真实接口、消息送达及恢复能力 |
+| T2.3 首版验收 | 好友→欢迎→主动注册→协议同意→私聊功能；邀请/手动进群→审批→群内功能；拒绝/离群/超时恢复；跨对象权限与防滥用。每项留结果 | 模拟OneBot响应不证明实际QQ可用，也不代表可对外放号 |
+| T2.4 运营材料核对 | 所有者已修改协议及注册文案，不重新要求从零起草；核对部署加载的文件、菜单实际开放范围、群公告、服务预期与隐私说明，再请所有者确认发布版本 | 防止代码行为与用户承诺不一致；资料定稿与技术上线是不同验收 |
+
+每批上线必须记录“维护者可持续性影响”：新增人工流程、监控盲区、可自动化部分及故障处置步骤。参见[守则](sustainability.md)，不能为补齐候选自动化功能无限扩大首版。
+
+## 5. 上线后候选，不是默认排期
+
+- 后续插件统一输出迁移：所有插件最终用同一方式发送，避免长期维护两套；复用迁移清单，不声称第一阶段已覆盖全部。
+- 娱乐、闹钟、活动、卧底、群管理工具、跑团：由运营反馈选定，每项重新核对依赖、数据归属、权限、心跳和多群并发；仍由超管开放，不授权群主自行开包。
+- 经济扩展：首版之外，需明确批准和独立提案；不能因为代码已改造就自动添加到模板。
+- 健康摘要、告警、反馈、数据导出和只读模式：可持续性候选；对外发送目的地、数据导出范围另行确认。
+- 公开版每季度至多一次功能更新；其余时间修复问题。webapp与其他平台不在首版范围，不承诺后续必须上线。
+
+## 6. 执行纪律
+
+1. 每项新行为说明服务哪条需求及原因，未确认的选择先问所有者。
+2. 要bump版本就先OpenSpec提案；完整验收后归档，实现/测试/规格/菜单/CHANGELOG同一逻辑提交。纯文档整理无需提案或版本更新。
+3. 同一程序只由实际配置控制，不使用edition业务分支；关闭注册/审核要求应兼容旧配置。
+4. 测试配置、DB和媒体都必须临时隔离；仅临时BOTERO_CONFIG不足以保证安全。模板子进程必须检查派生数据路径。
+5. 未完成、不确定和缺少真实部署证据的项目不得勾选完成。代码测试、真实QQ试运行和正式开放分别验收。
