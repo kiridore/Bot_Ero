@@ -493,7 +493,7 @@ class GrantPointsAllPlugin(CommandPlugin):
 | `ff_news` | meta · 整点 | **私有专属（不进社区）** | FF14 官网新闻推默认群。⚠️ 见下方"meta 路径泄漏" |
 | `weekly_report` | meta · 启动补偿 + 周一 08:00 | **私有专属（不进社区）** | 数据源 message_log（社区不启用 message_logger）；周报发默认群。⚠️ 同上 |
 | `startup_changelog` | meta · 启动首次（Plugin 子类，`startup_changelog_sent` 标志） | **私有专属（不进社区）** | ⚠️ 同上 |
-| `welcome` / `auto_friend` | notice / request 触发 | 不属心跳 | M1 由 register 插件承接（T1.3） |
+| `welcome` / `auto_friend` | notice / request 触发 | 不属心跳 | 职责保持独立：auto_friend同意好友请求，welcome在friend_add后欢迎；register等待主动指令。注册限制仅针对真正的message，不拦好友request。 |
 | `activity_timer`（activity） | 消息事件驱动（Plugin 子类，非心跳） | 需按群遍历（批次 2） | 自带 `activity.group_id`（23 处引用），多群并发审计归 B2.2 |
 
 ### 2026-10-09 修复现状（config-unification 任务组3）

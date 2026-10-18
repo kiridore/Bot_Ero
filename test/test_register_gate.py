@@ -48,7 +48,9 @@ class RegisterGateTest(unittest.TestCase):
         gate = runtime_context.register_gate("message", None, 777)
         self.assertEqual(gate, runtime_context.REGISTRATION_ALLOWLIST)
         self.assertIn("register", gate)
-        self.assertIn("show_menu", gate)
+        from plugins.menu import MenuPlugin
+        self.assertIn(runtime_context.plugin_key(MenuPlugin), gate)
+        self.assertNotIn("show_menu", gate)
         self.assertNotIn("checkin", gate)
 
     def test_group_notice_meta_and_registered_unrestricted(self):

@@ -45,7 +45,9 @@ def plugin_pool(context: dict, event_type: str):
         logger.exception("读取插件设置失败，本次事件不执行，防止绕过关闭设置")
         return
     group_gate = runtime_context.group_event_gate(context)
-    gate = runtime_context.register_gate(event_type, group_id, user_id)
+    # 请求也沿用message调度类型；注册限制只约束真正的消息，不能拦住好友申请。
+    gate = (runtime_context.register_gate(event_type, group_id, user_id)
+            if context.get("post_type") == "message" else None)
     if gate is not None and runtime_context.should_remind_register(user_id, context):
         try:
             from core.api import ApiWrapper

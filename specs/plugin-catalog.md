@@ -50,8 +50,8 @@
 | 文件 | 类名 | `name` | 触发 | 说明 |
 |------|------|--------|------|------|
 | `auto_friend/` | `AutoFriendPlugin` | `auto_friend` | `request_type == "friend"` | 自动接受好友请求 |
-| `welcome/` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息（文案包键 `welcome.friend_add`） |
-| `register/` | `RegisterPlugin` | `register` | CommandPlugin `/注册` `/同意EULA` | 公开部署注册流程与《用户协议》同意；准入限制见 main.py 与 core/context.register_gate |
+| `welcome/` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息（文案包键 `welcome.friend_add`）；公开模板列入允许名单及系统集合，新好友无需先注册；不自动注册 |
+| `register/` | `RegisterPlugin` | `register` | CommandPlugin `/注册` `/同意EULA` | 主动注册流程与《用户协议》同意；准入限制仅针对真实私聊消息，允许插件标识register/menu；不处理好友申请或添加通知，见main.py与core/context.register_gate |
 | `message_logger/` | `MessageLoggerPlugin` | `message_logger` | 所有群消息（系统插件） | 记录群消息到独立库 `server_data/message_log.db`（周报数据源，永久保留） |
 
 ## 定时/心跳插件

@@ -85,7 +85,7 @@ def group_event_gate(raw: dict) -> frozenset | None:
 
 
 # —— 私聊注册准入（M1 community-registration）：require=False 时全部函数零行为 ——
-REGISTRATION_ALLOWLIST = frozenset({"register", "show_menu"})
+REGISTRATION_ALLOWLIST = frozenset({"register", "menu"})
 _REGISTER_REMINDER_COMMANDS = {"/注册", "/同意eula", "/菜单", "/菜單"}
 _register_reminder_at: dict[int, float] = {}
 _register_reminder_lock = Lock()

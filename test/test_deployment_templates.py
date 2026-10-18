@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 TEMPLATE = PROJECT_ROOT / "config.public.example.yaml"
 PACKS = PROJECT_ROOT / "feature_packs_public.yaml"
 
-SYSTEM = {"menu", "group_manager", "backup", "update", "auto_friend", "register", "group_review"}
+SYSTEM = {"menu", "group_manager", "backup", "update", "auto_friend", "welcome", "register", "group_review"}
 BASICS = {"checkin", "checkin_recall", "roll_back", "remedy_checkin",
           "week_checkin_display", "all_checkin_display", "week_list",
           "personal_records", "leaderboard"}

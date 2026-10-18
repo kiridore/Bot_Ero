@@ -136,7 +136,7 @@ def test_effective_registration_exceptions_match_runtime(query, monkeypatch):
     monkeypatch.setattr(config, 'REGISTER_REQUIRE', True)
     out = query.run(['列表', '用户', '42'])
     assert '🔒 register（系统插件）' in out
-    assert '🚫 menu（账号未注册；系统插件）' in out  # 使用实际运行期标识，不另造菜单豁免
+    assert '🔒 menu（系统插件）' in out  # 与实际调度标识一致，未注册也可访问菜单入口
     assert context.register_gate('message', None, 42) == context.REGISTRATION_ALLOWLIST
 
 

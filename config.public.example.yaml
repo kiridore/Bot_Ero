@@ -21,6 +21,7 @@ bot:
     - backup
     - update
     - auto_friend
+    - welcome                   # 好友添加通知后发送注册引导，不自动注册
     - register                  # —— 注册流程（M1）——
     - group_review              # —— 群邀请与超级用户审批 ——
     - monitor                   # —— 运维：/系统状态（超管）——
@@ -40,6 +41,7 @@ bot:
     - backup
     - update
     - auto_friend
+    - welcome
     - register
     - group_review
   feature_packs_file: feature_packs_public.yaml   # 打卡基础包（批量开/关用）

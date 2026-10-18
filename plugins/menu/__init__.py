@@ -32,6 +32,6 @@ class MenuPlugin(CommandPlugin):
             except Exception:
                 registered = False
             if not registered:
-                # 条目表内菜单行的插件标识是 "menu"（非插件键 show_menu），这里直接保留两行所需键
+                # 菜单条目和调度均用模块标识menu，只保留注册与菜单入口
                 enabled = {"register": enabled.get("register", False), "menu": True}
         self.api.send_forward_msg([text(render_menu(enabled, self.super_user(), in_group))])
