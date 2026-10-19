@@ -6,6 +6,7 @@ from core.utils import register_plugin, ensure_checkin_image
 
 @register_plugin
 class BackupPlugin(TimedHeartbeatPlugin):
+    IS_COMMAND = True
     name = 'backup_data'
     description = '定时或手动备份打卡图片数据。'
 

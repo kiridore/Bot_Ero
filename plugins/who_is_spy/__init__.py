@@ -76,6 +76,9 @@ class WhoIsSpyPlugin(Plugin):
 
         return False
 
+    def is_command(self):
+        return self._mode == "command"
+
     def handle(self):
         try:
             if self._mode == "command":

@@ -22,6 +22,11 @@
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
 
+## [1.55.0]
+
+- **指令使用上限**：新增`community.command_limit_per_minute`，公开模板20、缺省0关闭；同账号跨群和私聊滚动60秒计数，超管同样受限。仅已匹配可执行指令计数，多插件和内部批量只算一次，失败不退次数。
+- **超限保护**：超限消息的指令业务不执行，原位置提示剩余秒数并在群聊提及用户，同账号10秒最多提示一次；线程安全内存计数、重启清空、不写数据库。普通聊天与后台任务不受影响，既有私有配置升级不自动开启。
+
 ## [1.54.2]
 
 - **注册入口修复**：未注册菜单允许集合使用实际插件标识menu，/菜单与/菜單恢复可达，仅展示必要入口；注册检查仅针对真正消息，不再误拦好友申请。业务功能、群审核和部署限制保持。

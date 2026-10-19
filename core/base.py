@@ -12,6 +12,7 @@ from core.config import BOT_QQ, NICKNAME, SUPER_USER  # noqa: F401,E402 —— �
 
 
 class Plugin:
+    IS_COMMAND = False
     name = ""
     description = ""
 
@@ -51,6 +52,10 @@ class Plugin:
         else:
             content = list(message)
         self.operation.output.submit(content, target=target, kind=kind, merge=merge, order=order)
+
+    def is_command(self) -> bool:
+        """match成功后判断本次操作是否为指令；混合用途插件按匹配结果覆盖。"""
+        return self.IS_COMMAND
 
     def match(self, event_type = "message") -> bool:
         return False
@@ -147,6 +152,7 @@ class CommandPlugin(Plugin):
     self.args holds everything after it.
     """
 
+    IS_COMMAND = True
     COMMANDS: str | tuple[str, ...] = ()
 
     def _first_text(self) -> str:

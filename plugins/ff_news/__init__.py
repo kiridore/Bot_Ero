@@ -30,6 +30,7 @@ def _parse_publish_date(raw: str) -> datetime | None:
 
 @register_plugin
 class FfNewsPlugin(TimedHeartbeatPlugin):
+    IS_COMMAND = True
     name = "ff_news"
     description = "拉取最终幻想14国服官网近期新闻标题与链接；整点检测最新一条并在发布后1小时内推送群聊。"
 

@@ -41,7 +41,8 @@
 | `live` | `flv_url` | ❌ | 直播 FLV 流地址 |
 | `panel` | `host` / `port` | ❌ | bot 内置监控面板（`0.0.0.0` / `8790`，局域网访问，图库密钥超管鉴权） |
 | `tools` | `icon_proxy` | ❌ | 图标抓取代理，空 = 直连 |
-| `community` | `max_groups` / `cmd_cooldown_seconds` | ❌ | 所有部署同规则；缺省 `50` / `0`，公开模板显式冷却3秒。max_groups为正整数，群审核计入已批准及审批预留群数；指令频控执行仍属后续任务 |
+| `community` | `command_limit_per_minute` | ❌ | 缺省0关闭，公开模板20；同账号跨群/私聊滚动60秒总次数，超管也受限；一条匹配消息一次，失败不退，超限原位置提示每10秒至多一次；重启清空 |
+| `community` | `max_groups` / `cmd_cooldown_seconds` | ❌ | 所有部署同规则；缺省 `50` / `0`，公开模板保留冷却3秒字段但同指令冷却尚未实施。max_groups为正整数，群审核计入已批准及审批预留群数 |
 | `group_review` | `require` / `default_pack` | ❌ | 缺省 `false` / `打卡基础`；开启审核须将审核和管理插件列入部署许可/系统集，默认包必须存在且成员可提供；公开模板启用、普通模板关闭 |
 | 文案包 | `group_review.welcome` | ❌ | 批准后群公告覆盖；缺省「本群已接入打卡服务，/菜单 查看可用功能」 |
 

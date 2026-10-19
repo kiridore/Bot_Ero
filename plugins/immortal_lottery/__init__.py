@@ -36,6 +36,7 @@ def _name(uid: int) -> str:
 
 @register_plugin
 class ImmortalLotteryPlugin(Plugin):
+    IS_COMMAND = True
     name = "immortal_lottery"
     description = "仙人彩：四位数竞猜，周中下注、周日开奖，积分奖池与滚存。"
 

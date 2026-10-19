@@ -136,4 +136,7 @@ def render_menu(enabled, is_super: bool, in_group: bool) -> str:
         if visible:
             lines.append(title)
             lines.extend(_entry_line(e[0]) for e in visible)
+    from core import config
+    if config.COMMAND_LIMIT_PER_MINUTE:
+        lines.append(f"同一账号跨群和私聊合计：每60秒最多{config.COMMAND_LIMIT_PER_MINUTE}次指令，超级用户也受限。")
     return "\n".join(lines)

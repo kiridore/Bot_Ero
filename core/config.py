@@ -14,7 +14,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.54.2"
+BOTERO_VERSION = "1.55.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
@@ -37,6 +37,13 @@ def validate_config(data: dict) -> list[str]:
     """纯校验：返回错误列表（空 = 通过）。启动加载与管理面板保存共用；
     与版名（bot.edition）无关——它只是描述标签，不参与任何判定。"""
     errors: list[str] = []
+    community = data.get("community") or {}
+    if not isinstance(community, dict):
+        errors.append("community 必须是键值映射")
+    else:
+        limit = community.get("command_limit_per_minute", 0)
+        if type(limit) is not int or limit < 0:
+            errors.append("community.command_limit_per_minute 必须是非负整数（0=关闭）")
     for dotted in _REQUIRED_BOT:
         section, _, key = dotted.partition(".")
         value = (data.get(section) or {}).get(key)
@@ -161,9 +168,10 @@ REGISTER_REQUIRE = bool(_register_sec.get("require", False))
 REGISTER_EULA_FILE = str(_register_sec.get("eula_file") or "docs/eula/v1.md")
 REGISTER_DEFAULT_PACK = str(_register_sec.get("default_pack") or "打卡基础")
 REGISTER_REMINDER_MINUTES = int(_register_sec.get("reminder_minutes") or 30)
-# 频控冷却秒数：显式配置生效；缺省统一 0（关闭）。部署差异写进各自配置模板。
+# 保留的同指令冷却参数（执行尚未实施）；总次数限制使用command_limit_per_minute。
 _cooldown_raw = _community.get("cmd_cooldown_seconds")
 COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else 0
+COMMAND_LIMIT_PER_MINUTE = _community.get("command_limit_per_minute", 0)
 
 _default_group = _bot.get("default_group")
 DEFAULT_GROUP_ID = int(_default_group) if _default_group else None  # 社区形态可无默认群（发送兜底见 T0.2）

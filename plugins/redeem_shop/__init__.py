@@ -48,6 +48,7 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
 
 @register_plugin
 class ShopManualRefreshPlugin(Plugin):
+    IS_COMMAND = True
     name = "shop_manual_refresh"
     description = "管理员指令：立刻刷新积分商店货架。"
 

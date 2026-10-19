@@ -21,6 +21,7 @@ def _write_last_update_head(hexsha: str) -> None:
 
 @register_plugin
 class UpdatePlugin(Plugin):
+    IS_COMMAND = True
     name = 'update_bot'
     description = '拉取远程更新并重启机器人。'
 

@@ -58,6 +58,8 @@ def plugin_pool(context: dict, event_type: str):
     operation = Operation(settings, MessageOutput(send_request, target))
     logger.debug("操作 %s 开始：类型=%s 消息=%s 群=%s 用户=%s",
                  operation.id, event_type, context.get("message_id"), group_id, user_id)
+    from core.command_rate_limit import CommandBudget
+    budget = CommandBudget(context, operation)
     context = dict(context, _operation=operation)
     for plugin_cls in tuple(runtime_context.plugin_registry):
         key = runtime_context.plugin_key(plugin_cls)
@@ -79,7 +81,7 @@ def plugin_pool(context: dict, event_type: str):
                 continue
         def handle(cls=plugin_cls):
             plugin = cls(context)
-            if plugin.match(event_type):
+            if plugin.match(event_type) and budget.allows(plugin):
                 plugin.handle()
         operation.execute(runtime_context.plugin_key(plugin_cls), handle)
         operation.drain()

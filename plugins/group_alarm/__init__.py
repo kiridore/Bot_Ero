@@ -12,6 +12,7 @@ from .parser import _format_recur_desc, _next_recurring_fire, _parse_create_body
 
 @register_plugin
 class GroupAlarmPlugin(Plugin):
+    IS_COMMAND = True
     name = "group_alarm"
     description = "群聊或私聊定时闹钟：/闹钟 …"
     _last_alarm_scan_minute = None

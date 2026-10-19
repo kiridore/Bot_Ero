@@ -16,6 +16,7 @@ def _progress_bar(percent: float, width: int = 16) -> str:
 
 @register_plugin
 class MonitorPlugin(Plugin):
+    IS_COMMAND = True
     name = 'show_system_status'
     description = '查询机器人运行时长、磁盘、内存与 CPU 状态。'
 

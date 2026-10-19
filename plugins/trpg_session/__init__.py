@@ -45,6 +45,9 @@ class TrpgSessionPlugin(Plugin):
             return True
         return False
 
+    def is_command(self):
+        return self._first_text().startswith(("/跑团记录", ".dm", ".ob"))
+
     def handle(self):
         try:
             msg = self._first_text()

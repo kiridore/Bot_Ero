@@ -1,8 +1,10 @@
 # BotEro 路线图
 
-> 当前版本 **1.54.2**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+> 当前版本 **1.55.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
 
 ## 社区开发当前进度
+
+- [x] 每账号指令总次数限制（1.55.0）：公开配置60秒20次、跨位置共享、超限限频提示；黑名单和旧同指令冷却仍未完成。
 
 以[社区开发与完成清单](docs/community/development-plan.md)为唯一细化任务入口，首版为打卡基础与积分系统，经济扩展不开放。
 

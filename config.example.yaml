@@ -82,6 +82,7 @@ panel:
 
 community:                 # 逐步开放公共部署的运营参数（与描述标签无关，任何部署配置即生效）
   max_groups: 50               # 最大激活群数（入群审核超限直接拒绝）
+  command_limit_per_minute: 0  # 同账号跨群/私聊滚动60秒指令总次数；缺省0关闭，公开建议20
   cmd_cooldown_seconds: 0      # 同用户同指令冷却秒数（缺省统一 0=关闭；部署差异写进各自配置）
 
 group_review:

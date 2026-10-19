@@ -177,6 +177,7 @@ def _announce_group(api, group_id: int, text_body: str):
 
 @register_plugin
 class ActivityPlugin(Plugin):
+    IS_COMMAND = True
     name = "activity"
     description = "群活动：接龙与匹配下家"
 

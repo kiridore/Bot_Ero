@@ -13,6 +13,7 @@ from .games import GAME_SYSTEMS, DEFAULT_GAME_SYSTEM
 
 @register_plugin
 class TrpgPlugin(Plugin):
+    IS_COMMAND = True
     name = "trpg_dice"
     description = "跑团骰子系统：DND5E 检定、暗骰（规则可切换）"
 
