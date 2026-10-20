@@ -3,6 +3,7 @@ from threading import RLock
 
 from core import config, context
 from core.base import CommandPlugin
+from core.blacklist import response_result
 from core.cq import text
 from core.feature_packs import FEATURE_PACKS
 from core.logger import logger
@@ -12,16 +13,6 @@ from core.utils import register_plugin
 _review_lock = RLock()
 _STATUS_TEXT = {'pending': '待审', 'processing': '正在处理或需恢复', 'uncertain': '结果待核实'}
 _REMOTE_TEXT = {'none': '尚未调用', 'ok': '已确认成功', 'failed': '已确认失败', 'unknown': '结果未知'}
-
-
-def response_result(response):
-    if not isinstance(response, dict):
-        return 'unknown'
-    if response.get('status') == 'ok' and type(response.get('retcode')) is int and response['retcode'] == 0:
-        return 'ok'
-    if response.get('status') == 'failed' and type(response.get('retcode')) is int and response['retcode'] != 0:
-        return 'failed'
-    return 'unknown'
 
 
 @register_plugin
@@ -84,7 +75,8 @@ class GroupReviewPlugin(CommandPlugin):
             " SELECT group_id FROM group_requests WHERE status IN ('processing','uncertain') AND decision='approve')"
         ).fetchone()[0]
         reason = ''
-        if db.is_banned('group', gid) or db.is_banned('user', inviter):
+        snapshot = self.operation.blacklist_snapshot if config.BLACKLIST_ENABLED else None
+        if db.is_banned('group', gid, snapshot=snapshot) or db.is_banned('user', inviter, snapshot=snapshot):
             reason = '群或邀请人在黑名单中'
         elif occupied >= config.COMMUNITY_MAX_GROUPS:
             reason = '群数已达上限'
@@ -134,8 +126,9 @@ class GroupReviewPlugin(CommandPlugin):
             return
         row = rows[0]
         decision = 'approve' if approve else 'reject'
+        snapshot = self.operation.blacklist_snapshot if config.BLACKLIST_ENABLED else None
         if approve:
-            if db.is_banned('group', gid) or db.is_banned('user', row['user_id']):
+            if db.is_banned('group', gid, snapshot=snapshot) or db.is_banned('user', row['user_id'], snapshot=snapshot):
                 self.submit_message(text('群或邀请人在黑名单中，不能批准'))
                 return
             other_groups = self.dbmanager.conn.execute(
@@ -147,7 +140,7 @@ class GroupReviewPlugin(CommandPlugin):
                 return
         if row['status'] == 'pending':
             try:
-                row = db.reserve_review(row['id'], approve, config.COMMUNITY_MAX_GROUPS)
+                row = db.reserve_review(row['id'], approve, config.COMMUNITY_MAX_GROUPS, blacklist_snapshot=snapshot)
             except ValueError as exc:
                 self.submit_message(text(str(exc)))
                 return

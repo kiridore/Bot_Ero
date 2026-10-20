@@ -29,6 +29,11 @@ class StartupChangelogPlugin(Plugin):
             or not runtime_context.effective_for_scope('startup_changelog', group_id=runtime_context.DEFAULT_GROUP_ID)
         ):
             return
+        if config.BLACKLIST_ENABLED:
+            from core.blacklist import admit_task
+            if config.DEFAULT_GROUP_ID is None or admit_task(
+                    'startup_changelog', 'startup', group_id=config.DEFAULT_GROUP_ID) is None:
+                return
         msg = f"早上好！{NICKNAME}开机啦"
 
         self.api.send_msg(text(msg))

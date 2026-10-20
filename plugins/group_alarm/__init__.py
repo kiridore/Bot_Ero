@@ -153,6 +153,7 @@ class GroupAlarmPlugin(Plugin):
         )
 
     def _handle_meta_due(self):
+        from core.blacklist import admit_task
         db = self.dbmanager
         now = datetime.now()
         skipped = 0
@@ -165,6 +166,11 @@ class GroupAlarmPlugin(Plugin):
             if not (runtime_context.effective_for_scope("group_alarm", user_id=creator_uid)
                     if is_priv else
                     runtime_context.effective_for_scope("group_alarm", group_id=gid)):
+                skipped += 1
+                continue
+            snapshot = (admit_task('group_alarm', aid, user_id=creator_uid) if is_priv
+                        else admit_task('group_alarm', aid, group_id=gid))
+            if snapshot is None:
                 skipped += 1
                 continue
             content = row[3]
@@ -211,6 +217,6 @@ class GroupAlarmPlugin(Plugin):
                     )
         if skipped:
             logger.info(
-                "闹钟心跳跳过 %s 条到期提醒（所属群/账号未启用 group_alarm），记录已保留待重新开启",
+                "闹钟心跳跳过 %s 条到期提醒（所属群/账号未开放 group_alarm 或受黑名单限制），记录已保留待重新开启",
                 skipped,
             )

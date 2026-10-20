@@ -454,9 +454,12 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
             target_id INTEGER NOT NULL,
             reason TEXT,
             created_at TEXT NOT NULL,
+            operator_id INTEGER,
             PRIMARY KEY (scope, target_id)
         );
     """)
+    if 'operator_id' not in {row[1] for row in cur.execute('PRAGMA table_info(blacklist)')}:
+        cur.execute('ALTER TABLE blacklist ADD COLUMN operator_id INTEGER')
     cur.execute("""
         CREATE TABLE IF NOT EXISTS group_plugin_config (
             group_id INTEGER NOT NULL,

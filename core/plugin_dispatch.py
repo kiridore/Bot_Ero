@@ -50,6 +50,9 @@ class Operation:
         self.id = operation_id or uuid4().hex
         output.operation_id = self.id
         self.enabled = MappingProxyType(dict(enabled))
+        self.blacklist_snapshot = None  # 主入口或单条后台任务获准后绑定，不在内部通知中重读
+        self.cleanup_only = False
+        self.blacklist_special = False
         self.output = output
         self.subscriptions = tuple(sorted(
             _subscriptions if subscriptions is None else subscriptions,
@@ -109,6 +112,8 @@ class Operation:
                 self._ancestry = ancestry
                 for sub in self.subscriptions:
                     if sub.topic != topic:
+                        continue
+                    if self.cleanup_only and not sub.cleanup:
                         continue
                     # cleanup 只绕过局部新奖励开关，绕不过部署禁止（config-unification）
                     if sub.cleanup:

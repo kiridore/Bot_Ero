@@ -126,6 +126,9 @@ class WeeklyReportPlugin(TimedHeartbeatPlugin):
             from core.logger import logger
             logger.info("目标群 %s 未启用 weekly_report，跳过本周周报生成与通知", GROUP_ID)
             return
+        from core.blacklist import admit_task
+        if admit_task('weekly_report', start, group_id=int(GROUP_ID)) is None:
+            return
         week_key = start.split(" ")[0]
         group_id = int(GROUP_ID)
         db = self.dbmanager

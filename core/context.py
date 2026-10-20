@@ -187,6 +187,9 @@ def validate_deployment_policy() -> None:
         from core.feature_packs import FEATURE_PACKS
         if _config.REGISTER_DEFAULT_PACK not in FEATURE_PACKS:
             problems.append(f"register.default_pack 不是已定义功能包：{_config.REGISTER_DEFAULT_PACK}")
+    if _config.BLACKLIST_ENABLED:
+        if 'blacklist' not in registered or 'blacklist' not in SYSTEM_PLUGINS or not plugin_allowed('blacklist'):
+            problems.append('黑名单限制开启必须允许并设为系统插件：blacklist')
     if _config.GROUP_REVIEW_REQUIRE:
         from core.feature_packs import FEATURE_PACKS
         for name in ("group_review", "group_manager", "menu"):

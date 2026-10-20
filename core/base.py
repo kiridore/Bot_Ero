@@ -21,6 +21,7 @@ class Plugin:
         self.api = ApiWrapper(raw_context)
         self.dbmanager = DbManager()
         self.operation = raw_context.get("_operation")
+        self.api.blacklist_snapshot = getattr(self.operation, 'blacklist_snapshot', None)
 
     def publish_event(self, topic, **data):
         if self.operation is None:

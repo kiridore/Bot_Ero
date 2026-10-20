@@ -33,6 +33,11 @@ class BackupPlugin(TimedHeartbeatPlugin):
             or not context.effective_for_scope('backup', group_id=config.DEFAULT_GROUP_ID)
         ):
             return  # 图片维护照常；未批准的默认群不接收备份公告
+        if config.BLACKLIST_ENABLED and 'meta_event_type' in raw:
+            from core.blacklist import admit_task
+            if config.DEFAULT_GROUP_ID is None or admit_task(
+                    'backup', 'summary', group_id=config.DEFAULT_GROUP_ID) is None:
+                return
         if safe_pct < 100:
             self.api.send_msg(*[at(uid) for uid in SUPER_USER], text(f"警告！数据校验成功率：{safe_pct:.2f}%"))
         else:

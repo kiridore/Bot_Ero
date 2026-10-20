@@ -48,7 +48,10 @@ class ForumNotifyPlugin(Plugin):
                 len(posts),
             )
         elif posts:
+            from core.blacklist import admit_task
             for pid, ptype, title, _ in posts:
+                if admit_task('forum_notify', pid, group_id=_config.DEFAULT_GROUP_ID) is None:
+                    continue
                 url = f"{WEB_BASE_URL}/forum/{pid}"
                 prefix = {
                     "post": "长文",

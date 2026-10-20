@@ -85,6 +85,9 @@ community:                 # 逐步开放公共部署的运营参数（与描述
   command_limit_per_minute: 0  # 同账号跨群/私聊滚动60秒指令总次数；缺省0关闭，公开建议20
   cmd_cooldown_seconds: 0      # 同用户同指令冷却秒数（缺省统一 0=关闭；部署差异写进各自配置）
 
+blacklist:
+  enabled: false           # 缺省关闭新增全局限制，原有群审核黑名单检查保持
+
 group_review:
   require: false             # 缺省关闭，旧部署无需群审核；开启后须将group_review加入允许名单及系统集
   default_pack: 基础包       # 本模板用内置包；公开模板使用打卡基础包

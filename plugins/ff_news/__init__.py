@@ -92,6 +92,9 @@ class FfNewsPlugin(TimedHeartbeatPlugin):
         if _config.DEFAULT_GROUP_ID is None or not runtime_context.effective_for_scope(
                 "ff_news", group_id=_config.DEFAULT_GROUP_ID):
             return
+        from core.blacklist import admit_task
+        if admit_task('ff_news', 'hourly', group_id=_config.DEFAULT_GROUP_ID) is None:
+            return
         try:
             payload = self._fetch_payload(1)
         except Exception:

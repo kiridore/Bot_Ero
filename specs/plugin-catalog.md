@@ -72,6 +72,7 @@
 |------|------|--------|------|------|------|
 | `grant_points_all/` | `GrantPointsAllPlugin` | `grant_points_all` | CommandPlugin + `admin_user()` | `/发金币 <数量>` | 给所有用户统一发积分 |
 | `monitor/` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
+| `blacklist/` | `BlacklistPlugin` | `blacklist` | CommandPlugin `/黑名单 添加/解除/查询/列表` | 仅超级用户，scope区分用户/群 | 不可封禁自身或当前超管；新增消息检查在注册提醒及限额之前；后台逐记录获准、免费奖励过滤、付费结算保留、真实撤回静默清理；缺省关闭，开启需设为系统插件 |
 | `group_review/` | `GroupReviewPlugin` | `group_review` | 群邀请、机器人自身进退群；`/待审`、`/审核 <群号> <通过\|拒绝> [申请编号]` | 审批仅 `super_user()` | require缺省false；同群多条申请须指定编号；未批准群只接收审核生命周期通知，消息业务及群心跳不执行 |
 | `update/` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop/` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |

@@ -289,6 +289,7 @@ CREATE TABLE blacklist (               -- 黑名单：scope ∈ 'user'|'group'�
     target_id INTEGER NOT NULL,
     reason TEXT,
     created_at TEXT NOT NULL,
+    operator_id INTEGER,              -- 新增操作者；旧行/旧接口调用为NULL，不伪造历史
     PRIMARY KEY (scope, target_id)
 );
 ```

@@ -24,6 +24,7 @@ bot:
     - welcome                   # 好友添加通知后发送注册引导，不自动注册
     - register                  # —— 注册流程（M1）——
     - group_review              # —— 群邀请与超级用户审批 ——
+    - blacklist                 # 超级用户黑名单管理
     - monitor                   # —— 运维：/系统状态（超管）——
     - checkin                   # —— 打卡基础九件套（首版开放集合）——
     - checkin_recall
@@ -44,6 +45,7 @@ bot:
     - welcome
     - register
     - group_review
+    - blacklist
   feature_packs_file: feature_packs_public.yaml   # 打卡基础包（批量开/关用）
   text_pack: text_packs/community.yaml            # 中性文案（触发词不变）
 
@@ -85,6 +87,9 @@ community:                 # 逐步开放运营参数
   max_groups: 50               # 最大激活群数（超限拒绝）
   cmd_cooldown_seconds: 3      # 保留的同指令冷却配置，尚未实施；不是下方总次数限制
   command_limit_per_minute: 20 # 同账号跨群/私聊最近60秒最多20条匹配指令；0关闭，超管也受限
+
+blacklist:
+  enabled: true            # 全局账号/群限制；需允许blacklist且设为系统插件
 
 group_review:              # 群审核：未批准群不执行消息业务和群定时任务
   require: true

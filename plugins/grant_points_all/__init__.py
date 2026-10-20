@@ -28,5 +28,7 @@ class GrantPointsAllPlugin(CommandPlugin):
             self.api.send_msg(text("发0点就不要折腾我了喵"))
             return
 
-        user_count = self.dbmanager.points.grant_all(amount)
+        from core.blacklist import operation_snapshot
+        snapshot = operation_snapshot(getattr(self, 'operation', None))
+        user_count = self.dbmanager.points.grant_all(amount, excluded_users=snapshot.users)
         self.api.send_msg(text("已给 {} 位用户发放 {} 点积分".format(user_count, amount)))

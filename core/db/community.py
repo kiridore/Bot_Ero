@@ -144,7 +144,7 @@ class CommunityManager:
             self.conn.rollback()
             raise
 
-    def reserve_review(self, request_id, approve: bool, max_groups: int) -> sqlite3.Row:
+    def reserve_review(self, request_id, approve: bool, max_groups: int, *, blacklist_snapshot=None) -> sqlite3.Row:
         """原子预留审批及容量。processing/uncertain占名额，重试不得盲目再调远端。"""
         if type(max_groups) is not int or max_groups < 1:
             raise ValueError("群数上限必须是正整数")
@@ -156,7 +156,7 @@ class CommunityManager:
                 raise ValueError("申请不存在或已经处理；处理中及结果未知的申请需先确认状态")
             gid = row['group_id']
             if approve:
-                if self.is_banned('group', gid) or self.is_banned('user', row['user_id']):
+                if self.is_banned('group', gid, snapshot=blacklist_snapshot) or self.is_banned('user', row['user_id'], snapshot=blacklist_snapshot):
                     raise ValueError("群或邀请人在黑名单中")
                 if self.is_group_active(gid):
                     raise ValueError("群已激活")
@@ -222,23 +222,39 @@ class CommunityManager:
 
     # —— 黑名单 ——————————————————————————————————
 
-    def ban(self, scope: str, target_id, reason: str | None = None) -> None:
-        """幂等；重复拉黑不报错、不改首次时间（OR IGNORE 语义）。"""
-        self.cur.execute(
-            "INSERT OR IGNORE INTO blacklist (scope, target_id, reason, created_at)"
-            " VALUES (?, ?, ?, ?)",
-            (scope, int(target_id), reason, _now()),
-        )
-        self.conn.commit()
+    def ban(self, scope: str, target_id, reason: str | None = None, *, operator_id=None) -> bool:
+        """新增返回True；重复不改原事实。旧调用可不传操作者，保留为未知。"""
+        from core.blacklist import coordination_lock
+        with coordination_lock, self.conn:
+            cur = self.conn.execute(
+                "INSERT OR IGNORE INTO blacklist (scope, target_id, reason, created_at, operator_id)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (scope, int(target_id), reason, _now(), operator_id),
+            )
+            return cur.rowcount > 0
 
     def unban(self, scope: str, target_id) -> bool:
-        self.cur.execute(
-            "DELETE FROM blacklist WHERE scope = ? AND target_id = ?",
-            (scope, int(target_id)))
-        self.conn.commit()
-        return self.cur.rowcount > 0
+        from core.blacklist import coordination_lock
+        with coordination_lock, self.conn:
+            cur = self.conn.execute(
+                "DELETE FROM blacklist WHERE scope = ? AND target_id = ?",
+                (scope, int(target_id)))
+            return cur.rowcount > 0
 
-    def is_banned(self, scope: str, target_id) -> bool:
+    def get_ban(self, scope: str, target_id):
+        return self.conn.execute(
+            'SELECT scope, target_id, reason, created_at, operator_id FROM blacklist'
+            ' WHERE scope = ? AND target_id = ?', (scope, int(target_id))).fetchone()
+
+    def list_bans(self, page: int, page_size=10):
+        return self.conn.execute(
+            'SELECT scope, target_id, reason, created_at, operator_id FROM blacklist'
+            ' ORDER BY created_at, scope, target_id LIMIT ? OFFSET ?',
+            (page_size + 1, (page - 1) * page_size)).fetchall()
+
+    def is_banned(self, scope: str, target_id, *, snapshot=None) -> bool:
+        if snapshot is not None:
+            return snapshot.blocks(**{'user_id' if scope == 'user' else 'group_id': target_id})
         self.cur.execute(
             "SELECT 1 FROM blacklist WHERE scope = ? AND target_id = ?",
             (scope, int(target_id)))

@@ -5,6 +5,7 @@ from datetime import datetime
 from core.cq import text
 from core.api import ApiWrapper
 from core.logger import logger
+from core.blacklist import operation_snapshot
 
 
 def _alive_list(room: dict) -> list[dict]:
@@ -12,8 +13,9 @@ def _alive_list(room: dict) -> list[dict]:
 
 
 def broadcast(api: ApiWrapper, room: dict, message: list[dict], include_dead: bool = False):
+    snapshot = operation_snapshot(api)
     for p in room["players"].values():
-        if not include_dead and not p["alive"]:
+        if snapshot.blocks(user_id=p['user_id']) or (not include_dead and not p["alive"]):
             continue
         try:
             api.call_api("send_private_msg", {
@@ -72,6 +74,8 @@ def broadcast_vote_result(api: ApiWrapper, room: dict, eliminated_uid: str):
     msg = text("\n".join(lines))
     broadcast(api, room, [msg], include_dead=True)
 
+    if operation_snapshot(api).blocks(user_id=eliminated_uid):
+        return
     try:
         api.call_api("send_private_msg", {
             "user_id": int(eliminated_uid),

@@ -47,6 +47,9 @@ class WhoIsSpyPlugin(Plugin):
         return f"用户{self.bot_event.user_id}"
 
     def _send_private(self, user_id: int, *message):
+        from core.blacklist import operation_snapshot
+        if operation_snapshot(self.operation).blocks(user_id=user_id):
+            return
         self.api.call_api("send_private_msg", {
             "user_id": user_id,
             "message": message,
@@ -95,6 +98,11 @@ class WhoIsSpyPlugin(Plugin):
         if uid is None:
             return
         gid = self.bot_event.group_id
+        if gid is None:
+            from core.blacklist import operation_snapshot
+            room = get_room(args[0]) if cmd in ('/加入', '/状态') and args else find_player_room(uid)
+            if room and operation_snapshot(getattr(self, 'operation', None)).blocks(group_id=room['group_id']):
+                return
 
         if cmd == "/创建游戏" and gid:
             if not args or args[0] not in GAME_TYPES:
@@ -303,6 +311,9 @@ class WhoIsSpyPlugin(Plugin):
         if not room:
             self.api.send_msg(text("房间不存在或已解散"))
             return
+        from core.blacklist import operation_snapshot
+        if operation_snapshot(getattr(self, 'operation', None)).blocks(group_id=room['group_id']):
+            return
         uid = str(self.bot_event.user_id)
         text_body = self._input_text
 
@@ -342,11 +353,13 @@ class WhoIsSpyPlugin(Plugin):
 
                     broadcast_game_over(self.api, room, winner)
 
+                    from core.blacklist import operation_snapshot
+                    snapshot = operation_snapshot(self.operation)
                     allow_titles = self.feature_enabled("title")
                     for pid, p in room["players"].items():
                         # 战绩统计始终记录；称号关闭时只跳过新称号解锁（config-unification）
                         titles = grant_game_titles(
-                            self.dbmanager, pid, p["role"], winner, allow_titles=allow_titles
+                            self.dbmanager, pid, p["role"], winner, allow_titles=allow_titles and not snapshot.blocks(user_id=pid)
                         )
                         if titles:
                             from plugins.title import get_title_def

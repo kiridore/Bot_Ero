@@ -163,6 +163,7 @@ class ImmortalLotteryPlugin(Plugin):
 
     def _handle_draw_tick(self):
         from core import context as runtime_context
+        from core.blacklist import admit_task
         now = _now_bj()
         sun = now.date()
         mon = _sunday_draw_period_monday(sun)
@@ -182,6 +183,8 @@ class ImmortalLotteryPlugin(Plugin):
                         gid, pk,
                     )
                 continue
+            if admit_task('immortal_lottery', pk, group_id=gid) is None:
+                continue  # 保留注单及资金；正常群参与者的既有付费权益不按账号封禁剔除
             self._run_single_group_draw(gid, pk)
 
     def _run_single_group_draw(self, group_id: int, period_key: str):

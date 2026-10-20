@@ -43,6 +43,10 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
                     "redeem_shop", group_id=target[1]):
                 logger.info("商店已刷新，但目标群 %s 未启用 redeem_shop，不发公告", target[1])
                 return
+            from core.blacklist import admit_task
+            scope = {'group_id' if target[0] == 'group' else 'user_id': target[1]}
+            if admit_task('redeem_shop', 'weekly-announcement', **scope) is None:
+                return
             self.submit_message(text(format_shop_weekly_announcement(self.dbmanager)))
 
 

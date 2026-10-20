@@ -22,6 +22,13 @@
 - **内部**：周常任务引擎（QUEST_DEFS/on_quest_trigger/on_quest_rollback/get_quest_week_key）从 core/utils.py 迁入 plugins/weekly_quest/engine.py，函数体逐字不变——core 去玩法化（社区版 T0.5，耦合点 C1 出清），新增 test/test_quest_engine.py 冒烟（发奖/撤奖/积分增减）
 - **内部**：开发流程切换为 OpenSpec（取代 superpowers 四步流程）——一切 bump `BOTERO_VERSION` 的用户可见变更 MUST 先有 OpenSpec 提案（proposal 含完整验收标准/specs/design/tasks）、验收全绿后 `openspec archive` 归档且与实现同 commit；纯文档/测试/内部重构免提案（判据：要 bump 就要提案）；规则同步 AGENTS.md / specs/conventions.md §功能开发主流程 / openspec/config.yaml
 
+## [1.56.0]
+
+- **黑名单管理**：新增超级用户QQ指令 `/黑名单 添加|解除|查询 用户|群 <号码> [原因]`、`/黑名单 列表 [页码]`，保存原因、操作者和时间；保护当前超级用户与机器人账号。
+- **执行限制**：账号跨群/私聊封禁，群封禁只影响该群；静默拒绝新业务、不占指令额度。已获准操作和内部通知按原快照完成；读取失败不放行新业务。
+- **后台与权益**：按任务记录暂停并保留数据；新免费奖励及批量正负积分跳过被封账号，已有付费结算权益保留。真实撤回保留历史清理而不回复；共享维护继续，定向通知受限。解除不改变注册、群审核或插件设置。
+- **配置与兼容**：`blacklist.enabled` 缺省false，公开模板true；开启须将 `blacklist` 加入部署允许名单和系统集合。旧群审核检查保持。操作手册见 `docs/community/blacklist-operations.md`；真实QQ联调仍为上线条件。
+
 ## [1.55.0]
 
 - **指令使用上限**：新增`community.command_limit_per_minute`，公开模板20、缺省0关闭；同账号跨群和私聊滚动60秒计数，超管同样受限。仅已匹配可执行指令计数，多插件和内部批量只算一次，失败不退次数。

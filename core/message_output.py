@@ -45,6 +45,7 @@ class MessageOutput:
         self._requests = []
         self._staged = None
         self._flushed = False
+        self.suppressed = False
 
     def submit(self, content, *, target=None, kind="text", merge=None, order=0, node=None):
         if self._flushed:
@@ -90,6 +91,9 @@ class MessageOutput:
         if self._flushed:
             return
         self._flushed = True  # 失败或超时也不再次发送结果不明的请求
+        if self.suppressed:
+            self._requests.clear()
+            return
         groups = {}
         for sequence, request in enumerate(self._requests):
             key = ((request.kind, request.target, request.merge)

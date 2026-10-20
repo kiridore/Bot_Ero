@@ -14,7 +14,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.55.0"
+BOTERO_VERSION = "1.56.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
@@ -85,6 +85,16 @@ def validate_config(data: dict) -> list[str]:
                 value = register.get(key)
                 if value is not None and (not isinstance(value, str) or not value.strip()):
                     errors.append(f"register.{key} 必须是非空字符串")
+    blacklist = data.get("blacklist", {})
+    if not isinstance(blacklist, dict):
+        errors.append("blacklist 节必须是键值映射")
+    elif type(blacklist.get("enabled", False)) is not bool:
+        errors.append("blacklist.enabled 必须是布尔值")
+    elif blacklist.get("enabled", False):
+        if "blacklist" not in (bot.get("system_plugins") or []):
+            errors.append("黑名单限制开启必须将blacklist设为系统插件")
+        if "allowed_plugins" in bot and "blacklist" not in (bot.get("allowed_plugins") or []):
+            errors.append("黑名单限制开启必须允许blacklist插件")
     review = data.get("group_review", {})
     if not isinstance(review, dict):
         errors.append("group_review 节必须是键值映射")
@@ -123,6 +133,7 @@ def _sec(name: str) -> dict:
 
 
 _bot = _sec("bot")
+BLACKLIST_ENABLED = _sec("blacklist").get("enabled", False)
 _onebot = _sec("onebot")
 _paths = _sec("paths")
 _auth = _sec("auth")
