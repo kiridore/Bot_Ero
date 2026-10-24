@@ -661,4 +661,61 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_lottery_draw_log_time "
         "ON lottery_draw_log (drawn_at)"
     )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_game_stats (
+            user_id TEXT PRIMARY KEY,
+            total_games INTEGER DEFAULT 0,
+            total_wins INTEGER DEFAULT 0,
+            civilian_wins INTEGER DEFAULT 0,
+            spy_wins INTEGER DEFAULT 0
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS spy_game_records (
+            record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_key TEXT NOT NULL UNIQUE,
+            room_code TEXT NOT NULL,
+            group_id INTEGER NOT NULL,
+            created_at REAL NOT NULL,
+            started_at REAL,
+            ended_at REAL,
+            status TEXT NOT NULL CHECK(status IN ('waiting', 'playing', 'finished', 'cancelled', 'interrupted')),
+            winner TEXT,
+            revision INTEGER NOT NULL DEFAULT 0 CHECK(revision >= 0),
+            snapshot_json TEXT NOT NULL,
+            CHECK((status = 'finished' AND winner IS NOT NULL
+                   AND winner IN ('civilian', 'spy') AND started_at IS NOT NULL)
+                  OR (status != 'finished' AND winner IS NULL)),
+            CHECK((status IN ('waiting', 'playing') AND ended_at IS NULL)
+                  OR (status IN ('finished', 'cancelled', 'interrupted') AND ended_at IS NOT NULL)),
+            CHECK(status != 'playing' OR started_at IS NOT NULL),
+            CHECK(status != 'waiting' OR started_at IS NULL)
+        )
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_spy_active_room_code
+        ON spy_game_records(room_code) WHERE status IN ('waiting', 'playing')
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_spy_records_group_time
+        ON spy_game_records(group_id, created_at DESC, record_id DESC)
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS spy_game_participants (
+            record_id INTEGER NOT NULL REFERENCES spy_game_records(record_id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL,
+            nickname TEXT NOT NULL DEFAULT '',
+            joined_at REAL NOT NULL,
+            left_at REAL,
+            participated INTEGER NOT NULL CHECK(participated IN (0, 1)),
+            state TEXT NOT NULL CHECK(state IN ('waiting', 'playing', 'spectating', 'left', 'finished')),
+            PRIMARY KEY(record_id, user_id),
+            CHECK(state != 'left' OR left_at IS NOT NULL),
+            CHECK(state NOT IN ('playing', 'spectating') OR participated = 1)
+        )
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_spy_participants_user
+        ON spy_game_participants(user_id, record_id)
+    """)
     conn.commit()

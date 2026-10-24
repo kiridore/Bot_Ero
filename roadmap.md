@@ -1,6 +1,12 @@
 # BotEro 路线图
 
-> 当前版本 **1.20.1**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+> 当前版本 **1.57.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+
+## 卧底游戏优化（1.57.0）
+
+- 出局观战与手动离房、当前轮次票表、开局隐藏身份。
+- 新参与历史、群/本人分页查询、重启中断、战绩与结束记录同事务；旧JSON保留但不兼容新查询。
+- 独立功能分支基于master 1.50.1，不包含dev社区开发；真实QQ联调和合并发布需单独确认。
 
 # 1.0
 

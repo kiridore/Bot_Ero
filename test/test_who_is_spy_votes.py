@@ -2,13 +2,13 @@
 from collections import Counter
 from itertools import product
 from threading import Event, Thread
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 from core import context
-from plugins.who_is_spy import WhoIsSpyPlugin, game, relay
+from plugins.who_is_spy import game, relay
+from test.spy_helpers import game_env, new_room, seed
 
 
 def make_room():
@@ -112,7 +112,7 @@ def run_pair(first, second, paused, release):
     assert not errors, errors
 
 
-def test_concurrent_last_votes_settle_once_through_real_handler(monkeypatch):
+def test_concurrent_last_votes_produce_one_completion_signal():
     room = make_room()
     paused, release = Event(), Event()
     class PausedVotes(dict):
@@ -122,13 +122,10 @@ def test_concurrent_last_votes_settle_once_through_real_handler(monkeypatch):
                 paused.set()
                 assert release.wait(3)
     room['votes'] = PausedVotes({'101': '102', '102': '101'})
-    monkeypatch.setattr(context, 'game_rooms', {'VOTE': room})
     def handle(uid):
-        plugin = WhoIsSpyPlugin.__new__(WhoIsSpyPlugin)
-        plugin.bot_event = SimpleNamespace(user_id=uid)
-        plugin._game_room_id, plugin._input_text = 'VOTE', '1'
-        plugin.api = Mock()
-        plugin._handle_game_input()
+        if game.collect_vote(room, str(uid), '1') is True:
+            game.tally_votes(room)
+            game.advance_to_describe(room)
     run_pair(lambda: handle(103), lambda: handle(104), paused, release)
     assert len(room['history']) == 1
     assert room['history'][0]['round_num'] == 1
@@ -156,35 +153,29 @@ def test_concurrent_duplicate_voter_cannot_overwrite_first_vote():
     assert room['votes'] == {'103': '101'}
 
 
-def test_highest_tie_real_handler_preserves_zero_vote_players(monkeypatch):
-    room = make_room()
-    room['votes'] = {'101': '102', '102': '101', '103': '101'}
-    monkeypatch.setattr(context, 'game_rooms', {'VOTE': room})
+def test_highest_tie_real_handler_preserves_zero_vote_players(game_env, monkeypatch):
+    room = new_room(game_env)
+    seed(game_env, room, phase='playing_vote', votes={'101': '102', '102': '101', '103': '101'})
     monkeypatch.setattr(game.random, 'choice', lambda candidates: candidates[0])
-    plugin = WhoIsSpyPlugin.__new__(WhoIsSpyPlugin)
-    plugin.bot_event = SimpleNamespace(user_id=104)
-    plugin._game_room_id, plugin._input_text = 'VOTE', '2'
-    plugin.api = Mock()
-    plugin._handle_game_input()
+    game_env.run('2', uid=104)
+    room = game_env.service.get(room['room_id'])
     assert room['history'][0]['eliminated'] in {'101', '102'}
     assert room['players']['103']['alive'] and room['players']['104']['alive']
     assert room['round_num'] == 2 and room['phase'] == 'playing_describe'
 
 
-def test_completion_network_sends_do_not_hold_game_lock(monkeypatch):
-    room = make_room()
-    room['votes'] = {'101': '102', '102': '101', '103': '101'}
-    monkeypatch.setattr(context, 'game_rooms', {'VOTE': room})
+def test_completion_network_sends_do_not_hold_game_lock(game_env):
+    from plugins.who_is_spy.relay import GameMessenger
+    room = new_room(game_env)
+    seed(game_env, room, phase='playing_vote', votes={'101': '102', '102': '101', '103': '101'})
+    result = game_env.service.input(room['record_id'], 104, '1')
     def send(*args, **kwargs):
+        assert not game_env.db.conn.in_transaction
         assert context.game_lock.acquire(blocking=False), '发送期间占用全局游戏锁'
         context.game_lock.release()
         return {'status': 'ok', 'retcode': 0}
-    plugin = WhoIsSpyPlugin.__new__(WhoIsSpyPlugin)
-    plugin.bot_event = SimpleNamespace(user_id=104)
-    plugin._game_room_id, plugin._input_text = 'VOTE', '1'
-    plugin.api = Mock()
-    plugin.api.send_msg.side_effect = send
-    plugin.api.call_api.side_effect = send
-    plugin._handle_game_input()
-    assert room['round_num'] == 2
-    assert plugin.api.call_api.called
+    api = Mock()
+    api.call_api.side_effect = send
+    GameMessenger(api, game_env.db.who_is_spy).emit(result.events)
+    assert result.room['round_num'] == 2
+    assert api.call_api.called

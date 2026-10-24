@@ -19,13 +19,13 @@ def _title_collection_progress(unlocked: int, total: int, width: int = 16) -> st
     return f"[{'█' * filled}{'░' * (width - filled)}] {unlocked}/{total} ({pct:.1f}%)"
 
 
-def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None = None):
+def evaluate_and_unlock_titles(dbmanager, user_id, checkin_dt: datetime | None = None, *, commit=True):
     user_id = int(user_id)
     newly_unlocked = []
 
     def unlock(tid):
         if tid in TITLE_DEFS and not dbmanager.titles.has(user_id, tid):
-            dbmanager.titles.unlock(user_id, tid)
+            dbmanager.titles.unlock(user_id, tid, commit=commit)
             newly_unlocked.append(tid)
 
     if checkin_dt is not None:

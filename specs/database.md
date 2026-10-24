@@ -25,6 +25,45 @@ with _connect() as conn:
 
 ---
 
+## 卧底参与历史（spy-spectator-history）
+
+`DbManager.who_is_spy`（`core/db/who_is_spy.py`）承载当前游戏状态与新历史；房间流程、QQ查询和结算均接入，旧JSON不读取、不迁移、不删除。DDL仍由`core/db/_base.py::init_schema`统一创建；初始化Schema不标记游戏中断。
+
+### `spy_game_records`
+
+| 列 | 类型/约束 | 含义 |
+|---|---|---|
+| record_id | INTEGER PRIMARY KEY AUTOINCREMENT | 历史记录编号，与房间号独立 |
+| request_key | TEXT NOT NULL UNIQUE | 创建请求防重键，重试返回原记录；不能跨群复用 |
+| room_code / group_id | TEXT / INTEGER NOT NULL | 房间号及所属群 |
+| created_at / started_at / ended_at | REAL，created_at必填 | Unix秒；等待未开始，活动记录无结束时间 |
+| status | TEXT NOT NULL CHECK | waiting/playing/finished/cancelled/interrupted |
+| winner | TEXT可空 | 仅finished可为civilian/spy，其他状态必须NULL |
+| revision | INTEGER NOT NULL，初始0 | 保存和启动中断时递增，拒绝旧快照覆盖及终态再写 |
+| snapshot_json | TEXT NOT NULL | 最近已提交的房间快照，包含私密字段，不可直接展示 |
+
+索引：活跃状态的room_code唯一（结束/中断可重用）；group_id/created_at DESC/record_id DESC用于群分页。启动中断仅修改关系字段，保留最后现场快照，显示必须以status/winner/时间列为权威，不能把快照中的旧phase当成当前状态。
+
+### `spy_game_participants`
+
+| 列 | 类型/约束 | 含义 |
+|---|---|---|
+| record_id / user_id | INTEGER / TEXT，联合主键 | 每账号每局一条，record_id外键引用记录表（ON DELETE CASCADE） |
+| nickname | TEXT NOT NULL DEFAULT '' | 参与者昵称 |
+| joined_at / left_at | REAL，joined_at必填 | 首次加入时间保留；离房状态要求left_at有值 |
+| participated | INTEGER NOT NULL CHECK(0/1) | 是否正式参赛，一旦为1不降回0 |
+| state | TEXT NOT NULL CHECK | waiting/playing/spectating/left/finished；playing/spectating要求正式参赛 |
+
+按user_id/record_id索引个人查询。保存新快照不删除以前的参与关系，重入不增加同局第二条参与记录。
+
+### 事务与权限边界
+
+- 写接口必须处于显式事务；推荐`with db.who_is_spy.transaction()`，BEGIN IMMEDIATE串行化写入、异常整体回滚，不支持嵌套，便于未来把结束和战绩写入同一连接事务。`grant_game_titles`使用该连接且禁止事务外调用；`evaluate_and_unlock_titles(commit=False)`参与同一事务，其他旧调用缺省commit=True保持不变。正常结束记录、统计和称号一起提交或回滚。
+- `list_records`、`detail`要求恰好一个当前群/账号范围；个人按真实参与关系，详情不能绕过列表限制。列表不返回JSON快照，每页10条并返回是否还有下一页。
+- `get_internal`仅供受信任的游戏处理，不作为QQ查询入口；`detail`返回的快照经格式化层字段白名单过滤，只有finished才展示身份与词条。活动房间及成员占用也由SQL查询，不能把终态参与者当成仍占用房间。
+- `user_game_stats`的既有表定义移入统一DDL（CREATE IF NOT EXISTS），原统计保留；参赛/胜利/阵营胜利阈值不改，不再另开连接独立提交游戏统计。
+- `main.py`启动后、创建WebSocket前调用一次`recover_interrupted_games`，将waiting/playing标记interrupted；不在连接重试循环、心跳或每个DbManager中执行。失败回滚并阻止继续启动，不恢复房间、不发奖励。
+
 ## Schema 完整参考
 
 ### 用户与积分

@@ -381,6 +381,16 @@ CREATE TABLE activity_members (
 
 期号 = `SELECT COUNT(*) FROM weekly_reports WHERE group_id=? AND week_key <= ?`。
 
+## 谁是卧底参与历史
+
+`spy-spectator-history`使用两张新表持久保存房间状态及参与历史，房间操作、观战/离房、QQ查询和结算均使用该数据源：
+
+- `spy_game_records`：`record_id`自增主键、`request_key`创建防重唯一键、`room_code`、`group_id`、`created_at/started_at/ended_at`（Unix秒）、`status`（waiting/playing/finished/cancelled/interrupted）、`winner`（仅正常结束有值）、`revision`、`snapshot_json`。活跃房间号唯一，群及时间索引；结束后重用房间号不覆盖记录。
+- `spy_game_participants`：`(record_id,user_id)`联合主键、`nickname`、首次`joined_at`、`left_at`、`participated`（0/1，已参赛不回退）、`state`（waiting/playing/spectating/left/finished）；外键引用游戏记录，账号索引用于本人分页。离开者不删除参与关系，重入不重复记录。
+- `DbManager.who_is_spy`使用显式事务，失败回滚，拒绝旧revision覆盖或终态重写。列表及详情按当前群或本人参与过滤；快照含私密字段，格式化层仅在正常结束时揭晓。SQLite事务内读取最新房间，不维护第二份内存房间。
+- bot启动时一次性将未结束记录标记中断，不在重连/心跳/普通数据库初始化中执行。保留最后快照，当前状态以关系字段为准；不恢复对局、不补发奖励。
+- 不读取、迁移或删除旧JSON，不重算既有战绩。完整Schema及边界见[数据库规范](../specs/database.md)。
+
 ## 谁是卧底统计
 
 ### `user_game_stats`
@@ -393,7 +403,7 @@ CREATE TABLE activity_members (
 | `civilian_wins` | INTEGER | NOT NULL DEFAULT 0 | 平民方获胜场数 |
 | `spy_wins` | INTEGER | NOT NULL DEFAULT 0 | 卧底方获胜场数 |
 
-累计成就称号（301-309）的判定数据源，读写 `plugins/who_is_spy/`。
+累计成就称号（301-309）的判定数据源，统一DDL创建、旧行保留。`plugins/who_is_spy/titles.py`在结束记录同一连接事务内写入，失败一并回滚；终态不能重复结算。
 
 ## 议事厅
 

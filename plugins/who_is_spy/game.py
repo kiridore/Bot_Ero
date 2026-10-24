@@ -156,9 +156,11 @@ def tally_votes(room: dict) -> str:
     else:
         eliminated = random.choice(tied)
 
+    participants = {uid: p['alias'] for uid, p in room['players'].items() if p['alive']}
     room["players"][eliminated]["alive"] = False
 
     rec = {
+        "participants": participants,
         "round_num": room["round_num"],
         "descriptions": dict(room["ready_descriptions"]),
         "votes": dict(room["votes"]),

@@ -43,7 +43,6 @@ GAME_SYSTEM = "dnd5e"
 
 # 卧底游戏
 game_lock = Lock()
-game_rooms: dict[str, dict] = {}
 
 def is_group_recording(group_id: int) -> bool:
     return group_id in recording_sessions

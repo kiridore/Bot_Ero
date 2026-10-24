@@ -1,366 +1,162 @@
 from datetime import datetime
 
-from core.base import Plugin, BOT_QQ
+from core.base import Plugin
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
-from core.database_manager import DbManager
+from plugins.who_is_spy.room import GameService, GAME_TYPES, GameResult
+from plugins.who_is_spy.relay import GameMessenger, STATUS_NAMES, format_record_summary, forward_nodes
 
-from .room import (
-    create_room, get_room, remove_room,
-    add_player, remove_player, find_player_room, get_player,
-    list_rooms, GAME_TYPES,
-)
-from .game import (
-    start_game, collect_description, collect_vote,
-    advance_to_voting, tally_votes, check_winner, advance_to_describe,
-)
-from .relay import (
-    broadcast, broadcast_descriptions, broadcast_vote_instructions,
-    broadcast_describe_instructions, broadcast_vote_result,
-    broadcast_game_over, build_forward_nodes, send_forward_to_group,
-    save_game_record, get_saved_records, format_record_summary,
-)
-from .titles import grant_game_titles
+COMMANDS = frozenset({'/创建游戏', '/开始', '/加入', '/离开', '/退出', '/状态', '/放弃', '/房间列表', '/游戏记录'})
 
-COMMANDS = frozenset({
-    "/创建游戏", "/开始", "/加入", "/离开", "/退出",
-    "/状态", "/放弃", "/房间列表", "/游戏记录",
-})
+
+def positive_number(value):
+    if len(value) > 12 or not value.isdecimal() or int(value) < 1:
+        raise ValueError('编号和页码必须是正整数')
+    return int(value)
 
 
 @register_plugin
 class WhoIsSpyPlugin(Plugin):
-    name = "who_is_spy"
-    description = "谁是卧底：群聊创建房间，私聊匿名进行"
+    name = 'who_is_spy'
+    description = '谁是卧底：私聊匿名游戏、出局观战及参与历史'
 
-    def _first_text(self) -> str:
+    def _first_text(self):
         for seg in self.bot_event.message:
-            if seg.get("type") == "text":
-                return seg.get("data", {}).get("text", "").strip()
-        return ""
+            if seg.get('type') == 'text':
+                return seg.get('data', {}).get('text', '').strip()
+        return ''
 
-    def _sender_nickname(self) -> str:
-        sender = self.bot_event.sender
-        if sender and isinstance(sender, dict):
-            return sender.get("card") or sender.get("nickname") or f"用户{self.bot_event.user_id}"
-        return f"用户{self.bot_event.user_id}"
-
-    def _send_private(self, user_id: int, *message):
-        self.api.call_api("send_private_msg", {
-            "user_id": user_id,
-            "message": message,
-        })
-
-    def match(self, event_type="message") -> bool:
-        if event_type != "message":
+    def match(self, event_type='message'):
+        if event_type != 'message' or self.bot_event.raw.get('post_type') != 'message' or self.bot_event.user_id is None:
             return False
-        text_body = self._first_text()
-        if not text_body:
+        body = self._first_text()
+        if not body:
             return False
-
-        parts = text_body.split()
+        parts = body.split()
         if parts[0] in COMMANDS:
-            self._mode = "command"
-            self._cmd = parts[0]
-            self._args = parts[1:]
+            self._mode, self._cmd, self._args = 'command', parts[0], parts[1:]
             return True
-
-        if self.bot_event.is_private and self.bot_event.user_id:
-            room = find_player_room(self.bot_event.user_id)
-            if room and room["phase"] not in ("waiting", "game_over"):
-                self._mode = "game_input"
-                self._game_room_id = room["room_id"]
-                self._input_text = text_body
+        if self.bot_event.is_private:
+            room = GameService(self.dbmanager).current(self.bot_event.user_id)
+            if room and room['status'] == 'playing':
+                self._mode, self._input_text = 'game_input', body
+                self._record_id = room['record_id']
+                self._expected = (room['round_num'], room['phase'])
                 return True
-
         return False
+
+    def _reply(self, body, forward=False):
+        try:
+            result = self.api.send_forward_nodes(forward_nodes(body)) if forward else self.api.send_msg(text(body))
+            if not result:
+                logger.warning('卧底回复发送失败，不重执行业务')
+        except Exception:
+            logger.exception('卧底回复发送异常，不重执行业务')
 
     def handle(self):
         try:
-            if self._mode == "command":
-                self._handle_command()
-            elif self._mode == "game_input":
-                self._handle_game_input()
-        except Exception:
-            logger.exception("WhoIsSpy 处理异常")
-
-    def _handle_command(self):
-        cmd = self._cmd
-        args = self._args
-        uid = self.bot_event.user_id
-        if uid is None:
+            result = self._handle_command() if self._mode == 'command' else self._handle_game_input()
+        except ValueError as exc:
+            self._reply(str(exc))
             return
-        gid = self.bot_event.group_id
-
-        if cmd == "/创建游戏" and gid:
-            if not args or args[0] not in GAME_TYPES:
-                types_str = "、".join(GAME_TYPES)
-                self.api.send_msg(text(f"用法：/创建游戏 <类型> [人数]\n支持的类型：{types_str}"))
-                return
-            game_type = args[0]
-            max_p = 6
-            if len(args) > 1:
-                try:
-                    max_p = max(4, min(10, int(args[1])))
-                except ValueError:
-                    self.api.send_msg(text("人数必须为数字（4-10）"))
-                    return
-            try:
-                rid = create_room(gid, uid, game_type, max_p)
-                self.api.send_msg(text(
-                    f"「{game_type}」房间 {rid} 已创建（{max_p}人局）\n"
-                    f"请私聊机器人发送 /加入 {rid} 加入\n"
-                    f"输入 /开始 {rid} 开始游戏"
-                ))
-            except RuntimeError as e:
-                self.api.send_msg(text(str(e)))
-
-        elif cmd == "/开始" and gid:
-            if not args:
-                self.api.send_msg(text("用法：/开始 <房间号>"))
-                return
-            rid = args[0]
-            room = get_room(rid)
-            if not room:
-                self.api.send_msg(text("房间不存在"))
-                return
-            if room["group_id"] != gid:
-                self.api.send_msg(text("该房间不属于本群"))
-                return
-            if str(uid) != room["creator_id"]:
-                self.api.send_msg(text("只有房主才能开始游戏"))
-                return
-            result = start_game(room)
-            if result != "ok":
-                self.api.send_msg(text(result))
-                return
-
-            spies = sum(1 for p in room["players"].values() if p["role"] == "spy")
-            total = len(room["players"])
-            self.api.send_msg(text(
-                f"游戏开始！本局 {total} 人参与，{spies} 个卧底，{total - spies} 个平民\n"
-                f"请查看私聊查看自己的词条"
-            ))
-            for pid, p in room["players"].items():
-                role_label = "平民" if p["role"] == "civilian" else "卧底"
-                self._send_private(
-                    int(pid),
-                    text(f"{p['alias']}，你的角色：{role_label}\n你的词条：{p['word']}"),
-                )
-
-            broadcast_describe_instructions(self.api, room)
-
-        elif cmd == "/加入" and not gid:
-            if not args:
-                self.api.send_msg(text("用法：/加入 <房间号>"))
-                return
-            rid = args[0]
-            nick = self._sender_nickname()
-            result = add_player(rid, uid, nick)
-            self.api.send_msg(text(result))
-            if not result.startswith("已加入"):
-                return
-
-            room = get_room(rid)
-            if room:
-                n = len(room["players"])
-                self.api.call_api("send_group_msg", {
-                    "group_id": room["group_id"],
-                    "message": [text(f"玩家 {nick} 已加入房间 {rid}（{n}/{room['max_players']}）")],
-                })
-
-        elif cmd in ("/离开", "/退出"):
-            room = find_player_room(uid)
-            if not room:
-                self.api.send_msg(text("你不在任何房间中"))
-                return
-            rid = room["room_id"]
-            nick = self._sender_nickname()
-            result = remove_player(rid, uid)
-            self.api.send_msg(text(result))
-
-            room = get_room(rid)
-            if room and room["phase"] != "waiting":
-                self.api.call_api("send_group_msg", {
-                    "group_id": room["group_id"],
-                    "message": [text(f"玩家 {nick} 已退出房间 {rid}（游戏中弃权出局）")],
-                })
-                alive = [p for p in room["players"].values() if p["alive"]]
-                if alive:
-                    broadcast(self.api, room, [text(f"玩家 {nick} 退出游戏，当前存活 {len(alive)} 人")])
-                from .game import check_winner
-                winner = check_winner(room)
-                if winner:
-                    room["_winner"] = winner
-                    room["phase"] = "game_over"
-                    room["ready_descriptions"] = {}
-                    room["votes"] = {}
-                    broadcast_game_over(self.api, room, winner)
-                    save_game_record(room)
-                    nodes = build_forward_nodes(room)
-                    send_forward_to_group(self.api, room["group_id"], nodes)
-                    remove_room(rid)
-
-        elif cmd == "/状态":
-            rid = args[0] if args else None
-            room = None
-            if rid:
-                room = get_room(rid)
-            if not room:
-                room = find_player_room(uid)
-            if not room:
-                self.api.send_msg(text("房间不存在，或你不在房间中"))
-                return
-            lines = [
-                f"房间 {room['room_id']}（{room.get('game_type', '?')}）",
-                f"状态：{room['phase']}",
-                f"人数：{len(room['players'])}/{room['max_players']}",
-            ]
-            if room["phase"] != "waiting":
-                alive = sum(1 for p in room["players"].values() if p["alive"])
-                lines.append(f"存活：{alive}/{len(room['players'])}")
-                lines.append(f"轮次：{room['round_num']}")
-            if room["phase"] == "waiting":
-                players = sorted(
-                    room["players"].items(),
-                    key=lambda x: (x[1]["alias"],),
-                )
-                if players:
-                    lines.append("玩家列表：")
-                    for pid, p in players:
-                        marker = "（房主）" if pid == room["creator_id"] else ""
-                        lines.append(f"  {p['alias']} {p['nickname']}{marker}")
-            self.api.send_msg(text("\n".join(lines)))
-
-        elif cmd == "/放弃" and gid:
-            if not args:
-                self.api.send_msg(text("用法：/放弃 <房间号>"))
-                return
-            rid = args[0]
-            room = get_room(rid)
-            if not room:
-                self.api.send_msg(text("房间不存在"))
-                return
-            if room["group_id"] != gid:
-                self.api.send_msg(text("该房间不属于本群"))
-                return
-            if str(uid) != room["creator_id"] and not self.super_user():
-                self.api.send_msg(text("只有房主或超管才能放弃游戏"))
-                return
-            game_type = room.get("game_type", "游戏")
-            remove_room(rid)
-            self.api.send_msg(text(f"「{game_type}」房间 {rid} 已解散"))
-
-        elif cmd == "/房间列表" and gid:
-            rooms = list_rooms(gid)
-            if not rooms:
-                self.api.send_msg(text("该群没有活跃房间"))
-                return
-            lines = ["该群活跃房间："]
-            for r in rooms:
-                phase_map = {"waiting": "等待中", "playing_describe": "描述中", "playing_vote": "投票中", "game_over": "已结束"}
-                phase = phase_map.get(r["phase"], r["phase"])
-                player_info = f"{len(r['players'])}人"
-                if r["phase"] != "waiting":
-                    alive = sum(1 for p in r["players"].values() if p["alive"])
-                    player_info = f"{alive}/{len(r['players'])} 存活"
-                lines.append(f"  {r['room_id']}  {r.get('game_type', '?')}  {phase}  {player_info}")
-            self.api.send_msg(text("\n".join(lines)))
-
-        elif cmd == "/游戏记录" and gid:
-            if args:
-                rid = args[0]
-                records = get_saved_records(gid)
-                match = [r for r in records if r["room_id"] == rid]
-                if not match:
-                    self.api.send_msg(text(f"未找到房间 {rid} 的游戏记录"))
-                    return
-                text_body = format_record_summary(match[0])
-                self.api.send_msg(text(text_body))
-            else:
-                records = get_saved_records(gid)
-                if not records:
-                    self.api.send_msg(text("该群暂无已保存的游戏记录"))
-                    return
-                lines = ["已保存的游戏记录："]
-                for i, r in enumerate(records, 1):
-                    ts = datetime.fromtimestamp(r.get("ended_at", 0)).strftime("%m-%d %H:%M")
-                    winner_label = "平民" if r.get("winner") == "civilian" else "卧底"
-                    n = len(r.get("players", []))
-                    lines.append(f"[{i}] {ts}  {r.get('room_id', '?')}  {r.get('game_type', '?')}  {n}人  {winner_label}胜")
-                lines.append("")
-                lines.append("输入 /游戏记录 <房间号> 查看详情")
-                self.api.send_msg(text("\n".join(lines)))
+        except Exception:
+            logger.exception('卧底操作失败')
+            self._reply('本次操作未确认成功，请稍后重试或联系管理员。')
+            return
+        if isinstance(result, GameResult):
+            if result.reply:
+                self._reply(result.reply)
+            GameMessenger(self.api, self.dbmanager.who_is_spy).emit(result.events)
 
     def _handle_game_input(self):
-        if self.bot_event.user_id is None:
+        return GameService(self.dbmanager).input(self._record_id, self.bot_event.user_id,
+                                                self._input_text, self._expected)
+
+    def _handle_command(self):
+        cmd, args = self._cmd, self._args
+        uid, gid = self.bot_event.user_id, self.bot_event.group_id
+        service = GameService(self.dbmanager)
+        if cmd == '/游戏记录':
+            return self._history(args, uid, gid)
+        if cmd == '/创建游戏':
+            if gid is None:
+                raise ValueError('请在群聊创建游戏')
+            if not args or args[0] not in GAME_TYPES or len(args) > 2:
+                raise ValueError('用法：/创建游戏 卧底 [人数]（4-10人）')
+            try:
+                maximum = max(4, min(10, int(args[1]))) if len(args) == 2 else 6
+            except ValueError:
+                raise ValueError('人数必须为数字（4-10）')
+            mid = self.bot_event.message_id
+            if mid is None:
+                raise ValueError('无法识别创建请求，请重新发送')
+            key = f"{gid}:{uid}:{self.bot_event.raw.get('time', 0)}:{mid}"
+            return service.create(gid, uid, maximum, key)
+        if cmd == '/加入':
+            if gid is not None or len(args) != 1:
+                raise ValueError('请私聊发送 /加入 <房间号>')
+            sender = self.bot_event.sender or {}
+            nickname = sender.get('card') or sender.get('nickname') or f'用户{uid}'
+            return service.join(args[0], uid, nickname)
+        if cmd in ('/开始', '/放弃'):
+            if gid is None or len(args) != 1:
+                raise ValueError(f'请在所属群发送 {cmd} <房间号>')
+            if cmd == '/开始':
+                return service.start(args[0], uid, gid)
+            return service.cancel(args[0], uid, gid, self.super_user())
+        if cmd in ('/退出', '/离开'):
+            if args:
+                raise ValueError('用法：/退出 或 /离开')
+            return service.leave(uid)
+        if cmd == '/状态':
+            if len(args) > 1:
+                raise ValueError('用法：/状态 [房间号]')
+            room = service.get(args[0]) if args else service.current(uid)
+            if not room:
+                raise ValueError('房间不存在，或你不在房间中')
+            if gid is not None and gid != room['group_id'] or gid is None and (
+                    str(uid) not in room['members'] or room['members'][str(uid)]['left_at'] is not None):
+                raise ValueError('不能查看此房间')
+            alive = sum(p['alive'] for p in room['players'].values())
+            watching = sum(not p['alive'] and not p.get('left') for p in room['players'].values())
+            body = f"房间 {room['room_id']}｜记录 #{room['record_id']}\n状态：{STATUS_NAMES[room['status']]}\n存活：{alive}，观战：{watching}\n轮次：{room['round_num']}"
+            if room['status'] == 'waiting':
+                body += '\n' + '\n'.join(f"{p['alias']} {p['nickname']}" + ('（房主）' if pid == room['creator_id'] else '') for pid, p in room['players'].items())
+            self._reply(body)
+        elif cmd == '/房间列表':
+            if gid is None or args:
+                raise ValueError('请在群聊发送 /房间列表')
+            rows = self.dbmanager.who_is_spy.active_in_group(gid)
+            self._reply('\n'.join(f"{r['room_code']}｜记录 #{r['record_id']}｜{STATUS_NAMES[r['status']]}" for r in rows) or '该群没有活跃房间')
+
+    def _history(self, args, uid, gid):
+        scope = {'group_id': gid} if gid is not None else {'user_id': uid}
+        store = self.dbmanager.who_is_spy
+        if len(args) == 2 and args[0] == '查看':
+            record = store.detail(positive_number(args[1]), **scope)
+            if record is None:
+                raise ValueError('记录不存在或不可查看')
+            self._reply(format_record_summary(record, user_id=uid if gid is None else None), forward=True)
             return
-        room = get_room(self._game_room_id)
-        if not room:
-            self.api.send_msg(text("房间不存在或已解散"))
-            return
-        uid = str(self.bot_event.user_id)
-        text_body = self._input_text
-
-        if room["phase"] == "playing_describe":
-            result = collect_description(room, uid, text_body)
-            if isinstance(result, str):
-                self.api.send_msg(text(result))
-                return
-
-            self.api.send_msg(text("描述已记录，等待其他玩家..."))
-
-            if result is True:
-                broadcast_descriptions(self.api, room)
-                advance_to_voting(room)
-                broadcast_vote_instructions(self.api, room)
-
-        elif room["phase"] == "playing_vote":
-            result = collect_vote(room, uid, text_body)
-            if isinstance(result, str):
-                self.api.send_msg(text(result))
-                return
-
-            self.api.send_msg(text("投票已记录，等待其他玩家..."))
-
-            if result is True:
-                eliminated = tally_votes(room)
-
-                broadcast_vote_result(self.api, room, eliminated)
-
-                winner = check_winner(room)
-                if winner:
-                    room["_winner"] = winner
-                    room["phase"] = "game_over"
-
-                    room["ready_descriptions"] = {}
-                    room["votes"] = {}
-
-                    broadcast_game_over(self.api, room, winner)
-
-                    for pid, p in room["players"].items():
-                        titles = grant_game_titles(
-                            self.dbmanager, pid, p["role"], winner
-                        )
-                        if titles:
-                            from plugins.title import get_title_def
-                            names = []
-                            for tid in titles:
-                                d = get_title_def(tid)
-                                if d:
-                                    names.append(d.get("name", ""))
-                            if names:
-                                self._send_private(
-                                    int(pid),
-                                    text(f"获得称号：{' '.join(names)}"),
-                                )
-
-                    save_game_record(room)
-                    nodes = build_forward_nodes(room)
-                    send_forward_to_group(self.api, room["group_id"], nodes)
-
-                    remove_room(room["room_id"])
-                else:
-                    advance_to_describe(room)
-                    broadcast_describe_instructions(self.api, room)
+        if not args:
+            page = 1
+        elif args[0] == '列表' and len(args) in (1, 2):
+            page = positive_number(args[1]) if len(args) == 2 else 1
+        else:
+            raise ValueError('用法：/游戏记录 列表 [页码] 或 /游戏记录 查看 <记录编号>；不再按旧房间号查询')
+        rows, more = store.list_records(page=page, **scope)
+        lines = [f"{'本群' if gid is not None else '本人参与'}游戏记录｜第{page}页"]
+        for rec in rows:
+            label = STATUS_NAMES[rec['status']]
+            if rec['winner']:
+                label += '，' + ('平民' if rec['winner'] == 'civilian' else '卧底') + '胜'
+            if rec.get('participation_state') == 'left':
+                label += '（本人已退出，不计本局获胜）'
+            lines.append(f"#{rec['record_id']}｜{datetime.fromtimestamp(rec['created_at']):%m-%d %H:%M}｜房间 {rec['room_code']}｜{label}")
+        if not rows:
+            lines.append('本页暂无新系统记录；旧JSON不纳入查询。')
+        if more:
+            lines.append(f'下一页：/游戏记录 列表 {page + 1}')
+        lines.append('详情：/游戏记录 查看 <记录编号>')
+        self._reply('\n'.join(lines))

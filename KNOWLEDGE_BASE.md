@@ -15,8 +15,9 @@
 | 47 个插件列表、功能包、数据依赖 | [`kb/PLUGIN_CATALOG.md`](kb/PLUGIN_CATALOG.md) |
 | 打卡流程、抽奖概率、商店价格、称号列表 | [`kb/GAMEPLAY.md`](kb/GAMEPLAY.md) |
 | 开发规范、AI 检查清单、技术债、陷阱 | [`kb/CONVENTIONS.md`](kb/CONVENTIONS.md) |
+| 卧底观战、新历史指令、重启与部署注意事项 | [操作说明](docs/who-is-spy-history.md) |
 | API 速查、部署运维、外部 API | [`kb/OPERATIONS.md`](kb/OPERATIONS.md) |
-| 数据库全部 44 张表 Schema（data.db）+ message_log.db | [`kb/DATABASE.md`](kb/DATABASE.md) |
+| 数据库 Schema（data.db，含卧底参与历史）+ message_log.db | [`kb/DATABASE.md`](kb/DATABASE.md) |
 
 ---
 

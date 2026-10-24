@@ -1,262 +1,131 @@
-import json
-import os
+"""只发送已提交的结果；退出者不再接收主动私聊，未结束记录不揭晓。"""
 from datetime import datetime
 
+from core import config
 from core.cq import text
-from core.api import ApiWrapper
 from core.logger import logger
 
+STATUS_NAMES = {'waiting': '未开始', 'playing': '进行中', 'finished': '正常结束',
+                'cancelled': '已解散（无胜负）', 'interrupted': '因重启中断（无胜负）'}
 
-def _alive_list(room: dict) -> list[dict]:
-    return [p for p in room["players"].values() if p["alive"]]
+
+def vote_lines(rec):
+    counts, eliminated = rec['vote_counts'], rec['eliminated']
+    return [f"{alias} {counts.get(uid, 0)}票" + (' ← 出局' if uid == eliminated else '')
+            for uid, alias in rec['participants'].items()]
 
 
-def broadcast(api: ApiWrapper, room: dict, message: list[dict], include_dead: bool = False):
-    for p in room["players"].values():
-        if not include_dead and not p["alive"]:
-            continue
+def format_record_summary(data, user_id=None, *, include_rounds=True):
+    room = data['snapshot']
+    lines = [f"游戏记录 #{data['record_id']}｜房间 {data['room_code']}",
+             f"状态：{STATUS_NAMES[data['status']]}",
+             f"创建时间：{datetime.fromtimestamp(data['created_at']):%Y-%m-%d %H:%M}"]
+    if data['ended_at'] is not None:
+        lines.append(f"结束时间：{datetime.fromtimestamp(data['ended_at']):%Y-%m-%d %H:%M}")
+    member = room.get('members', {}).get(str(user_id)) if user_id is not None else None
+    if member and member['left_at'] is not None:
+        lines.append('本人：已退出；未开局退出不计参赛，开局后退出不计本局获胜')
+    if data['status'] == 'finished':
+        lines.extend(['', f"胜负结果：{'平民' if data['winner'] == 'civilian' else '卧底'}胜利",
+                      f"平民词条：{room['civilian_word']}", f"卧底词条：{room['spy_word']}", '玩家身份：'])
+        for p in room['players'].values():
+            lines.append(f"{p['alias']} {p['nickname']} - {'平民' if p['role'] == 'civilian' else '卧底'} - {p['word']}"
+                         + ('（主动退出，不计获胜）' if p.get('left') else ''))
+    else:
+        lines.append('身份和词条仅在正常结束后揭晓。')
+    for rec in room.get('history', []) if include_rounds else ():
+        lines.extend(['', f"──── 第{rec['round_num']}轮 ────"])
+        for uid, description in rec.get('descriptions', {}).items():
+            alias = rec['participants'].get(uid)
+            if alias is not None:
+                lines.append(f'{alias}：{description}')
+        lines.extend(vote_lines(rec))
+    return '\n'.join(lines)
+
+
+def forward_nodes(body):
+    return [{'type': 'node', 'data': {'uin': int(config.BOT_QQ), 'name': '游戏记录',
+             'content': [text(block)]}} for block in body.split('\n\n') if block]
+
+
+class GameMessenger:
+    def __init__(self, api, store=None):
+        self.api, self.store = api, store
+
+    def send(self, action, params):
         try:
-            api.call_api("send_private_msg", {
-                "user_id": int(p["user_id"]),
-                "message": message,
-            })
+            response = self.api.call_api(action, params)
+            if not isinstance(response, dict) or response.get('status') != 'ok' or response.get('retcode') != 0:
+                logger.warning('卧底消息发送失败，action=%s；业务已提交，不自动重试', action)
         except Exception:
-            pass
+            logger.exception('卧底消息发送异常，业务已提交，不自动重试')
+
+    def private(self, room, uid, body):
+        if room['players'][str(uid)].get('left'):
+            return
+        if self.store is not None:
+            try:
+                if not self.store.can_receive(room['record_id'], uid):
+                    return  # 早先已排定的通知也不能发送给现在已退出者
+            except Exception:
+                logger.exception('无法确认卧底接收者状态，跳过该私聊')
+                return
+        self.send('send_private_msg', {'user_id': int(uid), 'message': [text(body)]})
+
+    def broadcast(self, room, body, *, audience='all'):
+        for uid, p in room['players'].items():
+            if audience == 'alive' and not p['alive'] or audience == 'spectators' and p['alive']:
+                continue
+            self.private(room, uid, body)
+
+    def group(self, room, body):
+        self.send('send_group_msg', {'group_id': int(room['group_id']), 'message': [text(body)]})
+
+    def result(self, room, eliminated):
+        rec = room['history'][-1]
+        self.broadcast(room, '\n'.join([f"第{rec['round_num']}轮 投票结果：", *vote_lines(rec), '',
+                                        f"{room['players'][eliminated]['alias']} 被投票出局！"]))
+        self.private(room, eliminated, '你已出局，将继续观战本局，不能发言或投票；发送 /退出 可离开房间。')
+
+    def emit(self, events):
+        for kind, room in events:
+            if kind == 'started':
+                spies = sum(p['role'] == 'spy' for p in room['players'].values())
+                self.group(room, f"游戏开始！本局 {len(room['players'])} 人参与，{spies} 个卧底，{len(room['players']) - spies} 个平民\n请查看私聊中的词条")
+                for uid, p in room['players'].items():
+                    self.private(room, uid, f"{p['alias']}，你的词条：{p['word']}\n请按后续提示描述和投票，不要直接说出词条。")
+            elif kind in ('describe', 'vote'):
+                names = '  '.join(p['alias'] for p in room['players'].values() if p['alive'])
+                phase = '描述' if kind == 'describe' else '投票'
+                prompt = '请用一句话描述你的词条（不能直接说出词）' if kind == 'describe' else '请投票选出卧底，发送代号即可；已投票无需重投'
+                self.broadcast(room, f"第{room['round_num']}轮 {phase}阶段\n{prompt}\n存活玩家：{names}", audience='alive')
+                self.broadcast(room, f"观战：第{room['round_num']}轮进入{phase}阶段，无需提交。\n存活玩家：{names}", audience='spectators')
+            elif kind == 'descriptions':
+                body = [f"第{room['round_num']}轮 描述汇总："]
+                body.extend(f"{room['players'][uid]['alias']}：{value}" for uid, value in room['ready_descriptions'].items())
+                self.broadcast(room, '\n'.join(body))
+            elif kind == 'result':
+                self.result(room, room['history'][-1]['eliminated'])
+            elif kind == 'left':
+                self.broadcast(room, '有玩家退出房间；若正在投票，其选票及投给他的选票已作废，尚未有效投票者请重新提交。')
+                self.group(room, f"房间 {room['room_id']} 有玩家退出")
+            elif kind == 'joined':
+                self.group(room, f"房间 {room['room_id']} 当前 {len(room['players'])}/{room['max_players']} 人")
+            elif kind == 'cancelled':
+                self.broadcast(room, f"房间 {room['room_id']} 已解散，无胜负结果；可用 /游戏记录 查询参与经历")
+                self.group(room, f"房间 {room['room_id']} 已解散，无胜负结果")
+            elif kind == 'finished':
+                record = dict(record_id=room['record_id'], room_code=room['room_id'], status='finished',
+                              winner=room['_winner'], created_at=room['created_at'], ended_at=room['ended_at'], snapshot=room)
+                body = format_record_summary(record)
+                self.broadcast(room, format_record_summary(record, include_rounds=False)
+                               + f"\n完整记录：/游戏记录 查看 {room['record_id']}")
+                from plugins.title.defs import TITLE_DEFS
+                for uid, titles in room.get('_new_titles', {}).items():
+                    if titles:
+                        self.private(room, uid, '获得称号：' + ' '.join(TITLE_DEFS[tid]['name'] for tid in titles))
+                self.send('send_group_forward_msg', {'group_id': int(room['group_id']), 'messages': forward_nodes(body)})
 
 
-def broadcast_descriptions(api: ApiWrapper, room: dict):
-    descs = room["ready_descriptions"]
-    alive = _alive_list(room)
-    lines = [f"第{room['round_num']}轮 描述汇总："]
-    for p in alive:
-        txt = descs.get(p["user_id"], "（未描述）")
-        lines.append(f"{p['alias']} \"{txt}\"")
-    msg = text("\n".join(lines))
-    broadcast(api, room, [msg])
-
-
-def broadcast_vote_instructions(api: ApiWrapper, room: dict):
-    alive = _alive_list(room)
-    names = "  ".join(f"{p['alias']}" for p in alive)
-    msg = text(
-        f"第{room['round_num']}轮 投票阶段\n"
-        f"请投票选出卧底，发送代号即可（如 1 号就回复 1）\n"
-        f"存活玩家：{names}"
-    )
-    broadcast(api, room, [msg])
-
-
-def broadcast_describe_instructions(api: ApiWrapper, room: dict):
-    alive = _alive_list(room)
-    names = "  ".join(f"{p['alias']}" for p in alive)
-    msg = text(
-        f"第{room['round_num']}轮 描述阶段\n"
-        f"请用一句话描述你的词条（不能直接说出词）\n"
-        f"存活玩家：{names}"
-    )
-    broadcast(api, room, [msg])
-
-
-def broadcast_vote_result(api: ApiWrapper, room: dict, eliminated_uid: str):
-    vote_counts: dict[str, int] = {}
-    for v in room["votes"].values():
-        vote_counts[v] = vote_counts.get(v, 0) + 1
-    lines = [f"第{room['round_num']}轮 投票结果："]
-    for p in room["players"].values():
-        cnt = vote_counts.get(p["user_id"], 0)
-        marker = " ← 出局" if p["user_id"] == eliminated_uid else ""
-        lines.append(f"{p['alias']} {cnt}票{marker}")
-    lines.append("")
-    elim = room["players"][eliminated_uid]
-    lines.append(f"{elim['alias']} 被投票出局！")
-    msg = text("\n".join(lines))
-    broadcast(api, room, [msg], include_dead=True)
-
-    try:
-        api.call_api("send_private_msg", {
-            "user_id": int(eliminated_uid),
-            "message": [text("你被投票出局！你已无法继续发言，请等待游戏结束。")],
-        })
-    except Exception:
-        pass
-
-
-def broadcast_game_over(api: ApiWrapper, room: dict, winner: str):
-    winner_label = "平民" if winner == "civilian" else "卧底"
-    lines = [f"游戏结束！{winner_label}胜利！", ""]
-    pid_to_alias = sorted(
-        ((p["alias"], int(pid), p) for pid, p in room["players"].items()),
-        key=lambda x: int(x[1]),
-    )
-    lines.append("身份揭晓：")
-    for alias, uid, p in pid_to_alias:
-        role_label = "平民" if p["role"] == "civilian" else "卧底"
-        lines.append(f"{alias} {p['nickname']} - {role_label} - \"{p['word']}\"")
-    broadcast(api, room, [text("\n".join(lines))], include_dead=True)
-
-
-def build_forward_nodes(room: dict) -> list[dict]:
-    nodes = []
-    nodes.append({
-        "type": "node",
-        "data": {
-            "user_id": "0",
-            "nickname": "系统",
-            "content": [text("谁是卧底 游戏记录")],
-        },
-    })
-    p_info = "\n".join(
-        f"{p['alias']} {p['nickname']}"
-        for _, p in sorted(room["players"].items(), key=lambda x: int(x[0]))
-    )
-    nodes.append({
-        "type": "node",
-        "data": {
-            "user_id": "0",
-            "nickname": "系统",
-            "content": [text(f"玩家列表：\n{p_info}")],
-        },
-    })
-    nodes.append({
-        "type": "node",
-        "data": {
-            "user_id": "0",
-            "nickname": "系统",
-            "content": [text(f"平民词条：{room['civilian_word']}    卧底词条：{room['spy_word']}")],
-        },
-    })
-    for rec in room["history"]:
-        rn = rec["round_num"]
-        nodes.append({
-            "type": "node",
-            "data": {
-                "user_id": "0",
-                "nickname": "系统",
-                "content": [text(f"──── 第{rn}轮 ────")],
-            },
-        })
-        for uid, desc in rec.get("descriptions", {}).items():
-            p = room["players"].get(uid, {})
-            nodes.append({
-                "type": "node",
-                "data": {
-                    "user_id": uid,
-                    "nickname": p.get("alias", "?"),
-                    "content": [text(f"描述：{desc}")],
-                },
-            })
-        elim = rec.get("eliminated")
-        if elim:
-            p = room["players"].get(elim, {})
-            nodes.append({
-                "type": "node",
-                "data": {
-                    "user_id": "0",
-                    "nickname": "系统",
-                    "content": [text(f"{p.get('alias', '?')} 出局 - {'卧底' if p.get('role') == 'spy' else '平民'}")],
-                },
-            })
-    winner_label = "平民" if room.get("_winner") == "civilian" else "卧底"
-    nodes.append({
-        "type": "node",
-        "data": {
-            "user_id": "0",
-            "nickname": "系统",
-            "content": [text(f"{winner_label}胜利！")],
-        },
-    })
-    return nodes
-
-
-def send_forward_to_group(api: ApiWrapper, group_id: int, nodes: list[dict]):
-    api.call_api("send_group_forward_msg", {
-        "group_id": group_id,
-        "messages": nodes,
-    })
-
-
-def save_game_record(room: dict):
-    record = {
-        "room_id": room["room_id"],
-        "game_type": room.get("game_type", "卧底"),
-        "group_id": room["group_id"],
-        "created_at": room.get("created_at", 0),
-        "ended_at": datetime.now().timestamp(),
-        "winner": room.get("_winner", ""),
-        "civilian_word": room.get("civilian_word", ""),
-        "spy_word": room.get("spy_word", ""),
-        "players": [
-            {"user_id": p["user_id"], "nickname": p["nickname"],
-             "alias": p["alias"], "role": p["role"], "word": p["word"]}
-            for p in room["players"].values()
-        ],
-        "history": room.get("history", []),
-    }
-    base = f"server_data/game_records/{room['group_id']}"
-    os.makedirs(base, exist_ok=True)
-    path = f"{base}/{room['room_id']}.json"
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(record, f, ensure_ascii=False, indent=2)
-    except Exception:
-        logger.exception("保存游戏记录失败")
-
-
-def get_saved_records(group_id: int) -> list[dict]:
-    base = f"server_data/game_records/{group_id}"
-    if not os.path.isdir(base):
-        return []
-    records = []
-    for fname in os.listdir(base):
-        if not fname.endswith(".json"):
-            continue
-        path = f"{base}/{fname}"
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                records.append(json.load(f))
-        except Exception:
-            logger.exception(f"读取游戏记录失败: {path}")
-    records.sort(key=lambda r: r.get("ended_at", 0), reverse=True)
-    return records
-
-
-def format_record_summary(data: dict) -> str:
-    ts = datetime.fromtimestamp(data.get("ended_at", 0)).strftime("%Y-%m-%d %H:%M")
-    winner_label = "平民" if data.get("winner") == "civilian" else "卧底"
-    n = len(data.get("players", []))
-    lines = [
-        f"游戏记录：{data.get('room_id', '?')}",
-        f"游戏类型：{data.get('game_type', '?')}",
-        f"结束时间：{ts}",
-        f"参与人数：{n}",
-        f"胜负结果：{winner_label}胜利",
-        f"平民词条：{data.get('civilian_word', '?')}",
-        f"卧底词条：{data.get('spy_word', '?')}",
-        "",
-        "玩家身份：",
-    ]
-    for p in data.get("players", []):
-        role_label = "平民" if p.get("role") == "civilian" else "卧底"
-        lines.append(f"  {p.get('alias', '?')} {p.get('nickname', '?')} - {role_label} - \"{p.get('word', '')}\"")
-    lines.append("")
-    for rec in data.get("history", []):
-        rn = rec.get("round_num", 0)
-        lines.append(f"──── 第{rn}轮 ────")
-        uid_to_alias = {p["user_id"]: p["alias"] for p in data.get("players", [])}
-        for uid, desc in rec.get("descriptions", {}).items():
-            alias = uid_to_alias.get(uid, "?")
-            lines.append(f"  {alias} \"{desc}\"")
-        elim = rec.get("eliminated", "")
-        counts = rec.get("vote_counts", {})
-        if counts:
-            parts = []
-            for uid, alias in uid_to_alias.items():
-                c = counts.get(uid, 0)
-                marker = " (出局)" if uid == elim else ""
-                parts.append(f"{alias} {c}票{marker}")
-            lines.append(f"  投票结果：{'  '.join(parts)}")
-        if elim:
-            p = next((x for x in data.get("players", []) if x["user_id"] == elim), {})
-            lines.append(f"  → {p.get('alias', '?')} 出局 - {'卧底' if p.get('role') == 'spy' else '平民'}")
-        lines.append("")
-    return "\n".join(lines)
+def broadcast_vote_result(api, room, eliminated_uid):
+    GameMessenger(api).result(room, eliminated_uid)
