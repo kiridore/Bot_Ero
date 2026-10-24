@@ -3,6 +3,7 @@ import random
 import os
 
 from core.logger import logger
+from core import context
 
 
 def _load_words() -> list[dict]:
@@ -113,33 +114,33 @@ def _parse_vote(raw: str) -> int | None:
 
 
 def collect_vote(room: dict, user_id: str, raw: str) -> bool | str:
-    if room["phase"] != "playing_vote":
-        return "当前不是投票阶段"
-    p = room["players"].get(user_id)
-    if not p or not p["alive"]:
-        return "你已出局"
-    if user_id in room["votes"]:
-        return "你已经投过票了"
+    # 与成员变更共享短锁，防止最后两票同时完成或同一玩家覆盖已投选票。
+    with context.game_lock:
+        if room["phase"] != "playing_vote":
+            return "当前不是投票阶段"
+        p = room["players"].get(user_id)
+        if not p or not p["alive"]:
+            return "你已出局"
+        if user_id in room["votes"]:
+            return "你已经投过票了"
 
-    target_num = _parse_vote(raw)
-    if target_num is None:
-        return "请回复玩家编号（如 1 / ①）"
+        target_num = _parse_vote(raw)
+        if target_num is None:
+            return "请回复玩家编号（如 1 / ①）"
 
-    target = None
-    for pid, pp in room["players"].items():
-        if pp["alive"] and pp["alias"].startswith(str(target_num)):
-            target = pid
-            break
-    if not target:
-        return "无效的编号，请输入正确编号"
-    if target == user_id:
-        return "不能投给自己"
+        target = None
+        for pid, pp in room["players"].items():
+            if pp["alive"] and pp["alias"] == f"{target_num}号":
+                target = pid
+                break
+        if not target:
+            return "无效的编号，请输入正确编号"
+        if target == user_id:
+            return "不能投给自己"
 
-    room["votes"][user_id] = target
-    alive = [pid for pid, pp in room["players"].items() if pp["alive"]]
-    if len(room["votes"]) >= len(alive):
-        return True
-    return False
+        room["votes"][user_id] = target
+        alive = [pid for pid, pp in room["players"].items() if pp["alive"]]
+        return all(pid in room["votes"] for pid in alive)
 
 
 def tally_votes(room: dict) -> str:
@@ -153,12 +154,7 @@ def tally_votes(room: dict) -> str:
     if len(tied) == 1:
         eliminated = tied[0]
     else:
-        alive = [pid for pid, pp in room["players"].items() if pp["alive"]]
-        not_voted = [uid for uid in alive if uid not in counts]
-        if not_voted:
-            eliminated = random.choice(not_voted)
-        else:
-            eliminated = random.choice(tied)
+        eliminated = random.choice(tied)
 
     room["players"][eliminated]["alive"] = False
 
