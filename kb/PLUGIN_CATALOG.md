@@ -16,9 +16,9 @@
 | 6 | `remedy_checkin` | `remedy_checkin/` | CommandPlugin `/补卡`/`/单日补卡`/`/超级补卡`/`/超级单日补卡` | 补卡系统 |
 | 7 | `all_checkin_display` | `all_checkin_display/` | CommandPlugin `/ALL` | 显示全量打卡图和统计（合并转发） |
 | 8 | `week_checkin_display` | `week_checkin_display/` | CommandPlugin `/本周打卡图` | 本周打卡图（私发） |
-| 9 | `week_list` | `week_list/` | CommandPlugin `/本周板油` | 本周完成打卡的成员列表 |
-| 10 | `personal_records` | `personal_records/` | CommandPlugin `/档案 [年份]` | 生成年度热力图档案卡 |
-| 11 | `leaderboard` | `leaderboard/` | CommandPlugin `/排名`/`/rank` | TOP10 积分排行榜 |
+| 9 | `week_list` | `week_list/` | CommandPlugin `/本周板油` | 本周成员图按行遵守身份设置、无水印，文字回退不变 |
+| 10 | `personal_records` | `personal_records/` | CommandPlugin `/档案 [年份]` | 年度档案卡及注册图遵守身份设置、默认同名水印（可关闭），无本人豁免 |
+| 11 | `leaderboard` | `leaderboard/` | CommandPlugin `/排名`/`/rank` | TOP10 积分图按行遵守身份设置、无水印，文字回退不变 |
 | 12 | `lottery` | `lottery/` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费`/`/一键抽奖` | 抽卡系统（一键抽奖：连抽今日剩余次数并合并转发结果） |
 | 13 | `immortal_lottery` | `immortal_lottery/` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩（开奖播报与周报展示注单及中奖明细） |
 | 14 | `dice` | `dice/` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |

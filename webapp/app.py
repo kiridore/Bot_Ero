@@ -1,13 +1,15 @@
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from core.auth import verify_login_key
+from core.gen_image.identicon import generate_identicon
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.web.auth_deps import AUTH_COOKIE_NAME, get_current_user_id
 from webapp import STATIC_DIR
@@ -35,7 +37,7 @@ app = FastAPI(title="BotEro Web", version="1.0.0")
 _PUBLIC_PATHS = {"/login", "/api/auth/login", "/favicon.ico", "/favicon.png"}
 _PUBLIC_PREFIXES = ("/static/", "/shared/", "/api/timeline/events")
 # 未登录时返回 401（而非 302）的路径：API 与媒体子资源（<img> 跟随 302 会把登录页 HTML 当图片渲染）
-_UNAUTHORIZED_PREFIXES = ("/api/", "/thumb/", "/media/", "/forum/media/", "/archive/", "/donate/media/")
+_UNAUTHORIZED_PREFIXES = ("/api/", "/thumb/", "/media/", "/forum/media/", "/archive/", "/donate/media/", "/identicon/")
 
 
 @app.middleware("http")
@@ -100,6 +102,18 @@ def api_me(user_id: Annotated[str, Depends(get_current_user_id)]):
         avatar_url=resolve_avatar_url(user_id),
         token="",
     )
+
+
+@app.get("/identicon/{user_id}.png")
+def api_identicon(user_id: str):
+    try:
+        image = generate_identicon(user_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="非法用户 ID")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return Response(buffer.getvalue(), media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=86400"})
 
 
 # 社区主页（时间线，登录可见；根域 / 由 Caddy 反代到本进程）

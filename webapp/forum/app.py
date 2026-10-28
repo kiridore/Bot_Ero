@@ -14,6 +14,7 @@ from core.timeline_client import emit_event, retract_event
 from core.tiptap import tiptap_to_plain
 from core.web.auth_deps import get_current_user_id
 from core.onebot_client import resolve_avatar_url, resolve_display_name
+from core.user_settings import display_identity
 from core.database_manager import DbManager
 from core.config import FORUM_IMAGE_MAX_BYTES, FORUM_IMAGES_ROOT
 from webapp import STATIC_DIR
@@ -24,13 +25,11 @@ EXCERPT_LONG = 150   # 长文/公告节选长度
 EXCERPT_COMMENT = 80  # 评论节选长度
 
 
-def _author_fields(user_id) -> dict:
+def _author_fields(user_id, viewer_id: str) -> dict:
     """作者展示字段：昵称 + 头像（OneBot 解析，失败降级回 id）。"""
     uid = str(user_id)
-    return {
-        "author_name": resolve_display_name(uid),
-        "author_avatar": resolve_avatar_url(uid),
-    }
+    name, avatar = display_identity(uid, viewer_id, resolve_display_name(uid), resolve_avatar_url(uid))
+    return {"author_name": name, "author_avatar": avatar}
 
 
 def _excerpt(body_json_str: str, max_len: int) -> str:
@@ -181,7 +180,7 @@ def list_posts(
     for r in rows:
         cols = ("id", "author_user_id", "type", "title", "status", "pinned", "created_at", "updated_at", "poll_deadline", "view_count")
         item = dict(zip(cols, r))
-        item.update(_author_fields(item["author_user_id"]))
+        item.update(_author_fields(item["author_user_id"], user_id))
         items.append(item)
     return {"items": items, "next_cursor": next_cursor}
 
@@ -269,7 +268,7 @@ def get_post(
     if db.forum.register_view(post_id) is None:
         raise HTTPException(status_code=404, detail="帖子不存在")
     post = db.forum.get_post(post_id)
-    post.update(_author_fields(post["author_user_id"]))
+    post.update(_author_fields(post["author_user_id"], user_id))
     # 投票帖：附带每个子投票的选项票数 + 当前用户已投选项
     if post["type"] == "poll":
         post["polls"] = db.forum.get_polls(post_id, user_id)
@@ -349,7 +348,7 @@ def list_comments(
 
     def _fields(uid: str) -> dict:
         if uid not in author_cache:
-            author_cache[uid] = _author_fields(uid)
+            author_cache[uid] = _author_fields(uid, user_id)
         return author_cache[uid]
 
     parent_author = {c["id"]: c["author_user_id"] for t in threads for c in [t, *t["replies"]]}

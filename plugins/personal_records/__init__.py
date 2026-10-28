@@ -5,7 +5,8 @@ import os
 import requests
 from PIL import Image as PILImage
 
-from core import context
+from core import context, user_settings
+from core.gen_image.identicon import generate_identicon
 from core.base import CommandPlugin
 from core.cq import image, at
 from core.event import Event
@@ -75,11 +76,15 @@ class PersonalRecords(CommandPlugin):
             points=self.dbmanager.points.get(self.bot_event.user_id),
         )
 
-        display_name = _sender_display_name(self.bot_event)
-        avatar_im = None
-        url = self.api.get_qq_avatar(self.bot_event.user_id)
-        if url:
-            avatar_im = _load_avatar_from_url(url)
+        if user_settings.identity_public(self.bot_event.user_id):
+            display_name = _sender_display_name(self.bot_event)
+            avatar_im = None
+            url = self.api.get_qq_avatar(self.bot_event.user_id)
+            if url:
+                avatar_im = _load_avatar_from_url(url)
+        else:
+            display_name = user_settings.anonymous_name(self.bot_event.user_id)
+            avatar_im = generate_identicon(self.bot_event.user_id)
 
         gen_personal_record_card(
             year,
@@ -88,6 +93,7 @@ class PersonalRecords(CommandPlugin):
             stats,
             user_display_name=display_name,
             avatar=avatar_im,
+            watermark_text=display_name if user_settings.watermark_enabled(self.bot_event.user_id) else None,
         )
         image_path = os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(
             context.llonebot_data_path,

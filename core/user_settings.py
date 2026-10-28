@@ -1,6 +1,6 @@
 """通用个人设置存储层（绑定 QQ 号，bot 与 web 双进程共用）。
 
-每用户一个 JSON 文件：server_data/user_settings/<user_id>.json
+每用户一个无扩展名 JSON 文件：server_data/user_settings/<user_id>
 文件不存在 = 全默认值。各功能自行约定键名，深合并写入。
 
 原子写（tmp + os.replace）防止出现写了一半的文件；每用户进程内锁
@@ -8,6 +8,9 @@
 
 已约定键：
     privacy.char_public: bool  是否允许他人查看我的角色卡（缺省 True）
+    privacy.identity_public: bool  是否公开昵称与头像（缺省 True）
+    timeline.show_others_checkin: bool  是否显示他人打卡（缺省 True）
+    watermark.enabled: bool  是否给自己的单主体生成图加水印（缺省 True）
     privacy.checkin_display_private: str  私聊/网页打卡在时间线的显示状态
     privacy.checkin_display_group: str    群聊打卡在时间线的显示状态
         取值 CHECKIN_DISPLAY_STATES（show|blur|text|hidden，缺省 show）；
@@ -17,6 +20,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import threading
@@ -71,6 +75,11 @@ def get_settings(user_id) -> dict:
 
 
 def update_settings(user_id, patch: dict) -> dict:
+    for group, key in (("privacy", "identity_public"),
+                       ("timeline", "show_others_checkin"), ("watermark", "enabled")):
+        values = patch.get(group, {})
+        if isinstance(values, dict) and key in values and type(values[key]) is not bool:
+            raise ValueError(f"{group}.{key} 必须是布尔值")
     path = _settings_path(user_id)
     with _lock_for(user_id):
         merged = _deep_merge(_read(path), patch)
@@ -80,6 +89,40 @@ def update_settings(user_id, patch: dict) -> dict:
 
 def privacy_public(user_id) -> bool:
     return bool(get_settings(user_id).get("privacy", {}).get("char_public", True))
+
+
+def _identity_user_id(user_id: str | int) -> str:
+    uid = str(user_id).strip()
+    if not uid.isascii() or not uid.isdigit():
+        raise ValueError(f"非法用户 ID: {user_id!r}")
+    return str(int(uid))
+
+
+def identity_public(user_id: str | int) -> bool:
+    return bool(get_settings(_identity_user_id(user_id)).get("privacy", {}).get("identity_public", True))
+
+
+def anonymous_name(user_id: str | int) -> str:
+    """规范 QQ 字符串的 MD5 前八位；只隐藏昵称，不保证账号不可追踪。"""
+    return hashlib.md5(_identity_user_id(user_id).encode("ascii")).hexdigest()[:8]
+
+
+def display_identity(
+    owner_id: str | int, viewer_id: str | int | None, name: str, avatar: str | None,
+) -> tuple[str, str | None]:
+    """网站本人查看豁免；公共图片调用方不能以 owner 作为 viewer。"""
+    owner = _identity_user_id(owner_id)
+    if (viewer_id is not None and owner == _identity_user_id(viewer_id)) or identity_public(owner):
+        return name, avatar
+    return anonymous_name(owner), f"/identicon/{owner}.png"
+
+
+def show_others_checkin(user_id: str | int) -> bool:
+    return bool(get_settings(user_id).get("timeline", {}).get("show_others_checkin", True))
+
+
+def watermark_enabled(user_id: str | int) -> bool:
+    return bool(get_settings(user_id).get("watermark", {}).get("enabled", True))
 
 
 CHECKIN_DISPLAY_STATES = ("show", "blur", "text", "hidden")

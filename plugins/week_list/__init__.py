@@ -1,3 +1,5 @@
+from core import user_settings
+from core.gen_image.identicon import generate_identicon
 from core.base import CommandPlugin
 from core.cq import image, text
 from core.utils import get_monday_to_monday
@@ -54,15 +56,16 @@ class WeekListPlugin(CommandPlugin):
             entries.append((len(entries) + 1, user_id, member_name, checkin_time))
 
         try:
-            rows = [
-                RankRow(
+            rows = []
+            for rank, user_id, name, checkin_time in entries:
+                public = user_settings.identity_public(user_id)
+                rows.append(RankRow(
                     rank=rank,
-                    name=name,
+                    name=name if public else user_settings.anonymous_name(user_id),
                     detail=str(checkin_time),
-                    avatar=fetch_avatar_cached(self.api, int(user_id)),
-                )
-                for rank, user_id, name, checkin_time in entries
-            ]
+                    avatar=(fetch_avatar_cached(self.api, int(user_id)) if public
+                            else generate_identicon(user_id)),
+                ))
             subtitle = "本周({} ~ {}) 共 {} 名板油完成了打卡".format(start_date, end_date, len(entries))
             img = render_rank_card("本周打卡板油", subtitle, rows)
             _, send_path = save_rank_png("week_board", img)

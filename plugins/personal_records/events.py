@@ -5,7 +5,8 @@ from core.cq import at, image
 from core.database_manager import DbManager
 from core.plugin_dispatch import subscribe
 from core import context as runtime_context
-from core import utils
+from core import utils, user_settings
+from core.gen_image.identicon import generate_identicon
 from core.logger import logger
 
 
@@ -35,19 +36,25 @@ def _render_card(db, uid) -> str | None:
         longest_daily=streaks["longest_daily"],
         points=db.points.get(uid),
     )
-    avatar = None
-    try:
-        from core.api import ApiWrapper
-        api = ApiWrapper({"user_id": uid, "post_type": "message", "message_type": "private",
-                          "message": [], "time": 0})
-        url = api.get_qq_avatar(uid)
-        if url:
-            avatar = _load_avatar_from_url(url)
-    except Exception:
-        logger.warning("注册资料卡头像获取失败，按无头像渲染（用户 %s）", uid, exc_info=True)
+    if user_settings.identity_public(uid):
+        display_name = str(uid)
+        avatar = None
+        try:
+            from core.api import ApiWrapper
+            api = ApiWrapper({"user_id": uid, "post_type": "message", "message_type": "private",
+                              "message": [], "time": 0})
+            url = api.get_qq_avatar(uid)
+            if url:
+                avatar = _load_avatar_from_url(url)
+        except Exception:
+            logger.warning("注册资料卡头像获取失败，按无头像渲染（用户 %s）", uid, exc_info=True)
+    else:
+        display_name = user_settings.anonymous_name(uid)
+        avatar = generate_identicon(uid)
     gen_personal_record_card(
         stats.year, day_count, uid, stats,
-        user_display_name=str(uid), avatar=avatar,
+        user_display_name=display_name, avatar=avatar,
+        watermark_text=display_name if user_settings.watermark_enabled(uid) else None,
     )
     return os.path.abspath("{}/personal_records/{}_calendar_heatmap_monthly.png".format(
         runtime_context.llonebot_data_path, uid))

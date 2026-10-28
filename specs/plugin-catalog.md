@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-16 (周报：新增 message_logger 与 weekly_report 插件；补登 forum_notify；插件总数 47)
+> 最后更新: 2026-10-28（1.57.0：补充两种榜单及个人档案图身份/水印行为；未增删插件）
 
 全部 47 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
@@ -20,9 +20,9 @@
 | `remedy_checkin/` | `RemedyCheckinPlugin` | `remedy_checkin` | CommandPlugin | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` / `/超级单日补卡` | 补卡系统：周补卡(4点)、单日补卡(2点)、管理员超级补整周/单日（免费） |
 | `all_checkin_display/` | `AllCheckinDisplay` | `all_checkin_display` | CommandPlugin | `/ALL` | 显示全量打卡图（合并转发） |
 | `week_checkin_display/` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | CommandPlugin | `/本周打卡图` | 显示本周打卡图（私发） |
-| `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |
-| `personal_records/` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 生成年度打卡热力图档案卡 |
-| `leaderboard/` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分排行榜 |
+| `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 本周打卡成员图按行遵守身份公开设置、不加水印；文字回退不变 |
+| `personal_records/` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 年度档案卡及注册图遵守身份设置，默认同名平铺水印；可关闭，无本人豁免 |
+| `leaderboard/` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分图按行遵守身份公开设置、不加水印；文字回退不变 |
 | `lottery/` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` / `/一键抽奖` | 抽卡系统：消耗积分随机获取奖励；一键抽奖连抽今日剩余次数并合并转发结果 |
 | `immortal_lottery/` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统，概况/开奖播报/周报展示注单与中奖明细 |
 | `dice/` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |

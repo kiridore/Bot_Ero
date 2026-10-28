@@ -1,3 +1,5 @@
+from core import user_settings
+from core.gen_image.identicon import generate_identicon
 from core.base import CommandPlugin
 from core.cq import image, text
 from core.logger import logger
@@ -50,15 +52,16 @@ class LeaderboardPlugin(CommandPlugin):
             entries.append((index, user_id, member_name, points))
 
         try:
-            rows = [
-                RankRow(
+            rows = []
+            for rank, user_id, name, points in entries:
+                public = user_settings.identity_public(user_id)
+                rows.append(RankRow(
                     rank=rank,
-                    name=name,
+                    name=name if public else user_settings.anonymous_name(user_id),
                     detail=f"{points}分",
-                    avatar=fetch_avatar_cached(self.api, int(user_id)),
-                )
-                for rank, user_id, name, points in entries
-            ]
+                    avatar=(fetch_avatar_cached(self.api, int(user_id)) if public
+                            else generate_identicon(user_id)),
+                ))
             img = render_rank_card("积分排行榜", f"TOP {len(rows)}", rows)
             _, send_path = save_rank_png("points_rank", img)
             self.api.send_msg(image("file://" + send_path))

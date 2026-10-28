@@ -73,7 +73,7 @@
   personal_records/                         ← 生成档案图片
   thumb_cache/                              ← Web 端缩略图
   trpg_chars/<user_id>/                     ← 角色卡 JSON：meta.json（current_id/order）+ <char_id>.json
-  user_settings/<user_id>.json              ← 个人设置 JSON（文件不存在 = 全默认）
+  user_settings/<user_id>                   ← 无扩展名个人设置 JSON（文件不存在 = 全默认）
   activity_archive/<活动id>/                ← 活动归档：meta.json + 接龙/匹配 markdown + imgs/
   message_log.db                            ← 群消息日志独立库（周报数据源，永久保留）
 
@@ -86,8 +86,12 @@
 ## 跑团角色卡与个人设置（JSON 存储）
 
 - 角色卡**不再存 SQLite**，改存 `server_data/trpg_chars/<user_id>/`（`meta.json` 记录 `current_id`/`order`，`<char_id>.json` 为单个角色数据）；根目录可用 `config.yaml` `paths.trpg_chars` 覆盖
-- 个人设置存 `server_data/user_settings/<user_id>.json`；根目录可用 `config.yaml` `paths.user_settings` 覆盖
+- 个人设置存无扩展名 JSON 文件 `server_data/user_settings/<user_id>`；根目录可用 `config.yaml` `paths.user_settings` 覆盖，不迁移既有文件名
 - 已约定设置键：`privacy.char_public`（bool，缺省 True）= 是否允许他人查看我的角色卡（网页端 `/profile/settings` 开关，QQ 查看他人卡需已公开）
+- 1.57.0 新增三个独立布尔键（均缺省 True）：`privacy.identity_public` 公开昵称与头像；`timeline.show_others_checkin` 在时间线显示他人打卡；`watermark.enabled` 为个人档案生成图加水印。`GET/PUT /api/me/settings` 返回三组设置，新增键拒绝非布尔值（422），局部深合并，不覆盖其他设置或邮箱。
+- 身份关闭：`anonymous_name` 使用规范 QQ 号 MD5 前8位，头像用确定性图案；网站本人豁免、bot 可传播图不豁免。保留原始 ID、用户正文和历史数据，不是安全匿名化。网站具体范围与旧周报局部降级见 `specs/web-gallery.md`。
+- 观看偏好仅过滤时间线 feed/poll/new 的他人 `source=checkin`；本人打卡（含 hidden）与他人非打卡保留，有游标的空页继续读取，不改变 bot 群指令。
+- 水印仅作用于 `/档案` 与注册图，45°交错半透明白字，与卡头同名；排行榜/本周打卡板只逐行匿名、无水印，原上传图不变。浅灰底白字很淡，真实QQ视觉验收未完成；详见 `specs/image-generation.md`。
 - 存储层：`core/character_store.py`、`core/user_settings.py`（原子写 tmp+os.replace，每用户进程内锁；bot 与 web 双进程共用）
 - 网页车卡：`/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）
 

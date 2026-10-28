@@ -12,7 +12,8 @@ from pydantic import BaseModel
 from core.config import LIVE_FLV_URL  # 直播流地址（config.yaml live.flv_url 可覆盖，便于本地联调）
 
 from core.onebot_client import resolve_display_name
-from core.web.auth_deps import get_optional_user_id
+from core.web.auth_deps import get_current_user_id, get_optional_user_id
+from core.user_settings import display_identity
 from webapp import STATIC_DIR
 
 router = APIRouter()
@@ -83,7 +84,7 @@ def live_heartbeat(
 
 
 @router.get("/api/live/viewers")
-def live_viewers():
+def live_viewers(viewer_id: Annotated[str, Depends(get_current_user_id)]):
     """当前观众列表：已登录按 user_id 去重显示昵称，匿名单个显示。
 
     返回: {"viewers": [{"name": str, "member": bool}...], "count": int}
@@ -98,7 +99,10 @@ def live_viewers():
                 members.setdefault(v["user_id"], v["name"] or v["user_id"])
             else:
                 anonymous.append(f"匿名观众 #{cid[:4]}")
-    viewers = [{"name": name, "member": True} for name in members.values()]
+    viewers = [
+        {"name": display_identity(uid, viewer_id, name, None)[0], "member": True}
+        for uid, name in members.items()
+    ]
     viewers += [{"name": name, "member": False} for name in anonymous]
     viewers.sort(key=lambda it: (not it["member"], it["name"]))
     return {"viewers": viewers, "count": len(viewers)}

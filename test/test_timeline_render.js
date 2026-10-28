@@ -112,6 +112,8 @@ let pollFail = false;
 let poll401 = false;
 let readFail = false;
 let newPages = [];
+let feedPages = [];
+let intersectDuringFeed = false;
 const readRequests = [];
 const fetchedUrls = [];
 
@@ -176,7 +178,11 @@ async function fakeFetch(url, opts) {
   }
   if (u.startsWith("/api/timeline")) {
     if (!timelineAuthed) return { ok: false, status: 401, json: async () => ({}) };
-    return { ok: true, status: 200, json: async () => feedPayload };
+    if (intersectDuringFeed) {
+      intersectDuringFeed = false;
+      fireIO(els.sentinel, true); // 首次回调发生在 loadPage 的请求仍在运行时
+    }
+    return { ok: true, status: 200, json: async () => feedPages.shift() || feedPayload };
   }
   return { ok: false, status: 404, json: async () => ({}) };
 }
@@ -389,6 +395,33 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check("仅文字卡片无图片条", r4 && !r4.children.some((c) => c.className === "tl-images"));
   check("模糊卡片无仅文字角注", !r1.children.some((c) => c.className === "tl-text-note"));
   check("普通卡片无仅文字角注", !r3.children.some((c) => c.className === "tl-text-note"));
+
+  // 12. 连续过滤空页不能等待观察器再次进入；只在真正取尽时显示空状态。
+  feedPages = [
+    { events: [], users: {}, next_cursor: "hidden-page-1" },
+    { events: [], users: {}, next_cursor: "hidden-page-2" },
+    feedPayload,
+  ];
+  intersectDuringFeed = true;
+  const feedRequestsBefore = fetchedUrls.length;
+  await window.GalleryAuth.login("test-key");
+  await wait(100);
+  check("观察器回调早到仍自动越过连续空页", feedPages.length === 0
+        && els.feed.children.length === 1 && els.feed.children[0].children.length === 4);
+  check("空页游标依次续读", fetchedUrls.slice(feedRequestsBefore).some((u) => u.includes("cursor=hidden-page-1"))
+        && fetchedUrls.slice(feedRequestsBefore).some((u) => u.includes("cursor=hidden-page-2")));
+  check("空页后出现内容不显示空状态", els.feedEmpty.classList.contains("hidden"));
+  intervals[intervals.length - 1].fn();
+  await wait(50);
+  check("空页后的首条可见事件仍设置轮询锚点", fetchedUrls[fetchedUrls.length - 1].includes("after=5"));
+  feedPages = [
+    { events: [], users: {}, next_cursor: "last-hidden" },
+    { events: [], users: {}, next_cursor: null },
+  ];
+  await window.GalleryAuth.login("test-key");
+  await wait(100);
+  check("全部过滤且取尽后显示空状态", feedPages.length === 0
+        && !els.feedEmpty.classList.contains("hidden") && els.sentinel.textContent.includes("已经到底"));
 
   process.exit(fail ? 1 : 0);
 })();

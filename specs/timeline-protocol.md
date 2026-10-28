@@ -2,7 +2,7 @@
 
 > 交叉引用：[`README.md`](README.md)、[`architecture.md`](architecture.md)、[`database.md`](database.md)、[`web-gallery.md`](web-gallery.md)
 > 设计文档：[`docs/archive/superpowers/specs/2026-08-10-timeline-design.md`](../docs/archive/superpowers/specs/2026-08-10-timeline-design.md)
-> 最后更新：2026-08-10
+> 最后更新：2026-10-28（1.57.0 读侧个人偏好）
 
 ## 概述
 
@@ -107,8 +107,15 @@
 ## Constraint: checkin 私聊标记（`data.private`）
 
 - `checkin` 事件 CAN 在 `data` 提供 `private` 键（bool）：`true` = 私聊/网页打卡，`false` 或缺省 = 群聊打卡或历史事件。
-- Event Server **MUST NOT** 依赖此键做存储差异；展示层据此结合作者个人设置做可见性过滤（历史事件无标记，一律视为公开）。
+- Event Server **MUST NOT** 依赖此键做存储差异；展示层据此结合作者个人设置做可见性过滤（历史事件无标记按群聊类型处理，受 `privacy.checkin_display_group` 管辖）。
 - 提供者：`plugins/checkin`（QQ 私聊 `/打卡`）与网页端打卡服务均写 `true`。
+
+## Constraint: 时间线个人偏好（读侧，不改变上报协议）
+
+- `timeline.show_others_checkin` 为查看者个人布尔设置，缺省 True；MUST 每请求读取一次并在 feed/poll/new 的同一可见性判定中使用。关闭时仅排除 `source=checkin` 且作者非查看者的事件，不返回、不计未读。
+- 本人打卡（含 hidden）与他人非打卡保留；作者已有的四态隐私不被放宽。写入、bot 上报开关及群指令不变。
+- feed 过滤后按既有最多5页补取；仍有 cursor 的空页不是结束，前端 MUST 自动续读。new 的 `next_after` MUST 跨过已消费的原始批次（包含被滤行），不遗漏后续可见事件。未读/回执既有规则保持。
+- 作者身份及 `{id:QQ}` 引用资料 MUST 在响应序列化时使用 `display_identity` 按查看者转换；网站本人豁免，原始账号与事件正文不变。它只隐藏昵称头像，不提供安全匿名化。详细范围见 [web-gallery.md](web-gallery.md)。
 
 ## Constraint: 已注册 source 与 dedup_key 约定
 

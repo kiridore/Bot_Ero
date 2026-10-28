@@ -67,13 +67,21 @@ global.document = {
 
 let meSettings = { privacy: {} }; // 可在用例间切换
 const puts = [];
+let failNextPut = false;
 global.fetch = async (path, options = {}) => {
   if (path === "/api/me/settings" && (!options.method || options.method === "GET")) {
     return { ok: true, status: 200, json: async () => meSettings };
   }
   if (path === "/api/me/settings" && options.method === "PUT") {
-    puts.push(JSON.parse(options.body));
-    meSettings = { privacy: Object.assign({}, meSettings.privacy, JSON.parse(options.body).privacy) };
+    const patch = JSON.parse(options.body);
+    puts.push(patch);
+    if (failNextPut) {
+      failNextPut = false;
+      return { ok: false, status: 500, json: async () => ({ detail: "保存失败" }) };
+    }
+    for (const [group, values] of Object.entries(patch)) {
+      meSettings[group] = Object.assign({}, meSettings[group], values);
+    }
     return { ok: true, status: 200, json: async () => meSettings };
   }
   if (path === "/api/me/titles/settings") {
@@ -121,6 +129,15 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   check("空 privacy 私聊组默认 show", checkedOf("checkinDisplayPrivate") === "show");
   check("空 privacy 群聊组默认 show", checkedOf("checkinDisplayGroup") === "show");
   check("角色卡开关默认勾选（未被波及）", isChecked("charPublicToggle"));
+  const toggle = (id) => ALL_ELS.filter((el) => el.id === id).slice(-1)[0];
+  for (const id of ["identityPublicToggle", "showOthersCheckinToggle", "watermarkEnabledToggle"]) {
+    check(`${id} 默认勾选且有标签`, toggle(id)?.checked && ALL_ELS.some(
+      (el) => el.tagName === "label" && el.children.includes(toggle(id))));
+  }
+  check("时间线与水印分组存在", ALL_ELS.some((el) => el._html.includes("时间线偏好")) &&
+    ALL_ELS.some((el) => el._html.includes("图片水印")));
+  check("水印文案准确", ALL_ELS.some((el) => el.textContent === "在我的个人生成图上加水印"));
+  check("页面标题为个人设置", fs.readFileSync("webapp/static/settings.html", "utf8").includes("<title>个人设置</title>"));
 
   // 0. 网页配色：3 个 radio，默认选中"报纸风"
   const themeRadios = radiosOf("siteTheme");
@@ -163,6 +180,39 @@ function check(name, ok) { console.log(`${ok ? "ok" : "FAIL"} - ${name}`); if (!
   }
   check("配色切换调用 BoteroTheme.set(mono)", themeSets.length === 1 && themeSets[0] === "mono");
   check("配色切换不触发 API PUT", puts.length === putsBefore);
+
+  // 三组依次更新，整体替换响应后仍保留其他组和旧四态。
+  meSettings.email = "bound@example.test";
+  const preferences = [
+    ["identityPublicToggle", "privacy", "identity_public"],
+    ["showOthersCheckinToggle", "timeline", "show_others_checkin"],
+    ["watermarkEnabledToggle", "watermark", "enabled"],
+  ];
+  for (const [id, group, key] of preferences) {
+    const input = toggle(id);
+    input.checked = false;
+    await input._listeners.change[0]({ target: input });
+    const sent = puts[puts.length - 1];
+    check(`${id} 仅提交自己的布尔键`, JSON.stringify(sent) === JSON.stringify({ [group]: { [key]: false } }));
+  }
+  await loadSettings();
+  for (const [id, group, key] of preferences) {
+    check(`${id} 刷新后保留关闭`, !toggle(id).checked && userSettingsData[group][key] === false);
+  }
+  check("三组更新保留已有四态、角色卡与邮箱", userSettingsData.privacy.checkin_display_private === "text" &&
+    userSettingsData.privacy.checkin_display_group === "hidden" && userSettingsData.privacy.char_public === false &&
+    userSettingsData.email === "bound@example.test");
+  const latestRadio = radiosOf("checkinDisplayGroup").filter((el) => el.value === "blur").slice(-1)[0];
+  await latestRadio._listeners.change[0]({ target: latestRadio });
+  check("旧四态更新不丢三组开关", preferences.every(([, group, key]) => userSettingsData[group][key] === false));
+  const failed = toggle("watermarkEnabledToggle");
+  failNextPut = true;
+  failed.checked = true;
+  await failed._listeners.change[0]({ target: failed });
+  check("失败回滚且重新允许操作", !failed.checked && !failed.disabled && userSettingsData.watermark.enabled === false);
+  failed.checked = true;
+  await failed._listeners.change[0]({ target: failed });
+  check("关闭后可重新开启", userSettingsData.watermark.enabled === true && failed.checked);
 
   process.exit(fail ? 1 : 0);
 })();

@@ -16,6 +16,7 @@ from core.config import ACTIVITY_ROOT, WEB_BASE_URL
 from core.context import DEFAULT_GROUP_ID
 from core.database_manager import DbManager
 from core.onebot_client import resolve_display_name
+from core.user_settings import display_identity
 from core.timeline_client import activity_event_args, emit_event
 from core.tiptap import tiptap_to_plain
 from core.web.auth_deps import get_current_user_id
@@ -227,9 +228,13 @@ _FIELD_LABEL = {"title": "标题", "description": "描述", "hours_per_user": "�
 
 
 @router.get("/api/activities")
-def api_activities():
+def api_activities(user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
-    return {"items": db.activity.list_activities()}
+    items = db.activity.list_activities()
+    for activity in items:
+        for member in activity.get("members", []):
+            member["nickname"] = display_identity(member["user_id"], user_id, member["nickname"], None)[0]
+    return {"items": items}
 
 
 @router.post("/api/activities")
@@ -443,6 +448,7 @@ def api_activity_detail(activity_id: int,
         raise HTTPException(status_code=404, detail="活动不存在")
     eta = _relay_eta_deadlines(act, act["members"])
     for m in act["members"]:
+        m["nickname"] = display_identity(m["user_id"], user_id, m["nickname"], None)[0]
         m["images"] = [
             f"/archive/{activity_id}/media/{name}" for name in m.get("images", [])
         ]

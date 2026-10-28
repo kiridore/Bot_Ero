@@ -298,5 +298,86 @@ class TestRankCard(unittest.TestCase):
         self.assertIn("points_rank_", Path(py2).name)
 
 
+class TestWatermark(unittest.TestCase):
+    def test_watermark_angle_stagger_white_deterministic_and_no_mutation(self):
+        from core.gen_image.watermark import ALPHA, TILE_GAP, apply_watermark
+
+        original = PILImage.new("RGBA", (800, 800))
+        before = original.tobytes()
+        rotate = PILImage.Image.rotate
+        composite = PILImage.Image.alpha_composite
+        with patch.object(PILImage.Image, "rotate", autospec=True, side_effect=rotate) as rotation, \
+                patch.object(PILImage.Image, "alpha_composite", autospec=True,
+                             side_effect=composite) as tiles:
+            output = apply_watermark(original, "测试作者")
+        self.assertEqual(rotation.call_args.args[1], 45)
+        self.assertTrue(rotation.call_args.kwargs["expand"])
+        positions = [call.args[2] for call in tiles.call_args_list]
+        tile = tiles.call_args_list[0].args[1]
+        step_x = tile.width + TILE_GAP
+        ys = sorted({y for x, y in positions})
+        first_x = [min(x for x, y in positions if y == row_y) for row_y in ys]
+        self.assertEqual(first_x[1] - first_x[0], step_x // 2)
+        self.assertEqual(first_x[2], first_x[0])
+        self.assertEqual(ys[1] - ys[0], tile.height + TILE_GAP)
+        self.assertEqual(original.tobytes(), before)
+        self.assertNotEqual(output.tobytes(), before)
+        self.assertEqual(output.tobytes(), apply_watermark(original, "测试作者").tobytes())
+        self.assertEqual(apply_watermark(original, "").tobytes(), before)
+        visible = [pixel for pixel in output.getdata() if pixel[3]]
+        self.assertTrue(visible)
+        self.assertTrue(all(pixel[:3] == (255, 255, 255) for pixel in visible))
+        self.assertLess(max(pixel[3] for pixel in visible), ALPHA * 2)
+
+    def test_watermark_long_chinese_name_bounded_and_deterministic(self):
+        from core.gen_image import watermark
+
+        original = PILImage.new("RGB", (600, 700), (245, 245, 245))
+        long_name = "很长的中文名字" * 10000
+        with patch.object(watermark, "truncate_text", wraps=watermark.truncate_text) as truncate, \
+                patch.object(PILImage, "new", wraps=PILImage.new) as allocate:
+            output = watermark.apply_watermark(original, long_name)
+        self.assertLessEqual(len(truncate.call_args.args[1]), watermark.MAX_NAME_CHARS + 1)
+        for call in allocate.call_args_list:
+            width, height = call.args[1]
+            self.assertLessEqual(width * height, original.width * original.height)
+        self.assertEqual(output.size, original.size)
+        self.assertEqual(output.mode, original.mode)
+        self.assertEqual(output.tobytes(), watermark.apply_watermark(original, long_name).tobytes())
+
+    def test_watermark_saved_real_card_samples_and_legacy_signature(self):
+        from core.gen_image import PersonalRecordStats, gen_personal_record_card
+        from core.gen_image.identicon import generate_identicon
+        from core.user_settings import anonymous_name
+
+        GEN_IMAGE_OUTPUT.mkdir(parents=True, exist_ok=True)
+        stats = PersonalRecordStats(2024, 160, 300, 4, 8, 2, 12, 2345)
+        counts = [index % 6 for index in range(366)]
+        avatar = PILImage.new("RGB", (128, 128), (50, 90, 150))
+        with patch("core.gen_image.profile_card.context.python_data_path", str(GEN_IMAGE_OUTPUT)):
+            # 省略新参数的旧调用仍可使用；关闭水印与此基线完全一致。
+            path = gen_personal_record_card(2024, counts, 777001, stats,
+                                            user_display_name="样图测试作者", avatar=avatar)
+            with PILImage.open(path) as image:
+                baseline = image.copy()
+            baseline.save(GEN_IMAGE_OUTPUT / "watermark_baseline.png")
+            gen_personal_record_card(2024, counts, 777001, stats,
+                                     user_display_name="样图测试作者", avatar=avatar, watermark_text=None)
+            with PILImage.open(path) as image:
+                self.assertEqual(image.tobytes(), baseline.tobytes())
+            gen_personal_record_card(2024, counts, 777001, stats,
+                                     user_display_name="样图测试作者", avatar=avatar,
+                                     watermark_text="样图测试作者")
+            with PILImage.open(path) as image:
+                self.assertNotEqual(image.tobytes(), baseline.tobytes())
+                image.save(GEN_IMAGE_OUTPUT / "watermark_public.png")
+            name = anonymous_name(777001)
+            gen_personal_record_card(2024, counts, 777001, stats,
+                                     user_display_name=name, avatar=generate_identicon(777001),
+                                     watermark_text=name)
+            with PILImage.open(path) as image:
+                image.save(GEN_IMAGE_OUTPUT / "watermark_anonymous.png")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

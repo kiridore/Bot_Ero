@@ -2,7 +2,7 @@
 
 > 关联规范: [database.md](database.md) | [conventions.md](conventions.md) | [architecture.md](architecture.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-08-21 (全站登录门控：新增 `/login` 独立登录页；`login_guard` 中间件对全部路由统一鉴权（Bearer 头或 `botero_key` cookie 双通道），未登录页面 302 / API 与媒体 401；auth.js 全局 401 拦截 + 退出按钮)
+> 最后更新: 2026-10-28（1.57.0：个人偏好、网站身份展示与时间线观看过滤）
 
 ---
 
@@ -222,8 +222,9 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/me/titles/equip` | 必须 | 装备单个称号 |
 | `DELETE` | `/api/me/titles/equipped` | 必须 | 卸下全部 |
 | `DELETE` | `/api/me/titles/equip/{id}` | 必须 | 卸下单个 |
-| `GET` | `/api/me/settings` | 必须 | 我的个人设置（深合并，含绑定邮箱 `email`） |
-| `PUT` | `/api/me/settings` | 必须 | 更新个人设置（深合并；email 仅经邮箱验证接口变更） |
+| `GET` | `/api/me/settings` | 必须 | 我的个人设置（privacy/timeline/watermark 三组，含绑定邮箱 `email`） |
+| `PUT` | `/api/me/settings` | 必须 | 深合并局部更新；三个新增偏好严格 bool，非法类型 422；email 仅经邮箱验证接口变更 |
+| `GET` | `/identicon/{user_id}.png` | 必须 | 确定性128×128图案头像；非法账号422；私有缓存86400秒 |
 | `POST` | `/api/me/email/code` | 必须 | 发送邮箱验证码（bind/unbind，60s 冷却；mail 未配置 503） |
 | `POST` | `/api/me/email/bind` | 必须 | 绑定/换绑邮箱（验证码校验） |
 | `POST` | `/api/me/email/unbind` | 必须 | 解绑邮箱（当前邮箱验证码确认） |
@@ -351,7 +352,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 ```
 server_data/trpg_chars/<user_id>/meta.json        # {"current_id": 3, "order": [1,2,3]}
 server_data/trpg_chars/<user_id>/<char_id>.json   # 单个角色完整数据（任意嵌套 dict）
-server_data/user_settings/<user_id>.json          # 个人设置（文件不存在 = 全默认值）
+server_data/user_settings/<user_id>               # 无扩展名 JSON 个人设置（文件不存在 = 全默认值）
 ```
 
 - 根目录可用 `config.yaml` 的 `paths.trpg_chars` / `paths.user_settings` 覆盖（默认见上文配置表）
@@ -391,6 +392,15 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 
 ---
 
+## Constraint: 个人偏好与身份展示
+
+- `/profile/settings` MUST 提供 `privacy.identity_public`（公开昵称与头像）、`timeline.show_others_checkin`（显示他人打卡）、`watermark.enabled`（个人生成图水印），均为布尔、缺省 True。GET/PUT MUST 返回三组设置；新增键拒绝字符串、数字、null（422），局部更新深合并、不得覆盖未传字段或绕过邮箱验证。既有角色卡/打卡四态不变。
+- 身份序列化 MUST 复用 `core.user_settings.display_identity`：网站本人或公开用户保留原名与头像；关闭公开的他人身份使用规范 QQ 号 MD5 前8位小写匿名名与 `/identicon/{user_id}.png`。端点受登录保护，图案确定性，不承诺无碰撞。
+- 范围：时间线作者与 `{id:QQ}` 解析资料、论坛作者/回复对象、相册上传者与打卡列表、活动**列表及详情**报名成员、闹钟创建者、直播观众、工具创建者、TRPG 角色卡所有者、周报结构化身份与仙人彩头条。所有读取 MUST 使用当前设置，不改全局昵称缓存；直播不需补心跳、活动不需重新报名。
+- 本功能不是安全匿名化：MUST 保留账号关联、权限判定与用户自填正文，不全文替换昵称、不回写历史姓名。网站本人豁免不得用于可传播 bot 图片；图片约束见 [image-generation.md](image-generation.md)。
+- 周报 MUST 在响应副本处理结构化 `{user_id,name}`。仙人彩头条仅在相关中奖者需匿名时依据 `lottery.immortal` 的 digits/pool 和 winners 的 user_id/name/digits/tier 重建，覆盖大奖/仅三等奖；公开默认或完整来源证明无人中奖时保持原样。
+- 旧 `immortal_jackpot` 缺可靠来源时，仅将 headline 降级为 kind=`immortal_jackpot`、title=`仙人彩历史头条`、body=`历史头条缺少身份资料，暂不展示详情。`、stats=[]；旧中奖者 user_id 缺失/非法时 name=`身份资料缺失`，其他字段保留。其余周报仍返回，不回写数据库。
+
 ## Constraint: 时间线打卡隐私（读侧动态可见性）
 
 打卡事件在**读侧**按「事件标记 × 作者设置 × 查看者身份」动态过滤，写入侧不拦截、历史事件不回填：
@@ -407,6 +417,7 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
     （前端渲染「图片仅作者可见」角注）；作者本人始终原图。
   - **旧键迁移**：旧布尔键 `private_checkin_public`（False→私聊=hidden）/ `checkin_image_public`
     （False→两类=blur）在首次读取时懒迁移回写并删除，此后旧键被完全忽略。
+- **查看者偏好**：每请求读取一次 `timeline.show_others_checkin`；关闭时 feed/poll/new 共同排除 `source=checkin` 且非查看者本人的事件。本人打卡（包括 hidden）和他人非打卡不受影响；只收窄既有可见集合，不改变 bot 群指令。前端拿到空页但仍有 cursor 时 MUST 自动续读，不能误判取尽；无 cursor 才停止。
 - **实现约束**：过滤在 Python 侧（作者设置存 JSON 文件，无法下推 SQL）；态按事件粒度判定
   （类型 = data.private ? private : group，同作者两类可各自独立）；`feed` 逐页补取直到填满 limit
   或取尽（连续隐藏事件带的补页上限 5 页）；`new` 的 `next_after` 取自含隐藏行的已消费批次

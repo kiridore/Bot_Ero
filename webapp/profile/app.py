@@ -6,7 +6,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool, field_validator
 
 from webapp.gallery.repository import (
     CheckinImage,
@@ -69,12 +69,31 @@ class ShopRedeemIn(BaseModel):
     product_id: str
 
 
+class TimelineSettings(BaseModel):
+    show_others_checkin: StrictBool = True
+
+
+class WatermarkSettings(BaseModel):
+    enabled: StrictBool = True
+
+
 class SettingsIn(BaseModel):
     privacy: dict | None = None
+    timeline: TimelineSettings | None = None
+    watermark: WatermarkSettings | None = None
+
+    @field_validator("privacy")
+    @classmethod
+    def validate_identity_public(cls, value):
+        if value is not None and "identity_public" in value and type(value["identity_public"]) is not bool:
+            raise ValueError("identity_public 必须是布尔值")
+        return value
 
 
 class SettingsOut(BaseModel):
     privacy: dict
+    timeline: TimelineSettings
+    watermark: WatermarkSettings
     email: str | None = None
     email_bound_at: str | None = None
 
@@ -252,6 +271,8 @@ def api_my_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
     settings = user_settings_mod.get_settings(user_id)
     return SettingsOut(
         privacy=settings.get("privacy", {}),
+        timeline=settings.get("timeline", {}),
+        watermark=settings.get("watermark", {}),
         email=settings.get("email"),
         email_bound_at=settings.get("email_bound_at"),
     )
@@ -310,10 +331,12 @@ def api_update_settings(
     body: SettingsIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
-    patch = body.model_dump(exclude_none=True)
+    patch = body.model_dump(exclude_none=True, exclude_unset=True)
     merged = user_settings_mod.update_settings(user_id, patch)
     return SettingsOut(
         privacy=merged.get("privacy", {}),
+        timeline=merged.get("timeline", {}),
+        watermark=merged.get("watermark", {}),
         email=merged.get("email"),
         email_bound_at=merged.get("email_bound_at"),
     )
