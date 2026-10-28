@@ -16,6 +16,7 @@ let profileData = null;
 let titleFilter = "all";
 let activeTab = "titles";
 let checkinState = { loaded: false, page: 0, hasMore: true, loading: false, lastMonth: "" };
+let redeemState = { loaded: false, busy: false };
 let currentRecord = null;
 
 function escapeHtml(s) {
@@ -165,9 +166,14 @@ function switchTab(key) {
   });
   document.getElementById("panelTitles").classList.toggle("hidden", key !== "titles");
   document.getElementById("panelCheckins").classList.toggle("hidden", key !== "checkins");
+  document.getElementById("panelRedeem").classList.toggle("hidden", key !== "redeem");
   if (key === "checkins" && !checkinState.loaded) {
     checkinState.loaded = true;
     loadCheckins();
+  }
+  if (key === "redeem" && !redeemState.loaded) {
+    redeemState.loaded = true;
+    loadRedeemHistory();
   }
 }
 
@@ -229,6 +235,7 @@ function renderTabShell() {
   for (const [key, label] of [
     ["titles", "称号"],
     ["checkins", "打卡记录"],
+    ["redeem", "兑换码"],
   ]) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -245,6 +252,7 @@ function renderProfile(data) {
   profileData = data;
   profileMain.innerHTML = "";
   checkinState = { loaded: false, page: 0, hasMore: true, loading: false, lastMonth: "" };
+  redeemState = { loaded: false, busy: false };
 
   const header = document.createElement("section");
   header.className = "profile-header";
@@ -333,10 +341,104 @@ function renderProfile(data) {
   moreBtn.addEventListener("click", loadCheckins);
   panelCheckins.append(grid, moreBtn);
 
-  profileMain.append(panelTitles, panelCheckins);
+  const panelRedeem = document.createElement("section");
+  panelRedeem.id = "panelRedeem";
+  panelRedeem.className = "tab-panel" + (activeTab === "redeem" ? "" : " hidden");
+  const redeemBox = document.createElement("div");
+  redeemBox.className = "redeem-box";
+  const redeemInput = document.createElement("input");
+  redeemInput.id = "redeemInput";
+  redeemInput.type = "text";
+  redeemInput.placeholder = "XXXX-XXXX-XXXX";
+  redeemInput.autocomplete = "off";
+  redeemInput.spellcheck = false;
+  redeemInput.maxLength = 14;
+  const redeemBtn = document.createElement("button");
+  redeemBtn.type = "button";
+  redeemBtn.id = "redeemSubmit";
+  redeemBtn.className = "primary";
+  redeemBtn.textContent = "兑换";
+  redeemBtn.addEventListener("click", submitRedeem);
+  redeemInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitRedeem();
+  });
+  const redeemResult = document.createElement("p");
+  redeemResult.id = "redeemResult";
+  redeemResult.className = "redeem-result";
+  redeemResult.setAttribute("role", "status");
+  const redeemHistory = document.createElement("div");
+  redeemHistory.id = "redeemHistory";
+  redeemHistory.className = "redeem-history";
+  redeemBox.append(redeemInput, redeemBtn, redeemResult);
+  panelRedeem.append(redeemBox, redeemHistory);
+
+  profileMain.append(panelTitles, panelCheckins, panelRedeem);
   if (activeTab === "checkins" && !checkinState.loaded) {
     checkinState.loaded = true;
     loadCheckins();
+  }
+}
+
+async function loadRedeemHistory() {
+  const list = document.getElementById("redeemHistory");
+  if (!list) return;
+  try {
+    const res = await fetch("/api/me/redeem/history", { headers: GalleryAuth.headers() });
+    if (!res.ok) throw new Error("加载失败");
+    const data = await res.json();
+    list.innerHTML = "";
+    if (!data.items.length) {
+      list.innerHTML = "<p class='empty-hint'>还没有兑换记录</p>";
+      return;
+    }
+    for (const it of data.items) {
+      const row = document.createElement("div");
+      row.className = "redeem-history-row";
+      const code = document.createElement("code");
+      code.textContent = it.code;
+      const desc = document.createElement("span");
+      desc.textContent = it.description;
+      const at = document.createElement("time");
+      at.textContent = it.used_at;
+      row.append(code, desc, at);
+      list.appendChild(row);
+    }
+  } catch (err) {
+    list.innerHTML = "<p class='empty-hint'>历史加载失败，切换重试</p>";
+  }
+}
+
+async function submitRedeem() {
+  const input = document.getElementById("redeemInput");
+  const result = document.getElementById("redeemResult");
+  const btn = document.getElementById("redeemSubmit");
+  if (!input || !result || !btn || redeemState.busy) return;
+  const code = input.value.trim();
+  if (!code) {
+    result.textContent = "请输入兑换码";
+    result.className = "redeem-result error";
+    return;
+  }
+  redeemState.busy = true;
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/me/redeem", {
+      method: "POST",
+      headers: { ...GalleryAuth.headers(), "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "兑换失败，请稍后再试");
+    result.textContent = data.message || "兑换成功";
+    result.className = "redeem-result ok";
+    input.value = "";
+    loadRedeemHistory();
+  } catch (err) {
+    result.textContent = err.message || "兑换失败，请稍后再试";
+    result.className = "redeem-result error";
+  } finally {
+    redeemState.busy = false;
+    btn.disabled = false;
   }
 }
 

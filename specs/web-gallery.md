@@ -217,6 +217,8 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/me/checkin` | 必须 | 网页端打卡上传（multipart） |
 | `GET` | `/api/me/shop` | 必须 | 商店货架 |
 | `POST` | `/api/me/shop/redeem` | 必须 | 兑换商品 |
+| `GET` | `/api/me/redeem/history` | 必须 | 本人兑换码历史（含迁移前旧记录） |
+| `POST` | `/api/me/redeem` | 必须 | 提交兑换码（占位与奖励同事务） |
 | `GET` | `/api/me/titles/settings` | 必须 | 称号设置 |
 | `PUT` | `/api/me/titles/equipped` | 必须 | 批量设置装备 |
 | `POST` | `/api/me/titles/equip` | 必须 | 装备单个称号 |

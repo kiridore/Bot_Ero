@@ -781,7 +781,7 @@
   height: 18px;
 }
 
-/* ---- 个人主页 Tab（称号 / 打卡记录） ---- */
+/* ---- 个人主页 Tab（称号 / 打卡记录 / 兑换码） ---- */
 .profile-tabs {
   display: flex;
   gap: 0.5rem;
@@ -806,6 +806,87 @@
 
 .tab-panel.hidden {
   display: none;
+}
+
+/* ---- 兑换码 tab ---- */
+.redeem-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.redeem-box input {
+  flex: 1 1 16rem;
+  padding: 0.45rem 0.7rem;
+  font-family: var(--mono, monospace);
+  letter-spacing: 0.08em;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-card);
+  color: var(--ink);
+}
+
+.redeem-box button {
+  padding: 0.45rem 1.1rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.redeem-box button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.redeem-result {
+  margin: 0;
+  font-size: 0.9rem;
+  min-height: 1.3em;
+}
+
+.redeem-result:empty {
+  display: none;
+}
+
+.redeem-result.ok {
+  color: var(--accent);
+}
+
+.redeem-result.error {
+  color: #b3452e;
+}
+
+.redeem-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.redeem-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-card);
+  font-size: 0.9rem;
+}
+
+.redeem-history-row code {
+  font-family: var(--mono, monospace);
+  letter-spacing: 0.06em;
+}
+
+.redeem-history-row time {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
 }
 
 /* ---- 打卡记录卡片网格 ---- */

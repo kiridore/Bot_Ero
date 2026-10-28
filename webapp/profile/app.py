@@ -20,6 +20,7 @@ from webapp.profile.avatar_service import cached_avatar_path
 from webapp.profile.checkin_service import get_checkin_status, perform_checkin, save_uploaded_images
 from webapp.profile import email_service
 from webapp.profile.profile_service import build_profile
+from webapp.profile.redeem_service import redeem_code, redeem_history
 from webapp.profile.shop_service import get_shop, redeem_shop_item
 from webapp.profile.title_settings import (
     clear_equipped_titles,
@@ -67,6 +68,10 @@ class EquipOneIn(BaseModel):
 
 class ShopRedeemIn(BaseModel):
     product_id: str
+
+
+class RedeemCodeIn(BaseModel):
+    code: str
 
 
 class SettingsIn(BaseModel):
@@ -211,6 +216,24 @@ def api_shop_redeem(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     return _checkin_or_400(redeem_shop_item, user_id, body.product_id)
+
+
+@router.get("/api/me/redeem/history")
+def api_redeem_history(user_id: Annotated[str, Depends(get_current_user_id)]):
+    return redeem_history(user_id)
+
+
+@router.post("/api/me/redeem")
+def api_redeem(
+    body: RedeemCodeIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    try:
+        return redeem_code(user_id, body.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/api/me/titles/settings")

@@ -141,8 +141,8 @@ with _connect() as conn:
 | `code` | TEXT | PRIMARY KEY (with user_id) | 兑换码（规范化后大写，如 `TEST-CODE-TEST`） |
 | `used_at` | TEXT | NOT NULL | 使用时间 |
 
-- 兑换码系统：`/兑换码 <CODE>` 由 `plugins/redeem_code/` 处理；每用户每码仅可兑换一次，`PRIMARY KEY (user_id, code)` 保证原子防重
-- 读写层：`core/db/redeem.py` 的 `RedeemManager`（`DbManager.redeem`），`claim()` 原子占位、`release()` 回调失败时回滚
+- 兑换码系统：1.58.0 起由网页个人主页「兑换码」页签使用（`webapp/profile/redeem_service.py`），QQ 指令已移除；每用户每码仅可兑换一次，占位与奖励同事务，`PRIMARY KEY (user_id, code)` 保证原子防重
+- 读写层：`core/db/redeem.py` 的 `RedeemManager`（`DbManager.redeem`），`claim_in_transaction()` 事务内原子占位，`history()` 查询本人记录
 
 ### 周常任务
 

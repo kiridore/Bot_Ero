@@ -61,7 +61,7 @@ CREATE TABLE redeem_code_usage (
     user_id INTEGER NOT NULL,
     code TEXT NOT NULL,              -- 兑换码（大写规范化，如 TEST-CODE-TEST）
     used_at TEXT NOT NULL,
-    PRIMARY KEY (user_id, code)      -- 每用户每码一次
+    PRIMARY KEY (user_id, code)      -- 每用户每码一次（1.58.0 起由网页个人主页使用，旧记录兼容）
 );
 ```
 
