@@ -1,6 +1,6 @@
 # 数据库 Schema
 
-> `data.db` 全部 44 张表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
+> `data.db` 全部业务表（`core/db/_base.py::init_schema`）+ 独立库 `message_log.db` 1 张，结构与约束
 >
 > 参见 `specs/database.md` 获取更简化的概述
 
@@ -553,6 +553,24 @@ CREATE TABLE tools_link_tags (
 | `zero_streak_after` | INTEGER | NOT NULL DEFAULT 0 | 抽后连续零奖励次数 |
 
 - 索引：`idx_lottery_draw_log_time (drawn_at)`
+
+## 新闻订阅
+
+```sql
+CREATE TABLE news_subscriptions (
+    user_id INTEGER NOT NULL,
+    source_id TEXT NOT NULL,
+    subscribed_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, source_id)
+);
+CREATE TABLE news_push_state (
+    source_id TEXT PRIMARY KEY,
+    cursor TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+```
+
+订阅按账号全局共享，`source_id` 对应代码注册表的稳定标识（当前 `ff14`）。游标记录已处理新闻编号，首次初始化不补推；正常发送成功、无人订阅或超龄跳过时推进，发送失败保留进度。时间字段格式为 `YYYY-MM-DD HH:MM:SS`。
 
 ## 重要约束
 

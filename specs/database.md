@@ -675,6 +675,13 @@ user_id_str = str(user_id)
 
 **例外（web 侧）**：由 `get_current_user_id` 直接写入的 web 侧新表（如 `timeline_user_watermarks`/`timeline_read_events`）使用 `TEXT`，与 `forum_posts.author_user_id TEXT` 等既有 web 表一致，避免隐式类型强转；bot 侧新表仍按 INTEGER 规则。
 
+### 新闻订阅
+
+`core/db/news.py::NewsManager` 由 `DbManager.news` 装配，两表在 `init_schema` 幂等创建。
+
+- `news_subscriptions`：`user_id INTEGER NOT NULL`、`source_id TEXT NOT NULL` 联合主键；`subscribed_at TEXT NOT NULL`。订阅属于账号，不绑定群；重复订阅不新增记录。
+- `news_push_state`：`source_id TEXT PRIMARY KEY`、`cursor TEXT NOT NULL`、`updated_at TEXT NOT NULL`。游标是已处理的数字新闻编号；首次抓取只初始化，成功发送或主动跳过后逐条推进，不因官网旧列表而倒退。发送失败保留失败条目待下轮重试。
+
 ### 打卡标记
 
 - 正常打卡：`content` 为图片文件名

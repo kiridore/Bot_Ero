@@ -1,6 +1,11 @@
 # BotEro 路线图
 
-> 当前版本 **1.57.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+> 当前版本 **1.59.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+
+## 新闻订阅（1.59.0）
+
+- `news` 替代 `ff_news`；群聊 `/订阅 [编号]`、`/退订 编号` 管理全局个人订阅，首批仅 FF14 国服官网。
+- 每半小时检查更新，有订阅者时推默认群并 @订阅者；删除 `/FF新闻`。
 
 ## 兑换码迁移网页（1.58.0）
 

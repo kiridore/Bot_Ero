@@ -718,4 +718,19 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         CREATE INDEX IF NOT EXISTS idx_spy_participants_user
         ON spy_game_participants(user_id, record_id)
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS news_subscriptions (
+            user_id INTEGER NOT NULL,
+            source_id TEXT NOT NULL,
+            subscribed_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, source_id)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS news_push_state (
+            source_id TEXT PRIMARY KEY,
+            cursor TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
     conn.commit()

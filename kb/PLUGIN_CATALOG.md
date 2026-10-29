@@ -34,7 +34,7 @@
 | 24 | `set_group_title` | `set_group_title/` | CommandPlugin `/群头衔 [文本]` | 设置群头衔（最長 10 字） |
 | 25 | `random_reference` | `random_reference/` | CommandPlugin `/随机参考` | picsum.photos 随机 512x512 |
 | 26 | `gallery_login_key` | `gallery_login_key/` | CommandPlugin `/图库密钥`/`/网页密钥` | HMAC 登录密钥（仅私聊） |
-| 27 | `ff_news` | `ff_news/` | 完全匹配 `/FF新闻` + 心跳 | FF14 国服新闻，每小时自动推送 |
+| 27 | `news` | `news/` | `/订阅 [编号]`、`/退订 编号` + 心跳 | FF14 国服官网新闻订阅；每半小时检测，推默认群并 @订阅者，仅群聊可管理订阅 |
 | 28 | `weekly_quest` | `weekly_quest/` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
 | 29 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团记录` + 录制期间全匹配 | 跑团聊天记录：录制、合并转发、导出Markdown、浏览 |
 | 30 | `who_is_spy` | `who_is_spy/` | `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` `/房间列表` `/游戏记录 [列表 页码\|查看 记录编号]` + 私聊游戏输入 | 出局观战、离房释放占用；SQLite持久参与历史与事务结算；开局仅词条不告知阵营，重启中断不续局 |
@@ -78,7 +78,7 @@
 |--------|---------|------|
 | **基础包** | `checkin`, `checkin_recall`, `roll_back`, `remedy_checkin`, `week_checkin_display`, `all_checkin_display`, `week_list`, `personal_records`, `leaderboard` | 打卡、补卡、撤回、统计、排行 |
 | **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
-| **休闲娱乐** | `ff_news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | FF14 新闻、闹钟、骰子、占卜、随机图、召唤 |
+| **休闲娱乐** | `news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | 新闻订阅、闹钟、骰子、占卜、随机图、召唤 |
 | **匿名游戏** | `who_is_spy` | 谁是卧底：群聊创建房间，私聊匿名进行 |
 | **跑团** | `trpg_dice`, `trpg_session`, `trpg_char` | Sealdice 风格骰子 + 跑团聊天记录 + DND5E 角色卡 |
 | **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |

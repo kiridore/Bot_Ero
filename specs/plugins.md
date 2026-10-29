@@ -369,15 +369,15 @@ class ShopWeeklyRotationPlugin(TimedHeartbeatPlugin):
 
 ```python
 @register_plugin
-class FfNewsPlugin(TimedHeartbeatPlugin):
-    name = "ff_news"
-    description = "FF14 新闻推送"
-    RUN_AT = "00:00"  # 每小时整点
+class NewsPlugin(TimedHeartbeatPlugin):
+    name = "news"
+    description = "游戏新闻订阅"
+    # 实际插件重写 should_run_on_heartbeat，在整点和半点运行。
 
     def match(self, event_type):
         # 定时触发 或 手动命令
         return (self.should_run_on_heartbeat(event_type)
-                or self.on_full_match("/FF新闻"))
+                or self.on_command_any("/订阅", "/退订"))
 ```
 
 ---

@@ -39,7 +39,7 @@
 | `set_group_title/` | `GroupSpecialTitlePlugin` | `group_special_title` | CommandPlugin | `/群头衔 [文本]` | 设置/取消群头衔 |
 | `random_reference/` | `RandomReferencePlugin` | `random_reference` | CommandPlugin | `/随机参考` | 随机返回一张 512×512 参考图 |
 | `gallery_login_key/` | `GalleryLoginKeyPlugin` | `gallery_login_key` | CommandPlugin | `/图库密钥` / `/网页密钥` | 生成打卡图库 Web 端登录密钥 |
-| `ff_news/` | `FfNewsPlugin` | `ff_news` | 完全匹配 + 心跳 | `/FF新闻` | FF14 国服官网最新新闻 |
+| `news/` | `NewsPlugin` | `news` | 指令 + 心跳 | `/订阅 [编号]`、`/退订 编号` | 全局个人订阅；每半小时检测 FF14 国服官网，默认群推送并 @订阅者 |
 | `weekly_quest/` | `WeeklyQuestPlugin` | `weekly_quest` | CommandPlugin | `/周常` | 查看本周打卡/抽奖任务进度 |
 | `who_is_spy/` | `WhoIsSpyPlugin` | `who_is_spy` | COMMANDS + 私聊游戏阶段；匹配记录阶段/轮次以拒绝过期输入 | `/创建游戏 卧底 [人数]` `/开始 <房间号>` `/加入 <房间号>` `/离开` `/退出` `/状态 [房间号]` `/放弃 <房间号>` `/房间列表` `/游戏记录 [列表 页码\|查看 记录编号]` | 观战/离房与正式参赛分离；新SQLite历史按当前群/本人参与校验，旧JSON不兼容；开局隐藏本人阵营，正常结束后揭晓；房主操作校验所属群，超管仅可额外解散本群房间 |
 | `activity/` | `ActivityPlugin` | `activity` | 自定义 match | `/活动 创建 接龙\|匹配\|征集 …` `/活动 加入/退出/开始/状态/结束 [编号]`（群聊）`/提交 [活动id]`（私聊） | 群活动：接龙（每人限时、机器人接力转发）与匹配下家（圆桌单环，开始通知下家、作品玩家自提，机器人仅记录归档）与征集（各自在截止前提交一次，无链环）；匹配/征集全员提交不提前结束（可反复覆盖修改，截止/手动结束归档），接龙链走完自动归档；**单群多活动并行**（编号=全局活动 id，省略时唯一候选直选、多个列编号报错） |

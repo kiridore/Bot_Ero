@@ -1,5 +1,7 @@
 # BotEro 工程架构纵览
 
+> 后续更名说明：master 1.59.0 将本文基线中的 `ff_news` 更名为 `news`，改为新闻订阅；本文历史基线与分析保留原名，当前行为见 `kb/PLUGIN_CATALOG.md`。
+
 > **文档性质**：现状架构梳理 + 耦合点分析，为社区版模块化拆分（见 [community-edition-plan.md](community-edition-plan.md)）提供事实底座。
 > **基线版本**：1.37.2（2026-09-07）· 47 插件 + webapp 11 模块 + 44 表
 > **数据来源**：代码实测（行数、调用点）+ `specs/`、`kb/` 权威文档交叉核对

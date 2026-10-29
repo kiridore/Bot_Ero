@@ -1,5 +1,7 @@
 # BotEro 社区版开发计划
 
+> 后续更名说明：master 1.59.0 将 `ff_news` 更名为 `news`（首批仍仅 FF14 国服官网）；本文历史规划保留旧名，不据此推定当前部署的开放范围。
+
 > **文档性质**：技术实施计划（模块化拆分 + 分批释出路线），承接并落地 [architecture-overview.md](architecture-overview.md) 的耦合分析；产品/运营侧背景见 [market-expansion-plan.md](market-expansion-plan.md)，本计划只覆盖其技术落地所需子集。
 > **起草日期**：2026-09-08 · 基线 1.37.2
 > **决策记录**：全部关键决策已于 2026-09-08 与所有者确认（见 §1），后续变更须回写本表。
