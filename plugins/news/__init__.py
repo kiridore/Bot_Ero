@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
+from html.parser import HTMLParser
+from urllib.parse import urlsplit, urlunsplit
 from typing import Callable
 from threading import Lock
 
@@ -84,9 +87,132 @@ def _fetch_ff14() -> list[NewsItem]:
     return [items[key] for key in sorted(items, reverse=True)]
 
 
-# 消息源注册表：新增源 = 加一个 NewsSource 项；/订阅 编号即此列表序号（1 起）
+_WEIBO_UID = "6279793937"
+_WEIBO_URL = "https://m.weibo.cn/api/container/getIndex"
+
+
+class _WeiboTextParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.hidden = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style"):
+            self.hidden += 1
+        if self.hidden:
+            return
+        if tag in ("br", "p", "div"):
+            self.parts.append("\n")
+        elif tag == "img":
+            self.parts.append(dict(attrs).get("alt") or "")
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style"):
+            self.hidden = max(0, self.hidden - 1)
+        elif not self.hidden and tag in ("p", "div"):
+            self.parts.append("\n")
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(data)
+
+
+def _weibo_summary(raw: str) -> str:
+    parser = _WeiboTextParser()
+    parser.feed(raw)
+    parser.close()
+    body = "\n".join(line.strip() for line in "".join(parser.parts).splitlines()).strip()
+    return body[:1000] + "…" if len(body) > 1000 else body
+
+
+def _weibo_image_url(raw) -> str:
+    if not isinstance(raw, str):
+        return ""
+    try:
+        url = urlsplit(raw)
+        host = url.hostname or ""
+        if (url.scheme not in ("http", "https") or url.username or url.password or url.port is not None
+                or not (host == "sinaimg.cn" or host.endswith(".sinaimg.cn"))):
+            return ""
+        return urlunsplit(("https", url.netloc, url.path, url.query, ""))
+    except ValueError:
+        return ""
+
+
+def _weibo_image(mblog: dict) -> str:
+    for pic in mblog.get("pics") or []:
+        if pic.get("type") == "video":
+            continue
+        # 只取第一张正文图片，拒绝不可信地址后继续尝试同图缩略地址。
+        for raw in ((pic.get("large") or {}).get("url"), pic.get("url")):
+            if url := _weibo_image_url(raw):
+                return url
+        break
+    if url := _weibo_image_url(mblog.get("original_pic")):
+        return url
+    page = mblog.get("page_info") or {}
+    if page.get("type") in ("video", "article"):
+        return _weibo_image_url((page.get("page_pic") or {}).get("url"))
+    return ""
+
+
+def _fetch_arknights_weibo() -> list[NewsItem]:
+    items = {}
+    cutoff = datetime.now() - _MAX_AGE
+    # shortcut: 非置顶列表按发布时间倒序；接口改变排序时需改用明确的分页边界。
+    for page in range(1, 21):
+        response = requests.get(
+            _WEIBO_URL, params={"containerid": f"107603{_WEIBO_UID}", "page": page}, timeout=25,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict) or payload.get("ok") != 1:
+            raise ValueError("微博接口返回异常或需要登录")
+        cards = payload["data"]["cards"]
+        if not isinstance(cards, list):
+            raise ValueError("微博卡片列表无效")
+        if not cards:
+            return sorted(items.values(), key=lambda item: int(item.id), reverse=True)
+        previous_count = len(items)
+        unpinned_dates = []
+        for card in cards:
+            if card.get("card_type") != 9:
+                continue
+            mblog = card["mblog"]
+            if str(mblog["user"]["id"]) != _WEIBO_UID:
+                continue
+            nid = str(mblog["id"])
+            if not nid.isascii() or not nid.isdigit() or int(nid) <= 0:
+                raise ValueError("微博编号无效")
+            published = parsedate_to_datetime(mblog["created_at"])
+            if published.tzinfo is None:
+                raise ValueError("微博发布时间缺少时区")
+            published = published.astimezone().replace(tzinfo=None)
+            raw_text = mblog["text"]
+            if not isinstance(raw_text, str):
+                raise ValueError("微博正文无效")
+            items[nid] = NewsItem(
+                id=nid, title="明日方舟Arknights 发布微博", summary=_weibo_summary(raw_text),
+                link=f"https://m.weibo.cn/status/{nid}", image_url=_weibo_image(mblog),
+                published_at=published,
+            )
+            pinned = (str(card.get("profile_type_id", "")).startswith("proweibotop_")
+                      or (mblog.get("title") or {}).get("text") == "置顶")
+            if not pinned:
+                unpinned_dates.append(published)
+        if unpinned_dates and max(unpinned_dates) < cutoff:
+            return sorted(items.values(), key=lambda item: int(item.id), reverse=True)
+        if len(items) == previous_count:
+            raise ValueError("微博分页无进展，不提交部分结果")
+    raise ValueError("微博分页超过20页，未完整覆盖近期内容")
+
+
+# 消息源编号必须稳定；新增源只追加，不能重排已有项。
 _SOURCES: list[NewsSource] = [
     NewsSource(key="ff14", name="FF14 国服官网", push_header="【FF14 官网快讯】", fetch=_fetch_ff14),
+    NewsSource(key="weibo_6279793937", name="明日方舟官方微博", push_header="【明日方舟官方微博】",
+               fetch=_fetch_arknights_weibo),
 ]
 
 

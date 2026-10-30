@@ -1,6 +1,11 @@
 # BotEro 路线图
 
-> 当前版本 **1.59.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+> 当前版本 **1.60.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+
+## 明日方舟官方微博消息源（1.60.0）
+
+- 2号消息源为账号6279793937，`/订阅 2`、`/退订 2`；FF14保留1号。
+- 解析HTML摘要、置顶、时区与图文/视频/文章封面；失败保留游标。部署环境需验证微博公开接口访问，未引入登录凭证。
 
 ## 新闻订阅（1.59.0）
 

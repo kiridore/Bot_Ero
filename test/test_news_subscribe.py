@@ -71,10 +71,26 @@ class TestCommands(_Base):
         plugin = self._run_command("/订阅")
         body = self._sent_texts(plugin)[0]
         self.assertIn("1. FF14 国服官网", body)
+        self.assertIn("2. 明日方舟官方微博（未订阅）", body)
         self.assertNotIn("已订阅", body)
         self._run_command("/订阅 1")
         plugin = self._run_command("/订阅")
         self.assertIn("1. FF14 国服官网（已订阅）", self._sent_texts(plugin)[0])
+
+    def test_weibo_subscription_is_independent(self):
+        original = self._run_command("/订阅 1")
+        original.dbmanager.news.save_cursor("ff14", "10")
+        self._run_command("/订阅 2")
+        duplicate = self._run_command("/订阅 2")
+        self.assertIn("你已订阅", self._sent_texts(duplicate)[0])
+        listed = self._run_command("/订阅")
+        self.assertIn("2. 明日方舟官方微博（已订阅）", self._sent_texts(listed)[0])
+        removed = self._run_command("/退订 2")
+        self.assertTrue(removed.dbmanager.news.is_subscribed(USER, "ff14"))
+        self.assertFalse(removed.dbmanager.news.is_subscribed(USER, "weibo_6279793937"))
+        self.assertEqual(removed.dbmanager.news.get_cursor("ff14"), "10")
+        private = self._run_command("/订阅 2", make_private_message("/订阅 2", USER))
+        self.assertFalse(private.dbmanager.news.is_subscribed(USER, "weibo_6279793937"))
 
     def test_subscribe_idempotent(self):
         self._run_command("/订阅 1")
