@@ -17,6 +17,7 @@
 | 开发规范、AI 检查清单、技术债、陷阱 | [`kb/CONVENTIONS.md`](kb/CONVENTIONS.md) |
 | 卧底观战、新历史指令、重启与部署注意事项 | [操作说明](docs/who-is-spy-history.md) |
 | API 速查、部署运维、外部 API | [`kb/OPERATIONS.md`](kb/OPERATIONS.md) |
+| 微博首页浏览器依赖、Ubuntu只读检查 | [`docs/weibo-browser-deployment.md`](docs/weibo-browser-deployment.md) |
 | 数据库 Schema（data.db，含卧底参与历史及新闻订阅）+ message_log.db | [`kb/DATABASE.md`](kb/DATABASE.md) |
 
 ---

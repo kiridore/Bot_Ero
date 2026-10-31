@@ -12,6 +12,7 @@ from core.base import TimedHeartbeatPlugin
 from core.cq import at, image, text
 from core.logger import logger
 from core.utils import register_plugin
+from plugins.news.weibo_browser import WEIBO_UID, fetch_homepage
 
 _NEWS_LIST_URL = "https://cqnews.web.sdo.com/api/news/newsList"
 _NEWS_LIST_BASE_PARAMS = {
@@ -87,10 +88,6 @@ def _fetch_ff14() -> list[NewsItem]:
     return [items[key] for key in sorted(items, reverse=True)]
 
 
-_WEIBO_UID = "6279793937"
-_WEIBO_URL = "https://m.weibo.cn/api/container/getIndex"
-
-
 class _WeiboTextParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -158,54 +155,33 @@ def _weibo_image(mblog: dict) -> str:
 
 
 def _fetch_arknights_weibo() -> list[NewsItem]:
+    # shortcut: 仅处理首页；若需补抓首页之外消息，应先取得可合法翻页的来源。
+    cards = fetch_homepage()["data"]["cards"]
     items = {}
-    cutoff = datetime.now() - _MAX_AGE
-    # shortcut: 非置顶列表按发布时间倒序；接口改变排序时需改用明确的分页边界。
-    for page in range(1, 21):
-        response = requests.get(
-            _WEIBO_URL, params={"containerid": f"107603{_WEIBO_UID}", "page": page}, timeout=25,
+    for card in cards:
+        if card.get("card_type") != 9:
+            continue
+        mblog = card["mblog"]
+        if str(mblog["user"]["id"]) != WEIBO_UID:
+            continue
+        nid = str(mblog["id"])
+        if not nid.isascii() or not nid.isdigit() or int(nid) <= 0:
+            raise ValueError("微博编号无效")
+        published = parsedate_to_datetime(mblog["created_at"])
+        if published.tzinfo is None:
+            raise ValueError("微博发布时间缺少时区")
+        published = published.astimezone().replace(tzinfo=None)
+        raw_text = mblog["text"]
+        if not isinstance(raw_text, str):
+            raise ValueError("微博正文无效")
+        items[nid] = NewsItem(
+            id=nid, title="明日方舟Arknights 发布微博", summary=_weibo_summary(raw_text),
+            link=f"https://m.weibo.cn/status/{nid}", image_url=_weibo_image(mblog),
+            published_at=published,
         )
-        response.raise_for_status()
-        payload = response.json()
-        if not isinstance(payload, dict) or payload.get("ok") != 1:
-            raise ValueError("微博接口返回异常或需要登录")
-        cards = payload["data"]["cards"]
-        if not isinstance(cards, list):
-            raise ValueError("微博卡片列表无效")
-        if not cards:
-            return sorted(items.values(), key=lambda item: int(item.id), reverse=True)
-        previous_count = len(items)
-        unpinned_dates = []
-        for card in cards:
-            if card.get("card_type") != 9:
-                continue
-            mblog = card["mblog"]
-            if str(mblog["user"]["id"]) != _WEIBO_UID:
-                continue
-            nid = str(mblog["id"])
-            if not nid.isascii() or not nid.isdigit() or int(nid) <= 0:
-                raise ValueError("微博编号无效")
-            published = parsedate_to_datetime(mblog["created_at"])
-            if published.tzinfo is None:
-                raise ValueError("微博发布时间缺少时区")
-            published = published.astimezone().replace(tzinfo=None)
-            raw_text = mblog["text"]
-            if not isinstance(raw_text, str):
-                raise ValueError("微博正文无效")
-            items[nid] = NewsItem(
-                id=nid, title="明日方舟Arknights 发布微博", summary=_weibo_summary(raw_text),
-                link=f"https://m.weibo.cn/status/{nid}", image_url=_weibo_image(mblog),
-                published_at=published,
-            )
-            pinned = (str(card.get("profile_type_id", "")).startswith("proweibotop_")
-                      or (mblog.get("title") or {}).get("text") == "置顶")
-            if not pinned:
-                unpinned_dates.append(published)
-        if unpinned_dates and max(unpinned_dates) < cutoff:
-            return sorted(items.values(), key=lambda item: int(item.id), reverse=True)
-        if len(items) == previous_count:
-            raise ValueError("微博分页无进展，不提交部分结果")
-    raise ValueError("微博分页超过20页，未完整覆盖近期内容")
+    if cards and not items:
+        raise ValueError("微博首页没有目标账号内容")
+    return sorted(items.values(), key=lambda item: int(item.id), reverse=True)
 
 
 # 消息源编号必须稳定；新增源只追加，不能重排已有项。

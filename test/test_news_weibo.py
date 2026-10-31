@@ -1,4 +1,4 @@
-"""微博源：基于用户提供响应精简去敏的样本，所有 HTTP 均模拟。"""
+"""微博首页源：基于精简去敏样本，浏览器读取均模拟。"""
 import json
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
@@ -32,16 +32,14 @@ def card(nid, age=1, pinned=False, **fields):
     return {"card_type": 9, "profile_type_id": "proweibotop_" if pinned else "normal", "mblog": post}
 
 
-def fetch(*pages):
-    responses = [Mock(json=Mock(return_value=p)) for p in pages]
-    with patch.object(news, "datetime") as clock, patch.object(news.requests, "get", side_effect=responses) as get:
-        clock.now.return_value = LOCAL_NOW
+def fetch(data):
+    with patch.object(news, "fetch_homepage", return_value=data) as get:
         result = news._fetch_arknights_weibo()
     return result, get
 
 
 def test_sample_summary_media_time_and_pinned_sort():
-    items, get = fetch(sample(), payload([]))
+    items, get = fetch(sample())
     assert len(items) == 5
     assert items[0].id == "5359748985390844"
     assert items[-1].id == "5357642605922738"  # 旧置顶排到最后
@@ -53,9 +51,7 @@ def test_sample_summary_media_time_and_pinned_sort():
     assert items[3].image_url.endswith("/large/006QZngZgy1iij9rsfgpfj30zi0k0q5l.jpg")
     assert "全文" in items[1].summary
     assert all(item.link == f"https://m.weibo.cn/status/{item.id}" for item in items)
-    assert [c.kwargs["params"]["page"] for c in get.call_args_list] == [1, 2]
-    assert all(c.args == (news._WEIBO_URL,) and c.kwargs["timeout"] == 25 for c in get.call_args_list)
-    assert all("cookies" not in c.kwargs for c in get.call_args_list)
+    get.assert_called_once_with()
 
 
 def test_html_entities_linebreaks_emoji_and_no_scripts():
@@ -76,48 +72,29 @@ def test_image_fallback_and_topic_not_used():
     assert news._weibo_image({"pics": [{"type": "video", "url": "https://wx1.sinaimg.cn/a.jpg"}], "page_info": {"type": "video", "page_pic": {"url": "https://wx1.sinaimg.cn/cover.jpg"}}}) == "https://wx1.sinaimg.cn/cover.jpg"
 
 
-def test_pagination_dedup_ignores_other_users_and_stops_after_old_page():
-    first = [card(10, age=90, pinned=True), card(30), {"card_type": 11}, card(99, user={"id": 1})]
-    second = [card(30), card(20), card(10, age=90, pinned=True)]
-    third = [card(5, age=60)]
-    items, get = fetch(payload(first), payload(second), payload(third))
+def test_homepage_dedup_ignores_other_users_and_does_not_paginate():
+    cards = [card(10, age=90, pinned=True), card(30), {"card_type": 11},
+             card(99, user={"id": 1}), card(30), card(20), card(5, age=60)]
+    items, get = fetch(payload(cards))
     assert [i.id for i in items] == ["30", "20", "10", "5"]
-    assert get.call_count == 3
+    get.assert_called_once_with()
 
 
-def test_title_pinned_does_not_stop_pagination():
-    items, get = fetch(payload([card(10, age=90, title={"text": "置顶"})]), payload([card(20)]), payload([]))
-    assert [i.id for i in items] == ["20", "10"]
-    assert get.call_count == 3
-
-
-@pytest.mark.parametrize("bad", [{"ok": 0}, [], {"ok": 1, "data": {}}, {"ok": 1, "data": {"cards": {}}}])
-def test_bad_payload_is_failure(bad):
-    with pytest.raises((ValueError, KeyError)):
-        fetch(bad)
+def test_empty_homepage_and_no_target_posts():
+    assert fetch(payload([]))[0] == []
+    with pytest.raises(ValueError, match="没有目标账号"):
+        fetch(payload([card(99, user={"id": 1})]))
 
 
 @pytest.mark.parametrize("fields", [{"id": "bad"}, {"id": "0"}, {"created_at": "bad"}, {"created_at": "Fri, 30 Oct 2026 12:00:00"}, {"text": None}])
 def test_bad_critical_fields_fail_entire_source(fields):
     with pytest.raises(ValueError):
-        fetch(payload([card(10)]), payload([card(11, **fields)]))
+        fetch(payload([card(10), card(11, **fields)]))
 
 
-def test_repeated_page_and_page_limit_fail_instead_of_partial_success():
-    with pytest.raises(ValueError, match="无进展"):
-        fetch(payload([card(10)]), payload([card(10)]))
-    with pytest.raises(ValueError, match="超过20页"):
-        fetch(*(payload([card(i)]) for i in range(100, 80, -1)))
-
-
-@pytest.mark.parametrize("error", [requests.HTTPError("432"), ValueError("not JSON")])
-def test_network_or_json_failure_propagates(error):
-    response = Mock()
-    if isinstance(error, requests.HTTPError):
-        response.raise_for_status.side_effect = error
-    else:
-        response.json.side_effect = error
-    with patch.object(news.requests, "get", return_value=response), pytest.raises(type(error)):
+@pytest.mark.parametrize("error", [TimeoutError("browser timeout"), ValueError("not JSON")])
+def test_browser_failure_propagates(error):
+    with patch.object(news, "fetch_homepage", side_effect=error), pytest.raises(type(error)):
         news._fetch_arknights_weibo()
 
 
@@ -135,11 +112,9 @@ def test_registered_weibo_source_initializes_then_pushes_once():
         baseline = sample()
         updated = sample()
         updated["data"]["cards"].append(card(5359748985390845, age=1))
-        pages = [baseline, payload([]), updated, payload([]), updated, payload([])]
-        responses = [Mock(json=Mock(return_value=p)) for p in pages]
         with patch.object(news, "_SOURCES", [news._SOURCES[1]]), \
                 patch.object(news, "datetime") as clock, \
-                patch.object(news.requests, "get", side_effect=responses):
+                patch.object(news, "fetch_homepage", side_effect=[baseline, updated, updated]):
             clock.now.return_value = LOCAL_NOW
             plugin._poll_and_push()
             plugin.api.send_msg.assert_not_called()

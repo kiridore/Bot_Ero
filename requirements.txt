@@ -6,6 +6,8 @@
 # ---- 机器人核心 (core/) ----
 websocket-client>=1.6.0
 requests>=2.31.0
+# 微博新闻首页：安装后以bot服务账户执行 python -m playwright install chromium
+playwright==1.64.1
 Pillow>=10.0.0
 # Windows 无系统 IANA 时区库，plugins/\immortal_lottery 的 ZoneInfo 依赖 pip 版 tzdata
 tzdata>=2024.1 ; sys_platform == "win32"

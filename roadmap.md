@@ -1,6 +1,11 @@
 # BotEro 路线图
 
-> 当前版本 **1.60.0**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+> 当前版本 **1.60.1**（版本号单一来源 `core/config.py::BOTERO_VERSION`，完整变更见 [`CHANGELOG.md`](CHANGELOG.md)）。
+
+## 微博浏览器首页抓取（1.60.1）
+
+- 替换直连API分页，使用未登录Chromium正常读取手机首页；不翻页，接受首页之外可能漏推的范围。
+- 新增不加载机器人配置的只读检查命令与Ubuntu安装文档；保留2号源和现有订阅数据。
 
 ## 明日方舟官方微博消息源（1.60.0）
 
