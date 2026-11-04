@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-10-28 (兑换码迁至网页个人主页：移除 redeem_code 插件，插件总数 46)
+> 最后更新: 2026-11-04 (redeem_code 回归为迁移提示桩：撤回 /兑换码 并引导网页，插件总数 47)
 
 全部 47 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
@@ -32,6 +32,7 @@
 | `divination/` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
 | `title/` | `TitlePlugin` | `title` | CommandPlugin | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |
 | `redeem_shop/` | `RedeemShopPlugin` | `redeem_shop` | CommandPlugin | `/商店 [商品id]` | 积分商店：浏览商品、兑换 |
+| `redeem_code/` | `RedeemCodePlugin` | `redeem_code` | CommandPlugin | `/兑换码` / `/兌換碼` | 迁移提示桩：撤回指令消息并提示已迁至网页个人主页「兑换码」页签，不碰数据库 |
 | `group_alarm/` | `GroupAlarmPlugin` | `group_alarm` | begin_with + meta | `/闹钟 [参数]` | 闹钟系统：创建、列表、取消，支持循环 |
 | `group_essence/` | `GroupEssencePlugin` | `manage_group_essence` | reply + 文本匹配 | `/加精` `/群精华` `/精华` `/删除精华` | 回复消息设置/取消群精华 |
 | `at_all_reply/` | `AtAllReplyPlugin` | `at_all_reply` | reply + 文本匹配 | `/全体成员` | 回复消息并 @全体成员转发 |

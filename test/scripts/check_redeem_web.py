@@ -92,6 +92,7 @@ check("未登录不写库", usage_rows() == ["OLD1-CODE-0001"])
 # —— 格式与未知码：拒绝且不写库 ——
 r = client.post("/api/me/redeem", json={"code": "abc"}, headers=MH)
 check("格式错误 400", r.status_code == 400 and "格式" in r.json()["detail"])
+check("格式错误文案含数字说明", "大写字母或数字" in r.json()["detail"])
 r = client.post("/api/me/redeem", json={"code": "XXXX-XXXX-XXXX"}, headers=MH)
 check("未知码 400", r.status_code == 400 and "不存在" in r.json()["detail"])
 check("拒绝路径不写库", usage_rows() == ["OLD1-CODE-0001"])
@@ -110,6 +111,22 @@ conn.commit()
 conn.close()
 r = client.post("/api/me/redeem", json={"code": "ONLY-YEAR-ONCE"}, headers=MH)
 check("周年码成功且积分+10", r.status_code == 200 and points_of(ME) == 10 and has_title(ME, 502))
+
+# —— 日历码：含数字段 + 一事务三称号（小写归一）＋重复拒绝 ——
+r = client.post("/api/me/redeem", json={"code": "best-wish-2027"}, headers=MH)
+check(
+    "日历码小写输入成功且三称号解锁",
+    r.status_code == 200
+    and "「神秘」「大」「烤鱼」" in r.json()["message"]
+    and has_title(ME, 503)
+    and has_title(ME, 504)
+    and has_title(ME, 505),
+)
+r = client.post("/api/me/redeem", json={"code": "BEST-WISH-2027"}, headers=MH)
+check("日历码重复兑换 400", r.status_code == 400 and "已使用" in r.json()["detail"])
+r = client.post("/api/me/redeem", json={"code": "BEST-WISH-207"}, headers=MH)
+check("数字段长度错误仍报格式错", r.status_code == 400 and "格式" in r.json()["detail"])
+check("日历码段拒绝不写库", usage_rows() == ["BEST-WISH-2027", "OLD1-CODE-0001", "ONLY-YEAR-ONCE", "TEST-CODE-TEST"])
 
 # —— 历史：含迁移前旧行、已下架码占位说明、倒序、仅本人 ——
 r = client.get("/api/me/redeem/history", headers=MH)

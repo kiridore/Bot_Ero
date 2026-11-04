@@ -11,11 +11,12 @@ import re
 
 from core.database_manager import DbManager
 
-CODE_PATTERN = re.compile(r"^[A-Z]{4}-[A-Z]{4}-[A-Z]{4}$")
+CODE_PATTERN = re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
 
 TESTER_TITLE_ID = 501
 FIRST_ANNIVERSARY_TITLE_ID = 502
 ANNIVERSARY_POINTS = 10
+CALENDAR_2027_TITLE_IDS = (503, 504, 505)
 
 
 def _grant_tester_title(db: DbManager, user_id) -> str:
@@ -29,6 +30,12 @@ def _grant_first_anniversary(db: DbManager, user_id) -> str:
     return "解锁称号：「1st」，积分 +10"
 
 
+def _grant_calendar_2027(db: DbManager, user_id) -> str:
+    for title_id in CALENDAR_2027_TITLE_IDS:
+        db.titles.unlock(user_id, title_id, commit=False)
+    return "解锁称号：「神秘」「大」「烤鱼」"
+
+
 REDEEM_CODES = {
     "TEST-CODE-TEST": {
         "description": "解锁「测试员」称号",
@@ -37,6 +44,10 @@ REDEEM_CODES = {
     "ONLY-YEAR-ONCE": {
         "description": "一周年专属：解锁「1st」称号 + 10 积分",
         "callback": _grant_first_anniversary,
+    },
+    "BEST-WISH-2027": {
+        "description": "烤鱼2027板油日历专属：解锁「神秘」「大」「烤鱼」称号",
+        "callback": _grant_calendar_2027,
     },
 }
 
@@ -65,7 +76,7 @@ def redeem_history(user_id) -> dict:
 def redeem_code(user_id, raw_code) -> dict:
     code = str(raw_code or "").strip().upper()  # 输入大小写不敏感，存储统一大写
     if not CODE_PATTERN.match(code):
-        raise ValueError("兑换码格式不正确，应为 XXXX-XXXX-XXXX（大写字母）")
+        raise ValueError("兑换码格式不正确，应为 XXXX-XXXX-XXXX（大写字母或数字）")
     entry = REDEEM_CODES.get(code)
     if entry is None:
         raise ValueError("兑换码不存在或已失效")

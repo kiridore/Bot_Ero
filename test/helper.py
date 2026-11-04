@@ -21,6 +21,8 @@ class MockApiWrapper:
         self.context = Event(raw_context)
         self.sent_messages: list[tuple[str, tuple]] = []
         self.api_calls: list[tuple[str, dict]] = []
+        self.deleted_messages: list[int] = []
+        self.delete_msg_ok = True
 
     def send_msg(self, *message) -> int:
         self.sent_messages.append(("send_msg", message))
@@ -60,6 +62,11 @@ class MockApiWrapper:
         self.call_api("send_private_forward_msg", {"user_id": self.context.user_id, "messages": nodes})
         return 0
 
+    def delete_msg(self, message_id: int) -> bool:
+        self.api_calls.append(("delete_msg", {"message_id": int(message_id)}))
+        self.deleted_messages.append(int(message_id))
+        return self.delete_msg_ok
+
     def call_api(self, action: str, params: dict) -> dict:
         self.api_calls.append((action, params))
         if action in ("send_msg", "send_group_msg", "send_private_msg"):
@@ -68,7 +75,8 @@ class MockApiWrapper:
 
 
 def make_group_message(text: str, user_id: int = 123456,
-                       group_id: int = 296470819, nickname: str = "测试用户") -> dict:
+                       group_id: int = 296470819, nickname: str = "测试用户",
+                       message_id: int = -1) -> dict:
     return {
         "post_type": "message",
         "message_type": "group",
@@ -77,12 +85,13 @@ def make_group_message(text: str, user_id: int = 123456,
         "message": [{"type": "text", "data": {"text": text}}],
         "sender": {"user_id": user_id, "nickname": nickname, "role": "member"},
         "time": 0,
-        "message_id": -1,
+        "message_id": message_id,
     }
 
 
 def make_private_message(text: str, user_id: int = 123456,
-                         nickname: str = "测试用户") -> dict:
+                         nickname: str = "测试用户",
+                         message_id: int = -1) -> dict:
     return {
         "post_type": "message",
         "message_type": "private",
@@ -90,5 +99,5 @@ def make_private_message(text: str, user_id: int = 123456,
         "message": [{"type": "text", "data": {"text": text}}],
         "sender": {"user_id": user_id, "nickname": nickname},
         "time": 0,
-        "message_id": -1,
+        "message_id": message_id,
     }
