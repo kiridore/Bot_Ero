@@ -161,7 +161,7 @@ def test_counting_inventory_covers_every_registered_plugin():
     ordinary = {'AutoFriendPlugin', 'WelcomePlugin', 'CheckinRecallPlugin', 'MessageLoggerPlugin',
                 'ForumNotifyPlugin', 'StartupChangelogPlugin', 'WeeklyReportPlugin',
                 'ShopWeeklyRotationPlugin', 'WeeklyQuestResetPlugin', 'ActivityTimerPlugin'}
-    custom = {'ActivityPlugin', 'AtAllReplyPlugin', 'BackupPlugin', 'DicePlugin', 'FfNewsPlugin',
+    custom = {'ActivityPlugin', 'AtAllReplyPlugin', 'BackupPlugin', 'DicePlugin', 'NewsPlugin',
               'GroupAlarmPlugin', 'GroupEssencePlugin', 'ImmortalLotteryPlugin', 'MonitorPlugin',
               'RecallMessagePlugin', 'ShopManualRefreshPlugin', 'TrpgCharPlugin', 'TrpgPlugin', 'UpdatePlugin'}
     mixed = {'WhoIsSpyPlugin', 'TrpgSessionPlugin'}

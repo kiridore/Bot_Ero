@@ -196,6 +196,7 @@ _SOURCES: list[NewsSource] = [
 class NewsPlugin(TimedHeartbeatPlugin):
     _poll_lock = Lock()
     name = "news"
+    IS_COMMAND = True
     description = "游戏新闻订阅：/订阅 查看与订阅消息源，有新消息时推送默认群并 @订阅者。"
 
     def should_run_on_heartbeat(self, event_type: str) -> bool:

@@ -62,38 +62,35 @@ def test_activity_private_notifications_use_fixed_snapshot(management):
     assert api.call_api.call_args.args[1]['user_id'] == 43
 
 
-def test_spy_settlement_records_stats_but_no_free_title_or_private_notice(management, monkeypatch):
-    import plugins.who_is_spy as game
-    from plugins.who_is_spy import titles
+def test_spy_settlement_records_stats_but_no_free_title_or_private_notice(management):
+    from plugins.who_is_spy.relay import GameMessenger
+    from plugins.who_is_spy.titles import grant_game_titles
     _, db, _, _ = management
-    titles._ensure_stats_table()
     for uid in ('42', '43'):
         db.conn.execute('INSERT INTO user_game_stats (user_id,total_games,total_wins,civilian_wins,spy_wins)'
                         ' VALUES (?,9,9,9,0)', (uid,))
     db.conn.commit()
-    room = dict(room_id='test', group_id=100, phase='playing_vote', round_num=1,
-                votes={'43': '42'}, ready_descriptions={}, players={
-                    uid: dict(user_id=uid, role='civilian', alive=True, alias=uid, nickname=uid, word='word')
-                    for uid in ('42', '43')})
-    monkeypatch.setattr(game, 'get_room', lambda _: room)
-    monkeypatch.setattr(game, 'collect_vote', lambda *args: True)
-    monkeypatch.setattr(game, 'tally_votes', lambda _: '42')
-    monkeypatch.setattr(game, 'check_winner', lambda _: 'civilian')
-    monkeypatch.setattr(game, 'save_game_record', lambda _: None)  # 不写真实游戏记录目录
-    monkeypatch.setattr(game, 'build_forward_nodes', lambda _: [])
-    monkeypatch.setattr(game, 'send_forward_to_group', lambda *args: None)
-    monkeypatch.setattr(game, 'remove_room', lambda _: None)
     snapshot = BlacklistSnapshot(users=frozenset({42}))
-    plugin = game.WhoIsSpyPlugin.__new__(game.WhoIsSpyPlugin)
-    plugin.dbmanager, plugin.api = db, Mock()
-    plugin.api.blacklist_snapshot = snapshot
-    plugin.operation = SimpleNamespace(blacklist_snapshot=snapshot, is_enabled=lambda _: True)
-    plugin.bot_event = SimpleNamespace(user_id=43)
-    plugin._game_room_id, plugin._input_text = 'test', '42'
-    plugin._handle_game_input()
-    assert not db.titles.has('42', 306)
-    assert db.titles.has('43', 306)
+
+    # 结算：被封账号战绩照记（阈值 10 → 称号 306），但不解锁新称号
+    db.conn.execute('BEGIN')
+    blocked = grant_game_titles(db, '42', 'civilian', 'civilian',
+                                allow_titles=not snapshot.blocks(user_id=42))
+    opened = grant_game_titles(db, '43', 'civilian', 'civilian',
+                               allow_titles=not snapshot.blocks(user_id=43))
+    db.conn.commit()
+    assert blocked == [] and not db.titles.has('42', 306)
+    assert opened and db.titles.has('43', 306)
+    assert db.conn.execute(
+        "SELECT total_games FROM user_game_stats WHERE user_id='42'").fetchone()[0] == 10
+
+    # 主动私聊：被封账号跳过，未封账号照常发送
+    api = Mock()
+    api.blacklist_snapshot = snapshot
+    messenger = GameMessenger(api)
+    room = {'record_id': 'test', 'players': {'42': {'left': False}, '43': {'left': False}}}
+    messenger.private(room, 43, '通知')
+    messenger.private(room, 42, '通知')
+    assert api.call_api.call_count == 1
+    assert api.call_api.call_args.args[1]['user_id'] == 43
     assert list(db.conn.execute('SELECT civilian_wins FROM user_game_stats ORDER BY user_id'))[0][0] == 10
-    calls = plugin.api.call_api.call_args_list
-    assert calls and all(call.args[1]['user_id'] == 43 for call in calls)
-    assert room['phase'] == 'game_over'

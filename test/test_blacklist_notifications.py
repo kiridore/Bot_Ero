@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from core import config, context
 from test.test_blacklist_management import management
@@ -7,18 +7,21 @@ from test.test_blacklist_tasks import enable
 
 
 def test_news_and_report_do_not_fetch_or_generate_for_blocked_group(management, monkeypatch):
-    import plugins.ff_news as news
+    import plugins.news as news
     import plugins.weekly_report as weekly
     _, db, _, _ = management
     monkeypatch.setattr(config, 'DEFAULT_GROUP_ID', 100)
     monkeypatch.setattr(weekly, 'GROUP_ID', 100)
-    for key in ('ff_news', 'weekly_report'):
+    for key in ('news', 'weekly_report'):
         enable(db, key, gid=100)
     db.community.ban('group', 100)
-    plugin = news.FfNewsPlugin.__new__(news.FfNewsPlugin)
-    plugin.api, plugin.dbmanager, plugin._fetch_payload = Mock(), db, Mock()
-    plugin._handle_hourly()
-    plugin._fetch_payload.assert_not_called()
+    fetched = Mock(return_value=[])
+    source = news.NewsSource(key='gated', name='门控源', push_header='【测试】', fetch=fetched)
+    plugin = news.NewsPlugin.__new__(news.NewsPlugin)
+    plugin.api, plugin.dbmanager = Mock(), db
+    with patch.object(news, '_SOURCES', [source]):
+        plugin._poll_and_push()
+    fetched.assert_not_called()  # 被封群不请求外部新闻源
     plugin.api.send_msg.assert_not_called()
     report = weekly.WeeklyReportPlugin.__new__(weekly.WeeklyReportPlugin)
     report.api, report.dbmanager = Mock(), db

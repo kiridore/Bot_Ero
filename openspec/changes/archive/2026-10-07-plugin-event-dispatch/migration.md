@@ -48,7 +48,7 @@
 | plugins/call/__init__.py | send_msg | 昵称召唤 |
 | plugins/dice/__init__.py | send_msg | 掷骰和错误输入；不删除插件 |
 | plugins/divination/__init__.py | send_msg | 图文结果 |
-| plugins/ff_news/__init__.py | send_msg | 手动新闻与整点推送 |
+| plugins/news/__init__.py | send_msg | 订阅管理（/订阅、/退订）与有订阅者时的新消息推送；推送前检查部署允许范围与黑名单 |
 | plugins/forum_notify/__init__.py | send_msg | 定时通知接收方 |
 | plugins/gallery_login_key/__init__.py | send_msg | 密钥不得合并进入群消息 |
 | plugins/grant_points_all/__init__.py | send_msg | 权限、错误和发放回执 |

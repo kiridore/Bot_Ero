@@ -31,6 +31,8 @@ from core.database_manager import init_schema  # noqa: E402
 
 _conn = sqlite3.connect(_db)
 init_schema(_conn, _conn.cursor())
+# 兑换码依赖门控：目标功能未开放时整次拒绝，因此本脚本显式启用 title（私聊公共设置）
+_conn.execute("INSERT OR IGNORE INTO group_plugin_config (group_id, plugin_name) VALUES (0, 'title')")
 # 迁移前历史数据：本人旧兑换记录（码已不在注册表 → 显示占位说明）
 _conn.execute(
     "INSERT INTO redeem_code_usage (user_id, code, used_at) VALUES (12345601, 'OLD1-CODE-0001', '2026-01-01 08:00:00')"

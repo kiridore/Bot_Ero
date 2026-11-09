@@ -53,8 +53,16 @@ class GameMessenger:
         self.api, self.store = api, store
 
     def send(self, action, params):
+        # call_api 的 action 必须为字面量：动态动作会绕过迁移清单审计（test_plugin_migration_inventory）
         try:
-            response = self.api.call_api(action, params)
+            if action == 'send_private_msg':
+                response = self.api.call_api('send_private_msg', params)
+            elif action == 'send_group_msg':
+                response = self.api.call_api('send_group_msg', params)
+            elif action == 'send_group_forward_msg':
+                response = self.api.call_api('send_group_forward_msg', params)
+            else:
+                raise ValueError(f'未知发送动作 {action}')
             if not isinstance(response, dict) or response.get('status') != 'ok' or response.get('retcode') != 0:
                 logger.warning('卧底消息发送失败，action=%s；业务已提交，不自动重试', action)
         except Exception:
@@ -62,6 +70,11 @@ class GameMessenger:
 
     def private(self, room, uid, body):
         if room['players'][str(uid)].get('left'):
+            return
+        # 被封账号不接收主动私聊（对局与战绩照常，不中断群共同流程）
+        from core.blacklist import BlacklistSnapshot
+        snapshot = getattr(self.api, 'blacklist_snapshot', None)
+        if isinstance(snapshot, BlacklistSnapshot) and snapshot.blocks(user_id=int(uid)):
             return
         if self.store is not None:
             try:

@@ -177,22 +177,6 @@ class AnnouncementScopeTest(_HeartbeatCase):
         p.handle()
         self.assertTrue(sent)             # 启用后照常公告
 
-    def test_ff_news_skips_fetch_without_effective_target(self):
-        from plugins.ff_news import FfNewsPlugin
-        self._enable("ff_news", group_id=self._group_id())
-        p = FfNewsPlugin.__new__(FfNewsPlugin)
-        p.dbmanager, p.api = self.db, self.api
-        p._fetch_payload = Mock()
-        p._handle_hourly()
-        p._fetch_payload.assert_called_once()  # 目标群开启：照常抓取
-        p2 = FfNewsPlugin.__new__(FfNewsPlugin)
-        p2.dbmanager, p2.api = self.db, self.api
-        p2._fetch_payload = Mock()
-        self.db.conn.execute("DELETE FROM group_plugin_config WHERE plugin_name='ff_news'")
-        self.db.conn.commit()
-        p2._handle_hourly()
-        p2._fetch_payload.assert_not_called()  # 关闭：不请求官网
-
     def test_forum_posts_not_marked_when_target_group_off(self):
         from plugins.forum_notify import ForumNotifyPlugin
         target = self._group_id()

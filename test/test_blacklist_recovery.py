@@ -79,24 +79,25 @@ def test_private_activity_submission_does_not_bypass_group_ban(management, expli
 @pytest.mark.parametrize('command', ['/加入', '/退出', '/状态', None])
 def test_private_spy_room_operations_respect_group_ban(management, monkeypatch, command):
     import plugins.who_is_spy as spy
+    from plugins.who_is_spy.room import GameService
+
     room = {'group_id': 100, 'room_id': 'test', 'phase': 'playing_vote'}
-    monkeypatch.setattr(spy, 'get_room', lambda _: room)
-    monkeypatch.setattr(spy, 'find_player_room', lambda _: room)
-    add, remove, vote = Mock(), Mock(), Mock()
-    monkeypatch.setattr(spy, 'add_player', add)
-    monkeypatch.setattr(spy, 'remove_player', remove)
-    monkeypatch.setattr(spy, 'collect_vote', vote)
+    calls = []
+    monkeypatch.setattr(GameService, 'get', lambda self, code: room)
+    monkeypatch.setattr(GameService, 'current', lambda self, uid: room)
+    for name in ('join', 'leave', 'input', 'start', 'cancel', 'create'):
+        monkeypatch.setattr(GameService, name,
+                            lambda self, *a, __n=name, **k: calls.append(__n))
     plugin = spy.WhoIsSpyPlugin.__new__(spy.WhoIsSpyPlugin)
     plugin.bot_event = SimpleNamespace(user_id=42, group_id=None)
     plugin.operation = SimpleNamespace(blacklist_snapshot=BlacklistSnapshot(groups=frozenset({100})))
-    plugin.api = Mock()
+    plugin.dbmanager, plugin.api = Mock(), Mock()
     plugin._cmd, plugin._args = command, ['test']
     plugin._game_room_id, plugin._input_text = 'test', '1'
+    plugin._expected = None
     if command is None:
         plugin._handle_game_input()
     else:
         plugin._handle_command()
-    add.assert_not_called()
-    remove.assert_not_called()
-    vote.assert_not_called()
-    plugin.api.send_msg.assert_not_called()
+    assert calls == []                      # 被封：不进入任何房间操作
+    plugin.api.send_msg.assert_not_called()  # 静默，不提示

@@ -46,6 +46,9 @@ class WhoIsSpyPlugin(Plugin):
                 return True
         return False
 
+    def is_command(self):
+        return self._mode == "command"
+
     def _reply(self, body, forward=False):
         try:
             result = self.api.send_forward_nodes(forward_nodes(body)) if forward else self.api.send_msg(text(body))
@@ -70,13 +73,33 @@ class WhoIsSpyPlugin(Plugin):
             GameMessenger(self.api, self.dbmanager.who_is_spy).emit(result.events)
 
     def _handle_game_input(self):
-        return GameService(self.dbmanager, getattr(self, 'operation', None)).input(self._record_id, self.bot_event.user_id,
-                                                self._input_text, self._expected)
+        service = GameService(self.dbmanager, getattr(self, 'operation', None))
+        if self._private_room_blocked(service, None, [], self.bot_event.user_id):
+            return None
+        return service.input(self._record_id, self.bot_event.user_id,
+                             self._input_text, self._expected)
+
+    def _private_room_blocked(self, service, cmd, args, uid):
+        """私聊操作涉及房间所属群被封时静默拒绝；不发提示、不改状态。"""
+        if getattr(self.bot_event, 'group_id', None) is not None:
+            return False
+        from core.blacklist import operation_snapshot
+        snapshot = operation_snapshot(getattr(self, 'operation', None))
+        try:
+            if cmd in ('/加入', '/状态') and args:
+                room = service.get(args[0])
+            else:
+                room = service.current(uid)
+        except Exception:
+            return False
+        return bool(room and snapshot.blocks(group_id=room['group_id']))
 
     def _handle_command(self):
         cmd, args = self._cmd, self._args
         uid, gid = self.bot_event.user_id, self.bot_event.group_id
         service = GameService(self.dbmanager, getattr(self, 'operation', None))
+        if self._private_room_blocked(service, cmd, args, uid):
+            return None
         if cmd == '/游戏记录':
             return self._history(args, uid, gid)
         if cmd == '/创建游戏':
