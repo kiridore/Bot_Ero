@@ -153,12 +153,16 @@ class TestCommands(_Base):
 
 class TestPush(_Base):
     def _poll(self, result=1):
+        from core import context as _ctx
         ctx = {"post_type": "meta_event", "meta_event_type": "heartbeat"}
         plugin = NewsPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
         record = plugin.api.send_msg
         plugin.api.send_msg = lambda *segments: (record(*segments), result)[1]
-        plugin._poll_and_push()
+        # 部署门控：本组用例默认目标群已启用、未被黑名单拦截
+        with patch.object(_ctx, "effective_for_scope", return_value=True), \
+                patch("core.blacklist.admit_task", return_value=object()):
+            plugin._poll_and_push()
         return plugin
 
     def _subscribe_test_source(self, *users: int):
@@ -179,6 +183,8 @@ class TestPush(_Base):
         item = replace(_item(11), image_url="https://example.invalid/news.jpg")
         with patch.object(news_mod, "_SOURCES", [_fake_source([item])]), \
                 patch.object(context, "DEFAULT_GROUP_ID", 987654), \
+                patch.object(context, "effective_for_scope", return_value=True), \
+                patch("core.blacklist.admit_task", return_value=object()), \
                 patch.object(ApiWrapper, "_build_title_prefix", return_value="称号"), \
                 patch.object(ApiWrapper, "call_api", return_value={"status": "ok", "data": {"message_id": 42}}) as call:
             plugin._poll_and_push()
@@ -344,3 +350,56 @@ class TestFetch(unittest.TestCase):
             with self.subTest(payload=payload), patch.object(news_mod.requests, "get", return_value=Mock(json=Mock(return_value=payload))):
                 with self.assertRaises(ValueError):
                     news_mod._fetch_ff14()
+
+
+class TestDeploymentGating(_Base):
+    """config-unification：无有效目标群、目标群未启用或黑名单拦截时不请求外部新闻源。"""
+
+    def _poll(self):
+        ctx = {"post_type": "meta_event", "meta_event_type": "heartbeat"}
+        plugin = NewsPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        plugin._poll_and_push()
+        return plugin
+
+    def _spy_source(self):
+        fetch = Mock(return_value=[_item(10)])
+        return NewsSource(key="gated", name="门控源", push_header="【测试】", fetch=fetch), fetch
+
+    def _cursor(self):
+        db = NewsPlugin(make_group_message("/订阅", USER)).dbmanager
+        try:
+            return db.news.get_cursor("gated")
+        finally:
+            db.conn.close()
+
+    def test_no_default_group_skips_fetch(self):
+        from core import config
+
+        src, fetch = self._spy_source()
+        with patch.object(news_mod, "_SOURCES", [src]), \
+                patch.object(config, "DEFAULT_GROUP_ID", None):
+            self._poll()
+        fetch.assert_not_called()
+        self.assertIsNone(self._cursor())  # 游标不动，恢复配置后仍能补推
+
+    def test_scope_disabled_skips_fetch(self):
+        from core import config, context
+
+        src, fetch = self._spy_source()
+        with patch.object(news_mod, "_SOURCES", [src]), \
+                patch.object(config, "DEFAULT_GROUP_ID", 987654), \
+                patch.object(context, "effective_for_scope", return_value=False):
+            self._poll()
+        fetch.assert_not_called()
+
+    def test_blacklist_blocked_skips_fetch(self):
+        from core import blacklist, config, context
+
+        src, fetch = self._spy_source()
+        with patch.object(news_mod, "_SOURCES", [src]), \
+                patch.object(config, "DEFAULT_GROUP_ID", 987654), \
+                patch.object(context, "effective_for_scope", return_value=True), \
+                patch.object(blacklist, "admit_task", return_value=None):
+            self._poll()
+        fetch.assert_not_called()

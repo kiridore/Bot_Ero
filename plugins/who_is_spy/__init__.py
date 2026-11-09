@@ -38,7 +38,7 @@ class WhoIsSpyPlugin(Plugin):
             self._mode, self._cmd, self._args = 'command', parts[0], parts[1:]
             return True
         if self.bot_event.is_private:
-            room = GameService(self.dbmanager).current(self.bot_event.user_id)
+            room = GameService(self.dbmanager, getattr(self, 'operation', None)).current(self.bot_event.user_id)
             if room and room['status'] == 'playing':
                 self._mode, self._input_text = 'game_input', body
                 self._record_id = room['record_id']
@@ -70,13 +70,13 @@ class WhoIsSpyPlugin(Plugin):
             GameMessenger(self.api, self.dbmanager.who_is_spy).emit(result.events)
 
     def _handle_game_input(self):
-        return GameService(self.dbmanager).input(self._record_id, self.bot_event.user_id,
+        return GameService(self.dbmanager, getattr(self, 'operation', None)).input(self._record_id, self.bot_event.user_id,
                                                 self._input_text, self._expected)
 
     def _handle_command(self):
         cmd, args = self._cmd, self._args
         uid, gid = self.bot_event.user_id, self.bot_event.group_id
-        service = GameService(self.dbmanager)
+        service = GameService(self.dbmanager, getattr(self, 'operation', None))
         if cmd == '/游戏记录':
             return self._history(args, uid, gid)
         if cmd == '/创建游戏':

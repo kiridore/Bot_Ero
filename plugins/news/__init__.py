@@ -268,6 +268,15 @@ class NewsPlugin(TimedHeartbeatPlugin):
     # ---- 轮询推送 ----
 
     def _poll_and_push(self):
+        from core import config as _config
+        from core import context as runtime_context
+        # 无有效通知目标（未配置默认群或目标群未启用）：不请求外部新闻源（config-unification）
+        if _config.DEFAULT_GROUP_ID is None or not runtime_context.effective_for_scope(
+                self.name, group_id=_config.DEFAULT_GROUP_ID):
+            return
+        from core.blacklist import admit_task
+        if admit_task(self.name, 'poll', group_id=_config.DEFAULT_GROUP_ID) is None:
+            return
         news = self.dbmanager.news
         for source in _SOURCES:
             try:

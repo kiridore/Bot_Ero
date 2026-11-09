@@ -7,7 +7,8 @@ GAME_TITLE_THRESHOLDS = [
 ]
 
 
-def grant_game_titles(dbmanager, user_id, role, winner, *, left=False):
+def grant_game_titles(dbmanager, user_id, role, winner, *, left=False, allow_titles=True):
+    """记录对局统计；allow_titles=False 时跳过新称号解锁与称号评估（战绩照记）。"""
     conn = dbmanager.conn
     if not conn.in_transaction:
         raise RuntimeError('游戏奖励必须与结束记录同事务')
@@ -24,6 +25,8 @@ def grant_game_titles(dbmanager, user_id, role, winner, *, left=False):
     row = conn.execute('SELECT total_games, total_wins, civilian_wins, spy_wins FROM user_game_stats WHERE user_id = ?', (uid,)).fetchone()
     stats = dict(zip(('total_games', 'total_wins', 'civilian_wins', 'spy_wins'), row))
     newly = []
+    if not allow_titles:
+        return []
     for key, threshold, tid in GAME_TITLE_THRESHOLDS:
         if left and key != 'total_games':
             continue

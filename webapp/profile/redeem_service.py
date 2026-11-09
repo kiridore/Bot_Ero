@@ -40,18 +40,45 @@ REDEEM_CODES = {
     "TEST-CODE-TEST": {
         "description": "解锁「测试员」称号",
         "callback": _grant_tester_title,
+        "requires": ("title",),
     },
     "ONLY-YEAR-ONCE": {
         "description": "一周年专属：解锁「1st」称号 + 10 积分",
         "callback": _grant_first_anniversary,
+        "requires": ("title",),
     },
     "BEST-WISH-2027": {
         "description": "烤鱼2027板油日历专属：解锁「神秘」「大」「烤鱼」称号",
         "callback": _grant_calendar_2027,
+        "requires": ("title",),
     },
 }
 
 RETIRED_DESCRIPTION = "（已下架）"
+
+
+def _unavailable_requirements(db, entry, user_id) -> list[str]:
+    """该兑换码需要但当前未开放的功能：部署允许范围 + 账号/私聊插件开关。"""
+    from core import config
+    from core.db.plugin_settings import enabled_plugins
+
+    names = entry.get("requires", ())
+    if not names:
+        return []
+    allowed = config.ALLOWED_PLUGINS_CONF
+    enabled = enabled_plugins(db.conn, user_id=str(user_id))
+    return [name for name in names
+            if (allowed is not None and name not in allowed) or not enabled.get(name, False)]
+
+
+def _account_blocked(user_id) -> bool:
+    """黑名单启用时，被封账号不得兑换；读取失败按拒绝处理。"""
+    from core import blacklist, config
+
+    if not config.BLACKLIST_ENABLED:
+        return False
+    snapshot = blacklist.capture(enabled=True, protected_users=blacklist.protected_accounts())
+    return snapshot.blocks(user_id=int(user_id))
 
 
 def redeem_history(user_id) -> dict:
@@ -83,6 +110,12 @@ def redeem_code(user_id, raw_code) -> dict:
 
     db = DbManager()
     try:
+        missing = _unavailable_requirements(db, entry, user_id)
+        if missing:
+            # 依赖功能未开放：整次拒绝，不核销、不发部分奖励，允许改好开关后重试
+            raise ValueError("该兑换码需要的功能未开放：{}，请联系管理员后再试".format("、".join(missing)))
+        if _account_blocked(user_id):
+            raise ValueError("当前账号受限，无法兑换")
         db.conn.execute("BEGIN IMMEDIATE")
         if not db.redeem.claim_in_transaction(user_id, code):
             db.conn.rollback()

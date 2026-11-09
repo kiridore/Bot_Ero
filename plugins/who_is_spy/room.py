@@ -19,9 +19,10 @@ class GameResult:
 
 
 class GameService:
-    def __init__(self, db):
+    def __init__(self, db, operation=None):
         self.db = db
         self.store = db.who_is_spy
+        self.operation = operation
 
     @staticmethod
     def unpack(rec):
@@ -85,10 +86,16 @@ class GameService:
                                    winner=room.get('_winner'))
         room['revision'] = revision
         if room['status'] == 'finished':
+            from core.blacklist import operation_snapshot
+            snapshot = operation_snapshot(self.operation)
             awards = {}
             for uid, p in room['players'].items():
                 if room['members'][uid]['participated']:
-                    awards[uid] = grant_game_titles(self.db, uid, p['role'], room['_winner'], left=p.get('left', False))
+                    # 战绩照记；被封账号不解锁新称号、不触发称号评估
+                    awards[uid] = grant_game_titles(
+                        self.db, uid, p['role'], room['_winner'],
+                        left=p.get('left', False),
+                        allow_titles=not snapshot.blocks(user_id=uid))
             for kind, snapshot in events:
                 if kind == 'finished':
                     snapshot['_new_titles'] = awards

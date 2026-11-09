@@ -113,6 +113,8 @@ def test_registered_weibo_source_initializes_then_pushes_once():
         updated = sample()
         updated["data"]["cards"].append(card(5359748985390845, age=1))
         with patch.object(news, "_SOURCES", [news._SOURCES[1]]), \
+                patch("core.context.effective_for_scope", return_value=True), \
+                patch("core.blacklist.admit_task", return_value=object()), \
                 patch.object(news, "datetime") as clock, \
                 patch.object(news, "fetch_homepage", side_effect=[baseline, updated, updated]):
             clock.now.return_value = LOCAL_NOW
@@ -152,7 +154,9 @@ def test_weibo_failure_keeps_its_cursor_and_ff14_still_pushes():
         item = news.NewsItem("11", "FF14新消息", "正文", "https://example.invalid/11", "", datetime.now())
         failed = news.NewsSource(KEY, "微博", "微博", Mock(side_effect=requests.HTTPError("432")))
         good = news.NewsSource("ff14", "FF14", "FF14", lambda: [item])
-        with patch.object(news, "_SOURCES", [failed, good]):
+        with patch.object(news, "_SOURCES", [failed, good]), \
+                patch("core.context.effective_for_scope", return_value=True), \
+                patch("core.blacklist.admit_task", return_value=object()):
             plugin._poll_and_push()
         assert db.news.get_cursor(KEY) == "5359748985390844"
         assert db.news.get_cursor("ff14") == "11"
