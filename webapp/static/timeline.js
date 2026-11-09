@@ -213,16 +213,15 @@
       frag.appendChild(renderEvent(ev, payload.users || {}));
       renderedIds.add(ev.id);
     });
-    feed.appendChild(frag);
-    if (!hasFeed && payload.events.length > 0 && topCursor == null) {
-      topCursor = payload.events[0].seq; // 首屏顶部事件（新事件轮询锚点）
-    }
-    if (!hasFeed && payload.events.length === 0) {
-      document.getElementById("feedEmpty").classList.remove("hidden");
+    if (payload.events.length > 0) {
+      feed.appendChild(frag);
+      if (topCursor == null) topCursor = payload.events[0].seq;
+      hasFeed = true;
+      document.getElementById("feedEmpty").classList.add("hidden");
     }
     cursor = payload.next_cursor || null;
     ended = !cursor;
-    hasFeed = true;
+    if (!hasFeed && ended) document.getElementById("feedEmpty").classList.remove("hidden");
   }
 
   function resetFeed() {
@@ -251,18 +250,22 @@
     loading = true;
     setStatus("加载中…");
     try {
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-      if (cursor) params.set("cursor", cursor);
-      const res = await fetch("/api/timeline?" + params.toString(), {
-        headers: GalleryAuth.headers(),
-      });
-      if (res.status === 401) {
-        openLoginDialog();
-        setStatus("请先登录");
-        return false;
-      }
-      if (!res.ok) throw new Error("加载失败 " + res.status);
-      appendPage(await res.json());
+      let payload;
+      do {
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+        if (cursor) params.set("cursor", cursor);
+        const res = await fetch("/api/timeline?" + params.toString(), {
+          headers: GalleryAuth.headers(),
+        });
+        if (res.status === 401) {
+          openLoginDialog();
+          setStatus("请先登录");
+          return false;
+        }
+        if (!res.ok) throw new Error("加载失败 " + res.status);
+        payload = await res.json();
+        appendPage(payload);
+      } while (!ended && payload.events.length === 0);
       sentinel.textContent = ended ? "— 已经到底了 —" : "加载中…";
       return true;
     } catch (err) {

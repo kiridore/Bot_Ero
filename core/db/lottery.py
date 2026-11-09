@@ -16,21 +16,23 @@ class LotteryManager:
         row = self.cur.fetchone()
         return 0 if row is None else int(row[0])
 
-    def add_draw(self, user_id, stat_date, inc=1):
+    def add_draw(self, user_id, stat_date, inc=1, *, commit=True):
         self.cur.execute("""
             INSERT INTO user_lottery_daily_stats (stat_date, user_id, draw_count)
             VALUES (?, ?, ?)
             ON CONFLICT(stat_date, user_id) DO UPDATE SET draw_count = draw_count + excluded.draw_count
         """, (stat_date, int(user_id), int(inc)))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
-    def add_spent(self, user_id, amount):
+    def add_spent(self, user_id, amount, *, commit=True):
         self.cur.execute("""
             INSERT INTO user_lottery_stats (user_id, total_spent)
             VALUES (?, ?)
             ON CONFLICT(user_id) DO UPDATE SET total_spent = total_spent + excluded.total_spent
         """, (int(user_id), int(amount)))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def spent(self, user_id):
         self.cur.execute("""
@@ -66,7 +68,7 @@ class LotteryManager:
             "total_zeros": int(row[5]),
         }
 
-    def upsert_profile(self, user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros):
+    def upsert_profile(self, user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros, *, commit=True):
         self.cur.execute("""
             INSERT INTO user_lottery_profile (user_id, draw_count, duplicate_count, zero_streak, max_zero_streak, has_hit_ten, total_zeros)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -86,7 +88,8 @@ class LotteryManager:
             int(has_hit_ten),
             int(total_zeros),
         ))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def weekly_draw_count(self, user_id, week_start_str):
         ws = datetime.strptime(week_start_str, "%Y-%m-%d %H:%M:%S")
@@ -102,13 +105,14 @@ class LotteryManager:
 
     # —— 周报抽奖流水 ——
 
-    def insert_draw_log(self, user_id, result_type, value=None, rarity=None, zero_streak_after=0):
+    def insert_draw_log(self, user_id, result_type, value=None, rarity=None, zero_streak_after=0, *, commit=True):
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.cur.execute("""
             INSERT INTO lottery_draw_log (user_id, drawn_at, result_type, value, rarity, zero_streak_after)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (int(user_id), ts, str(result_type), value, rarity, int(zero_streak_after)))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def weekly_draw_totals(self, start_date, end_date):
         """按自然日统计周内抽奖：返回 (总抽数, 参与人数)。"""

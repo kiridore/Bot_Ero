@@ -125,6 +125,20 @@ class WebPanelTest(unittest.TestCase):
                        body={"group_id": 555, "plugin_key": "menu", "enabled": False})
         self.assertEqual(s, 400)
 
+    def test_deployment_forbidden_toggle_rejected(self):
+        old = ctx.ALLOWED_PLUGINS
+        ctx.ALLOWED_PLUGINS = frozenset({"menu"})  # fake_dice 被部署禁止
+        try:
+            s, body = _req(self.base + "/api/plugins", method="PUT", key=self.super_key,
+                           body={"group_id": 1, "plugin_key": "fake_dice", "enabled": True})
+            self.assertEqual(s, 400)
+            self.assertIn("未在本部署开放", body["detail"])
+            s, body = _req(self.base + "/api/plugins", key=self.super_key)
+            entry = next(p for p in body["plugins"] if p["key"] == "fake_dice")
+            self.assertFalse(entry["allowed"])  # 面板可见部署状态，不只看群开关
+        finally:
+            ctx.ALLOWED_PLUGINS = old
+
     def test_config_roundtrip(self):
         s, body = _req(self.base + "/api/config", key=self.super_key)
         self.assertEqual(s, 200)

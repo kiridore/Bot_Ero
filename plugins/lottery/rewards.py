@@ -1,12 +1,11 @@
 import random
 
-from core import utils
 from plugins.title import get_lottery_title_ids, get_title_def
 
 DUP_REBATE = {"common": 1, "rare": 2, "legendary": 3}
 
 
-def draw_title_by_rarity(dbmanager, user_id, rarity):
+def draw_title_by_rarity(dbmanager, user_id, rarity, *, commit=True):
     candidates = []
     for tid in get_lottery_title_ids():
         data = get_title_def(tid) or {}
@@ -20,10 +19,10 @@ def draw_title_by_rarity(dbmanager, user_id, rarity):
     if dbmanager.titles.has(user_id, title_id):
         rebate = DUP_REBATE.get(rarity, 0)
         if rebate > 0:
-            utils.add_user_point(dbmanager, user_id, rebate)
+            dbmanager.points.adjust(user_id, rebate, commit=commit)
         return {"type": "title_duplicate", "value": title_id, "rarity": rarity, "rebate": rebate}
 
-    dbmanager.titles.unlock(user_id, title_id)
+    dbmanager.titles.unlock(user_id, title_id, commit=commit)
     return {"type": "title_new", "value": title_id, "rarity": rarity}
 
 
@@ -42,7 +41,7 @@ REWARD_TABLE = [
 ]
 
 
-def draw_reward(dbmanager, user_id):
+def draw_reward(dbmanager, user_id, *, commit=True):
     roll = random.random() * 100
     threshold = 0.0
     for prob, reward in REWARD_TABLE:
@@ -50,5 +49,5 @@ def draw_reward(dbmanager, user_id):
         if roll < threshold:
             if reward["type"] == "points":
                 return reward
-            return draw_title_by_rarity(dbmanager, user_id, reward["rarity"])
+            return draw_title_by_rarity(dbmanager, user_id, reward["rarity"], commit=commit)
     return {"type": "points", "value": 0}

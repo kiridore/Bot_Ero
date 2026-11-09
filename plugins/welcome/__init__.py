@@ -1,6 +1,7 @@
 from core.base import Plugin
-from core.config import NICKNAME
 from core.cq import text
+from core.text_pack import get_text
+from core.config import NICKNAME
 
 from core.utils import register_plugin
 @register_plugin
@@ -8,10 +9,12 @@ class WelcomePlugin(Plugin):
     name = 'welcome_new_friend'
     description = '在好友添加后发送欢迎消息。'
 
+    _DEFAULT_TEXT = f"感谢订阅{NICKNAME}私人打卡服务喵~\n 使用指令“/菜单”即可查看所有可用功能"  # 内置默认与历史文案逐字节一致
+
     def match(self, message_type):
         if self.bot_event.post_type == "notice" and self.bot_event.raw.get("notice_type", "") == "friend_add":
             return True
         return False
 
     def handle(self):
-        self.api.send_private_msg(text(f"感谢订阅{NICKNAME}私人打卡服务喵~\n 使用指令“/菜单”即可查看所有可用功能"))
+        self.api.send_private_msg(text(get_text("welcome.friend_add", self._DEFAULT_TEXT)))

@@ -86,29 +86,31 @@ class TestLoad(unittest.TestCase):
             data = _load(Path(_write(tmp, COMMUNITY_MINIMAL)))
             self.assertEqual(data["bot"]["edition"], "community")
 
-    def test_private_missing_default_group_exits(self):
-        """私有形态（缺省 edition）：default_group 仍必填。"""
+    def test_missing_default_group_loads(self):
+        """default_group 不再必填（config-unification）：缺省加载，无默认群。"""
         from core.config import _load
         with tempfile.TemporaryDirectory() as tmp:
             bad = yaml.safe_load(REQUIRED_MINIMAL)
             del bad["bot"]["default_group"]
             p = Path(tmp) / "config.yaml"
             p.write_text(yaml.safe_dump(bad), encoding="utf-8")
-            with self.assertRaises(SystemExit) as ctx:
-                _load(p)
-            self.assertIn("bot.default_group", str(ctx.exception))
+            data = _load(p)
+            self.assertNotIn("default_group", data["bot"])
 
-    def test_invalid_edition_exits(self):
-        """非法 edition 值启动即退出并提示可选值。"""
+    def test_any_edition_label_loads(self):
+        """edition 是描述标签：任意值或缺失都可加载，不参与控制流。"""
         from core.config import _load
         with tempfile.TemporaryDirectory() as tmp:
-            bad = yaml.safe_load(REQUIRED_MINIMAL)
-            bad["bot"]["edition"] = "saas"
-            p = Path(tmp) / "config.yaml"
-            p.write_text(yaml.safe_dump(bad), encoding="utf-8")
-            with self.assertRaises(SystemExit) as ctx:
-                _load(p)
-            self.assertIn("bot.edition", str(ctx.exception))
+            raw = yaml.safe_load(REQUIRED_MINIMAL)
+            for label in ("community", "saas", "", None):
+                if label is None:
+                    raw["bot"].pop("edition", None)
+                else:
+                    raw["bot"]["edition"] = label
+                p = Path(tmp) / "config.yaml"
+                p.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+                data = _load(p)  # 不退出即通过
+            self.assertEqual(data["bot"].get("edition"), None)
 
 
 class TestConstants(unittest.TestCase):
@@ -176,7 +178,8 @@ class TestConstants(unittest.TestCase):
                 self.assertEqual(cfg.ONEBOT_HTTP_URL, "")
                 self.assertEqual(cfg.SYSTEM_PLUGINS_CONF, [])
                 self.assertEqual(cfg.COMMUNITY_MAX_GROUPS, 50)
-                self.assertEqual(cfg.COMMUNITY_CMD_COOLDOWN_SECONDS, 3)
+                self.assertEqual(cfg.COMMUNITY_CMD_COOLDOWN_SECONDS, 0)  # 统一缺省 0；部署差异写模板
+                self.assertIsNone(cfg.ALLOWED_PLUGINS_CONF)  # 未配置 = 兼容全部已安装插件
             finally:
                 import core.config as cfg2
                 importlib.reload(cfg2)

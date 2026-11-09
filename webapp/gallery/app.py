@@ -1,13 +1,16 @@
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from webapp.gallery import config
 from webapp.gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from core.onebot_client import resolve_display_name
+from core.user_settings import display_identity
+from core.web.auth_deps import get_current_user_id
 from webapp.gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
@@ -67,9 +70,9 @@ def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
 
 
 @router.get("/api/users", response_model=UserIdsOut)
-def api_users():
+def api_users(viewer_id: Annotated[str, Depends(get_current_user_id)]):
     users = [
-        UserOptionOut(user_id=uid, display_name=resolve_display_name(uid))
+        UserOptionOut(user_id=uid, display_name=display_identity(uid, viewer_id, resolve_display_name(uid), None)[0])
         for uid in list_user_ids()
     ]
     return UserIdsOut(users=users)
@@ -77,6 +80,7 @@ def api_users():
 
 @router.get("/api/checkins", response_model=CheckinListOut)
 def api_checkins(
+    viewer_id: Annotated[str, Depends(get_current_user_id)],
     page: int = Query(1, ge=1),
     page_size: int = Query(PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
     user_id: str | None = None,
@@ -94,7 +98,9 @@ def api_checkins(
     out: list[CheckinItemOut] = []
     for item in items:
         if item.user_id not in name_cache:
-            name_cache[item.user_id] = resolve_display_name(item.user_id)
+            name_cache[item.user_id] = display_identity(
+                item.user_id, viewer_id, resolve_display_name(item.user_id), None,
+            )[0]
         out.append(
             CheckinItemOut(
                 id=item.id,

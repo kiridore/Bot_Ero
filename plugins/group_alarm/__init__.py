@@ -3,13 +3,16 @@ from typing import Tuple
 
 from core.base import Plugin
 from core.cq import at, text
+from core.logger import logger
 from core.utils import register_plugin
+from core import context as runtime_context
 
 from .parser import _format_recur_desc, _next_recurring_fire, _parse_create_body
 
 
 @register_plugin
 class GroupAlarmPlugin(Plugin):
+    IS_COMMAND = True
     name = "group_alarm"
     description = "群聊或私聊定时闹钟：/闹钟 …"
     _last_alarm_scan_minute = None
@@ -150,15 +153,28 @@ class GroupAlarmPlugin(Plugin):
         )
 
     def _handle_meta_due(self):
+        from core.blacklist import admit_task
         db = self.dbmanager
         now = datetime.now()
+        skipped = 0
         for row in db.alarm.due(now):
             aid = row[0]
             gid = row[1]
             creator_uid = row[2]
+            is_priv = int(row[5] or 0)
+            # 所属范围未启用：不发送、不标记已触发、不推进周期，记录保留待重新开启（config-unification）
+            if not (runtime_context.effective_for_scope("group_alarm", user_id=creator_uid)
+                    if is_priv else
+                    runtime_context.effective_for_scope("group_alarm", group_id=gid)):
+                skipped += 1
+                continue
+            snapshot = (admit_task('group_alarm', aid, user_id=creator_uid) if is_priv
+                        else admit_task('group_alarm', aid, group_id=gid))
+            if snapshot is None:
+                skipped += 1
+                continue
             content = row[3]
             fat = row[4]
-            is_priv = int(row[5] or 0)
             is_rec = int(row[6] or 0)
             rk = int(row[7] or 0)
             ra = int(row[8] or 0)
@@ -199,3 +215,8 @@ class GroupAlarmPlugin(Plugin):
                             "message": (at(int(creator_uid)), text("\n"), text(line)),
                         },
                     )
+        if skipped:
+            logger.info(
+                "闹钟心跳跳过 %s 条到期提醒（所属群/账号未开放 group_alarm 或受黑名单限制），记录已保留待重新开启",
+                skipped,
+            )

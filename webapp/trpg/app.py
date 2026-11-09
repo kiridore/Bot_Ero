@@ -97,7 +97,7 @@ class CharOut(BaseModel):
     flaws: str
 
 
-def _char_to_out(data: dict) -> CharOut:
+def _char_to_out(data: dict, viewer_id: str) -> CharOut:
     base_scores = {k: data.get(k, 8) for k in (
         "str_score", "dex_score", "con_score", "int_score", "wis_score", "cha_score"
     )}
@@ -105,7 +105,9 @@ def _char_to_out(data: dict) -> CharOut:
     return CharOut(
         id=data["id"],
         user_id=data["user_id"],
-        display_name=resolve_display_name(data["user_id"]),
+        display_name=user_settings_mod.display_identity(
+            data["user_id"], viewer_id, resolve_display_name(data["user_id"]), None,
+        )[0],
         char_name=finalized["char_name"],
         race=finalized.get("race", ""),
         class_name=finalized.get("class_name", ""),
@@ -155,7 +157,7 @@ def api_my_characters(user_id: Annotated[str, Depends(get_current_user_id)]):
     current_id = current["id"] if current else None
     return {
         "current_id": current_id,
-        "characters": [_char_to_out(c) for c in chars],
+        "characters": [_char_to_out(c, user_id) for c in chars],
     }
 
 
@@ -174,7 +176,7 @@ def api_create_character(
         char_id = char_store.create_char(user_id, data)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _char_to_out(char_store.get_char(user_id, char_id))
+    return _char_to_out(char_store.get_char(user_id, char_id), user_id)
 
 
 @router.get("/api/me/characters/{char_id}", response_model=CharOut)
@@ -185,7 +187,7 @@ def api_get_my_character(
     char = char_store.get_char(user_id, char_id)
     if not char:
         raise HTTPException(status_code=404, detail="角色不存在")
-    return _char_to_out(char)
+    return _char_to_out(char, user_id)
 
 
 @router.put("/api/me/characters/{char_id}", response_model=CharOut)
@@ -206,7 +208,7 @@ def api_update_character(
         char_store.update_char(user_id, char_id, data)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _char_to_out(char_store.get_char(user_id, char_id))
+    return _char_to_out(char_store.get_char(user_id, char_id), user_id)
 
 
 @router.delete("/api/me/characters/{char_id}")
@@ -248,7 +250,7 @@ def api_view_character(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not char:
         raise HTTPException(status_code=404, detail="角色不存在")
-    return _char_to_out(char)
+    return _char_to_out(char, viewer_id)
 
 
 @router.get("/api/trpg/rules")

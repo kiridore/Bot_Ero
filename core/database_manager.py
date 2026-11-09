@@ -19,6 +19,7 @@ from core.db.tools import ToolsManager
 from core.db.weekly import WeeklyReportManager
 from core.db.who_is_spy import WhoIsSpyManager
 from core.db.news import NewsManager
+from core.db.community import CommunityManager
 
 
 class DbManager:
@@ -49,6 +50,7 @@ class DbManager:
         self.weekly = WeeklyReportManager(self.conn)
         self.who_is_spy = WhoIsSpyManager(self.conn)
         self.news = NewsManager(self.conn)
+        self.community = CommunityManager(self.conn)
 
     def __del__(self):
         try:

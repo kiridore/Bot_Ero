@@ -2,7 +2,7 @@
 
 > 关联规范: [plugins.md](plugins.md) | [conventions.md](conventions.md)
 > 父文档: [CLAUDE.md](../CLAUDE.md)
-> 最后更新: 2026-11-04 (redeem_code 回归为迁移提示桩：撤回 /兑换码 并引导网页，插件总数 47)
+> 最后更新: 2026-11-06（1.62.0：并入社区化开发线；移除 ff_news（FF14 新闻由 news 承接），插件总数 47；补充两种榜单及个人档案图身份/水印行为）
 
 全部 47 个已注册插件的完整目录。新增插件时必须在此添加条目。
 
@@ -20,9 +20,9 @@
 | `remedy_checkin/` | `RemedyCheckinPlugin` | `remedy_checkin` | CommandPlugin | `/补卡 YYYY-MM-DD` / `/单日补卡` / `/超级补卡` / `/超级单日补卡` | 补卡系统：周补卡(4点)、单日补卡(2点)、管理员超级补整周/单日（免费） |
 | `all_checkin_display/` | `AllCheckinDisplay` | `all_checkin_display` | CommandPlugin | `/ALL` | 显示全量打卡图（合并转发） |
 | `week_checkin_display/` | `WeekCheckinDisplayPlugin` | `week_checkin_display` | CommandPlugin | `/本周打卡图` | 显示本周打卡图（私发） |
-| `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 显示本周完成打卡的成员列表 |
-| `personal_records/` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 生成年度打卡热力图档案卡 |
-| `leaderboard/` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分排行榜 |
+| `week_list/` | `WeekListPlugin` | `week_list` | CommandPlugin | `/本周板油` | 本周打卡成员图按行遵守身份公开设置、不加水印；文字回退不变 |
+| `personal_records/` | `PersonalRecords` | `personal_records` | CommandPlugin | `/档案 [年份]` | 年度档案卡及注册图遵守身份设置，默认同名平铺水印；可关闭，无本人豁免 |
+| `leaderboard/` | `LeaderboardPlugin` | `leaderboard` | CommandPlugin | `/排名` / `/rank` | TOP10 积分图按行遵守身份公开设置、不加水印；文字回退不变 |
 | `lottery/` | `LotteryPlugin` | `lottery` | CommandPlugin | `/抽奖` / `/抽卡` / `/抽卡消费 [@]` / `/一键抽奖` | 抽卡系统：消耗积分随机获取奖励；一键抽奖连抽今日剩余次数并合并转发结果 |
 | `immortal_lottery/` | `ImmortalLotteryPlugin` | `immortal_lottery` | 消息 + meta 事件 | `/仙人彩` / `下注 号码` | 仙人彩：每周日 20:00 开奖的彩票系统，概况/开奖播报/周报展示注单与中奖明细 |
 | `dice/` | `DicePlugin` | `dice` | 正则 `.r\dd\d` | `.rAdB` 格式 | 掷骰子（如 `.r3d6` 为 3 个 6 面骰） |
@@ -50,7 +50,8 @@
 | 文件 | 类名 | `name` | 触发 | 说明 |
 |------|------|--------|------|------|
 | `auto_friend/` | `AutoFriendPlugin` | `auto_friend` | `request_type == "friend"` | 自动接受好友请求 |
-| `welcome/` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息 |
+| `welcome/` | `WelcomePlugin` | `welcome` | `notice_type == "friend_add"` | 好友添加成功后发送私聊欢迎消息（文案包键 `welcome.friend_add`）；公开模板列入允许名单及系统集合，新好友无需先注册；不自动注册 |
+| `register/` | `RegisterPlugin` | `register` | CommandPlugin `/注册` `/同意EULA` | 主动注册流程与《用户协议》同意；准入限制仅针对真实私聊消息，允许插件标识register/menu；不处理好友申请或添加通知，见main.py与core/context.register_gate |
 | `message_logger/` | `MessageLoggerPlugin` | `message_logger` | 所有群消息（系统插件） | 记录群消息到独立库 `server_data/message_log.db`（周报数据源，永久保留） |
 
 ## 定时/心跳插件
@@ -71,9 +72,11 @@
 |------|------|--------|------|------|------|
 | `grant_points_all/` | `GrantPointsAllPlugin` | `grant_points_all` | CommandPlugin + `admin_user()` | `/发金币 <数量>` | 给所有用户统一发积分 |
 | `monitor/` | `MonitorPlugin` | `monitor` | `/系统状态` | `super_user()` | 显示运行时间、磁盘、CPU、内存 |
+| `blacklist/` | `BlacklistPlugin` | `blacklist` | CommandPlugin `/黑名单 添加/解除/查询/列表` | 仅超级用户，scope区分用户/群 | 不可封禁自身或当前超管；新增消息检查在注册提醒及限额之前；后台逐记录获准、免费奖励过滤、付费结算保留、真实撤回静默清理；缺省关闭，开启需设为系统插件 |
+| `group_review/` | `GroupReviewPlugin` | `group_review` | 群邀请、机器人自身进退群；`/待审`、`/审核 <群号> <通过\|拒绝> [申请编号]` | 审批仅 `super_user()` | require缺省false；同群多条申请须指定编号；未批准群只接收审核生命周期通知，消息业务及群心跳不执行 |
 | `update/` | `UpdatePlugin` | `update` | `/更新` | `super_user()` | git pull 并重启进程 |
 | `redeem_shop/` | `ShopManualRefreshPlugin` | `shop_manual_refresh` | `/刷新商店` | `admin_user()` | 手动刷新商店货架 |
-| `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件 <name\|列表> [off] [群号]` `/功能包 <name\|列表> [off] [群号]` | `super_user()` | 管理插件/功能包：列表、启用、禁用（超级用户） |
+| `group_manager/` | `GroupManagerPlugin` | `group_manager` | `/插件`、`/功能包` 保留 `<name\|列表> [off] [群号]`；新增 `<name> <开启\|关闭\|默认> 用户 <账号>`、`列表 用户 <账号>`、`<name> <开启\|关闭> 群 <群号>` | 仅 `super_user()` | 群与账号私聊独立控制；无目标列表私聊查本人、群聊查本群，`列表 公共默认`兼容旧0查询；统一显示部署/准入/开关有效状态和包计数，来源可辨；系统插件仍受部署与准入限制；无目标修改仍按原范围，回执明确公共默认影响；功能包批量设置原子提交 |
 
 ---
 

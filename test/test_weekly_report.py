@@ -21,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.base import BOT_QQ, TimedHeartbeatPlugin
 from core.config import GROUP_ID
+from core.database_manager import DbManager
 from core.db.message_log import MessageLogManager
 from plugins.weekly_report import WeeklyReportPlugin
 import plugins.weekly_report as weekly_report
@@ -28,6 +29,22 @@ from test.helper import MockApiWrapper, make_group_message
 
 # 周报功能上线当晚（2026-08-16 周日 17:48）首条进入日志的消息
 EARLIEST = "2026-08-16 17:48:00"
+
+
+def _set_weekly_report_enabled(enabled: bool):
+    """心跳作用域检查读 plugin_settings_snapshot（config-unification）：测试期内开启目标群周报。"""
+    db = DbManager()
+    try:
+        if enabled:
+            db.conn.execute(
+                "INSERT OR IGNORE INTO group_plugin_config VALUES (?, 'weekly_report')", (int(GROUP_ID),))
+        else:
+            db.conn.execute(
+                "DELETE FROM group_plugin_config WHERE group_id = ? AND plugin_name = 'weekly_report'",
+                (int(GROUP_ID),))
+        db.conn.commit()
+    finally:
+        db.conn.close()
 
 
 class _FixedDatetime(datetime):
@@ -71,6 +88,7 @@ class TestEarliestSentAt(unittest.TestCase):
 
 class TestGenerateWeekCoverageGate(unittest.TestCase):
     def setUp(self):
+        _set_weekly_report_enabled(True)
         mlog = MessageLogManager()
         mlog.cur.execute("DELETE FROM messages")
         mlog.insert(int(GROUP_ID), 10001, 1, EARLIEST, "功能上线当晚的消息")
@@ -87,6 +105,7 @@ class TestGenerateWeekCoverageGate(unittest.TestCase):
         self._emit.start()
 
     def tearDown(self):
+        _set_weekly_report_enabled(False)
         self._emit.stop()
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
@@ -129,6 +148,7 @@ class TestTriggerWiring(unittest.TestCase):
     从未生效，上线首周全靠启动补漏生成掩盖了该缺陷。"""
 
     def setUp(self):
+        _set_weekly_report_enabled(True)
         mlog = MessageLogManager()
         mlog.cur.execute("DELETE FROM messages")
         mlog.insert(int(GROUP_ID), 10001, 1, EARLIEST, "功能上线当晚的消息")
@@ -148,6 +168,7 @@ class TestTriggerWiring(unittest.TestCase):
         self._emit.start()
 
     def tearDown(self):
+        _set_weekly_report_enabled(False)
         self._emit.stop()
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
@@ -188,6 +209,7 @@ class TestImmortalInReport(unittest.TestCase):
     """仙人彩中奖明细进周报：winners 按奖级列中奖人/号码；有人 ≥3A 时头条为大奖落定。"""
 
     def setUp(self):
+        _set_weekly_report_enabled(True)
         mlog = MessageLogManager()
         mlog.cur.execute("DELETE FROM messages")
         mlog.insert(int(GROUP_ID), 10001, 1, EARLIEST, "功能上线当晚的消息")
@@ -224,6 +246,7 @@ class TestImmortalInReport(unittest.TestCase):
         self._emit.start()
 
     def tearDown(self):
+        _set_weekly_report_enabled(False)
         self._emit.stop()
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.cur.execute("DELETE FROM immortal_lottery_results")
@@ -276,6 +299,7 @@ class TestPublishNotifications(unittest.TestCase):
     关闭时双静默；幂等跳过不重发。"""
 
     def setUp(self):
+        _set_weekly_report_enabled(True)
         mlog = MessageLogManager()
         mlog.cur.execute("DELETE FROM messages")
         mlog.insert(int(GROUP_ID), 10001, 1, EARLIEST, "功能上线当晚的消息")
@@ -291,6 +315,7 @@ class TestPublishNotifications(unittest.TestCase):
         self.db.conn.commit()
 
     def tearDown(self):
+        _set_weekly_report_enabled(False)
         self.db.cur.execute("DELETE FROM weekly_reports")
         self.db.conn.commit()
         weekly_report._boot_checked = True

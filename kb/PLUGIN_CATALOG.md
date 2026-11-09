@@ -1,6 +1,6 @@
 # 插件目录与功能包
 
-> 全部 47 个已注册插件、功能包定义、数据依赖。插件初始为**禁用**（无任何自动播种，含全新部署），需经 `/插件` 指令或 bot 监控面板按范围启用。45 号 `redeem_code` 自 1.61.0 起为迁移提示桩（撤回 `/兑换码` 指令并引导至网页个人主页，兑换逻辑在 webapp）。
+> 全部 47 个已注册插件、功能包定义、数据依赖。插件初始为**禁用**（无任何自动播种，含全新部署），需经 `/插件` 指令或 bot 监控面板按范围启用。`redeem_code` 为迁移提示桩（撤回 `/兑换码` 指令并引导至网页个人主页，兑换逻辑在 webapp）；`ff_news` 已由 `news` 新闻订阅插件取代。
 
 ---
 
@@ -16,9 +16,9 @@
 | 6 | `remedy_checkin` | `remedy_checkin/` | CommandPlugin `/补卡`/`/单日补卡`/`/超级补卡`/`/超级单日补卡` | 补卡系统 |
 | 7 | `all_checkin_display` | `all_checkin_display/` | CommandPlugin `/ALL` | 显示全量打卡图和统计（合并转发） |
 | 8 | `week_checkin_display` | `week_checkin_display/` | CommandPlugin `/本周打卡图` | 本周打卡图（私发） |
-| 9 | `week_list` | `week_list/` | CommandPlugin `/本周板油` | 本周完成打卡的成员列表 |
-| 10 | `personal_records` | `personal_records/` | CommandPlugin `/档案 [年份]` | 生成年度热力图档案卡 |
-| 11 | `leaderboard` | `leaderboard/` | CommandPlugin `/排名`/`/rank` | TOP10 积分排行榜 |
+| 9 | `week_list` | `week_list/` | CommandPlugin `/本周板油` | 本周成员图按行遵守身份设置、无水印，文字回退不变 |
+| 10 | `personal_records` | `personal_records/` | CommandPlugin `/档案 [年份]` | 年度档案卡及注册图遵守身份设置、默认同名水印（可关闭），无本人豁免 |
+| 11 | `leaderboard` | `leaderboard/` | CommandPlugin `/排名`/`/rank` | TOP10 积分图按行遵守身份设置、无水印，文字回退不变 |
 | 12 | `lottery` | `lottery/` | CommandPlugin `/抽奖`/`/抽卡`/`/抽卡消费`/`/一键抽奖` | 抽卡系统（一键抽奖：连抽今日剩余次数并合并转发结果） |
 | 13 | `immortal_lottery` | `immortal_lottery/` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩（开奖播报与周报展示注单及中奖明细） |
 | 14 | `dice` | `dice/` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
@@ -46,7 +46,10 @@
 | # | 插件名 | 文件 | 触发 | 功能 |
 |---|--------|------|------|------|
 | 32 | `auto_friend` | `auto_friend/` | `request_type == "friend"` | 自动同意好友请求 |
-| 33 | `welcome` | `welcome/` | `notice_type == "friend_add"` | 发送欢迎私聊消息 |
+| 33 | `welcome` | `welcome/` | `notice_type == "friend_add"` | 发送欢迎私聊消息（文案包键 `welcome.friend_add`）；公开模板在允许名单和系统集合启用，不写注册记录 |
+| 47 | `register` | `register/` | CommandPlugin `/注册` `/同意EULA`（大小写不敏感） | 公开部署注册流程：合并转发《用户协议》、同意凭证落库、播种默认功能包、发布注册完成通知；私聊准入仅限制真实message，允许register/menu，不拦好友申请；见main.py |
+| 49 | `blacklist` | `blacklist/` | `/黑名单 添加/解除/查询/列表` | 仅超管管理，用户/群分别封禁；消息与后台限制、付费权益保护和历史撤回例外已接入，旧配置默认不启用 |
+| 48 | `group_review` | `group_review/` | 群邀请、机器人进退群、`/待审` `/审核` | 按实际配置启用；超级用户审批，批准后群登记与基础包开启同事务；未知远端结果保留需确认状态 |
 | 46 | `message_logger` | `message_logger/` | 所有群消息（系统插件） | 记录群消息到独立库 `server_data/message_log.db`（周报数据源，永久保留） |
 
 ## 定时/心跳
@@ -65,11 +68,11 @@
 
 | # | 插件名 | 文件 | 触发 | 权限 | 功能 |
 |---|--------|------|------|------|------|
-| 39 | `grant_points_all` | `grant_points_all/` | CommandPlugin `/发金币` | admin_user() | 全员发积分 |
+| 39 | `grant_points_all` | `grant_points_all/` | CommandPlugin `/发金币` | super_user() | 全员发积分 |
 | 40 | `monitor` | `monitor/` | `/系统状态` | super_user() | 运行时间/磁盘/CPU/内存 |
 | 41 | `update` | `update/` | `/更新` | super_user() | git pull + os.execv 重启 |
 | 42 | `shop_manual_refresh` | `redeem_shop/` | `/刷新商店` | admin_user() | 手动刷新商店 |
-| 43 | `group_manager` | `group_manager/` | CommandPlugin `/插件`/`/功能包`，参数 `<名称\|列表> [off\|关闭] [群号]` | super_user() | 管理各群插件/功能包启用状态 |
+| 43 | `group_manager` | `group_manager/` | CommandPlugin `/插件`/`/功能包`；保留旧参数，新增 `<名称> <开启\|关闭\|默认> 用户 <账号>`、`列表 用户 <账号>`、`<名称> <开启\|关闭> 群 <群号>` | 仅 super_user() | 群设置与账号私聊三态覆盖；列表私聊查本人/群聊查本群，`列表 公共默认`（兼容0）查继承设置；显示有效状态和原因，包统一计数；无目标修改仍保持原范围，系统插件不可覆盖，功能包批量修改同事务 |
 
 ## 功能包
 

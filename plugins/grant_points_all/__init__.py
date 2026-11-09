@@ -10,7 +10,8 @@ class GrantPointsAllPlugin(CommandPlugin):
     COMMANDS = ("/发金币", "/發金幣")
 
     def match(self, event_type="message"):
-        return self.admin_user() and super().match(event_type)
+        # 2026-10-10 所有者裁定：两部署统一仅超级用户；群管理员不再可用（grant-points-superuser 提案）
+        return self.super_user() and super().match(event_type)
 
     def handle(self):
         if len(self.args) < 1:
@@ -27,5 +28,7 @@ class GrantPointsAllPlugin(CommandPlugin):
             self.api.send_msg(text("发0点就不要折腾我了喵"))
             return
 
-        user_count = self.dbmanager.points.grant_all(amount)
+        from core.blacklist import operation_snapshot
+        snapshot = operation_snapshot(getattr(self, 'operation', None))
+        user_count = self.dbmanager.points.grant_all(amount, excluded_users=snapshot.users)
         self.api.send_msg(text("已给 {} 位用户发放 {} 点积分".format(user_count, amount)))

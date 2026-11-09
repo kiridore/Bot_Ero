@@ -121,25 +121,23 @@ def _plugin_entries() -> list[dict]:
             "key": key,
             "description": getattr(cls, "description", "") or "",
             "system": key in runtime_context.SYSTEM_PLUGINS,
+            "allowed": runtime_context.plugin_allowed(key),
         })
     out.sort(key=lambda x: x["key"])
     return out
 
 
 def _validate_config(text: str) -> str | None:
-    """返回错误说明；None=通过。"""
+    """面板存盘校验：与启动加载共用同一纯函数（config.validate_config）。"""
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         return f"YAML 解析失败：{exc}"
     if not isinstance(data, dict):
         return "配置顶层必须是键值映射"
-    for dotted in config._REQUIRED:
-        section, _, key = dotted.partition(".")
-        sec = data.get(section)
-        value = sec.get(key) if isinstance(sec, dict) else None
-        if value is None or value == "" or value == []:
-            return f"缺少必填配置项 {dotted}"
+    errors = config.validate_config(data)
+    if errors:
+        return "；".join(errors)
     return None
 
 
@@ -244,6 +242,9 @@ class PanelHandler(BaseHTTPRequestHandler):
                 return
             if key in runtime_context.SYSTEM_PLUGINS:
                 self._json(400, {"detail": "系统插件不可禁用"})
+                return
+            if not runtime_context.plugin_allowed(key):
+                self._json(400, {"detail": f"插件未在本部署开放：{key}（allowed_plugins）"})
                 return
             if key not in {p["key"] for p in _plugin_entries()}:
                 self._json(400, {"detail": f"插件不存在：{key}"})

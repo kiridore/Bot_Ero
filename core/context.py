@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 import sqlite3
+import time
 from threading import Lock
 
 if TYPE_CHECKING:
@@ -17,8 +18,8 @@ startup_changelog_sent = True
 plugin_registry: list[type["Plugin"]] = []
 DEFAULT_GROUP_ID = _config.DEFAULT_GROUP_ID  # 固定群号（config.yaml bot.default_group）
 
-# 系统级插件（不可按群禁用，始终运行）
-SYSTEM_PLUGINS = frozenset({
+# 系统级插件（不可按群禁用，始终运行）；bot.system_plugins 非空 = 精确替换，空/缺省 = 内置缺省集
+_DEFAULT_SYSTEM_PLUGINS = frozenset({
     "menu",
     "group_manager",
     "startup_changelog",
@@ -28,6 +29,186 @@ SYSTEM_PLUGINS = frozenset({
     "welcome",
     "message_logger",
 })
+SYSTEM_PLUGINS = (
+    frozenset(_config.SYSTEM_PLUGINS_CONF) if _config.SYSTEM_PLUGINS_CONF
+    else _DEFAULT_SYSTEM_PLUGINS
+)
+# 部署允许范围（config-unification）：None = 兼容模式（全部已注册插件，旧配置零变化）；
+# frozenset = 明确名单。冻结后只读；与注册表/系统集合的一致性由 validate_deployment_policy 保证。
+ALLOWED_PLUGINS = frozenset(_config.ALLOWED_PLUGINS_CONF) if _config.ALLOWED_PLUGINS_CONF else None
+
+
+def plugin_allowed(key: str) -> bool:
+    """部署级硬边界：不在名单内的插件在任何事件类型、任何局部开关下都不可运行。"""
+    return ALLOWED_PLUGINS is None or key in ALLOWED_PLUGINS
+
+
+def effective_for_scope(plugin_key: str, group_id=None, user_id=None) -> bool:
+    """心跳等无消息上下文任务用：某群/某账号当前对该插件是否生效。
+
+    部署许可 + 局部开关（群聊查群设置；私聊查账号覆盖/公共默认）。
+    ponytail: 每次调用开独立 DB 连接，每分钟扫描量级足够；
+    若任务量增大再考虑调用方批量快照。
+    """
+    if not plugin_allowed(key=plugin_key):
+        return False
+    if group_id is not None and not group_business_allowed(group_id):
+        return False
+    return plugin_settings_snapshot(group_id, user_id).get(plugin_key, False)
+
+
+def group_business_allowed(group_id) -> bool:
+    """审核关闭时完全兼容；开启时仅已批准群可执行消息业务或目的地心跳。"""
+    if not _config.GROUP_REVIEW_REQUIRE or group_id is None:
+        return True
+    from core.database_manager import DbManager
+    from core.logger import logger
+    db = None
+    try:
+        db = DbManager()
+        return db.community.is_group_active(group_id)
+    except Exception:
+        logger.exception("读取群审核状态失败，群 %s 不运行业务", group_id)
+        return False
+    finally:
+        if db is not None:
+            db.conn.close()
+
+
+def group_event_gate(raw: dict) -> frozenset | None:
+    gid = raw.get("group_id")
+    if gid is not None and not group_business_allowed(gid):
+        if raw.get('post_type') == 'message':
+            return frozenset()  # 未批准群不能通过审核指令绕过，超管需私聊审批
+        return frozenset({"group_review"})
+    return None
+
+
+# —— 私聊注册准入（M1 community-registration）：require=False 时全部函数零行为 ——
+REGISTRATION_ALLOWLIST = frozenset({"register", "menu"})
+_REGISTER_REMINDER_COMMANDS = {"/注册", "/同意eula", "/菜单", "/菜單"}
+_register_reminder_at: dict[int, float] = {}
+_register_reminder_lock = Lock()
+
+
+def registration_required() -> bool:
+    return _config.REGISTER_REQUIRE
+
+
+def is_super_user(user_id) -> bool:
+    return int(user_id) in {int(u) for u in _config.SUPER_USER}
+
+
+def _ci_ascii(word: str) -> str:
+    return "".join(c.lower() if c.isascii() else c for c in word)
+
+
+def register_gate(event_type: str, group_id, user_id) -> frozenset | None:
+    """未注册私聊用户的插件放行集；None = 不限制。
+
+    仅约束 message 事件；超级用户、群消息、require 关闭一律不限制。
+    """
+    if (not _config.REGISTER_REQUIRE or event_type != "message"
+            or group_id is not None or user_id is None or is_super_user(user_id)):
+        return None
+    from core.database_manager import DbManager
+    db = DbManager()
+    try:
+        registered = db.community.is_registered(user_id)
+    except Exception:
+        # 读取失败按未注册限制处理（fail-closed，防绕过）
+        return REGISTRATION_ALLOWLIST
+    finally:
+        db.conn.close()
+    return None if registered else REGISTRATION_ALLOWLIST
+
+
+def should_remind_register(user_id, context: dict) -> bool:
+    """命令样式的未注册消息是否该提醒；限频窗口内只提醒一次。"""
+    if not _config.REGISTER_REQUIRE or is_super_user(user_id):
+        return False
+    first = ""
+    for seg in context.get("message") or []:
+        if isinstance(seg, dict) and seg.get("type") == "text":
+            first = str(seg.get("data", {}).get("text", "")).strip()
+            break
+    if not first.startswith("/"):
+        return False
+    if _ci_ascii(first.split()[0]) in _REGISTER_REMINDER_COMMANDS:
+        return False
+    now = time.monotonic()
+    with _register_reminder_lock:
+        last = _register_reminder_at.get(int(user_id))
+        if last is not None and now - last < _config.REGISTER_REMINDER_MINUTES * 60:
+            return False
+        _register_reminder_at[int(user_id)] = now
+        return True
+
+
+def validate_deployment_policy() -> None:
+    """在全部插件完成自动导入后、start_panel/事件接收前调用（main.py）。
+
+    校验部署策略引用与冲突，失败即退出，不静默取舍：
+    - allowed_plugins/system_plugins 引用的标识必须真实存在（防拼错悄悄失效）；
+    - 生效系统集合必须是部署允许子集（防偷偷启用）；
+    - 自定义功能包文件引用的插件必须真实存在；
+    - 注册表为空说明调用时机错误（不能把"全部插件"冻结成空集）。
+    """
+    import sys
+    registered = {plugin_key(cls) for cls in plugin_registry}
+    problems: list[str] = []
+    if not registered:
+        problems.append("插件注册表为空：部署策略校验必须在 import plugins 之后调用")
+    if _config.SYSTEM_PLUGINS_CONF:
+        unknown_sys = sorted(set(_config.SYSTEM_PLUGINS_CONF) - registered)
+        if unknown_sys:
+            problems.append(f"bot.system_plugins 含未注册插件：{', '.join(unknown_sys)}")
+    if ALLOWED_PLUGINS is not None:
+        unknown_allowed = sorted(ALLOWED_PLUGINS - registered)
+        if unknown_allowed:
+            problems.append(f"bot.allowed_plugins 含未注册插件：{', '.join(unknown_allowed)}")
+        conflicts = sorted(SYSTEM_PLUGINS - ALLOWED_PLUGINS)
+        if conflicts:
+            problems.append(f"系统插件不在 allowed_plugins 内：{', '.join(conflicts)}")
+    if _config.FEATURE_PACKS_FILE:
+        from core.feature_packs import FEATURE_PACKS
+        for pack_name, pack in FEATURE_PACKS.items():
+            unknown_pack = sorted(set(pack["plugins"]) - registered)
+            if unknown_pack:
+                problems.append(f"功能包「{pack_name}」含未注册插件：{', '.join(unknown_pack)}")
+    if _config.REGISTER_REQUIRE:
+        # 注册开启：协议文件与播种包必须真实可用（两种部署同一规则）
+        from pathlib import Path
+        eula = Path(_config.REGISTER_EULA_FILE)
+        if not eula.is_absolute():
+            eula = _config.PROJECT_ROOT / eula
+        if not eula.is_file():
+            problems.append(f"register.eula_file 不存在：{eula}")
+        from core.feature_packs import FEATURE_PACKS
+        if _config.REGISTER_DEFAULT_PACK not in FEATURE_PACKS:
+            problems.append(f"register.default_pack 不是已定义功能包：{_config.REGISTER_DEFAULT_PACK}")
+    if _config.BLACKLIST_ENABLED:
+        if 'blacklist' not in registered or 'blacklist' not in SYSTEM_PLUGINS or not plugin_allowed('blacklist'):
+            problems.append('黑名单限制开启必须允许并设为系统插件：blacklist')
+    if _config.GROUP_REVIEW_REQUIRE:
+        from core.feature_packs import FEATURE_PACKS
+        for name in ("group_review", "group_manager", "menu"):
+            if name not in registered or name not in SYSTEM_PLUGINS or not plugin_allowed(name):
+                problems.append(f"群审核开启必须允许并设为系统插件：{name}")
+        pack = FEATURE_PACKS.get(_config.GROUP_REVIEW_DEFAULT_PACK)
+        if pack is None:
+            problems.append("group_review.default_pack 不是已定义功能包")
+        elif any(not plugin_allowed(name) for name in pack["plugins"]):
+            problems.append("group_review.default_pack 包含部署未开放的插件")
+    if problems:
+        sys.exit("部署配置校验失败：\n- " + "\n- ".join(problems))
+
+# 称号前缀提供者（plugins.title 加载时注册；未注册 = 无称号前缀，社区裁剪形态降级）
+TITLE_PREFIX_PROVIDER = None
+
+def register_title_prefix_provider(fn) -> None:
+    global TITLE_PREFIX_PROVIDER
+    TITLE_PREFIX_PROVIDER = fn
 
 # 跑团录制状态
 recording_lock = Lock()
@@ -62,10 +243,33 @@ def is_plugin_allowed_during_recording(key: str) -> bool:
 def plugin_key(plugin_cls: type["Plugin"]) -> str:
     return plugin_cls.__module__.split(".", 1)[1]
 
-def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
+def plugin_settings_snapshot(group_id=None, user_id=None) -> dict[str, bool]:
+    from core.database_manager import DbManager
+    from core.db.plugin_settings import enabled_plugins
+    db = DbManager()
+    try:
+        settings = enabled_plugins(db.conn, group_id, user_id)
+    finally:
+        db.conn.close()
+    if ALLOWED_PLUGINS is not None:
+        # 部署硬边界：不在名单内的插件对任何事件、任何局部开关都不可运行（config-unification）
+        settings = {key: value for key, value in settings.items() if key in ALLOWED_PLUGINS}
+    settings.update({key: True for key in SYSTEM_PLUGINS})
+    if group_id is not None and not group_business_allowed(group_id):
+        return {key: value for key, value in settings.items() if key == "group_review"}
+    return settings
+
+
+def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None, user_id=None) -> bool:
     key = plugin_key(plugin_cls)
+    if not plugin_allowed(key):
+        return False
+    if key != "group_review" and group_id is not None and not group_business_allowed(group_id):
+        return False
     if key in SYSTEM_PLUGINS:
         return True
+    if group_id is None and user_id is not None:
+        return plugin_settings_snapshot(group_id, user_id).get(key, False)
     gid = group_id if group_id is not None else 0
     try:
         conn = sqlite3.connect(str(_config.DB_PATH))

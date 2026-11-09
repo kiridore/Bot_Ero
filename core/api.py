@@ -47,19 +47,11 @@ class ApiWrapper:
             return {"status": "failed"}
 
     def _build_title_prefix(self, user_id):
+        provider = runtime_context.TITLE_PREFIX_PROVIDER
+        if provider is None:
+            return ""
         try:
-            equipped_titles = self.dbmanager.titles.equipped_all(user_id)[:3]
-            if len(equipped_titles) == 0:
-                return ""
-            names = []
-            from plugins.title import get_title_def
-            for tid in equipped_titles:
-                data = get_title_def(tid)
-                if data and data.get("name"):
-                    names.append(data["name"])
-            if len(names) == 0:
-                return ""
-            return "「{}」".format("·".join(names))
+            return provider(self.dbmanager, user_id)
         except Exception:
             return ""
 
@@ -155,11 +147,18 @@ class ApiWrapper:
 
 
     def get_qq_avatar(self, user_id) -> str:
-        """OneBot `get_qq_avatar`，成功返回头像 URL，失败返回空串。"""
+        """OneBot `get_qq_avatar`，成功返回头像 URL，失败回退公开头像地址。
+
+        LLOneBot 提供此扩展 API；NapCat 不支持（"不支持的API"），
+        回退 qlogo.cn 公开 URL——双端行为一致，且省一次 API 往返。
+        """
         params = {"user_id": user_id}
         ret = self.call_api("get_qq_avatar", params)
         if not ret or ret.get("status") != "ok":
-            return ""
+            try:
+                return f"https://q1.qlogo.cn/g?b=qq&nk={int(user_id)}&s=640"
+            except (TypeError, ValueError):
+                return ""
         data = ret.get("data")
         if not isinstance(data, dict):
             return ""

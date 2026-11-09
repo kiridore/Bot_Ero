@@ -15,6 +15,7 @@ from typing import Any
 from core.config import GROUP_ID
 from core.database_manager import DbManager
 from core.onebot_client import resolve_display_name
+from core.user_settings import display_identity
 from core import config
 
 _GROUP_ALARM_PATH = config.PROJECT_ROOT / "plugins" / "group_alarm" / "parser.py"
@@ -269,7 +270,7 @@ def calendar_month(user_id: str, month: str) -> dict:
             "recur_a": int(ra or 0),
             "recur_b": int(rb or 0),
             "recur_desc": ga._format_recur_desc(int(rk), int(ra or 0), int(rb or 0), int(rc or 0)) if is_recurring else None,
-            "creator_name": resolve_display_name(str(creator)),
+            "creator_name": display_identity(creator, user_id, resolve_display_name(str(creator)), None)[0],
         })
 
     for id_, creator, fire_s, content, is_priv, is_rec, rk, ra, rb, rc in rows:

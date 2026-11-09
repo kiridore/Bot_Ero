@@ -64,8 +64,9 @@ class PointsManager:
         """, (limit,))
         return self.cur.fetchall()
 
-    def grant_all(self, amount):
+    def grant_all(self, amount, *, excluded_users=()):
         amount = int(amount)
+        excluded = frozenset(str(uid) for uid in excluded_users)
         self.cur.execute("""
             SELECT DISTINCT user_id FROM user_assets
             UNION
@@ -77,14 +78,14 @@ class PointsManager:
             UNION
             SELECT DISTINCT user_id FROM user_equipped_titles
         """)
-        user_ids = [row[0] for row in self.cur.fetchall() if row[0] is not None]
+        user_ids = [row[0] for row in self.cur.fetchall()
+                    if row[0] is not None and str(row[0]) not in excluded]
 
-        for uid in user_ids:
-            self.cur.execute("""
-                INSERT INTO user_assets (user_id, points)
-                VALUES (?, ?)
-                ON CONFLICT(user_id) DO UPDATE SET points = points + excluded.points
-            """, (str(uid), amount))
-
-        self.conn.commit()
+        with self.conn:
+            for uid in user_ids:
+                self.cur.execute("""
+                    INSERT INTO user_assets (user_id, points)
+                    VALUES (?, ?)
+                    ON CONFLICT(user_id) DO UPDATE SET points = points + excluded.points
+                """, (str(uid), amount))
         return len(user_ids)

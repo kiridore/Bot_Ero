@@ -18,22 +18,98 @@ BOTERO_VERSION = "1.61.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
-# 必填键（点路径），按部署形态拆分：
-# - 两种形态共有的 bot 基础项 + auth.salt
-# - 私有形态额外要求：默认群（单群假设兜底）、OneBot HTTP（webapp 昵称解析）、
-#   时间线上报（webapp Event Server 地址）
-_EDITIONS = ("private", "community")
+# 必填键（点路径）：进程启动必需项。部署差异不按键名分侧：
+# - 服务配套键按实际启用判定（timeline/onebot 配了 URL 就要求 token，见 validate_config）
+# - bot.default_group 不再必填（空 = 发送兜底丢弃，T0.2）
 _REQUIRED_BOT = (
     "bot.qq", "bot.nickname", "bot.super_users",
     "bot.ws_url", "bot.ws_token", "bot.llonebot_data_path", "bot.python_data_path",
     "auth.salt",
 )
-_REQUIRED_PRIVATE_EXTRA = (
-    "bot.default_group",
-    "onebot.http_url", "onebot.token",
-    "timeline.url", "timeline.token",
-)
-_REQUIRED = _REQUIRED_BOT + _REQUIRED_PRIVATE_EXTRA  # 兼容 web_panel 存盘校验（私有全集，语义不变）
+_REQUIRED = _REQUIRED_BOT  # 兼容旧引用；启动与面板存盘共用 validate_config
+
+
+def _present(value) -> bool:
+    return value is not None and value != "" and value != []
+
+
+def validate_config(data: dict) -> list[str]:
+    """纯校验：返回错误列表（空 = 通过）。启动加载与管理面板保存共用；
+    与版名（bot.edition）无关——它只是描述标签，不参与任何判定。"""
+    errors: list[str] = []
+    community = data.get("community") or {}
+    if not isinstance(community, dict):
+        errors.append("community 必须是键值映射")
+    else:
+        limit = community.get("command_limit_per_minute", 0)
+        if type(limit) is not int or limit < 0:
+            errors.append("community.command_limit_per_minute 必须是非负整数（0=关闭）")
+    for dotted in _REQUIRED_BOT:
+        section, _, key = dotted.partition(".")
+        value = (data.get(section) or {}).get(key)
+        if not _present(value):
+            errors.append(f"缺少必填项 {dotted}")
+    bot = data.get("bot") or {}
+    if "feature_packs_file" in bot and not str(bot["feature_packs_file"] or "").strip():
+        errors.append("bot.feature_packs_file 不能为空字符串；使用内置包请删除该键")
+    if "allowed_plugins" in bot:
+        raw = bot["allowed_plugins"]
+        if not isinstance(raw, list) or not all(isinstance(s, str) and s.strip() for s in raw):
+            errors.append("bot.allowed_plugins 必须是插件标识（字符串）列表")
+        elif not raw:
+            errors.append("bot.allowed_plugins 不能为空列表；不限制请删除该键")
+    if "system_plugins" in bot:
+        raw = bot["system_plugins"]
+        if not isinstance(raw, list) or not all(isinstance(s, str) and s.strip() for s in raw):
+            errors.append("bot.system_plugins 必须是插件标识（字符串）列表")
+        elif not raw:
+            errors.append("bot.system_plugins 不能为空列表；使用内置集合请删除该键")
+    timeline = data.get("timeline") or {}
+    if _present(timeline.get("url")) != _present(timeline.get("token")):
+        errors.append("timeline.url 与 timeline.token 必须成对配置（都不填 = 上报关闭）")
+    onebot = data.get("onebot") or {}
+    if _present(onebot.get("http_url")) != _present(onebot.get("token")):
+        errors.append("onebot.http_url 与 onebot.token 必须成对配置（都不填 = 不启用 HTTP）")
+    register = data.get("register") or {}
+    if register:
+        if not isinstance(register, dict):
+            errors.append("register 节必须是键值映射")
+        else:
+            require = register.get("require", False)
+            if not isinstance(require, bool):
+                errors.append("register.require 必须是布尔值")
+            reminder = register.get("reminder_minutes", 30)
+            if not isinstance(reminder, int) or isinstance(reminder, bool) or reminder < 0:
+                errors.append("register.reminder_minutes 必须是非负整数")
+            for key in ("eula_file", "default_pack"):
+                value = register.get(key)
+                if value is not None and (not isinstance(value, str) or not value.strip()):
+                    errors.append(f"register.{key} 必须是非空字符串")
+    blacklist = data.get("blacklist", {})
+    if not isinstance(blacklist, dict):
+        errors.append("blacklist 节必须是键值映射")
+    elif type(blacklist.get("enabled", False)) is not bool:
+        errors.append("blacklist.enabled 必须是布尔值")
+    elif blacklist.get("enabled", False):
+        if "blacklist" not in (bot.get("system_plugins") or []):
+            errors.append("黑名单限制开启必须将blacklist设为系统插件")
+        if "allowed_plugins" in bot and "blacklist" not in (bot.get("allowed_plugins") or []):
+            errors.append("黑名单限制开启必须允许blacklist插件")
+    review = data.get("group_review", {})
+    if not isinstance(review, dict):
+        errors.append("group_review 节必须是键值映射")
+    else:
+        if type(review.get("require", False)) is not bool:
+            errors.append("group_review.require 必须是布尔值")
+        pack = review.get("default_pack", "打卡基础")
+        if not isinstance(pack, str) or not pack.strip():
+            errors.append("group_review.default_pack 必须是非空字符串")
+    community = data.get("community", {})
+    if not isinstance(community, dict):
+        errors.append("community 节必须是键值映射")
+    elif type(community.get("max_groups", 50)) is not int or community.get("max_groups", 50) < 1:
+        errors.append("community.max_groups 必须是正整数")
+    return errors
 
 
 def _load(path: Path) -> dict:
@@ -43,15 +119,9 @@ def _load(path: Path) -> dict:
             f"请先复制模板并填写：cp config.example.yaml config.yaml"
         )
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    edition = str((data.get("bot") or {}).get("edition") or "private")
-    if edition not in _EDITIONS:
-        sys.exit(f"配置文件 {path} 的 bot.edition 非法：{edition}（可选 {'/'.join(_EDITIONS)}）")
-    required = _REQUIRED_BOT + (_REQUIRED_PRIVATE_EXTRA if edition == "private" else ())
-    for dotted in required:
-        section, _, key = dotted.partition(".")
-        value = (data.get(section) or {}).get(key)
-        if value is None or value == "" or value == []:
-            sys.exit(f"配置文件 {path} 缺少必填项 {dotted}")
+    errors = validate_config(data)
+    if errors:
+        sys.exit(f"配置文件 {path} 无效：\n- " + "\n- ".join(errors))
     return data
 
 
@@ -63,6 +133,7 @@ def _sec(name: str) -> dict:
 
 
 _bot = _sec("bot")
+BLACKLIST_ENABLED = _sec("blacklist").get("enabled", False)
 _onebot = _sec("onebot")
 _paths = _sec("paths")
 _auth = _sec("auth")
@@ -86,14 +157,32 @@ BOT_QQ = str(_bot["qq"])
 NICKNAME = str(_bot["nickname"])
 SUPER_USER = [int(u) for u in _bot["super_users"]]
 
-# —— 部署形态（private=私有全功能；community=社区公共服务，纯 bot）——
+# —— 部署描述标签（纯日志/展示用途，不参与控制流）——
 EDITION = str(_bot.get("edition") or "private")
 SYSTEM_PLUGINS_CONF = [str(s) for s in (_bot.get("system_plugins") or [])]  # T0.4 消费（缺省空 = 用内置集合）
+# 部署允许范围（config-unification）：缺键 = 兼容模式（允许全部已安装插件，公开部署应显式配置名单）；
+# 非空列表 = 精确限定。空列表在 validate_config 报错，不会解释为"全部开放"。
+# 标识使用模块名（runtime_context.plugin_key），如 redeem_shop、weekly_quest。
+_allowed_raw = _bot.get("allowed_plugins")
+ALLOWED_PLUGINS_CONF = [str(s) for s in _allowed_raw] if _allowed_raw else None
+# —— 功能包定义文件（config-unification）：缺键 = 内置包；非空路径 = 整体替换（严格校验，错误即退出）
+FEATURE_PACKS_FILE = str(_bot.get("feature_packs_file") or "")
+TEXT_PACK = str(_bot.get("text_pack") or "")  # 文案包路径（缺省空 = 内置文案，社区版 T0.8）
 _community = _sec("community")
-COMMUNITY_MAX_GROUPS = int(_community.get("max_groups") or 50)
-# 频控冷却秒数：显式配置不分形态生效；缺省 community=3 / private=0（关闭）
+COMMUNITY_MAX_GROUPS = int(_community.get("max_groups", 50))
+_group_review = _sec("group_review")
+GROUP_REVIEW_REQUIRE = _group_review.get("require", False)
+GROUP_REVIEW_DEFAULT_PACK = _group_review.get("default_pack", "打卡基础")
+# —— 注册（M1，community-registration 提案）：require 缺省 False = 私有版现状零行为 ——
+_register_sec = _sec("register")
+REGISTER_REQUIRE = bool(_register_sec.get("require", False))
+REGISTER_EULA_FILE = str(_register_sec.get("eula_file") or "docs/eula/v1.md")
+REGISTER_DEFAULT_PACK = str(_register_sec.get("default_pack") or "打卡基础")
+REGISTER_REMINDER_MINUTES = int(_register_sec.get("reminder_minutes") or 30)
+# 保留的同指令冷却参数（执行尚未实施）；总次数限制使用command_limit_per_minute。
 _cooldown_raw = _community.get("cmd_cooldown_seconds")
-COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else (3 if EDITION == "community" else 0)
+COMMUNITY_CMD_COOLDOWN_SECONDS = int(_cooldown_raw) if _cooldown_raw is not None else 0
+COMMAND_LIMIT_PER_MINUTE = _community.get("command_limit_per_minute", 0)
 
 _default_group = _bot.get("default_group")
 DEFAULT_GROUP_ID = int(_default_group) if _default_group else None  # 社区形态可无默认群（发送兜底见 T0.2）

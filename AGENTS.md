@@ -2,6 +2,11 @@
 
 BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，事件驱动 + 插件架构，纯同步多线程）+ **单进程 FastAPI 社区站 `webapp`**（11 个功能模块，单一根域按路径分区，全站登录门控）。本文件是 AI 代理的第一入口：先读完本文件，再按需查阅下面的文档地图。
 
+## 沟通规范（所有者要求）
+
+- **向用户解释问题时不得使用自创的简称和黑话**（如“触点”“门控”“钩子”“落地”“Ruling”“剔”等未经用户确认的临时术语）。用平实的完整说法讲清楚：是什么、为什么、改哪里、有什么影响。
+- 项目文档中已定义的术语可用（如功能包、插件名、打卡基础、双形态接缝等）；未定义的概念首次出现时用完整描述，不用压缩造词。
+
 ## 文档地图（按此顺序/需查阅）
 
 | 需要什么 | 去哪 |
@@ -30,7 +35,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **Git hooks:** clone 后执行 `git config core.hooksPath .githooks` 启用 Conventional Commits 校验（commit-msg 钩子对 >12 个文件的暂存输出分块提示，警告不阻断）。
 - **Commit 消息 MUST 中文** + Conventional Commits（如 `feat(任务): 新增周常全清称号`）。
 - **Commits MUST 按逻辑分块**：一个 commit = 一个逻辑变更；同一逻辑变更的配套文件（代码 + 行为测试 + spec + 菜单文本 + CHANGELOG + KNOWLEDGE_BASE）进**同一个** commit，无关改动拆开（`specs/conventions.md` §Commit 提交分块）。
-- **多步开发任务（新功能/跨文件改动/多 commit 任务）MUST 走功能开发主流程：`superpowers:brainstorming` 澄清设计 → spec（`docs/superpowers/specs/`）→ `superpowers:writing-plans` 计划（`docs/superpowers/plans/`）→ `superpowers:subagent-driven-development` 逐任务实现+审查**；单点小修（一行 fix/纯文档）不强制。四步细则、执行裁定纪律与集成惯例见 `specs/conventions.md` §功能开发主流程。
+- **用户可见变更（一切 bump `BOTERO_VERSION` 的改动）MUST 走 OpenSpec 提案流程：`openspec new change` → proposal（含完整验收标准）/ specs / design / tasks → 实现 → 验收全绿 → `openspec archive` 归档，归档与实现同 commit**；纯文档/测试/内部重构（不 bump）免提案。判据一句话：**要 bump 就要提案**。细则见 `specs/conventions.md` §功能开发主流程。
 
 ## Plugin auto-import magic
 
@@ -76,7 +81,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **`match()` MUST NOT have side effects**（不发消息、不写库）。
 - **Specs MUST 在同一 commit 更新**（`specs/README.md` 维护规则表）。
 - **每次用户可见变更 MUST 同 commit 更新 `CHANGELOG.md` 并 bump `core/config.py::BOTERO_VERSION`**：CHANGELOG 顶部新增 `[x.y.z]` 节，与 `BOTERO_VERSION` 一致（新功能 minor / 修复 patch）。纯文档/测试/内部重构可只记 CHANGELOG `[未发布]` 节不 bump。
-- **新增/改名指令 MUST 同 commit 更新 `plugins/menu/bot_menu_text.py`**（指令文本唯一来源，勿在他处硬编码）。
+- **新增/改名指令 MUST 同 commit 更新 `plugins/menu/bot_menu_text.py`**（指令文本唯一来源，勿在他处硬编码）；部署期文案差异（如社区中性文案）经 `bot.text_pack` 文案包覆盖（`text_packs/*.yaml` → `core/text_pack.py::get_text`，缺键回落内置，见 specs/conventions.md §双形态接缝）。
 - **改动用户可见文案/输出格式 MUST 同 commit 更新对应测试断言**；新增测试脚本 MUST 用 `test/scripts/_env.py::write_config` 生成临时 `config.yaml` 并经 `BOTERO_CONFIG` 指向它，按所测模块重定向全部相关数据路径（红线：不触真实 `server_data`），路径常量用 `config.X` 属性访问、禁止导入期绑定。见 `specs/conventions.md` §测试隔离与文案同步。
 - **动协议代码**（`core/api.py`、`core/event.py`、`core/cq.py` 或任何插件的 OneBot 事件/消息段访问）**MUST 先查权威上游**——见 `specs/onebot-protocol.md` §权威上游文档；LLOneBot 文档索引镜像在 `specs/llms.txt`（编辑前 webfetch 对应单页）。
 - LLM 子系统（`core/llm/`）**已弃用**，不要新增依赖。

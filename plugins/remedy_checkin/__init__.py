@@ -47,6 +47,10 @@ class RemedyCheckinPlugin(CommandPlugin):
                     return
                 user_id = self.args[1] # 管理员可以给其他人补卡
 
+            from core.blacklist import operation_snapshot
+            snapshot = operation_snapshot(getattr(self, 'operation', None))
+            if snapshot.users and snapshot.blocks(user_id=user_id):
+                return
             start, end = get_monday_to_monday(dt)
             if datetime.strptime(end, "%Y-%m-%d %H:%M:%S") > datetime.now():
                 self.api.send_msg(text("{}-{}这一周还没过完，只能补已经结束的一周喵".format(start.split(" ")[0], end.split(" ")[0])))
@@ -105,6 +109,10 @@ class RemedyCheckinPlugin(CommandPlugin):
                 return
             user_id = self.args[1]  # 管理员可以给其他人补单日
 
+        from core.blacklist import operation_snapshot
+        snapshot = operation_snapshot(getattr(self, 'operation', None))
+        if snapshot.users and snapshot.blocks(user_id=user_id):
+            return
         rows = self.dbmanager.checkin.search_user_range(user_id, day_start, day_end)
         if len(rows) > 0:
             self.api.send_msg(text("{} 这一天你已经打过卡了喵".format(self.args[0])))

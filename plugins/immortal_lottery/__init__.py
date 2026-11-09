@@ -36,6 +36,7 @@ def _name(uid: int) -> str:
 
 @register_plugin
 class ImmortalLotteryPlugin(Plugin):
+    IS_COMMAND = True
     name = "immortal_lottery"
     description = "仙人彩：四位数竞猜，周中下注、周日开奖，积分奖池与滚存。"
 
@@ -161,6 +162,8 @@ class ImmortalLotteryPlugin(Plugin):
         )
 
     def _handle_draw_tick(self):
+        from core import context as runtime_context
+        from core.blacklist import admit_task
         now = _now_bj()
         sun = now.date()
         mon = _sunday_draw_period_monday(sun)
@@ -170,6 +173,18 @@ class ImmortalLotteryPlugin(Plugin):
         for gid in groups:
             if db.immortal.has_result(gid, pk):
                 continue
+            # 所属群未启用：不开奖、不结算、不改奖池；已付注单保留待重新开启（config-unification）
+            if not runtime_context.effective_for_scope("immortal_lottery", group_id=gid):
+                if db.immortal.list_bets(gid, pk):
+                    from core.logger import logger
+                    logger.warning(
+                        "仙人彩群 %s 未启用，保留 %s 期未开奖注单（含已收积分）；"
+                        "重新开启后仍处开奖窗口才会补开，错过窗口由超管处置",
+                        gid, pk,
+                    )
+                continue
+            if admit_task('immortal_lottery', pk, group_id=gid) is None:
+                continue  # 保留注单及资金；正常群参与者的既有付费权益不按账号封禁剔除
             self._run_single_group_draw(gid, pk)
 
     def _run_single_group_draw(self, group_id: int, period_key: str):

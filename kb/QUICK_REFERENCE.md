@@ -13,11 +13,11 @@
 
 ## 配置文件 `config.yaml`
 
-`core/config.py` 在 import 时经 `yaml.safe_load` 加载（文件不存在或必填项缺失 → 启动即退出并提示 `cp config.example.yaml config.yaml`）；必填集按 `bot.edition` 分侧（community 仅 bot 基础项 + `auth.salt`）；环境变量 `BOTERO_CONFIG` 仅用于定位配置文件本身（测试/多环境用）。修改后需重启对应进程生效。
+`core/config.py` 在 import 时经 `yaml.safe_load` 加载（文件不存在或必填项缺失 → 启动即退出并提示 `cp config.example.yaml config.yaml`）；必填集与版名无关（`validate_config` 纯函数：bot 基础项 + `auth.salt`，可选服务成对校验）；`bot.edition` 仅描述标签不参与控制流；环境变量 `BOTERO_CONFIG` 仅用于定位配置文件本身（测试/多环境用）。修改后需重启对应进程生效。
 
 | 节 | 键 | 必填 | 默认/说明 |
 |----|----|------|----------|
-| `bot` | `edition` | ❌ | 部署形态 `private`（缺省）/`community`；差异约束见 `specs/conventions.md` §双形态接缝 |
+| `bot` | `edition` | ❌ | 纯描述标签（日志展示），不参与任何控制流 |
 | | `qq` | ✅ | Bot QQ（**必须加引号保持 str**） |
 | | `nickname` | ✅ | 机器人昵称 |
 | | `super_users` | ✅ | 超管 QQ 列表（list[int]） |
@@ -26,6 +26,8 @@
 | | `llonebot_data_path` / `python_data_path` | ✅ | 双数据路径（API 侧 / Python I/O 侧） |
 | | `download_proxy` | ❌ | 图片下载代理，空 = 直连 |
 | | `onebot_qq_volume` | ❌ | docker 卷路径，仅容器部署用 |
+| | `allowed_plugins` | ❌ | 部署允许范围：缺省 = 全部已安装插件（旧配置兼容）；非空 = 精确限定（名单外插件消息/心跳/内部通知全部失效，管理命令不能开启）；启动时校验引用与系统集合 |
+| | `feature_packs_file` | ❌ | 功能包定义文件：缺省 = 内置 6 包；非空 = 整体替换（相对路径以主配置目录为基准）；只定义分组不自动开启 |
 | | `system_plugins` | ❌ | 系统插件白名单（缺省 = 内置 8 件套）；社区形态裁掉 message_logger/startup_changelog 等 |
 | `onebot` | `http_url` / `token` | 私有✅ | OneBot HTTP（拉 QQ 昵称）；社区形态可省 |
 | `paths` | `db` 等 7 键 | ❌ | 缺省即默认布局（`data.db`、`server_data/*`）；相对路径按项目根解析 |
@@ -39,7 +41,11 @@
 | `live` | `flv_url` | ❌ | 直播 FLV 流地址 |
 | `panel` | `host` / `port` | ❌ | bot 内置监控面板（`0.0.0.0` / `8790`，局域网访问，图库密钥超管鉴权） |
 | `tools` | `icon_proxy` | ❌ | 图标抓取代理，空 = 直连 |
-| `community` | `max_groups` / `cmd_cooldown_seconds` | ❌ | 仅 community 形态生效；缺省 `50` / `3`（private 缺省 `0`=关闭频控） |
+| `blacklist` | `enabled` | ❌ | 缺省false；开启须在允许名单和系统集合包含blacklist。账号跨群/私聊限制、群独立限制，后台按记录暂停；已获准操作完成，解除不改其他资格 |
+| `community` | `command_limit_per_minute` | ❌ | 缺省0关闭，公开模板20；同账号跨群/私聊滚动60秒总次数，超管也受限；一条匹配消息一次，失败不退，超限原位置提示每10秒至多一次；重启清空 |
+| `community` | `max_groups` / `cmd_cooldown_seconds` | ❌ | 所有部署同规则；缺省 `50` / `0`，公开模板保留冷却3秒字段但同指令冷却尚未实施。max_groups为正整数，群审核计入已批准及审批预留群数 |
+| `group_review` | `require` / `default_pack` | ❌ | 缺省 `false` / `打卡基础`；开启审核须将审核和管理插件列入部署许可/系统集，默认包必须存在且成员可提供；公开模板启用、普通模板关闭 |
+| 文案包 | `group_review.welcome` | ❌ | 批准后群公告覆盖；缺省「本群已接入打卡服务，/菜单 查看可用功能」 |
 
 ## 代码内常量（非配置）
 
@@ -67,7 +73,7 @@
   personal_records/                         ← 生成档案图片
   thumb_cache/                              ← Web 端缩略图
   trpg_chars/<user_id>/                     ← 角色卡 JSON：meta.json（current_id/order）+ <char_id>.json
-  user_settings/<user_id>.json              ← 个人设置 JSON（文件不存在 = 全默认）
+  user_settings/<user_id>                   ← 无扩展名个人设置 JSON（文件不存在 = 全默认）
   activity_archive/<活动id>/                ← 活动归档：meta.json + 接龙/匹配 markdown + imgs/
   message_log.db                            ← 群消息日志独立库（周报数据源，永久保留）
 
@@ -80,8 +86,12 @@
 ## 跑团角色卡与个人设置（JSON 存储）
 
 - 角色卡**不再存 SQLite**，改存 `server_data/trpg_chars/<user_id>/`（`meta.json` 记录 `current_id`/`order`，`<char_id>.json` 为单个角色数据）；根目录可用 `config.yaml` `paths.trpg_chars` 覆盖
-- 个人设置存 `server_data/user_settings/<user_id>.json`；根目录可用 `config.yaml` `paths.user_settings` 覆盖
+- 个人设置存无扩展名 JSON 文件 `server_data/user_settings/<user_id>`；根目录可用 `config.yaml` `paths.user_settings` 覆盖，不迁移既有文件名
 - 已约定设置键：`privacy.char_public`（bool，缺省 True）= 是否允许他人查看我的角色卡（网页端 `/profile/settings` 开关，QQ 查看他人卡需已公开）
+- 1.57.0 新增三个独立布尔键（均缺省 True）：`privacy.identity_public` 公开昵称与头像；`timeline.show_others_checkin` 在时间线显示他人打卡；`watermark.enabled` 为个人档案生成图加水印。`GET/PUT /api/me/settings` 返回三组设置，新增键拒绝非布尔值（422），局部深合并，不覆盖其他设置或邮箱。
+- 身份关闭：`anonymous_name` 使用规范 QQ 号 MD5 前8位，头像用确定性图案；网站本人豁免、bot 可传播图不豁免。保留原始 ID、用户正文和历史数据，不是安全匿名化。网站具体范围与旧周报局部降级见 `specs/web-gallery.md`。
+- 观看偏好仅过滤时间线 feed/poll/new 的他人 `source=checkin`；本人打卡（含 hidden）与他人非打卡保留，有游标的空页继续读取，不改变 bot 群指令。
+- 水印仅作用于 `/档案` 与注册图，45°交错半透明白字，与卡头同名；排行榜/本周打卡板只逐行匿名、无水印，原上传图不变。浅灰底白字很淡，真实QQ视觉验收未完成；详见 `specs/image-generation.md`。
 - 存储层：`core/character_store.py`、`core/user_settings.py`（原子写 tmp+os.replace，每用户进程内锁；bot 与 web 双进程共用）
 - 网页车卡：`/trpg`（管理/编辑）、`/trpg/char/{user_id}/{char_id}`（只读查看）
 
@@ -94,9 +104,16 @@
 
 ## 完整指令表
 
+> 菜单已结构化（`plugins/menu/entries.py`）：每行带插件归属/权限，渲染按当前群或账号的有效开关过滤，管理员段仅超级用户可见；文案包逐条覆盖（`menu.<指令词>`，旧 `menu_text` 整段已停用）——下表为内置全集，实际可见指令随各群/账号开放集合裁剪。
+
 | 指令 | 作用 | 权限 |
 |------|------|------|
 | `/菜单` | 显示指令菜单 | 任何人 |
+| `/注册` | 开始注册流程（公开部署 require 开启时） | 任何人 |
+| `/同意EULA` | 同意《用户协议》完成注册（流程内指令） | 任何人 |
+| `/待审` | 查看待审群与需确认的审批 | 超级用户 |
+| `/黑名单 添加\|解除\|查询 用户\|群 <号码> [原因]` / `/黑名单 列表 [页码]` | 封禁管理，原因仅添加时可填；列表每页10条；被封群请私聊管理 | 超级用户 |
+| `/审核 <群号> <通过\|拒绝> [申请编号]` | 审批；同群多条申请必须指定编号，未批准群需私聊审批 | 超级用户 |
 | `/打卡 + 图片` | 打卡 | 任何人 |
 | `/ALL` | 全量打卡图 | 任何人 |
 | `/本周打卡图` | 本周打卡图（私发） | 任何人 |
@@ -162,10 +179,17 @@
 | 回复 + `/撤回` | 代撤 bot 消息 | 任何人 |
 | `/超级补卡 YYYY-MM-DD [uid]` | 免积分补整周 | 群管理员 |
 | `/超级单日补卡 YYYY-MM-DD [uid]` | 免积分补单日 | 群管理员 |
-| `/发金币 <数量>` | 全员发积分 | 群管理员 |
+| `/发金币 <数量>` | 全员发积分 | 超级用户 |
 | `/刷新商店` | 手动刷新商店 | 群管理员 |
 | `/数据备份` | 手动备份 | 任何人 |
 | `/系统状态` | 服务器状态 | 超级用户 |
 | `/更新` | git pull + 重启 | 超级用户 |
 | `/插件 <name\|列表> [off] [群号]` | 管理插件：列表/启用/禁用 | 超级用户 |
 | `/功能包 <name\|列表> [off] [群号]` | 管理功能包：列表/开启/关闭 | 超级用户 |
+| `/插件 <name> <开启\|关闭\|默认> 用户 <账号>` | 单独设置账号私聊插件；默认=恢复公共默认 | 仅超级用户 |
+| `/功能包 <name> <开启\|关闭\|默认> 用户 <账号>` | 批量设置账号私聊插件 | 仅超级用户 |
+| `/插件 列表 用户 <账号>` / `/功能包 列表 用户 <账号>` | 查看账号有效设置、功能包启用比例 | 超级用户 |
+| `/插件 列表` / `/功能包 列表` | 私聊查本人，群聊查本群；显示限制原因与设置来源 | 超级用户 |
+| `/插件 列表 公共默认` / `/功能包 列表 公共默认` | 查看私聊继承设置，兼容旧`列表 0`，不是某账号实际状态 | 超级用户 |
+
+插件名称使用 `/插件 列表` 返回的标识（如 `title`），功能包使用 `/功能包 列表` 返回的名称。两条管理指令均支持 `<name> <开启|关闭> 群 <群号>`。旧修改形式继续有效：群聊不带目标修改本群，私聊不带目标开启/关闭仍修改编号0的私聊公共设置，不是全群总开关。列表查询不同：无目标私聊查本人。修改本人须写`用户 <账号>`。账号没有覆盖记录时沿用公共默认；明确关闭保存0，恢复默认删除覆盖记录。群聊不读取账号私聊覆盖；系统插件不能被账号或群单独关闭。只有超级用户可以修改，包括用户本人也不能自助修改；本地监控面板亦校验超级用户凭证。

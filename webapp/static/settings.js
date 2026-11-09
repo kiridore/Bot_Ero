@@ -5,8 +5,8 @@ const loginKey = document.getElementById("loginKey");
 const loginError = document.getElementById("loginError");
 const loginCancel = document.getElementById("loginCancel");
 
-let settingsData = null;
-let userSettingsData = { privacy: {} };
+var settingsData = null;
+var userSettingsData = { privacy: {}, timeline: {}, watermark: {} };
 let searchQuery = "";
 let emailMode = "view"; // view | bind | unbind
 let emailCooldownTimer = null;
@@ -74,6 +74,34 @@ function renderThemeSection() {
     "「夜间模式」为暗色底，图片均保持原样。";
   sec.appendChild(hint);
   return sec;
+}
+
+function buildPreferenceToggle(title, id, group, key) {
+  const row = document.createElement("label");
+  row.className = "privacy-row";
+  const label = document.createElement("span");
+  label.textContent = title;
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.id = id;
+  input.checked = userSettingsData[group]?.[key] !== false;
+  input.addEventListener("change", async () => {
+    input.disabled = true;
+    try {
+      userSettingsData = await apiFetch("/api/me/settings", {
+        method: "PUT",
+        body: JSON.stringify({ [group]: { [key]: input.checked } }),
+      });
+      showToast("设置已保存");
+    } catch (err) {
+      input.checked = userSettingsData[group]?.[key] !== false;
+      showToast(err.message, true);
+    } finally {
+      input.disabled = false;
+    }
+  });
+  row.append(label, input);
+  return row;
 }
 
 function buildCheckinDisplayRow(title, groupName, settingKey, currentValue) {
@@ -457,6 +485,14 @@ function renderPage() {
     </label>
   `;
   settingsMain.appendChild(privacySec);
+  privacySec.appendChild(buildPreferenceToggle(
+    "公开我的昵称与头像", "identityPublicToggle", "privacy", "identity_public"
+  ));
+  const identityHint = document.createElement("p");
+  identityHint.className = "preview-hint";
+  identityHint.textContent = "关闭后，他人看到的昵称为 QQ 号 MD5 的前 8 位，头像为固定图案；" +
+    "你在网页查看自己的身份不受影响，机器人生成图统一使用公开身份。此设置不隐藏 QQ 号。";
+  privacySec.appendChild(identityHint);
 
   privacySec.appendChild(buildCheckinDisplayRow(
     "私聊/网页打卡在时间线上", "checkinDisplayPrivate", "checkin_display_private",
@@ -474,6 +510,26 @@ function renderPage() {
     "「仅打卡信息」时其他用户只看到打卡文字不显示图片；「隐藏」时其他用户看不到该类打卡。" +
     "任何状态下你本人查看自己的打卡始终是原图与完整内容。";
   privacySec.appendChild(checkinHint);
+
+  const timelineSec = document.createElement("section");
+  timelineSec.className = "settings-section";
+  timelineSec.innerHTML = '<div class="section-head"><h2>时间线偏好</h2></div>';
+  timelineSec.appendChild(buildPreferenceToggle(
+    "在时间线显示他人的打卡", "showOthersCheckinToggle", "timeline", "show_others_checkin"
+  ));
+  settingsMain.appendChild(timelineSec);
+
+  const watermarkSec = document.createElement("section");
+  watermarkSec.className = "settings-section";
+  watermarkSec.innerHTML = '<div class="section-head"><h2>图片水印</h2></div>';
+  watermarkSec.appendChild(buildPreferenceToggle(
+    "在我的个人生成图上加水印", "watermarkEnabledToggle", "watermark", "enabled"
+  ));
+  const watermarkHint = document.createElement("p");
+  watermarkHint.className = "preview-hint";
+  watermarkHint.textContent = "仅用于机器人生成的个人档案图，不影响排行榜、打卡板或上传的照片；隐藏身份时水印也使用匿名昵称。";
+  watermarkSec.appendChild(watermarkHint);
+  settingsMain.appendChild(watermarkSec);
   settingsMain.appendChild(renderThemeSection());
   settingsMain.appendChild(renderEmailSection());
 

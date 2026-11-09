@@ -81,6 +81,44 @@ def _migrate_forum_polls(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         cur.execute("PRAGMA foreign_keys=ON")
 
 
+def _migrate_group_requests(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
+    """旧请求表原子迁移；独立编号避免同秒不同凭证误丢，并持久化审批恢复状态。"""
+    if "id" in {row[1] for row in cur.execute("PRAGMA table_info(group_requests)")}:
+        return
+    conn.commit()
+    cur.execute("BEGIN IMMEDIATE")
+    try:
+        # 获取写锁后复查，允许两个进程同时启动。
+        if "id" not in {row[1] for row in cur.execute("PRAGMA table_info(group_requests)")}:
+            cur.execute("ALTER TABLE group_requests RENAME TO group_requests_legacy")
+            cur.execute("""
+                CREATE TABLE group_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    kind TEXT NOT NULL DEFAULT 'invite',
+                    joined INTEGER NOT NULL DEFAULT 0,
+                    decision TEXT,
+                    remote_state TEXT NOT NULL DEFAULT 'none',
+                    group_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    flag TEXT NOT NULL,
+                    sub_type TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cur.execute("""
+                INSERT INTO group_requests (group_id, user_id, flag, sub_type, status, created_at)
+                SELECT group_id, user_id, flag, sub_type, status, created_at
+                FROM group_requests_legacy ORDER BY rowid
+            """)
+            cur.execute("DROP TABLE group_requests_legacy")
+            cur.execute("CREATE UNIQUE INDEX idx_group_requests_flag ON group_requests (flag)")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
     cur.execute("""
     CREATE TABLE IF NOT EXISTS checkin_records (
@@ -370,10 +408,113 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         );
     """)
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_accounts (
+            user_id INTEGER PRIMARY KEY,
+            created_at TEXT NOT NULL
+        );
+    """)
+    cur.execute("PRAGMA table_info(user_accounts)")
+    _ua_cols = [row[1] for row in cur.fetchall()]
+    if "eula_version" not in _ua_cols:
+        cur.execute("ALTER TABLE user_accounts ADD COLUMN eula_version TEXT")
+    if "agreed_at" not in _ua_cols:
+        cur.execute("ALTER TABLE user_accounts ADD COLUMN agreed_at TEXT")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS group_registry (
+            group_id INTEGER PRIMARY KEY,
+            name TEXT,
+            invited_by INTEGER,
+            approved_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active'
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS group_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL DEFAULT 'invite',
+            joined INTEGER NOT NULL DEFAULT 0,
+            decision TEXT,
+            remote_state TEXT NOT NULL DEFAULT 'none',
+            group_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            flag TEXT NOT NULL,
+            sub_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL
+        );
+    """)
+    _migrate_group_requests(conn, cur)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_group_requests_flag
+        ON group_requests (flag);
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS blacklist (
+            scope TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            reason TEXT,
+            created_at TEXT NOT NULL,
+            operator_id INTEGER,
+            PRIMARY KEY (scope, target_id)
+        );
+    """)
+    if 'operator_id' not in {row[1] for row in cur.execute('PRAGMA table_info(blacklist)')}:
+        cur.execute('ALTER TABLE blacklist ADD COLUMN operator_id INTEGER')
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS group_plugin_config (
             group_id INTEGER NOT NULL,
             plugin_name TEXT NOT NULL,
             PRIMARY KEY (group_id, plugin_name)
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS plugin_reward_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            plugin_name TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            reward_key TEXT NOT NULL,
+            source_operation TEXT NOT NULL,
+            source_scope TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount >= 0),
+            granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            revoked_at TEXT,
+            revoke_operation TEXT
+        );
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS plugin_reward_active
+        ON plugin_reward_records(plugin_name, user_id, reward_key)
+        WHERE revoked_at IS NULL;
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS plugin_reward_source
+        ON plugin_reward_records(plugin_name, user_id, reward_key, source_operation);
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS lottery_operation_receipts (
+            source_operation TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            outcome TEXT NOT NULL,
+            completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS plugin_reward_reversals (
+            plugin_name TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            reward_key TEXT NOT NULL,
+            source_operation TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount >= 0),
+            reversed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (plugin_name, user_id, reward_key, source_operation)
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_plugin_config (
+            user_id INTEGER NOT NULL,
+            plugin_name TEXT NOT NULL,
+            enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+            PRIMARY KEY (user_id, plugin_name)
         );
     """)
     cur.execute("""
@@ -661,15 +802,6 @@ def init_schema(conn: sqlite3.Connection, cur: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_lottery_draw_log_time "
         "ON lottery_draw_log (drawn_at)"
     )
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_game_stats (
-            user_id TEXT PRIMARY KEY,
-            total_games INTEGER DEFAULT 0,
-            total_wins INTEGER DEFAULT 0,
-            civilian_wins INTEGER DEFAULT 0,
-            spy_wins INTEGER DEFAULT 0
-        )
-    """)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS spy_game_records (
             record_id INTEGER PRIMARY KEY AUTOINCREMENT,

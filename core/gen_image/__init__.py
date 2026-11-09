@@ -5,6 +5,7 @@ from core.gen_image.models import PersonalRecordStats
 from core.gen_image.profile_card import build_personal_record_image, save_personal_record_png
 from core.gen_image.rank_card import RankRow, render_rank_card, save_rank_png
 from core.gen_image.year_heatmap import render_year_heatmap
+from core.gen_image.watermark import apply_watermark
 
 __all__ = [
     "PersonalRecordStats",
@@ -28,6 +29,7 @@ def gen_personal_record_card(
     *,
     user_display_name: str | None = None,
     avatar=None,
+    watermark_text: str | None = None,
 ) -> str:
     """生成完整档案图并保存，返回写入的 PNG 路径（相对/与原先一致）。"""
     img = build_personal_record_image(
@@ -37,6 +39,8 @@ def gen_personal_record_card(
         user_display_name=user_display_name,
         avatar=avatar,
     )
+    if watermark_text is not None:
+        img = apply_watermark(img, watermark_text)
     return save_personal_record_png(user_id, img)
 
 

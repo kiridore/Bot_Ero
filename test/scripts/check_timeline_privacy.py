@@ -67,14 +67,14 @@ def check(name, ok, extra=""):
         fail += 1
 
 
-def insert_event(eid, actor_qq, received_at, data=None, dedup_key=None):
+def insert_event(eid, actor_qq, received_at, data=None, dedup_key=None, source="checkin"):
     """直接造数（确定 received_at；data 传 dict 自动序列化）。"""
     _conn.execute(
         "INSERT OR IGNORE INTO timeline_events"
         " (id, source, received_at, actor_id, actor_qq, target_type, target_url,"
         " title, description, data, dedup_key)"
-        " VALUES (?, 'checkin', ?, ?, ?, NULL, NULL, ?, NULL, ?, ?)",
-        (eid, received_at, actor_qq, actor_qq, "{id:%s} 完成打卡" % actor_qq,
+        " VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?, ?)",
+        (eid, source, received_at, actor_qq, actor_qq, "{id:%s} 完成打卡" % actor_qq,
          json.dumps(data, ensure_ascii=False) if data is not None else None, dedup_key),
     )
     _conn.commit()
@@ -258,6 +258,54 @@ check("text 态无图事件：C 可见且无 images_hidden 标记",
       "checkin:b-group3" in evss and "images_hidden" not in b_g3, str(b_g3)[:160])
 check("text 态无图事件：data 不被改写",
       (b_g3.get("data") or {}).get("images") == [], str(b_g3.get("data")))
+
+# —— 9. 查看者偏好：关闭他人打卡，保留自己 hidden 打卡和他人非打卡 ——
+_conn.execute("DELETE FROM timeline_events")
+_conn.execute("DELETE FROM timeline_user_watermarks")
+_conn.commit()
+# 首次请求初始化到空库水印，后续事件均为未读。
+client.get("/api/timeline", headers=CH)
+user_settings.update_settings(C, {"privacy": {"checkin_display_group": "hidden"}})
+insert_event("checkin:own-hidden", C, "2026-08-22 09:00:00")
+insert_event("forum:other", A, "2026-08-22 09:00:01", source="forum")
+for i in range(12):
+    insert_event(f"checkin:other-{i}", A, f"2026-08-22 10:00:{i:02d}")
+expected = {"checkin:own-hidden", "forum:other"}
+response = client.put("/api/me/settings", headers=CH,
+                      json={"timeline": {"show_others_checkin": False}})
+check("通过 API 关闭他人打卡", response.status_code == 200, response.text)
+evs = feed_ids(CH)
+check("关闭偏好保留自己 hidden 打卡与他人非打卡", set(evs) == expected, str(evs))
+check("自己的 hidden 打卡仍为 self_only", evs["checkin:own-hidden"].get("self_only") is True)
+check("偏好关闭后 poll 仅计可见事件", client.get("/api/timeline/poll", headers=CH).json()["count"] == 2)
+# 最前方连续十二条被过滤记录，超过 limit=1 的五批补页上限，仍需正确续读。
+cursor, seen, empty_page = None, [], False
+for _ in range(20):
+    params = {"limit": 1}
+    if cursor:
+        params["cursor"] = cursor
+    page = client.get("/api/timeline", headers=CH, params=params).json()
+    seen.extend(e["id"] for e in page["events"])
+    empty_page |= not page["events"] and page["next_cursor"] is not None
+    cursor = page["next_cursor"]
+    if cursor is None:
+        break
+check("全过滤页可续读且最终无重复无漏项", empty_page and len(seen) == 2 and set(seen) == expected and cursor is None, str(seen))
+after, seen = None, []
+for _ in range(20):
+    params = {"limit": 1}
+    if after:
+        params["after"] = after
+    page = client.get("/api/timeline/new", headers=CH, params=params).json()
+    seen.extend(e["id"] for e in page["events"])
+    after = page["next_after"]
+    if after is None:
+        break
+check("new 游标跨过全部被滤事件并取尽", len(seen) == 2 and set(seen) == expected and after is None, str(seen))
+response = client.put("/api/me/settings", headers=CH,
+                      json={"timeline": {"show_others_checkin": True}})
+check("重新开启后恢复他人打卡", response.status_code == 200 and len(feed_ids(CH)) == 14)
+check("重新开启后 poll 恢复计数", client.get("/api/timeline/poll", headers=CH).json()["count"] == 14)
 
 _conn.close()
 print()

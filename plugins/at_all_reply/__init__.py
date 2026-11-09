@@ -5,6 +5,7 @@ from core.cq import at_all, text
 from core.utils import register_plugin
 @register_plugin
 class AtAllReplyPlugin(Plugin):
+    IS_COMMAND = True
     name = 'at_all_reply'
     description = '回复指定消息并艾特全体成员转发内容。'
 

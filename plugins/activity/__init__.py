@@ -168,6 +168,9 @@ def _now() -> str:
 # ── 模块级辅助（插件类共用，Task 5 完整实现） ──
 
 def _send_private(api, user_id: int, *message):
+    from core.blacklist import operation_snapshot
+    if operation_snapshot(api).blocks(user_id=user_id):
+        return
     api.call_api("send_private_msg", {"user_id": int(user_id), "message": list(message)})
 
 
@@ -177,6 +180,7 @@ def _announce_group(api, group_id: int, text_body: str):
 
 @register_plugin
 class ActivityPlugin(Plugin):
+    IS_COMMAND = True
     name = "activity"
     description = "群活动：接龙与匹配下家"
 
@@ -227,6 +231,8 @@ class ActivityPlugin(Plugin):
         uid = str(self.bot_event.user_id)
         if self.bot_event.user_id is None:
             return
+        from core.blacklist import operation_snapshot
+        snapshot = operation_snapshot(getattr(self, 'operation', None))
         act = None
         if args and args[0].isdigit():
             act = self.dbmanager.activity.get_running_activity_for_user_and_id(
@@ -236,6 +242,10 @@ class ActivityPlugin(Plugin):
                 return
         else:
             acts = self.dbmanager.activity.get_running_activities_for_user(uid)
+            available = [a for a in acts if not snapshot.blocks(group_id=a['group_id'])]
+            if acts and not available:
+                return
+            acts = available
             if len(acts) == 1:
                 act = acts[0]
             elif len(acts) > 1:
@@ -244,6 +254,8 @@ class ActivityPlugin(Plugin):
                 return
         if not act:
             self.api.send_msg(text("你不在任何进行中的活动中"))
+            return
+        if snapshot.blocks(group_id=act['group_id']):
             return
         member = self.dbmanager.activity.get_member(act["id"], uid)
         if not member or member["status"] == "left":
@@ -768,10 +780,31 @@ class ActivityTimerPlugin(Plugin):
 
     def _scan(self):
         from .logic import is_timeout, current_turn
+        from core import context as runtime_context
         now = datetime.now()
+        skipped_groups = set()
+        from core.blacklist import admit_task
+        admissions = {}
+
+        def _active(act):
+            """活动所属群未启用 activity：本轮全部跳过，状态不推进（config-unification）。"""
+            if act['id'] not in admissions:
+                admissions[act['id']] = (
+                    admit_task('activity', act['id'], group_id=act['group_id'])
+                    if runtime_context.effective_for_scope('activity', group_id=act['group_id']) else None
+                )
+            snapshot = admissions[act['id']]
+            if snapshot is not None:
+                self.api.blacklist_snapshot = snapshot
+                return True
+            skipped_groups.add(act["group_id"])
+            return False
+
         # 报名截止到点 → 自动开始（人数不足则取消）
         for act in self.dbmanager.activity.get_active_activities():
             if act["status"] != "open" or not act.get("signup_deadline"):
+                continue
+            if not _active(act):
                 continue
             try:
                 due = datetime.strptime(act["signup_deadline"], "%Y-%m-%d %H:%M:%S")
@@ -783,6 +816,8 @@ class ActivityTimerPlugin(Plugin):
                     self.dbmanager.activity.update_activity(act["id"], status="cancelled")
                     self._announce_group(act["group_id"], f"报名截止，{err}，活动已取消")
         for act in self.dbmanager.activity.get_running_activities():
+            if not _active(act):
+                continue
             members = self.dbmanager.activity.get_members(act["id"])
             if act["type"] == "relay":
                 if _relay_catchup(self.api, self.dbmanager, act, members):
@@ -822,3 +857,8 @@ class ActivityTimerPlugin(Plugin):
                         self.dbmanager.activity.update_member(
                             act["id"], m["user_id"], status="missed")
                 _finish_activity(self.api, self.dbmanager, act)
+        if skipped_groups:
+            logger.info(
+                "活动心跳跳过群 %s（activity未开放或受黑名单限制），状态不推进；重新开启后按原到期规则处理",
+                ", ".join(map(str, sorted(skipped_groups))),
+            )

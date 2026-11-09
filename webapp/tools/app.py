@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from core.database_manager import DbManager
 from core.onebot_client import resolve_avatar_url, resolve_display_name
 from core.timeline_client import emit_event, retract_event
+from core.user_settings import display_identity
 from core.web.auth_deps import get_current_user_id, get_optional_user_id
 from webapp import STATIC_DIR
 from webapp.tools.icon import fetch_icon
@@ -55,8 +56,9 @@ def api_tools_list(
     items = db.tools.list_tools(q, sort=sort, order=order, tag=tag)
     for item in items:
         uid = item["created_by"]
-        item["created_by_name"] = resolve_display_name(uid)
-        item["created_by_avatar"] = resolve_avatar_url(uid)
+        item["created_by_name"], item["created_by_avatar"] = display_identity(
+            uid, viewer_id, resolve_display_name(uid), resolve_avatar_url(uid),
+        )
     return {"items": items}
 
 

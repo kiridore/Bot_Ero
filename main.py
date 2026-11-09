@@ -9,7 +9,11 @@ from core.logger import logger
 import core.context as runtime_context
 import plugins # 一定要导入，否则不能正常读取插件
 
+runtime_context.validate_deployment_policy()  # 注册表就绪后冻结部署策略（config-unification）
+
 from core.web_panel import start_panel
+from core.plugin_dispatch import Operation
+from core.message_output import MessageOutput, send_request
 
 start_panel()
 
@@ -31,21 +35,75 @@ def resolve_event_type(context: dict) -> str:
 
 def plugin_pool(context: dict, event_type: str):
     group_id = context.get("group_id")
-    for plugin_cls in runtime_context.plugin_registry:
-        if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
+    user_id = context.get("user_id")
+    from core.blacklist import EventAccess, event_access, is_bot_lifecycle
+    try:
+        access = event_access(context)
+    except Exception:
+        logger.exception('读取黑名单失败，拒绝新事件业务（群 %s 用户 %s）', group_id, user_id)
+        if is_bot_lifecycle(context):
+            access = EventAccess(only_plugins=frozenset({'blacklist'}))  # 只尝试维护进退群事实
+        else:
+            return
+    if access is None:
+        return
+    target = (("group", group_id) if group_id is not None else
+              ("private", user_id) if user_id is not None else
+              ("group", runtime_context.DEFAULT_GROUP_ID) if runtime_context.DEFAULT_GROUP_ID else None)
+    try:
+        settings = runtime_context.plugin_settings_snapshot(group_id, user_id)
+    except Exception:
+        logger.exception("读取插件设置失败，本次事件不执行，防止绕过关闭设置")
+        return
+    group_gate = runtime_context.group_event_gate(context)
+    # 请求也沿用message调度类型；注册限制只约束真正的消息，不能拦住好友申请。
+    gate = (runtime_context.register_gate(event_type, group_id, user_id)
+            if context.get("post_type") == "message" else None)
+    if gate is not None and runtime_context.should_remind_register(user_id, context):
+        try:
+            from core.api import ApiWrapper
+            from core.cq import text as _text
+            ApiWrapper(dict(context)).send_private_msg(_text("先完成注册哦，回复 /注册 开始~"))
+        except Exception:
+            logger.exception("注册提醒发送失败（用户 %s）", user_id)
+    operation = Operation(settings, MessageOutput(send_request, target))
+    operation.blacklist_snapshot = access.snapshot
+    operation.cleanup_only = access.cleanup_only
+    operation.output.suppressed = access.only_plugins is not None
+    operation.blacklist_special = access.only_plugins is not None
+    logger.debug("操作 %s 开始：类型=%s 消息=%s 群=%s 用户=%s",
+                 operation.id, event_type, context.get("message_id"), group_id, user_id)
+    from core.command_rate_limit import CommandBudget
+    budget = CommandBudget(context, operation)
+    context = dict(context, _operation=operation)
+    for plugin_cls in tuple(runtime_context.plugin_registry):
+        key = runtime_context.plugin_key(plugin_cls)
+        special = access.only_plugins is not None
+        if special and (key not in access.only_plugins or not runtime_context.plugin_allowed(key)):
+            continue
+        if not special and group_gate is not None and key not in group_gate:
+            continue  # 未批准群只让审核插件接收入群/移出通知与审批，不运行业务
+        if gate is not None and key not in gate:
+            continue  # 未注册私聊：仅放行注册与菜单（community-registration）
+        if event_type == "meta":
+            # 心跳无群号：先过部署硬边界；局部开关由各任务按所属对象自行检查（config-unification）
+            if not runtime_context.plugin_allowed(key):
+                continue
+        elif not special and not operation.is_enabled(key):
             continue
         # 录制期间跳过非跑团功能包插件
-        if group_id is not None and runtime_context.is_group_recording(group_id):
+        if not special and key != "group_review" and group_id is not None and runtime_context.is_group_recording(group_id):
             if not runtime_context.is_plugin_allowed_during_recording(
                 runtime_context.plugin_key(plugin_cls)
             ):
                 continue
-        plugin = plugin_cls(context)
-        try:
-            if plugin.match(event_type):
+        def handle(cls=plugin_cls):
+            plugin = cls(context)
+            if plugin.match(event_type) and budget.allows(plugin):
                 plugin.handle()
-        except Exception:
-            logger.exception("插件 %s 处理失败", plugin_cls.__name__)
+        operation.execute(runtime_context.plugin_key(plugin_cls), handle)
+        operation.drain()
+    operation.finish()
 
 
 def on_message(_, message):

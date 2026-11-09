@@ -5,6 +5,7 @@ from core.cq import text
 from core.utils import register_plugin
 @register_plugin
 class GroupEssencePlugin(Plugin):
+    IS_COMMAND = True
     """回复某条群消息后发送 /加精 /群精华 /精华 或 /删除精华，设置或移除群精华。"""
 
     name = 'manage_group_essence'

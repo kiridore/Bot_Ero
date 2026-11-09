@@ -12,6 +12,7 @@ WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
 
 @register_plugin
 class TrpgCharPlugin(Plugin):
+    IS_COMMAND = True
     name = "trpg_char"
     description = "DND 5E 角色卡：查看/列表/切换/删除（创建与编辑请到网页端）"
 

@@ -71,10 +71,11 @@ def _visibility_ctx(entries) -> dict:
     return {"hidden": hidden, "blur": blur_ids, "text": text_ids}
 
 
-def _visible_entry(entry: tuple, viewer_id, vis: dict) -> bool:
-    """隐藏事件仅作者本人可见。"""
-    eid, _source, actor_key, _data = entry
-    return not (eid in vis["hidden"] and actor_key != str(viewer_id))
+def _visible_entry(entry: tuple, viewer_id, vis: dict, show_others: bool = True) -> bool:
+    """作者隐私与查看者偏好同时生效；自己的打卡始终可见。"""
+    eid, source, actor_key, _data = entry
+    is_other = actor_key != str(viewer_id)
+    return not (is_other and (eid in vis["hidden"] or (source == "checkin" and not show_others)))
 
 
 # —— 事件输入模型 ——
@@ -213,6 +214,7 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
                 lambda uid: (uid, resolve_display_name(uid), resolve_avatar_url(uid)),
                 sorted(need),
             ):
+                name, avatar = user_settings.display_identity(uid, viewer_id, name, avatar)
                 users[uid] = {"name": name, "avatar": avatar}
     for uid in unbound_keys:
         users[uid] = {"name": UNBOUND_LABEL, "avatar": ""}
@@ -287,6 +289,7 @@ def timeline_feed(
 
     db = DbManager()
     watermark = db.timeline.get_or_init_watermark(user_id)
+    show_others = user_settings.show_others_checkin(user_id)
     # 可见性过滤在 Python 侧（作者设置存 JSON 文件，无法下推 SQL）；
     # 逐页补取直到填满 limit 或取尽（隐藏事件连续带的补页上限见 _FEED_FETCH_PAGES）
     vis_rows: list[tuple] = []
@@ -301,7 +304,7 @@ def timeline_feed(
             break
         vis = _visibility_ctx(_vis_full(r) for r in batch)
         for r in batch:
-            if _visible_entry(_vis_full(r), user_id, vis):
+            if _visible_entry(_vis_full(r), user_id, vis, show_others):
                 vis_rows.append(r)
         if len(vis_rows) > limit:
             has_more = True
@@ -335,7 +338,8 @@ def timeline_poll(
     lower = max(after or 0, watermark)
     rows = db.timeline.rows_unread_after(user_id, lower)
     vis = _visibility_ctx(_vis_light(r) for r in rows)
-    count = sum(1 for r in rows if _visible_entry(_vis_light(r), user_id, vis))
+    show_others = user_settings.show_others_checkin(user_id)
+    count = sum(1 for r in rows if _visible_entry(_vis_light(r), user_id, vis, show_others))
     return {"count": count}
 
 
@@ -354,7 +358,8 @@ def timeline_new(
     has_more = len(fetched) > limit
     fetched = fetched[:limit]
     vis = _visibility_ctx(_vis_full(r) for r in fetched)
-    rows = [r for r in fetched if _visible_entry(_vis_full(r), user_id, vis)]
+    show_others = user_settings.show_others_checkin(user_id)
+    rows = [r for r in fetched if _visible_entry(_vis_full(r), user_id, vis, show_others)]
 
     # page_unread_after 已排除回执，此处全部 unread
     events, users = _serialize_rows(rows, watermark, set(), viewer_id=user_id, vis=vis)
