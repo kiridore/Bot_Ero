@@ -1,7 +1,7 @@
 # community → dev 合并分析（待决策）
 
 - 记录日期：2026-11-06
-- 状态：**分析完成，合并未开始**。本文档记录事实与待所有者决策项；所有决策项确认前不执行合并。
+- 状态：**分析完成，决策已确认，合并已完成**（2026-11-06）。下文第 7 节保留原始决策项，结论见第 10 节。
 - 相关分支：`community`（社区化开发线）、`dev`（主干开发线，2026-11-06 从 `master` 重新拉出）、`master`（运行环境版本）
 
 > 本文档是决策依据，不是执行计划。合并步骤在决策项全部确认后另行编写。
@@ -159,7 +159,48 @@
 
 ## 9. 本次分析未验证的事项
 
-- 未解决冲突后运行测试，因此**不声称合并后能通过全量回归**。
-- 未验证 `dev` 的 `plugins/title/logic.py` 改动与 `community` 称号前缀钩子的实际兼容性。
+- ~~未解决冲突后运行测试~~（已完成后补验，见第 10 节）
+- 未验证 `dev` 的 `plugins/title/logic.py` 改动与 `community` 称号前缀钩子的实际兼容性（合并后全量通过，推定兼容）。
 - 未评估 `community` 的 1.51.0–1.56.0 功能在合并后的落地顺序是否需要调整。
 - 未评估 `feature_packs_public.yaml` 中新增插件的分组归属是否合理。
+
+## 10. 决策结果与执行记录
+
+2026-11-06 所有者逐项确认全部按建议执行：`D1:A D2:A D3:A D4:A D5:A D6:A D7:A D8:A D9:A`。
+
+### 10.1 执行结果
+
+三次提交完成合并（均在 `dev`）：
+
+| 提交 | 内容 |
+|---|---|
+| `8965b32` | 机械冲突（三套数据库 manager、个人偏好与兑换码模型并存）、结构化菜单并入、删除 `ff_news` 与旧兑换码码表、文档与清单事实并入 |
+| `11123a9` | 语义移植：卧底 `allow_titles`、新闻部署门控、网页兑换依赖门控，并同步测试 |
+| `f9d12a0` | 版本 `1.62.0`、CHANGELOG 重编（社区线 1.51–1.57 降为「社区开发线历史」），补齐合并遗留的指令分类与黑名单测试 |
+
+### 10.2 实际落地的社区化语义
+
+- 卧底结算：`grant_game_titles(..., allow_titles=False)` 照记战绩、不解锁称号、不触发称号评估；结算时按黑名单快照逐人判断。
+- 卧底私聊：`GameMessenger.private` 按 `BlacklistSnapshot` 类型判断，跳过被封账号；私聊房间操作（`/加入`、`/退出`、`/状态`、游戏输入）在房间所属群被封时静默拒绝。
+- 新闻推送：`news` 在请求外部源前检查默认群存在、`effective_for_scope` 与 `admit_task` 黑名单准入。
+- 网页兑换：核销前检查 `requires` 依赖（部署允许范围与账号/私聊插件开关）与黑名单，未满足整次拒绝、不核销、不发部分奖励。
+
+### 10.3 合并中发现的额外问题（已处理）
+
+- `user_game_stats` 在 `init_schema` 中被两线各定义一次（结构一致），已去重，表数由 57 处降为 56 张。
+- `test_plugin_dependency_gating.py` 的兑换用例指向已删除的 QQ 兑换实现，改为验证网页兑换的依赖门控。
+- `who_is_spy/relay.py` 的动态 `call_api(action, params)` 被迁移清单测试判为需人工审计，改为字面量分支。
+- 多个基于旧结构的测试（`_ensure_stats_table`、模块级 `get_room`/`collect_vote`、`FfNewsPlugin._handle_hourly`）按合并后实现重写。
+
+### 10.4 验收结果
+
+- `python -m pytest`：**961 passed**（384 秒）。
+- `openspec validate --all --strict`：**24 passed, 0 failed**。
+- `git diff --check`：通过。
+- 已推送：`origin/dev` = `f9d12a0`，工作区干净。
+
+### 10.5 遗留事项
+
+- `news`、`who_is_spy`、`redeem_code` 提示桩仍使用原有 `send_msg`，统一输出迁移按 D5:A 留待后续提案。
+- `feature_packs_public.yaml` 未新增 `news` 分组（按 D7:A 仅在文档提示核对 `bot.allowed_plugins`），需在公开部署配置时确认。
+- `community` 线上三个个人偏好提案（`privacy-identity-display`、`timeline-feed-preference`、`generated-image-watermark`）随合并进入 `dev`，仍未归档，其中水印的真实 QQ 客户端验收待完成。
