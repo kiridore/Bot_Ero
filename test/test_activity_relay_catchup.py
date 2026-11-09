@@ -28,6 +28,9 @@ class RelayCatchupTest(unittest.TestCase):
         db.conn.commit()
         self.db = DbManager()
         self.api = StubApi()
+        from types import SimpleNamespace
+        from test.helper import RecordingOutput
+        self.operation = SimpleNamespace(output=RecordingOutput(self.api), blacklist_snapshot=None)
 
     def _mk_relay(self, members_spec):
         aid = self.db.activity.create_activity(
@@ -50,7 +53,7 @@ class RelayCatchupTest(unittest.TestCase):
             ("222", "乙", 2, "pending", None),      # 未激活
         ])
         act = self.db.activity.get_activity(aid)
-        ok = _relay_catchup(self.api, self.db, act, act["members"])
+        ok = _relay_catchup(self.operation, self.db, act, act["members"])
         self.assertTrue(ok)
         m2 = self.db.activity.get_member(aid, "222")
         self.assertIsNotNone(m2["received_at"], "下一棒应被激活")
@@ -65,7 +68,7 @@ class RelayCatchupTest(unittest.TestCase):
             ("222", "乙", 2, "pending", _now()),   # 已激活（bot 流程）
         ])
         act = self.db.activity.get_activity(aid)
-        self.assertFalse(_relay_catchup(self.api, self.db, act, act["members"]))
+        self.assertFalse(_relay_catchup(self.operation, self.db, act, act["members"]))
         self.assertEqual(self.api.calls, [])
 
     def test_chain_tail_finishes(self):
@@ -74,7 +77,7 @@ class RelayCatchupTest(unittest.TestCase):
             ("222", "乙", 2, "done", None),         # 链尾网页提交：无 pending
         ])
         act = self.db.activity.get_activity(aid)
-        self.assertTrue(_relay_catchup(self.api, self.db, act, act["members"]))
+        self.assertTrue(_relay_catchup(self.operation, self.db, act, act["members"]))
         self.db.cur.execute("SELECT status FROM activities WHERE id = ?", (aid,))
         self.assertEqual(self.db.cur.fetchone()[0], "finished")
 
@@ -84,7 +87,7 @@ class RelayCatchupTest(unittest.TestCase):
             ("222", "乙", 2, "pending", None),
         ])
         act = self.db.activity.get_activity(aid)
-        self.assertFalse(_relay_catchup(self.api, self.db, act, act["members"]))
+        self.assertFalse(_relay_catchup(self.operation, self.db, act, act["members"]))
         self.assertEqual(self.api.calls, [])
 
 

@@ -22,6 +22,6 @@ class RedeemCodePlugin(CommandPlugin):
         if self.bot_event.message_id is not None:
             self.api.delete_msg(self.bot_event.message_id)
         if self.bot_event.user_id is not None:
-            self.api.send_msg(at(self.bot_event.user_id), text(MIGRATION_TIP))
+            self.submit_message(at(self.bot_event.user_id), text(MIGRATION_TIP))
         else:
-            self.api.send_msg(text(MIGRATION_TIP))
+            self.submit_message(text(MIGRATION_TIP))

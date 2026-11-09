@@ -1,4 +1,5 @@
 """群审核任务组2/3/4：隔离数据库、真实插件和模拟OneBot结果，不访问真实QQ。"""
+from test.helper import bind_output
 from unittest.mock import Mock
 
 import pytest
@@ -26,6 +27,7 @@ def env(tmp_path, monkeypatch):
     def run(raw, admin=True):
         p = GroupReviewPlugin.__new__(GroupReviewPlugin)
         p.bot_event, p.dbmanager, p.api = Event(raw), db, api
+        bind_output(p)
         p.super_user = lambda: admin
         target = ('group', raw['group_id']) if raw.get('group_id') else ('private', raw.get('user_id', 7))
         op = Operation({'group_review': True}, MessageOutput(lambda r: sent.append(r) or 1, target))
@@ -223,6 +225,7 @@ def test_concurrent_commands_do_not_overfill_capacity(env):
         try:
             p = GroupReviewPlugin.__new__(GroupReviewPlugin)
             p.bot_event, p.dbmanager, p.api = Event(command(f'/审核 {gid} 通过')), local, api
+            bind_output(p)
             p.super_user = lambda: True
             p.operation = Operation({'group_review': True}, MessageOutput(lambda r: 1, ('private', 7)))
             assert p.match('message')
@@ -302,6 +305,7 @@ def test_real_alarm_keeps_due_record_until_group_approved(env):
     db.alarm.add(7, datetime.now() - timedelta(days=1), '提醒', group_id=100)
     p = GroupAlarmPlugin.__new__(GroupAlarmPlugin)
     p.api, p.dbmanager = api, db
+    bind_output(p)
     p._handle_meta_due()
     assert db.conn.execute('SELECT fired FROM group_alarms').fetchone()[0] == 0
     api.call_api.assert_not_called()
@@ -322,6 +326,7 @@ def test_shared_backup_and_startup_do_not_notify_unapproved_default_group(env, m
     for cls in (BackupPlugin, StartupChangelogPlugin):
         p = cls.__new__(cls)
         p.api, p.dbmanager = api, db
+        bind_output(p)
         p.bot_event = Event({'post_type': 'meta_event', 'meta_event_type': 'heartbeat'})
         p.handle()
     api.send_msg.assert_not_called()

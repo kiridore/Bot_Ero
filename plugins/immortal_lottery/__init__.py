@@ -87,7 +87,7 @@ class ImmortalLotteryPlugin(Plugin):
             self._handle_draw_tick()
             return
         if self.bot_event.group_id is None:
-            self.api.send_msg(text("仙人彩请在群聊中使用。"))
+            self.submit_message(text("仙人彩请在群聊中使用。"))
             return
         kind, rest = self._parse_command()
         if not kind:
@@ -97,7 +97,7 @@ class ImmortalLotteryPlugin(Plugin):
             self._send_pool_info()
             return
         if not _DIGITS4.match(digits_part):
-            self.api.send_msg(
+            self.submit_message(
                 text("请发送四位数字（每位 0–9，可重复），例如：/仙人彩 1234 或 下注 0420")
             )
             return
@@ -136,11 +136,11 @@ class ImmortalLotteryPlugin(Plugin):
             "中奖按当时总池比例拿走：一等奖 40% / 二等奖 15% / 三等奖 5%；未派发部分全部滚入下期总奖池。",
             "发送 /仙人彩 四位数字 或 下注 四位数字 参与。",
         ]
-        self.api.send_msg(text("\n".join(lines)))
+        self.submit_message(text("\n".join(lines)))
 
     def _place_bet(self, digits: str):
         if not _in_betting_window(_now_bj()):
-            self.api.send_msg(text("当前不在下注时间内（周一至周五 23:59 北京时间）。"))
+            self.submit_message(text("当前不在下注时间内（周一至周五 23:59 北京时间）。"))
             return
         uid = self.bot_event.user_id
         if uid is None:
@@ -150,11 +150,11 @@ class ImmortalLotteryPlugin(Plugin):
         bet_date = _now_bj().strftime("%Y-%m-%d")
         ok, err = self.dbmanager.immortal.try_place_bet(gid, pk, int(uid), digits, bet_date, 1)
         if not ok:
-            self.api.send_msg(at(int(uid)), text(err))
+            self.submit_message(at(int(uid)), text(err))
             return
         issue = self.dbmanager.immortal.issue_code(gid, pk)
         rest = self.dbmanager.points.get(uid)
-        self.api.send_msg(
+        self.submit_message(
             at(int(uid)),
             text(
                 f"下注成功：{digits}\n期号：{issue}（周期周一 {pk}）\n已扣 1 积分，当前积分：{rest}"
@@ -280,4 +280,4 @@ class ImmortalLotteryPlugin(Plugin):
                 lines.append(f"  · {_name(uid)} {label} → {amt} 积分")
 
         msg = "\n".join(lines)
-        self.api.call_api("send_group_msg", {"group_id": int(group_id), "message": (text(msg),)})
+        self.operation.output.submit([text(msg)], target=("group", int(group_id)), kind="segments")

@@ -17,7 +17,7 @@ from core.event import Event
 from core.db._base import init_schema
 from core.db.activity import ActivityManager
 from plugins.activity import ActivityPlugin
-from test.helper import MockApiWrapper, make_private_message, make_group_message
+from test.helper import MockApiWrapper, make_private_message, make_group_message, bind_output
 
 DB_PATH = "/tmp/test_activity_submit.db"
 GID = 296470819
@@ -73,6 +73,7 @@ class TestSubmit(unittest.TestCase):
         plugin = ActivityPlugin.__new__(ActivityPlugin)
         plugin.bot_event = Event(raw)
         plugin.api = MockApiWrapper(raw)
+        bind_output(plugin)
         plugin.dbmanager = self.db
         return plugin
 
@@ -81,6 +82,7 @@ class TestSubmit(unittest.TestCase):
         plugin = ActivityPlugin.__new__(ActivityPlugin)
         plugin.bot_event = Event(raw)
         plugin.api = MockApiWrapper(raw)
+        bind_output(plugin)
         plugin.dbmanager = self.db
         return plugin
 

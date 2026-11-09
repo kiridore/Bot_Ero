@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from core.blacklist import BlacklistSnapshot
+from test.helper import bind_output
 from test.test_blacklist_management import management
 from test.test_blacklist_tasks import enable
 
@@ -18,6 +19,7 @@ def test_activity_pauses_blocked_group_and_recovers(management):
     db.community.ban('group', 100)
     plugin = ActivityTimerPlugin.__new__(ActivityTimerPlugin)
     plugin.dbmanager, plugin.api = db, Mock()
+    bind_output(plugin)
     plugin._scan()
     assert dict(db.conn.execute('SELECT group_id,status FROM activities')) == {100: 'open', 200: 'cancelled'}
     db.community.unban('group', 100)
@@ -45,6 +47,7 @@ def test_activity_start_and_finish_share_one_admission(management, monkeypatch):
     monkeypatch.setattr(activity, '_finish_activity', finish)
     plugin = activity.ActivityTimerPlugin.__new__(activity.ActivityTimerPlugin)
     plugin.dbmanager, plugin.api = db, Mock()
+    bind_output(plugin)
     plugin._scan()
     assert stages == ['start', 'finish']
     assert db.community.is_banned('group', 100)
@@ -52,12 +55,14 @@ def test_activity_start_and_finish_share_one_admission(management, monkeypatch):
 
 def test_activity_private_notifications_use_fixed_snapshot(management):
     from plugins.activity import _send_private
+    from test.helper import RecordingOutput
     _, db, _, _ = management
     api = Mock()
-    api.blacklist_snapshot = BlacklistSnapshot(users=frozenset({42}))
+    operation = SimpleNamespace(output=RecordingOutput(api),
+                                blacklist_snapshot=BlacklistSnapshot(users=frozenset({42})))
     db.community.ban('user', 43)  # 不能改变已经获准的快照
-    _send_private(api, 42, {'type': 'text', 'data': {'text': 'x'}})
-    _send_private(api, 43, {'type': 'text', 'data': {'text': 'x'}})
+    _send_private(operation, 42, {'type': 'text', 'data': {'text': 'x'}})
+    _send_private(operation, 43, {'type': 'text', 'data': {'text': 'x'}})
     assert api.call_api.call_count == 1
     assert api.call_api.call_args.args[1]['user_id'] == 43
 
@@ -85,9 +90,10 @@ def test_spy_settlement_records_stats_but_no_free_title_or_private_notice(manage
         "SELECT total_games FROM user_game_stats WHERE user_id='42'").fetchone()[0] == 10
 
     # 主动私聊：被封账号跳过，未封账号照常发送
+    from test.helper import RecordingOutput
     api = Mock()
-    api.blacklist_snapshot = snapshot
-    messenger = GameMessenger(api)
+    operation = SimpleNamespace(output=RecordingOutput(api), blacklist_snapshot=snapshot)
+    messenger = GameMessenger(operation)
     room = {'record_id': 'test', 'players': {'42': {'left': False}, '43': {'left': False}}}
     messenger.private(room, 43, '通知')
     messenger.private(room, 42, '通知')

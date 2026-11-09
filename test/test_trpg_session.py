@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from plugins.trpg_session import TrpgSessionPlugin
-from test.helper import MockApiWrapper, make_group_message, make_private_message
+from test.helper import MockApiWrapper, make_group_message, make_private_message, bind_output
 import core.context as runtime_context
 
 
@@ -65,6 +65,7 @@ class TestTrpgSessionMatch(unittest.TestCase):
         ctx = make_private_message("/跑团记录 开始")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("只能在群聊中使用", _sent_text(plugin))
 
@@ -82,6 +83,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("/跑团记录 开始")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("已开始", _sent_text(plugin))
         self.assertTrue(runtime_context.is_group_recording(296470819))
@@ -91,6 +93,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("/跑团记录 开始")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("已在录制", _sent_text(plugin))
 
@@ -99,6 +102,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("/跑团记录 开始")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("尚未导出", _sent_text(plugin))
         self.assertFalse(runtime_context.is_group_recording(296470819))
@@ -108,6 +112,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("/跑团记录 强制开始")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("已丢弃", _sent_text(plugin))
         self.assertTrue(runtime_context.is_group_recording(296470819))
@@ -118,6 +123,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("测试消息", user_id=111, nickname="玩家A")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         self.assertTrue(plugin.match("message"))
         plugin.handle()
         session = runtime_context.get_recording_session(296470819)
@@ -130,6 +136,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("bot 消息", user_id=3915014383, nickname="小埃同学")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         session = runtime_context.get_recording_session(296470819)
         self.assertEqual(len(session["messages"]), 0, "机器人自己的消息不应被录制")
@@ -138,6 +145,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message(".dm", user_id=111, nickname="玩家A")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("DM", _sent_text(plugin))
         self.assertEqual(runtime_context.group_roles.get(296470819, {}).get("111"), "dm")
@@ -146,6 +154,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message(".ob", user_id=222, nickname="玩家B")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("观察者", _sent_text(plugin))
         self.assertEqual(runtime_context.group_roles.get(296470819, {}).get("222"), "ob")
@@ -159,6 +168,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("/跑团记录 结束")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("没有进行中", _sent_text(plugin))
 
@@ -166,6 +176,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx = make_group_message("/跑团记录 开始")
         p1 = TrpgSessionPlugin(ctx)
         p1.api = MockApiWrapper(ctx)
+        bind_output(p1)
         p1.handle()
         self.assertTrue(runtime_context.is_group_recording(296470819))
 
@@ -179,6 +190,7 @@ class TestTrpgSessionRecording(unittest.TestCase):
         ctx2 = make_group_message("/跑团记录 结束")
         p2 = TrpgSessionPlugin(ctx2)
         p2.api = MockApiWrapper(ctx2)
+        bind_output(p2)
         p2.handle()
         self.assertFalse(runtime_context.is_group_recording(296470819))
         self.assertIsNotNone(runtime_context.get_last_completed(296470819))
@@ -205,6 +217,7 @@ class TestTrpgSessionExport(unittest.TestCase):
         ctx = make_group_message("/跑团记录 导出")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("录制中无法导出", _sent_text(plugin))
 
@@ -212,6 +225,7 @@ class TestTrpgSessionExport(unittest.TestCase):
         ctx = make_group_message("/跑团记录 导出")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("没有可导出", _sent_text(plugin))
 
@@ -235,6 +249,7 @@ class TestTrpgSessionExport(unittest.TestCase):
         ctx = make_group_message("/跑团记录 导出")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("导出成功", _sent_text(plugin))
 
@@ -275,6 +290,7 @@ class TestTrpgSessionExport(unittest.TestCase):
         ctx = make_group_message("/跑团记录 导出")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("导出成功", _sent_text(plugin))
 
@@ -298,6 +314,7 @@ class TestTrpgSessionListAndView(unittest.TestCase):
         ctx = make_group_message("/跑团记录 列表")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertIn("暂无", _sent_text(plugin))
 
@@ -305,6 +322,7 @@ class TestTrpgSessionListAndView(unittest.TestCase):
         ctx = make_group_message("/跑团记录 #1")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         out = _sent_text(plugin)
         self.assertTrue("编号无效" in out or "暂无" in out)
@@ -326,6 +344,7 @@ class TestTrpgSessionListAndView(unittest.TestCase):
         ctx = make_group_message("/跑团记录 导出")
         p1 = TrpgSessionPlugin(ctx)
         p1.api = MockApiWrapper(ctx)
+        bind_output(p1)
         p1.handle()
         self.assertIn("导出成功", _sent_text(p1))
 
@@ -333,6 +352,7 @@ class TestTrpgSessionListAndView(unittest.TestCase):
         ctx2 = make_group_message("/跑团记录 列表")
         p2 = TrpgSessionPlugin(ctx2)
         p2.api = MockApiWrapper(ctx2)
+        bind_output(p2)
         p2.handle()
         self.assertIn("[1]", _sent_text(p2))
 
@@ -340,6 +360,7 @@ class TestTrpgSessionListAndView(unittest.TestCase):
         ctx3 = make_group_message("/跑团记录 #1")
         p3 = TrpgSessionPlugin(ctx3)
         p3.api = MockApiWrapper(ctx3)
+        bind_output(p3)
         p3.handle()
         self.assertIn("#1", _sent_text(p3))
         self.assertIn("玩家A", _sent_text(p3))
@@ -348,6 +369,7 @@ class TestTrpgSessionListAndView(unittest.TestCase):
         ctx = make_group_message("/跑团记录 abc")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         out = _sent_text(plugin)
         self.assertTrue("暂无保存" in out or "列表" in out)

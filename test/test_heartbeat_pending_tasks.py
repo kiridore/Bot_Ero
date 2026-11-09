@@ -1,4 +1,5 @@
 """config-unification 任务组3：关闭期间记录保留与恢复后的重复执行防护（AC04）。"""
+from test.helper import bind_output
 import sys
 import tempfile
 import unittest
@@ -37,6 +38,7 @@ class PendingTaskTest(unittest.TestCase):
         from plugins.group_alarm import GroupAlarmPlugin
         p = GroupAlarmPlugin.__new__(GroupAlarmPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p._handle_meta_due()
 
     def test_backlog_alarm_fires_once_after_reenable_no_duplicates(self):
@@ -64,6 +66,7 @@ class PendingTaskTest(unittest.TestCase):
         self.db.conn.commit()
         p = ImmortalLotteryPlugin.__new__(ImmortalLotteryPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p._handle_draw_tick()  # 群 100 未启用
         self.assertEqual(self.db.conn.execute(
             "SELECT COUNT(*) FROM immortal_lottery_results").fetchone()[0], 0)  # 未开奖

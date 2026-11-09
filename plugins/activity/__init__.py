@@ -167,15 +167,15 @@ def _now() -> str:
 
 # ── 模块级辅助（插件类共用，Task 5 完整实现） ──
 
-def _send_private(api, user_id: int, *message):
+def _send_private(operation, user_id: int, *message):
     from core.blacklist import operation_snapshot
-    if operation_snapshot(api).blocks(user_id=user_id):
+    if operation_snapshot(operation).blocks(user_id=user_id):
         return
-    api.call_api("send_private_msg", {"user_id": int(user_id), "message": list(message)})
+    operation.output.submit(list(message), target=("private", int(user_id)), kind="segments")
 
 
-def _announce_group(api, group_id: int, text_body: str):
-    api.call_api("send_group_msg", {"group_id": int(group_id), "message": [text(text_body)]})
+def _announce_group(operation, group_id: int, text_body: str):
+    operation.output.submit([text(text_body)], target=("group", int(group_id)), kind="segments")
 
 
 @register_plugin
@@ -197,10 +197,10 @@ class ActivityPlugin(Plugin):
         return f"用户{self.bot_event.user_id}"
 
     def _send_private(self, user_id: int, *message):
-        _send_private(self.api, user_id, *message)
+        _send_private(self.operation, user_id, *message)
 
     def _announce_group(self, group_id: int, text_body: str):
-        _announce_group(self.api, group_id, text_body)
+        _announce_group(self.operation, group_id, text_body)
 
     def match(self, event_type="message") -> bool:
         if event_type != "message":
@@ -238,7 +238,7 @@ class ActivityPlugin(Plugin):
             act = self.dbmanager.activity.get_running_activity_for_user_and_id(
                 uid, int(args[0]))
             if not act:
-                self.api.send_msg(text("活动编号无效"))
+                self.submit_message(text("活动编号无效"))
                 return
         else:
             acts = self.dbmanager.activity.get_running_activities_for_user(uid)
@@ -250,46 +250,46 @@ class ActivityPlugin(Plugin):
                 act = acts[0]
             elif len(acts) > 1:
                 ids = "、".join(str(a["id"]) for a in acts)
-                self.api.send_msg(text(f"你参与了多个活动，请使用 /提交 <活动id>（{ids}）"))
+                self.submit_message(text(f"你参与了多个活动，请使用 /提交 <活动id>（{ids}）"))
                 return
         if not act:
-            self.api.send_msg(text("你不在任何进行中的活动中"))
+            self.submit_message(text("你不在任何进行中的活动中"))
             return
         if snapshot.blocks(group_id=act['group_id']):
             return
         member = self.dbmanager.activity.get_member(act["id"], uid)
         if not member or member["status"] == "left":
-            self.api.send_msg(text("你不在活动中或已退出"))
+            self.submit_message(text("你不在活动中或已退出"))
             return
         if member["status"] == "missed":
-            self.api.send_msg(text("活动已截止，无法提交"))
+            self.submit_message(text("活动已截止，无法提交"))
             return
         is_update = member["status"] == "done"
         if act["type"] == "relay" and not is_update:
             cur = current_turn(self.dbmanager.activity.get_members(act["id"]))
             if not cur or cur["user_id"] != uid:
-                self.api.send_msg(text("还没轮到你提交"))
+                self.submit_message(text("还没轮到你提交"))
                 return
         content, image_files = self._extract_submission()
         if not content and not image_files:
-            self.api.send_msg(text("请随 /提交 附上作品（文字或图片）"))
+            self.submit_message(text("请随 /提交 附上作品（文字或图片）"))
             return
         saved = self._download_images(act["id"], member["seq"], image_files)
         if len(saved) != len(image_files):
-            self.api.send_msg(text("作品图片下载失败，请重试"))
+            self.submit_message(text("作品图片下载失败，请重试"))
             return
         now = _now()
         self.dbmanager.activity.update_member(
             act["id"], uid, status="done", content=content or None,
             images=json.dumps(saved) if saved else None, submitted_at=now)
-        self.api.send_msg(text("提交已更新！" if is_update else "提交成功！"))
+        self.submit_message(text("提交已更新！" if is_update else "提交成功！"))
         members = self.dbmanager.activity.get_members(act["id"])
         if act["type"] == "relay":
             if not is_update:
                 self._announce_group(act["group_id"],
                                      f"第 {member['seq']} 棒 {member['nickname']} 完成接力")
-                if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
-                    _finish_activity(self.api, self.dbmanager, act)
+                if not _relay_advance(self.operation, self.dbmanager, act, members, member["seq"]):
+                    _finish_activity(self.operation, self.dbmanager, act)
         else:
             if not is_update:
                 self._announce_group(act["group_id"], f"{member['nickname']} 提交了作品")
@@ -355,7 +355,7 @@ class ActivityPlugin(Plugin):
             self._show_usage()
 
     def _show_usage(self):
-        self.api.send_msg(text(
+        self.submit_message(text(
             "活动指令：\n"
             "/活动 创建 接龙 <标题> [每人时限]（如 48小时 / 2天）\n"
             "/活动 创建 匹配 <标题> <截止 YYYY-MM-DD HH:MM>\n"
@@ -370,7 +370,7 @@ class ActivityPlugin(Plugin):
         gid = self.bot_event.group_id
         uid = str(self.bot_event.user_id)
         if not args or args[0] not in ("接龙", "匹配", "征集"):
-            self.api.send_msg(text("用法：/活动 创建 接龙|匹配|征集 <标题> [描述] [参数]"))
+            self.submit_message(text("用法：/活动 创建 接龙|匹配|征集 <标题> [描述] [参数]"))
             return
         kind = args[0]
         type_val = {"接龙": "relay", "匹配": "match", "征集": "collect"}[kind]
@@ -379,12 +379,12 @@ class ActivityPlugin(Plugin):
             usage = ("用法：/活动 创建 接龙 <标题> [描述] [参数]\n"
                      "参数：限时 <时限> / 报名截止 <时间> / 截止 <时间>，如：\n"
                      "/活动 创建 接龙 端午 大家自由创作 报名截止 2026-08-10 20:00 截止 2026-08-20 20:00 限时 2天")
-            self.api.send_msg(text(usage))
+            self.submit_message(text(usage))
             return
         title = rest[0]
         params = _parse_create_params(rest[1:], "relay" if kind == "接龙" else "match")
         if isinstance(params, str):
-            self.api.send_msg(text(params))
+            self.submit_message(text(params))
             return
         if kind == "接龙":
             aid = self.dbmanager.activity.create_activity(
@@ -397,7 +397,7 @@ class ActivityPlugin(Plugin):
             ]
         elif kind == "征集":
             if not params["deadline"]:
-                self.api.send_msg(text("征集活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
+                self.submit_message(text("征集活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
                 return
             aid = self.dbmanager.activity.create_activity(
                 gid, "collect", title, plain_to_tiptap(params["description"]) if params["description"] else None, uid,
@@ -408,7 +408,7 @@ class ActivityPlugin(Plugin):
             ]
         else:
             if not params["deadline"]:
-                self.api.send_msg(text("匹配活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
+                self.submit_message(text("匹配活动必须设定截止时间，示例：截止 2026-09-15 20:00"))
                 return
             aid = self.dbmanager.activity.create_activity(
                 gid, "match", title, plain_to_tiptap(params["description"]) if params["description"] else None, uid,
@@ -423,7 +423,7 @@ class ActivityPlugin(Plugin):
             lines.append(f"报名截止：{params['signup_deadline']}（到点自动开始）")
         lines.append(f"回复 /活动 加入 {aid} 报名，报名完成后由创建人 /活动 开始 {aid}")
         lines.append(f"详情：{WEB_BASE_URL}/activities/{aid}")
-        self.api.send_msg(text("\n".join(lines)))
+        self.submit_message(text("\n".join(lines)))
         _emit_timeline(aid, title, "signup", f"{_TYPE_LABEL[type_val]} · 回复 /活动 加入 报名" + (
             f" · 报名截止 {params['signup_deadline']}" if params["signup_deadline"] else ""))
 
@@ -434,38 +434,38 @@ class ActivityPlugin(Plugin):
     def _handle_join(self, gid: int, uid: str, arg: str | None = None):
         act, err = _pick_from(self._group_activities(gid, ("open",)), arg, "/活动 加入")
         if act is None:
-            self.api.send_msg(text(err or "本群当前没有报名中的活动"))
+            self.submit_message(text(err or "本群当前没有报名中的活动"))
             return
         if self.dbmanager.activity.get_member(act["id"], uid):
-            self.api.send_msg(text("你已加入该活动"))
+            self.submit_message(text("你已加入该活动"))
             return
         self.dbmanager.activity.add_member(act["id"], uid, self._sender_nickname())
         n = self.dbmanager.activity.count_members(act["id"])
-        self.api.send_msg(text(f"已加入「{act['title']}」（当前 {n} 人）"))
+        self.submit_message(text(f"已加入「{act['title']}」（当前 {n} 人）"))
 
     def _handle_leave(self, gid: int, uid: str, arg: str | None = None):
         cands = [a for a in self._group_activities(gid, ("open", "running"))
                  if self.dbmanager.activity.get_member(a["id"], uid)]
         act, err = _pick_from(cands, arg, "/活动 退出")
         if act is None:
-            self.api.send_msg(text(err or "你不在任何活动中"))
+            self.submit_message(text(err or "你不在任何活动中"))
             return
         member = self.dbmanager.activity.get_member(act["id"], uid)
         if not member:
-            self.api.send_msg(text("你不在该活动中"))
+            self.submit_message(text("你不在该活动中"))
             return
         if act["status"] == "open":
             self.dbmanager.activity.remove_member(act["id"], uid)
             if self.dbmanager.activity.count_members(act["id"]) == 0:
                 self.dbmanager.activity.update_activity(act["id"], status="cancelled")
-                self.api.send_msg(text("已退出，活动无人参加已取消"))
+                self.submit_message(text("已退出，活动无人参加已取消"))
                 return
             if str(act["created_by"]) == uid:
                 first = self.dbmanager.activity.get_members(act["id"])[0]
                 self.dbmanager.activity.update_activity(act["id"], created_by=first["user_id"])
-                self.api.send_msg(text(f"已退出，创建人已转移给 {first['nickname']}"))
+                self.submit_message(text(f"已退出，创建人已转移给 {first['nickname']}"))
                 return
-            self.api.send_msg(text("已退出报名"))
+            self.submit_message(text("已退出报名"))
         else:
             self._handle_leave_running(act, member)
 
@@ -478,30 +478,30 @@ class ActivityPlugin(Plugin):
         self._announce_group(act["group_id"], f"{member['nickname']} 已退出活动")
         if act["type"] == "relay":
             if cur and cur["user_id"] == member["user_id"]:
-                if not _relay_advance(self.api, self.dbmanager, act, members, member["seq"]):
-                    _finish_activity(self.api, self.dbmanager, act)
+                if not _relay_advance(self.operation, self.dbmanager, act, members, member["seq"]):
+                    _finish_activity(self.operation, self.dbmanager, act)
         elif act["type"] == "match":
-            _match_reconnect(self.api, self.dbmanager, act, member["user_id"], members)
+            _match_reconnect(self.operation, self.dbmanager, act, member["user_id"], members)
 
     def _handle_start(self, gid: int, uid: str, arg: str | None = None):
         act, err = _pick_from(self._group_activities(gid, ("open",)), arg, "/活动 开始")
         if act is None:
-            self.api.send_msg(text(err or "本群没有报名中的活动"))
+            self.submit_message(text(err or "本群没有报名中的活动"))
             return
         if act["status"] != "open":
-            self.api.send_msg(text("活动已开始"))
+            self.submit_message(text("活动已开始"))
             return
         if str(act["created_by"]) != uid and not self.super_user():
-            self.api.send_msg(text("只有创建人才能开始活动"))
+            self.submit_message(text("只有创建人才能开始活动"))
             return
-        err = _start_activity(self.api, self.dbmanager, act)
+        err = _start_activity(self.operation, self.dbmanager, act)
         if err:
-            self.api.send_msg(text(err))
+            self.submit_message(text(err))
 
     def _handle_status(self, gid: int, arg: str | None = None):
         acts = self._group_activities(gid, ("open", "running"))
         if not acts:
-            self.api.send_msg(text("本群没有进行中的活动"))
+            self.submit_message(text("本群没有进行中的活动"))
             return
         if arg is None and len(acts) == 1:
             arg = str(acts[0]["id"])  # 唯一候选直接详情（与其它命令的自动选中一致）
@@ -510,7 +510,7 @@ class ActivityPlugin(Plugin):
             return
         act, err = _pick_from(acts, arg, "/活动 状态")
         if act is None:
-            self.api.send_msg(text(err or "本群没有进行中的活动"))
+            self.submit_message(text(err or "本群没有进行中的活动"))
             return
         members = self.dbmanager.activity.get_members(act["id"])
         lines = [f"「{act['title']}」（{_TYPE_LABEL.get(act['type'], act['type'])} #{act['id']}）"]
@@ -538,13 +538,13 @@ class ActivityPlugin(Plugin):
                 done = sum(1 for m in members if m["status"] == "done")
                 lines.append(f"进度：{done}/{len(members)}")
                 lines.append(f"截止：{act['deadline']}")
-        self.api.send_msg(text("\n".join(lines)))
+        self.submit_message(text("\n".join(lines)))
 
     def _status_list(self, gid: int):
         """多活动并行的总览：每活动一行摘要 + 提示查看详情。"""
         acts = self._group_activities(gid, ("open", "running"))
         if not acts:
-            self.api.send_msg(text("本群没有进行中的活动"))
+            self.submit_message(text("本群没有进行中的活动"))
             return
         lines = ["本群进行中的活动："]
         for a in acts:
@@ -556,21 +556,21 @@ class ActivityPlugin(Plugin):
                 done = sum(1 for m in members if m["status"] == "done")
                 lines.append(f"#{a['id']} {label}「{a['title']}」进行中（完成 {done}/{len(members)}）")
         lines.append("查看详情：/活动 状态 <编号>")
-        self.api.send_msg(text("\n".join(lines)))
+        self.submit_message(text("\n".join(lines)))
 
     def _handle_end(self, gid: int, uid: str, arg: str | None = None):
         act, err = _pick_from(self._group_activities(gid, ("open", "running")), arg, "/活动 结束")
         if act is None:
-            self.api.send_msg(text(err or "本群没有进行中的活动"))
+            self.submit_message(text(err or "本群没有进行中的活动"))
             return
         if str(act["created_by"]) != uid and not self.super_user():
-            self.api.send_msg(text("只有创建人才能结束活动"))
+            self.submit_message(text("只有创建人才能结束活动"))
             return
         if act["status"] == "open":
             self.dbmanager.activity.update_activity(act["id"], status="cancelled")
-            self.api.send_msg(text(f"活动「{act['title']}」已取消"))
+            self.submit_message(text(f"活动「{act['title']}」已取消"))
         else:
-            _finish_activity(self.api, self.dbmanager, act)
+            _finish_activity(self.operation, self.dbmanager, act)
 
 
 # ── 模块级流转辅助（Task 5） ──
@@ -601,7 +601,7 @@ def _work_segments(member: dict) -> list[dict]:
     return segs
 
 
-def _relay_advance(api, db, act: dict, members: list[dict], from_seq: int) -> bool:
+def _relay_advance(operation, db, act: dict, members: list[dict], from_seq: int) -> bool:
     """把作品顺延给 from_seq 之后第一个 pending 成员。返回 False 表示链已走完。"""
     from .logic import next_pending, last_done
     target = next_pending(members, from_seq)
@@ -610,19 +610,19 @@ def _relay_advance(api, db, act: dict, members: list[dict], from_seq: int) -> bo
     prev = last_done(members, target["seq"])
     if prev and (prev["content"] or prev.get("images")):
         _send_private(
-            api, int(target["user_id"]),
+            operation, int(target["user_id"]),
             text(f"接力作品（活动「{act['title']}」）："),
             *_work_segments(prev),
         )
     db.activity.update_member(act["id"], target["user_id"], received_at=_now())
     _announce_group(
-        api, act["group_id"],
+        operation, act["group_id"],
         f"轮到 {target['nickname']} 接力！请于 {format_duration(act['hours_per_user'])} 内完成，私聊 /提交 作品。",
     )
     return True
 
 
-def _match_reconnect(api, db, act: dict, left_uid: str, members: list[dict]):
+def _match_reconnect(operation, db, act: dict, left_uid: str, members: list[dict]):
     """匹配环闭合：left_uid 的前驱 next 改为其后继（Y→X→D 退出 X 后变 Y→D）。"""
     pred = next((m for m in members if m["next_user_id"] == left_uid), None)
     if not pred:
@@ -632,12 +632,12 @@ def _match_reconnect(api, db, act: dict, left_uid: str, members: list[dict]):
     db.activity.update_member(act["id"], pred["user_id"], next_user_id=new_next)
     if pred["status"] == "pending":
         _send_private(
-            api, int(pred["user_id"]),
+            operation, int(pred["user_id"]),
             text("你的下家已退出，请继续创作，活动截止时间不变。"),
         )
 
 
-def _warn_relay_deadline_conflict(api, act: dict, member_count: int):
+def _warn_relay_deadline_conflict(operation, act: dict, member_count: int):
     """接龙全局截止早于最晚理论完成时间（开始 + 人数×限时）时群公告警告。"""
     try:
         due = datetime.strptime(act["deadline"], "%Y-%m-%d %H:%M:%S")
@@ -647,26 +647,26 @@ def _warn_relay_deadline_conflict(api, act: dict, member_count: int):
     worst_end = datetime.now() + timedelta(hours=hours) * member_count
     if worst_end > due:
         _announce_group(
-            api, act["group_id"],
+            operation, act["group_id"],
             f"⚠️ 提醒：截止 {act['deadline']} 早于最晚理论完成时间"
             f" {worst_end.strftime('%Y-%m-%d %H:%M:%S')}（{member_count} 人 × 每人"
             f" {format_duration(hours)}），到点未完成的接力将直接截断归档。",
         )
 
 
-def _finish_activity(api, db, act: dict):
+def _finish_activity(operation, db, act: dict):
     now = _now()
     db.activity.update_activity(act["id"], status="finished", finished_at=now)
     fresh = db.activity.get_activity(act["id"])
     members = db.activity.get_members(act["id"])
     archive_mod.archive_activity(fresh, members)
-    _announce_group(api, act["group_id"], f"活动「{act['title']}」结束，已归档！")
+    _announce_group(operation, act["group_id"], f"活动「{act['title']}」结束，已归档！")
     done = sum(1 for m in members if m["status"] == "done")
     _emit_timeline(act["id"], act["title"], "finish",
                    f"{_TYPE_LABEL.get(act['type'], act['type'])} · 完成 {done}/{len(members)} · 作品已归档")
 
 
-def _relay_catchup(api, db, act: dict, members: list[dict]) -> bool:
+def _relay_catchup(operation, db, act: dict, members: list[dict]) -> bool:
     """网页端提交的补推进：当前棒 pending 且未激活（received_at 空）且上一棒已完成。
 
     bot 端 /提交 即时推进不会进入此分支；活动开始时 seq1 由 _relay_advance 激活，
@@ -679,21 +679,21 @@ def _relay_catchup(api, db, act: dict, members: list[dict]) -> bool:
         last = max(members, key=lambda m: m["seq"], default=None)
         if last is None or last["status"] != "done":
             return False
-        _announce_group(api, act["group_id"], f"第 {last['seq']} 棒 {last['nickname']} 完成接力")
-        _finish_activity(api, db, act)
+        _announce_group(operation, act["group_id"], f"第 {last['seq']} 棒 {last['nickname']} 完成接力")
+        _finish_activity(operation, db, act)
         return True
     if cur.get("received_at"):
         return False
     prev = last_done(members, cur["seq"])
     if not prev:
         return False
-    _announce_group(api, act["group_id"], f"第 {prev['seq']} 棒 {prev['nickname']} 完成接力")
-    if not _relay_advance(api, db, act, members, prev["seq"]):
-        _finish_activity(api, db, act)
+    _announce_group(operation, act["group_id"], f"第 {prev['seq']} 棒 {prev['nickname']} 完成接力")
+    if not _relay_advance(operation, db, act, members, prev["seq"]):
+        _finish_activity(operation, db, act)
     return True
 
 
-def _start_activity(api, db, act: dict) -> str | None:
+def _start_activity(operation, db, act: dict) -> str | None:
     """开始活动：校验人数、生成链/环、置 running、私聊通知。返回错误消息或 None。
 
     供手动 /活动 开始 与心跳报名截止自动开始共用。
@@ -721,32 +721,32 @@ def _start_activity(api, db, act: dict) -> str | None:
     now = _now()
     if act["type"] == "relay":
         if act.get("deadline"):
-            _warn_relay_deadline_conflict(api, act, len(users))
+            _warn_relay_deadline_conflict(operation, act, len(users))
         first = assigns[0]
         db.activity.update_member(act["id"], first[0], received_at=now)
         _send_private(
-            api, int(first[0]),
+            operation, int(first[0]),
             text(f"接龙活动「{act['title']}」开始！你是第 1 棒。\n"
                  f"请创作并私聊发送 /提交 附上作品，限时 {format_duration(act['hours_per_user'])}。"),
         )
-        _announce_group(api, act["group_id"],
+        _announce_group(operation, act["group_id"],
                         f"接龙活动「{act['title']}」开始，{nick_map[first[0]]} 先来！")
         _emit_timeline(act["id"], act["title"], "start",
                        f"{_TYPE_LABEL[act['type']]} · {len(users)} 人参加")
     elif act["type"] == "collect":
-        _announce_group(api, act["group_id"],
+        _announce_group(operation, act["group_id"],
                         f"征集活动「{act['title']}」开始，请大家在 {act['deadline']} 前私聊 /提交 作品！")
         _emit_timeline(act["id"], act["title"], "start",
                        f"{_TYPE_LABEL[act['type']]} · {len(users)} 人参加")
     else:
         for uid_, next_uid, _seq in assigns:
             _send_private(
-                api, int(uid_),
+                operation, int(uid_),
                 text(f"匹配活动「{act['title']}」开始！\n"
                      f"你的下家是：{nick_map[next_uid]}\n"
                      f"请为 TA 创作并私聊发送 /提交 附上作品，截止 {act['deadline']}。"),
             )
-        _announce_group(api, act["group_id"], f"匹配活动「{act['title']}」开始，请查看私聊！")
+        _announce_group(operation, act["group_id"], f"匹配活动「{act['title']}」开始，请查看私聊！")
         _emit_timeline(act["id"], act["title"], "start",
                        f"{_TYPE_LABEL[act['type']]} · {len(users)} 人参加")
     return None
@@ -776,7 +776,7 @@ class ActivityTimerPlugin(Plugin):
             logger.exception("ActivityTimer 处理异常")
 
     def _announce_group(self, group_id: int, text_body: str):
-        _announce_group(self.api, group_id, text_body)
+        _announce_group(self.operation, group_id, text_body)
 
     def _scan(self):
         from .logic import is_timeout, current_turn
@@ -795,7 +795,7 @@ class ActivityTimerPlugin(Plugin):
                 )
             snapshot = admissions[act['id']]
             if snapshot is not None:
-                self.api.blacklist_snapshot = snapshot
+                self.operation.blacklist_snapshot = snapshot
                 return True
             skipped_groups.add(act["group_id"])
             return False
@@ -811,7 +811,7 @@ class ActivityTimerPlugin(Plugin):
             except (ValueError, TypeError):
                 continue
             if now >= due:
-                err = _start_activity(self.api, self.dbmanager, act)
+                err = _start_activity(self.operation, self.dbmanager, act)
                 if err:
                     self.dbmanager.activity.update_activity(act["id"], status="cancelled")
                     self._announce_group(act["group_id"], f"报名截止，{err}，活动已取消")
@@ -820,7 +820,7 @@ class ActivityTimerPlugin(Plugin):
                 continue
             members = self.dbmanager.activity.get_members(act["id"])
             if act["type"] == "relay":
-                if _relay_catchup(self.api, self.dbmanager, act, members):
+                if _relay_catchup(self.operation, self.dbmanager, act, members):
                     members = self.dbmanager.activity.get_members(act["id"])
                 else:
                     cur = current_turn(members)
@@ -829,8 +829,8 @@ class ActivityTimerPlugin(Plugin):
                             act["id"], cur["user_id"], status="skipped")
                         self._announce_group(act["group_id"], f"{cur['nickname']} 超时未完成，跳过")
                         members = self.dbmanager.activity.get_members(act["id"])
-                        if not _relay_advance(self.api, self.dbmanager, act, members, cur["seq"]):
-                            _finish_activity(self.api, self.dbmanager, act)
+                        if not _relay_advance(self.operation, self.dbmanager, act, members, cur["seq"]):
+                            _finish_activity(self.operation, self.dbmanager, act)
             deadline = act.get("deadline")
             try:
                 due = datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
@@ -856,7 +856,7 @@ class ActivityTimerPlugin(Plugin):
                     if m["status"] == "pending":
                         self.dbmanager.activity.update_member(
                             act["id"], m["user_id"], status="missed")
-                _finish_activity(self.api, self.dbmanager, act)
+                _finish_activity(self.operation, self.dbmanager, act)
         if skipped_groups:
             logger.info(
                 "活动心跳跳过群 %s（activity未开放或受黑名单限制），状态不推进；重新开启后按原到期规则处理",

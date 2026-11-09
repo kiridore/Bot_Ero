@@ -25,18 +25,28 @@
 
 原直接调用中的 checkin → 商店/称号/周常、两撤回 → 周常现已改为通知订阅。lottery 对周常和条件称号的直接调用已改为通知；lottery.rewards 的抽奖奖品（称号及重复返点）属于单抽事务，称号关闭时入口与消费者均拒绝抽奖。打卡全勤奖励现由 checkin/events.py 订阅处理，两种撤回共用其历史清理函数；全勤领取、奖励记录和积分已同事务处理。抽奖的称号奖项不只是展示，详见 implementation-findings.md 的所有者裁定。
 
-## 后续第二阶段（必须另建提案）
+## 第二阶段（已完成，1.63.0）
 
 | 文件 | 当前发送方式 | 验证方式 |
 |---|---|---|
-| plugins/who_is_spy/__init__.py | send_msg、call_api、_send_private | 群和多账号私聊隔离、游戏结算称号通知 |
-| plugins/who_is_spy/relay.py | call_api | 每个玩家目标与消息结构保持 |
-| plugins/activity/__init__.py | send_msg、call_api（含包装发送） | 群操作、私聊提交、定时事件、显式接收方 |
-| plugins/group_alarm/__init__.py | send_msg、call_api | 创建/取消/查询、到期群和私聊通知 |
-| plugins/immortal_lottery/__init__.py | send_msg、call_api | 下注与定时开奖目标、奖励不重复 |
-| plugins/trpg_session/__init__.py | send_msg、call_api | 记录开始/结束/导出及转发结构 |
-| plugins/trpg_char/__init__.py | send_msg | 角色命令所有分支 |
-| plugins/trpg_dice/__init__.py | send_msg、send_private_msg | 明骰/暗骰，不泄露私聊结果 |
+| plugins/who_is_spy/__init__.py | 已迁移：submit_message + output.submit（转发节点） | 群和多账号私聊隔离、游戏结算称号通知 |
+| plugins/who_is_spy/relay.py | 已迁移：output.submit 逐目标显式（群/私聊/转发） | 每个玩家目标与消息结构保持；黑名单快照与退出者判断保留 |
+| plugins/activity/__init__.py | 已迁移：submit_message + output.submit（私聊/群显式） | 群操作、私聊提交、定时事件、显式接收方 |
+| plugins/group_alarm/__init__.py | 已迁移：submit_message；到期通知显式目标 | 创建/取消/查询、到期群和私聊通知 |
+| plugins/immortal_lottery/__init__.py | 已迁移：submit_message；开奖显式群目标 | 下注与定时开奖目标、奖励不重复 |
+| plugins/trpg_session/__init__.py | 已迁移：submit_message；转发用 kind="nodes" | 记录开始/结束/导出及转发结构 |
+| plugins/trpg_char/__init__.py | 已迁移：submit_message | 角色命令所有分支 |
+| plugins/trpg_dice/__init__.py | 已迁移：submit_message；暗骰显式私聊目标 | 明骰/暗骰，不泄露私聊结果 |
+
+同步迁移（第三阶段先行）：
+
+| 文件 | 当前发送方式 | 说明 |
+|---|---|---|
+| plugins/news/__init__.py | 已迁移：回执 submit_message；推送显式默认群目标 | 失败不重试、游标照常推进（所有者 2026-11-06 裁定） |
+| plugins/redeem_code/__init__.py | 已迁移：submit_message | 撤回 delete_msg 不属于发送，保持原调用 |
+
+第二阶段与 `news`、`redeem_code` 已全部迁移。`news` 推送放弃“发送失败保留游标”的重试语义，改为失败不重试（所有者 2026-11-06 裁定）；`register` 仍为既有 Ruling 例外。
+
 
 ## 后续第三阶段（必须全部完成，不长期保留旧入口）
 
@@ -48,7 +58,6 @@
 | plugins/call/__init__.py | send_msg | 昵称召唤 |
 | plugins/dice/__init__.py | send_msg | 掷骰和错误输入；不删除插件 |
 | plugins/divination/__init__.py | send_msg | 图文结果 |
-| plugins/news/__init__.py | send_msg | 订阅管理（/订阅、/退订）与有订阅者时的新消息推送；推送前检查部署允许范围与黑名单 |
 | plugins/forum_notify/__init__.py | send_msg | 定时通知接收方 |
 | plugins/gallery_login_key/__init__.py | send_msg | 密钥不得合并进入群消息 |
 | plugins/grant_points_all/__init__.py | send_msg | 权限、错误和发放回执 |
@@ -60,7 +69,6 @@
 | plugins/personal_records/__init__.py | send_msg | 图文档案 |
 | plugins/random_reference/__init__.py | send_msg | 图片和失败提示 |
 | plugins/recall_message/__init__.py | send_msg | 回复撤回操作结果 |
-| plugins/redeem_code/__init__.py | send_msg | 核销成功/重复/错误 |
 | plugins/remedy_checkin/__init__.py | send_msg | 普通和管理员补卡所有路径 |
 | plugins/set_group_title/__init__.py | send_msg | 头衔修改与取消 |
 | plugins/startup_changelog/__init__.py | send_msg | 启动公告一次发送 |

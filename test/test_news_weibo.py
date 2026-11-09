@@ -9,7 +9,7 @@ import pytest
 import requests
 
 from plugins import news
-from test.helper import MockApiWrapper
+from test.helper import MockApiWrapper, bind_output
 
 KEY = "weibo_6279793937"
 NOW = datetime(2026, 10, 30, 18, tzinfo=timezone(timedelta(hours=8)))
@@ -109,6 +109,7 @@ def test_registered_weibo_source_initializes_then_pushes_once():
         db.news.subscribe(456, "ff14")
         plugin.api = Mock()
         plugin.api.send_msg.return_value = 1
+        bind_output(plugin)
         baseline = sample()
         updated = sample()
         updated["data"]["cards"].append(card(5359748985390845, age=1))
@@ -119,11 +120,13 @@ def test_registered_weibo_source_initializes_then_pushes_once():
                 patch.object(news, "fetch_homepage", side_effect=[baseline, updated, updated]):
             clock.now.return_value = LOCAL_NOW
             plugin._poll_and_push()
-            plugin.api.send_msg.assert_not_called()
+            plugin.api.call_api.assert_not_called()
             plugin._poll_and_push()
             plugin._poll_and_push()
-        plugin.api.send_msg.assert_called_once()
-        segments = plugin.api.send_msg.call_args.args
+        plugin.api.call_api.assert_called_once()
+        action, params = plugin.api.call_api.call_args.args
+        assert action == "send_group_msg"
+        segments = params["message"]
         assert [s["data"]["qq"] for s in segments if s["type"] == "at"] == ["123"]
         body = next(s["data"]["text"] for s in segments if s["type"] == "text")
         assert "【明日方舟官方微博】" in body
@@ -149,6 +152,7 @@ def test_weibo_failure_keeps_its_cursor_and_ff14_still_pushes():
         db.news.save_cursor(KEY, "5359748985390844")
         ctx = {"post_type": "meta_event"}
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         record = plugin.api.send_msg
         plugin.api.send_msg = lambda *segments: (record(*segments), 1)[1]
         item = news.NewsItem("11", "FF14新消息", "正文", "https://example.invalid/11", "", datetime.now())

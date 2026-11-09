@@ -2,6 +2,7 @@
 from collections import Counter
 from itertools import product
 from threading import Event, Thread
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from core import context
 from plugins.who_is_spy import game, relay
 from test.spy_helpers import game_env, new_room, seed
+from test.helper import RecordingOutput
 
 
 def make_room():
@@ -34,7 +36,8 @@ def test_highest_all_81_valid_four_player_ballots(monkeypatch):
         assert room['history'][0]['eliminated'] == eliminated
         assert room['history'][0]['vote_counts'] == counts
         api = Mock()
-        relay.broadcast_vote_result(api, room, eliminated)
+        operation = SimpleNamespace(output=RecordingOutput(api), blacklist_snapshot=None)
+        relay.broadcast_vote_result(operation, room, eliminated)
         message = api.call_api.call_args_list[0].args[1]['message'][0]['data']['text']
         alias = room['players'][eliminated]['alias']
         assert f'{alias} {counts[eliminated]}票 ← 出局' in message
@@ -176,6 +179,7 @@ def test_completion_network_sends_do_not_hold_game_lock(game_env):
         return {'status': 'ok', 'retcode': 0}
     api = Mock()
     api.call_api.side_effect = send
-    GameMessenger(api, game_env.db.who_is_spy).emit(result.events)
+    operation = SimpleNamespace(output=RecordingOutput(api), blacklist_snapshot=None)
+    GameMessenger(operation, game_env.db.who_is_spy).emit(result.events)
     assert result.room['round_num'] == 2
     assert api.call_api.called

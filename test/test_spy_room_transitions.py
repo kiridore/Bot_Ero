@@ -9,6 +9,7 @@ from core.database_manager import DbManager
 from plugins.who_is_spy import WhoIsSpyPlugin
 from plugins.who_is_spy.room import GameService
 from plugins.who_is_spy.relay import GameMessenger
+from test.helper import bind_output
 from test.spy_helpers import game_env, new_room, seed, output
 
 
@@ -19,6 +20,7 @@ def parallel_inputs(room, uids, body, phase):
         try:
             p = WhoIsSpyPlugin.__new__(WhoIsSpyPlugin)
             p.dbmanager, p.api = db, Mock()
+            bind_output(p)
             p.api.call_api.return_value = {'status': 'ok', 'retcode': 0}
             p.bot_event = SimpleNamespace(user_id=uid)
             p._mode, p._record_id, p._input_text = 'game_input', room['record_id'], body
@@ -101,26 +103,23 @@ def test_leave_and_final_vote_race_has_one_settlement(game_env):
 
 
 def test_network_wait_does_not_block_other_rooms(game_env):
+    from core.message_output import MessageOutput
+    from core.plugin_dispatch import Operation
+
     first = new_room(game_env)
     pending = game_env.service.input(first['record_id'], 101, '描述')
-    entered, release = ThreadEvent(), ThreadEvent()
-    def delayed_delivery():
-        api = Mock()
-        def send(*args, **kwargs):
-            entered.set()
-            assert release.wait(5)
-            return {'status': 'ok', 'retcode': 0}
-        api.call_api.side_effect = send
-        GameMessenger(api).emit([('describe', pending.room)])
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        task = pool.submit(delayed_delivery)
-        try:
-            assert entered.wait(3)
-            second = game_env.service.create(200, 999, 4, 'other-room')
-            assert second.room['record_id'] != first['record_id']
-        finally:
-            release.set()
-        task.result(timeout=8)
+    api = Mock()
+    api.call_api.return_value = {'status': 'ok', 'retcode': 0}
+    output = MessageOutput(lambda request: api.call_api(
+        "send_private_msg" if request.target[0] == "private" else "send_group_msg", {}))
+    operation = Operation({'who_is_spy': True}, output)
+    GameMessenger(operation, game_env.db.who_is_spy).emit([('describe', pending.room)])
+    # 发送只入队不执行网络：游戏锁内不会等待网络
+    api.call_api.assert_not_called()
+    operation.finish()
+    assert api.call_api.called
+    second = game_env.service.create(200, 999, 4, 'other-room')
+    assert second.room['record_id'] != first['record_id']
 
 
 def test_complete_two_round_game_from_real_commands(game_env):

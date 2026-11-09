@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from plugins.redeem_code import RedeemCodePlugin
-from test.helper import MockApiWrapper, make_group_message, make_private_message
+from test.helper import MockApiWrapper, make_group_message, make_private_message, bind_output
 
 
 def _sent_text(plugin) -> str:
@@ -37,6 +37,7 @@ class TestRedeemCodeStub(unittest.TestCase):
         ctx = make_group_message("/兑换码 BEST-WISH-2027", message_id=4242)
         plugin = RedeemCodePlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertEqual(plugin.api.deleted_messages, [4242])
         self.assertEqual(_sent_text(plugin), "兑换码功能已迁移至网页个人主页「兑换码」页签")
@@ -45,6 +46,7 @@ class TestRedeemCodeStub(unittest.TestCase):
         ctx = make_group_message("/兑换码", message_id=99)
         plugin = RedeemCodePlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.api.delete_msg_ok = False
         plugin.handle()
         self.assertEqual(plugin.api.deleted_messages, [99])
@@ -54,6 +56,7 @@ class TestRedeemCodeStub(unittest.TestCase):
         ctx = make_private_message("/兌換碼 BEST-WISH-2027", message_id=7)
         plugin = RedeemCodePlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         self.assertEqual(plugin.api.deleted_messages, [7])
         self.assertIn("「兑换码」页签", _sent_text(plugin))

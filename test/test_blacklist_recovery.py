@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from test.helper import bind_output
 
 from core import config, context
 from core.blacklist import BlacklistSnapshot
@@ -52,6 +53,7 @@ def test_admin_cannot_create_new_checkin_for_banned_recipient(management, cmd):
     plugin.admin_user = lambda: True
     plugin.cmd, plugin.args = cmd, ['2020-01-01', '42']
     plugin.api, plugin.dbmanager = Mock(), db
+    bind_output(plugin)
     plugin.operation = SimpleNamespace(blacklist_snapshot=BlacklistSnapshot(users=frozenset({42})))
     db.points.set(42, 20)
     plugin.handle()
@@ -67,6 +69,7 @@ def test_private_activity_submission_does_not_bypass_group_ban(management, expli
     plugin.bot_event = SimpleNamespace(user_id=42)
     plugin.operation = SimpleNamespace(blacklist_snapshot=BlacklistSnapshot(groups=frozenset({100})))
     plugin.dbmanager, plugin.api = Mock(), Mock()
+    bind_output(plugin)
     activity = {'id': 1, 'group_id': 100}
     plugin.dbmanager.activity.get_running_activity_for_user_and_id.return_value = activity
     plugin.dbmanager.activity.get_running_activities_for_user.return_value = [activity]
@@ -92,6 +95,7 @@ def test_private_spy_room_operations_respect_group_ban(management, monkeypatch, 
     plugin.bot_event = SimpleNamespace(user_id=42, group_id=None)
     plugin.operation = SimpleNamespace(blacklist_snapshot=BlacklistSnapshot(groups=frozenset({100})))
     plugin.dbmanager, plugin.api = Mock(), Mock()
+    bind_output(plugin)
     plugin._cmd, plugin._args = command, ['test']
     plugin._game_room_id, plugin._input_text = 'test', '1'
     plugin._expected = None

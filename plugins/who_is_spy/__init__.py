@@ -51,11 +51,12 @@ class WhoIsSpyPlugin(Plugin):
 
     def _reply(self, body, forward=False):
         try:
-            result = self.api.send_forward_nodes(forward_nodes(body)) if forward else self.api.send_msg(text(body))
-            if not result:
-                logger.warning('卧底回复发送失败，不重执行业务')
+            if forward:
+                self.operation.output.submit(forward_nodes(body), kind="nodes")
+            else:
+                self.submit_message(text(body))
         except Exception:
-            logger.exception('卧底回复发送异常，不重执行业务')
+            logger.exception('卧底回复提交异常，不重执行业务')
 
     def handle(self):
         try:
@@ -70,7 +71,7 @@ class WhoIsSpyPlugin(Plugin):
         if isinstance(result, GameResult):
             if result.reply:
                 self._reply(result.reply)
-            GameMessenger(self.api, self.dbmanager.who_is_spy).emit(result.events)
+            GameMessenger(self.operation, self.dbmanager.who_is_spy).emit(result.events)
 
     def _handle_game_input(self):
         service = GameService(self.dbmanager, getattr(self, 'operation', None))

@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from plugins.trpg_char import character as char_logic
 from plugins.trpg_char import rules
 from plugins.trpg_char import TrpgCharPlugin, WEB_TRPG_URL
-from test.helper import MockApiWrapper, make_group_message, make_private_message
+from test.helper import MockApiWrapper, make_group_message, make_private_message, bind_output
 
 
 def _base_data(char_id=1, **overrides):
@@ -105,6 +105,7 @@ class TestTrpgCharPlugin(unittest.TestCase):
         ctx = make_private_message(msg, **kw)
         p = TrpgCharPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         return p
 
     def test_match_command(self):
@@ -197,6 +198,7 @@ class TestDiceIntegration(unittest.TestCase):
         ctx = make_group_message(".r 力量+2", user_id=111, nickname="玩家A")
         p = TrpgPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         p.handle()
         out = _sent_text(p)
         self.assertIn("力量+2", out)
@@ -206,6 +208,7 @@ class TestDiceIntegration(unittest.TestCase):
         ctx = make_group_message(".r 奥术", user_id=111, nickname="玩家A")
         p = TrpgPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         p.handle()
         out = _sent_text(p)
         self.assertIn("奥术", out)
@@ -215,6 +218,7 @@ class TestDiceIntegration(unittest.TestCase):
         ctx = make_group_message(".rc 力量", user_id=111, nickname="玩家A")
         p = TrpgPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         p.handle()
         out = _sent_text(p)
         self.assertIn("力量检定", out)
@@ -225,6 +229,7 @@ class TestDiceIntegration(unittest.TestCase):
         ctx = make_group_message(".rc 体质 豁免", user_id=111, nickname="玩家A")
         p = TrpgPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         p.handle()
         out = _sent_text(p)
         self.assertIn("体质豁免", out)
@@ -234,6 +239,7 @@ class TestDiceIntegration(unittest.TestCase):
         ctx = make_group_message(".rc 优势 力量", user_id=111, nickname="玩家A")
         p = TrpgPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         p.handle()
         out = _sent_text(p)
         self.assertIn("优势", out)
@@ -243,6 +249,7 @@ class TestDiceIntegration(unittest.TestCase):
         ctx = make_group_message(".rc 侦查", user_id=111, nickname="玩家A")
         p = TrpgPlugin(ctx)
         p.api = MockApiWrapper(ctx)
+        bind_output(p)
         p.handle()
         out = _sent_text(p)
         self.assertIn("侦查检定", out)

@@ -72,7 +72,7 @@ class GroupAlarmPlugin(Plugin):
         self._handle_create(body)
 
     def _send_usage(self):
-        self.api.send_msg(
+        self.submit_message(
             text(
                 "用法：\n"
                 "· 「X年X月X日」无「后」— 具体日历日，可只写年/月/日或任意组合（缺省补当前年、月或 1 日）；"
@@ -100,7 +100,7 @@ class GroupAlarmPlugin(Plugin):
         uid = self.bot_event.user_id
         rows = self.dbmanager.alarm.pending(uid, gid)
         if not rows:
-            self.api.send_msg(text("你还没有待触发的闹钟。"))
+            self.submit_message(text("你还没有待触发的闹钟。"))
             return
         lines = []
         for rid, fat, c, is_rec, rk, ra, rb, rc in rows:
@@ -111,23 +111,23 @@ class GroupAlarmPlugin(Plugin):
                 lines.append("#{} · {} · {} · {}".format(rid, rec, tnext, preview))
             else:
                 lines.append("#{} · {} · {}".format(rid, tnext, preview))
-        self.api.send_msg(text("待触发闹钟：\n" + "\n".join(lines)))
+        self.submit_message(text("待触发闹钟：\n" + "\n".join(lines)))
 
     def _handle_cancel(self, rest: str):
         if not rest.isdigit():
-            self.api.send_msg(text("请使用：/闹钟 取消 <编号> 或 /鬧鐘 撤銷 <编号>（编号见「一览／一覽」）。"))
+            self.submit_message(text("请使用：/闹钟 取消 <编号> 或 /鬧鐘 撤銷 <编号>（编号见「一览／一覽」）。"))
             return
         aid = int(rest)
         ok = self.dbmanager.alarm.cancel(aid, self.bot_event.user_id, self.bot_event.group_id)
         if ok:
-            self.api.send_msg(text("小埃已经取消闹钟 #{}。".format(aid)))
+            self.submit_message(text("小埃已经取消闹钟 #{}。".format(aid)))
         else:
-            self.api.send_msg(text("取消失败：编号不存在、已触发或不是你创建的闹钟。"))
+            self.submit_message(text("取消失败：编号不存在、已触发或不是你创建的闹钟。"))
 
     def _handle_create(self, body: str):
         parsed = _parse_create_body(body)
         if isinstance(parsed, str):
-            self.api.send_msg(text(parsed))
+            self.submit_message(text(parsed))
             return
         fire, clean_content, recur = parsed
         is_priv = self.bot_event.group_id is None
@@ -144,7 +144,7 @@ class GroupAlarmPlugin(Plugin):
             extra = "（{} 循环）".format(_format_recur_desc(k, a, b, c))
         else:
             extra = ""
-        self.api.send_msg(
+        self.submit_message(
             text(
                 "小埃记住了，已设置闹钟 #{}，将于 {} 提醒你{}：「{}」".format(
                     aid, fire.strftime("%Y-%m-%d %H:%M"), extra, clean_content
@@ -184,18 +184,11 @@ class GroupAlarmPlugin(Plugin):
             line = "预约「{}」的小埃提醒服务来了喵：\x20{}".format(when_label, content)
             if is_rec and rk > 0:
                 if is_priv:
-                    self.api.call_api(
-                        "send_private_msg",
-                        {"user_id": int(creator_uid), "message": (text(line),)},
-                    )
+                    self.operation.output.submit([text(line)], target=("private", int(creator_uid)),
+                                                 kind="segments")
                 else:
-                    self.api.call_api(
-                        "send_group_msg",
-                        {
-                            "group_id": int(gid),
-                            "message": (at(int(creator_uid)), text("\n"), text(line)),
-                        },
-                    )
+                    self.operation.output.submit([at(int(creator_uid)), text("\n"), text(line)],
+                                                 target=("group", int(gid)), kind="segments")
                 prev_dt = datetime.strptime(fat, "%Y-%m-%d %H:%M:%S")
                 nxt = _next_recurring_fire(prev_dt, now, rk, ra, rb, rc)
                 db.alarm.advance(aid, fat, nxt)
@@ -203,18 +196,11 @@ class GroupAlarmPlugin(Plugin):
                 if not db.alarm.mark_fired(aid):
                     continue
                 if is_priv:
-                    self.api.call_api(
-                        "send_private_msg",
-                        {"user_id": int(creator_uid), "message": (text(line),)},
-                    )
+                    self.operation.output.submit([text(line)], target=("private", int(creator_uid)),
+                                                 kind="segments")
                 else:
-                    self.api.call_api(
-                        "send_group_msg",
-                        {
-                            "group_id": int(gid),
-                            "message": (at(int(creator_uid)), text("\n"), text(line)),
-                        },
-                    )
+                    self.operation.output.submit([at(int(creator_uid)), text("\n"), text(line)],
+                                                 target=("group", int(gid)), kind="segments")
         if skipped:
             logger.info(
                 "闹钟心跳跳过 %s 条到期提醒（所属群/账号未开放 group_alarm 或受黑名单限制），记录已保留待重新开启",

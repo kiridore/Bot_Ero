@@ -49,32 +49,19 @@ def forward_nodes(body):
 
 
 class GameMessenger:
-    def __init__(self, api, store=None):
-        self.api, self.store = api, store
+    """集统一输出提交；目标逐条显式，不依赖当前事件位置。"""
 
-    def send(self, action, params):
-        # call_api 的 action 必须为字面量：动态动作会绕过迁移清单审计（test_plugin_migration_inventory）
-        try:
-            if action == 'send_private_msg':
-                response = self.api.call_api('send_private_msg', params)
-            elif action == 'send_group_msg':
-                response = self.api.call_api('send_group_msg', params)
-            elif action == 'send_group_forward_msg':
-                response = self.api.call_api('send_group_forward_msg', params)
-            else:
-                raise ValueError(f'未知发送动作 {action}')
-            if not isinstance(response, dict) or response.get('status') != 'ok' or response.get('retcode') != 0:
-                logger.warning('卧底消息发送失败，action=%s；业务已提交，不自动重试', action)
-        except Exception:
-            logger.exception('卧底消息发送异常，业务已提交，不自动重试')
+    def __init__(self, operation, store=None):
+        self.operation = operation
+        self.output = operation.output
+        self.store = store
 
     def private(self, room, uid, body):
         if room['players'][str(uid)].get('left'):
             return
         # 被封账号不接收主动私聊（对局与战绩照常，不中断群共同流程）
-        from core.blacklist import BlacklistSnapshot
-        snapshot = getattr(self.api, 'blacklist_snapshot', None)
-        if isinstance(snapshot, BlacklistSnapshot) and snapshot.blocks(user_id=int(uid)):
+        from core.blacklist import operation_snapshot
+        if operation_snapshot(self.operation).blocks(user_id=int(uid)):
             return
         if self.store is not None:
             try:
@@ -83,7 +70,7 @@ class GameMessenger:
             except Exception:
                 logger.exception('无法确认卧底接收者状态，跳过该私聊')
                 return
-        self.send('send_private_msg', {'user_id': int(uid), 'message': [text(body)]})
+        self.output.submit([text(body)], target=("private", int(uid)), kind="segments")
 
     def broadcast(self, room, body, *, audience='all'):
         for uid, p in room['players'].items():
@@ -92,7 +79,7 @@ class GameMessenger:
             self.private(room, uid, body)
 
     def group(self, room, body):
-        self.send('send_group_msg', {'group_id': int(room['group_id']), 'message': [text(body)]})
+        self.output.submit([text(body)], target=("group", int(room['group_id'])), kind="segments")
 
     def result(self, room, eliminated):
         rec = room['history'][-1]
@@ -137,8 +124,8 @@ class GameMessenger:
                 for uid, titles in room.get('_new_titles', {}).items():
                     if titles:
                         self.private(room, uid, '获得称号：' + ' '.join(TITLE_DEFS[tid]['name'] for tid in titles))
-                self.send('send_group_forward_msg', {'group_id': int(room['group_id']), 'messages': forward_nodes(body)})
+                self.output.submit(forward_nodes(body), kind="nodes", target=("group", int(room['group_id'])))
 
 
-def broadcast_vote_result(api, room, eliminated_uid):
-    GameMessenger(api).result(room, eliminated_uid)
+def broadcast_vote_result(operation, room, eliminated_uid):
+    GameMessenger(operation).result(room, eliminated_uid)

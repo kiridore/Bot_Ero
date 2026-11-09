@@ -8,6 +8,7 @@ import pytest
 from core import config
 from core.database_manager import DbManager
 from core.event import Event
+from test.helper import bind_output
 from plugins.who_is_spy import WhoIsSpyPlugin, game
 from plugins.who_is_spy.room import GameService
 
@@ -35,6 +36,7 @@ def game_env(tmp_path, monkeypatch):
             raw['group_id'] = gid
         p = WhoIsSpyPlugin.__new__(WhoIsSpyPlugin)
         p.api, p.dbmanager, p.bot_event = api, db, Event(raw)
+        bind_output(p)
         if p.match('message'):
             p.handle()
         return api

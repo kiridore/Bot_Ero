@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from plugins.trpg_dice.dice import parse
 from plugins.trpg_dice import TrpgPlugin
-from test.helper import MockApiWrapper, make_group_message
+from test.helper import MockApiWrapper, make_group_message, bind_output
 
 
 def _sent_text(plugin) -> str:
@@ -132,6 +132,7 @@ class TestTrpgPluginHandle(unittest.TestCase):
         ctx = make_group_message(".r 2d6")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         out = _sent_text(plugin)
         self.assertIn("掷出了", out)
@@ -143,6 +144,7 @@ class TestTrpgPluginHandle(unittest.TestCase):
         ctx = make_group_message(".r 3d6 力量检定")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         out = _sent_text(plugin)
         self.assertIn("由于", out)
@@ -153,6 +155,7 @@ class TestTrpgPluginHandle(unittest.TestCase):
         ctx = make_group_message(".rc 15")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         out = _sent_text(plugin)
         self.assertIn("检定", out)
@@ -162,12 +165,14 @@ class TestTrpgPluginHandle(unittest.TestCase):
         ctx = make_group_message(".ra 70")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         self.assertFalse(plugin.match("message"))
 
     def test_handle_invalid_expr(self):
         ctx = make_group_message(".r abc")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         out = _sent_text(plugin)
         self.assertTrue("出错" in out or "无效" in out)
@@ -177,6 +182,7 @@ class TestTrpgPluginHandle(unittest.TestCase):
         ctx = make_group_message(".rh d100", user_id=1234)
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         # First message: group hint
         out = plugin.api.sent_messages[0][1][0]["data"]["text"]
@@ -187,6 +193,7 @@ class TestTrpgPluginHandle(unittest.TestCase):
         ctx = make_group_message(".rh d100", user_id=1234)
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin.handle()
         # The group hint already consumed send_msg, the private is another
         self.assertGreaterEqual(len(plugin.api.sent_messages), 2)

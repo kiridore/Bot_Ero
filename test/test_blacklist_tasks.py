@@ -1,3 +1,4 @@
+from test.helper import bind_output
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
@@ -17,6 +18,7 @@ def alarm_plugin(db):
     from plugins.group_alarm import GroupAlarmPlugin
     plugin = GroupAlarmPlugin.__new__(GroupAlarmPlugin)
     plugin.dbmanager, plugin.api = db, Mock()
+    bind_output(plugin)
     return plugin
 
 
@@ -132,6 +134,7 @@ def lottery_setup(db, monkeypatch):
         db.immortal.set_carry(gid, 99)
     plugin = lottery.ImmortalLotteryPlugin.__new__(lottery.ImmortalLotteryPlugin)
     plugin.dbmanager, plugin.api = db, Mock()
+    bind_output(plugin)
     return plugin, period
 
 

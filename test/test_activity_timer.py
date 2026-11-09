@@ -16,7 +16,7 @@ from core.db._base import init_schema
 from core.db.activity import ActivityManager
 from core.event import Event
 from plugins.activity import ActivityTimerPlugin
-from test.helper import MockApiWrapper
+from test.helper import MockApiWrapper, bind_output
 import core.context as context
 
 DB_PATH = "/tmp/test_activity_timer.db"
@@ -79,6 +79,7 @@ class TestTimer(unittest.TestCase):
         p = ActivityTimerPlugin.__new__(ActivityTimerPlugin)
         p.bot_event = Event(raw)
         p.api = MockApiWrapper(raw)
+        bind_output(p)
         p.dbmanager = self.db
         return p
 

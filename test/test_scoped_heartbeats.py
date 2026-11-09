@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
+from test.helper import bind_output
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -26,6 +28,7 @@ class _HeartbeatCase(unittest.TestCase):
         self._old_allowed = runtime_context.ALLOWED_PLUGINS
         self.db = DbManager()
         self.api = Mock()
+        bind_output(self)
 
     def tearDown(self):
         self.db.conn.close()
@@ -53,6 +56,7 @@ class AlarmScopeTest(_HeartbeatCase):
         from plugins.group_alarm import GroupAlarmPlugin
         p = GroupAlarmPlugin.__new__(GroupAlarmPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p._handle_meta_due()
 
     def _fired(self, aid):
@@ -108,6 +112,7 @@ class ActivityScopeTest(_HeartbeatCase):
         from plugins.activity import ActivityTimerPlugin
         p = ActivityTimerPlugin.__new__(ActivityTimerPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p._scan()
 
     def _add_activity(self, gid):
@@ -135,6 +140,7 @@ class ImmortalScopeTest(_HeartbeatCase):
         from plugins.immortal_lottery import ImmortalLotteryPlugin
         p = ImmortalLotteryPlugin.__new__(ImmortalLotteryPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p._handle_draw_tick()
 
     def test_disabled_group_not_settled_and_bets_kept(self):
@@ -166,6 +172,7 @@ class AnnouncementScopeTest(_HeartbeatCase):
         sent = []
         p = ShopWeeklyRotationPlugin.__new__(ShopWeeklyRotationPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p.operation = Mock()
         p.operation.output = MessageOutput(lambda r: sent.append(r) or 1, ("group", target))
         p.submit_message = lambda *a: sent.append(a)
@@ -187,6 +194,7 @@ class AnnouncementScopeTest(_HeartbeatCase):
         self.db.conn.commit()
         p = ForumNotifyPlugin.__new__(ForumNotifyPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p.handle()
         self.api.send_msg.assert_not_called()
         self.assertIsNone(self.db.conn.execute(
@@ -202,6 +210,7 @@ class AnnouncementScopeTest(_HeartbeatCase):
         target = self._group_id()
         p = WeeklyReportPlugin.__new__(WeeklyReportPlugin)
         p.dbmanager, p.api = self.db, self.api
+        bind_output(p)
         p._generate_week("2026-01-05 08:00:00", "2026-01-12 08:00:00")
         self.assertEqual(self.db.conn.execute(
             "SELECT COUNT(*) FROM weekly_reports").fetchone()[0], 0)  # 未生成

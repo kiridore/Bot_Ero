@@ -101,3 +101,52 @@ def make_private_message(text: str, user_id: int = 123456,
         "time": 0,
         "message_id": message_id,
     }
+
+
+class RecordingOutput:
+    """测试替身：提交立即落到底层 API，保持既有 sent_messages 断言可读。"""
+
+    operation_id = None
+    suppressed = False
+
+    def __init__(self, api):
+        self.api = api
+
+    def submit(self, content, *, target=None, kind="text", merge=None, order=0, node=None):
+        from core.cq import text as _text
+
+        if kind == "text":
+            return self.api.send_msg(_text(content))
+        if kind == "segments":
+            if target is None:
+                return self.api.send_msg(*content)
+            scope, target_id = target
+            # 显式目标对应迁移前的 call_api 调用，保留 api_calls 断言可见性
+            if scope == "group":
+                return self.api.call_api("send_group_msg",
+                                         {"group_id": int(target_id), "message": list(content)})
+            return self.api.call_api("send_private_msg",
+                                     {"user_id": int(target_id), "message": list(content)})
+        if kind == "forward":
+            return self.api.send_forward_msg(content)
+        return self.api.send_forward_nodes(content)
+
+    def failure(self, plugin):
+        pass
+
+    def flush(self):
+        pass
+
+
+def bind_output(plugin):
+    """给直接构造的插件绑定输出替身与操作上下文，返回 operation。
+
+    若调用方已设置 operation（例如带黑名单快照），保留其快照。
+    """
+    from types import SimpleNamespace
+
+    existing = getattr(plugin, 'operation', None)
+    snapshot = getattr(existing, 'blacklist_snapshot', None) if existing is not None else None
+    operation = SimpleNamespace(output=RecordingOutput(plugin.api), blacklist_snapshot=snapshot)
+    plugin.operation = operation
+    return operation

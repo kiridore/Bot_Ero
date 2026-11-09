@@ -88,7 +88,7 @@ class TrpgSessionPlugin(Plugin):
     def _handle_set_role(self, role: str):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("角色设置只能在群聊中使用"))
+            self.submit_message(text("角色设置只能在群聊中使用"))
             return
         user_id = str(self.bot_event.user_id) if self.bot_event.user_id else "0"
         # 先清空该用户在当前群的旧角色
@@ -100,30 +100,30 @@ class TrpgSessionPlugin(Plugin):
         if session and "roles" in session:
             session["roles"][user_id] = role
         label = "DM" if role == "dm" else "观察者"
-        self.api.send_msg(text(f"已将 {self._get_sender_nickname()} 设为{label}"))
+        self.submit_message(text(f"已将 {self._get_sender_nickname()} 设为{label}"))
 
     # ── 开始录制 ──────────────────────────────────────────
 
     def _handle_start(self):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            self.submit_message(text("跑团记录只能在群聊中使用"))
             return
 
         if runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("当前已在录制中"))
+            self.submit_message(text("当前已在录制中"))
             return
 
         # 检查是否有上次未导出的记录
         unexported = runtime_context.get_last_completed(group_id)
         if unexported:
-            self.api.send_msg(text(
+            self.submit_message(text(
                 "上次记录尚未导出！请先使用 /跑团记录 导出 保存记录，"
                 "或使用 /跑团记录 强制开始 放弃并重新开始"
             ))
             return
 
-        self.api.send_msg(text("跑团记录已开始——"))
+        self.submit_message(text("跑团记录已开始——"))
         session_roles = dict(runtime_context.group_roles.get(group_id, {}))
         with runtime_context.recording_lock:
             runtime_context.recording_sessions[group_id] = {
@@ -136,17 +136,17 @@ class TrpgSessionPlugin(Plugin):
     def _handle_force_start(self):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            self.submit_message(text("跑团记录只能在群聊中使用"))
             return
 
         if runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("当前已在录制中"))
+            self.submit_message(text("当前已在录制中"))
             return
 
         # 丢弃未导出记录
         runtime_context.pop_last_completed(group_id)
 
-        self.api.send_msg(text("已丢弃上次记录，跑团记录已开始——"))
+        self.submit_message(text("已丢弃上次记录，跑团记录已开始——"))
         session_roles = dict(runtime_context.group_roles.get(group_id, {}))
         with runtime_context.recording_lock:
             runtime_context.recording_sessions[group_id] = {
@@ -161,16 +161,16 @@ class TrpgSessionPlugin(Plugin):
     def _handle_stop(self):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            self.submit_message(text("跑团记录只能在群聊中使用"))
             return
 
         if not runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("当前没有进行中的记录"))
+            self.submit_message(text("当前没有进行中的记录"))
             return
 
         session = runtime_context.get_recording_session(group_id)
         if not session:
-            self.api.send_msg(text("内部错误：找不到录制会话"))
+            self.submit_message(text("内部错误：找不到录制会话"))
             return
 
         end_time = datetime.now()
@@ -190,27 +190,27 @@ class TrpgSessionPlugin(Plugin):
             }
 
         if not messages:
-            self.api.send_msg(text("跑团记录已结束——\n（无记录内容）"))
+            self.submit_message(text("跑团记录已结束——\n（无记录内容）"))
             return
 
         self._send_forward(group_id, messages)
-        self.api.send_msg(text("跑团记录已结束——"))
+        self.submit_message(text("跑团记录已结束——"))
 
     # ── 导出到磁盘 ──────────────────────────────────────────
 
     def _handle_export(self):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            self.submit_message(text("跑团记录只能在群聊中使用"))
             return
 
         if runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("录制中无法导出，请先结束录制"))
+            self.submit_message(text("录制中无法导出，请先结束录制"))
             return
 
         recording = runtime_context.pop_last_completed(group_id)
         if not recording:
-            self.api.send_msg(text("没有可导出的记录"))
+            self.submit_message(text("没有可导出的记录"))
             return
 
         start_str = recording["start"].strftime("%Y-%m-%d_%H-%M-%S")
@@ -310,28 +310,28 @@ class TrpgSessionPlugin(Plugin):
             with open(f"{folder_name}/record.md", "w", encoding="utf-8") as f:
                 f.write("\n".join(md_lines))
 
-            self.api.send_msg(text(f"导出成功：{start_str}，共 {len(recording['messages'])} 条消息"))
+            self.submit_message(text(f"导出成功：{start_str}，共 {len(recording['messages'])} 条消息"))
 
         except Exception as e:
             logger.exception("导出记录失败")
-            self.api.send_msg(text(f"导出失败：{e}"))
+            self.submit_message(text(f"导出失败：{e}"))
 
     # ── 列表 ──────────────────────────────────────────
 
     def _handle_list(self):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            self.submit_message(text("跑团记录只能在群聊中使用"))
             return
 
         rec_dir = f"{TRPG_RECORDS_ROOT}/{group_id}"
         if not os.path.isdir(rec_dir):
-            self.api.send_msg(text("暂无保存的跑团记录"))
+            self.submit_message(text("暂无保存的跑团记录"))
             return
 
         folders = sorted([d for d in os.listdir(rec_dir) if os.path.isdir(f"{rec_dir}/{d}")])
         if not folders:
-            self.api.send_msg(text("暂无保存的跑团记录"))
+            self.submit_message(text("暂无保存的跑团记录"))
             return
 
         lines = ["已保存的跑团记录："]
@@ -341,42 +341,42 @@ class TrpgSessionPlugin(Plugin):
                 lines.append(f"[{i}] {dt.strftime('%Y-%m-%d %H:%M')}")
             except ValueError:
                 lines.append(f"[{i}] {folder}")
-        self.api.send_msg(text("\n".join(lines)))
+        self.submit_message(text("\n".join(lines)))
 
     # ── 查看 ──────────────────────────────────────────
 
     def _handle_view(self, index_str: str):
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            self.submit_message(text("跑团记录只能在群聊中使用"))
             return
 
         try:
             idx = int(index_str)
         except ValueError:
-            self.api.send_msg(text("请输入有效编号，格式：/跑团记录 #数字"))
+            self.submit_message(text("请输入有效编号，格式：/跑团记录 #数字"))
             return
 
         rec_dir = f"{TRPG_RECORDS_ROOT}/{group_id}"
         if not os.path.isdir(rec_dir):
-            self.api.send_msg(text("暂无保存的跑团记录"))
+            self.submit_message(text("暂无保存的跑团记录"))
             return
 
         folders = sorted([d for d in os.listdir(rec_dir) if os.path.isdir(f"{rec_dir}/{d}")])
         if idx < 1 or idx > len(folders):
-            self.api.send_msg(text(f"编号无效，有效范围 1-{len(folders)}"))
+            self.submit_message(text(f"编号无效，有效范围 1-{len(folders)}"))
             return
 
         meta_path = f"{rec_dir}/{folders[idx - 1]}/meta.json"
         if not os.path.isfile(meta_path):
-            self.api.send_msg(text("无法读取记录信息"))
+            self.submit_message(text("无法读取记录信息"))
             return
 
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
                 meta = json.load(f)
         except Exception:
-            self.api.send_msg(text("记录文件损坏"))
+            self.submit_message(text("记录文件损坏"))
             return
 
         header = [
@@ -389,7 +389,7 @@ class TrpgSessionPlugin(Plugin):
             names = [p.get("nickname", "?") for p in participants]
             header.append(f"参与人：{', '.join(names)}")
 
-        self.api.send_msg(text("\n".join(header)))
+        self.submit_message(text("\n".join(header)))
 
     # ── 记录用户消息 ──────────────────────────────────────────
 
@@ -438,7 +438,4 @@ class TrpgSessionPlugin(Plugin):
             })
 
         if nodes:
-            self.api.call_api("send_group_forward_msg", {
-                "group_id": group_id,
-                "messages": nodes,
-            })
+            self.operation.output.submit(nodes, kind="nodes", target=("group", int(group_id)))

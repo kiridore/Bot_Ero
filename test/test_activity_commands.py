@@ -19,7 +19,7 @@ from core.db._base import init_schema
 from core.db.activity import ActivityManager
 import plugins.activity as activity_mod
 from plugins.activity import ActivityPlugin
-from test.helper import MockApiWrapper, make_group_message
+from test.helper import MockApiWrapper, make_group_message, bind_output
 
 DB_PATH = "/tmp/test_activity_cmd.db"
 GID = 296470819
@@ -60,6 +60,7 @@ class TestCommands(unittest.TestCase):
         plugin = ActivityPlugin.__new__(ActivityPlugin)
         plugin.bot_event = Event(raw)
         plugin.api = MockApiWrapper(raw)
+        bind_output(plugin)
         plugin.dbmanager = self.db
         return plugin
 

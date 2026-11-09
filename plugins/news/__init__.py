@@ -236,7 +236,7 @@ class NewsPlugin(TimedHeartbeatPlugin):
     def _handle_subscribe(self, source: NewsSource | None, bad: bool):
         news = self.dbmanager.news
         if bad:
-            self.api.send_msg(text("没有该编号的消息源，发送 /订阅 查看列表。"))
+            self.submit_message(text("没有该编号的消息源，发送 /订阅 查看列表。"))
             return
         if source is None:
             lines = ["当前支持的消息源："]
@@ -244,27 +244,27 @@ class NewsPlugin(TimedHeartbeatPlugin):
                 mark = "（已订阅）" if news.is_subscribed(self.bot_event.user_id, s.key) else "（未订阅）"
                 lines.append(f"{i}. {s.name}{mark}")
             lines.append("订阅：/订阅 编号；退订：/退订 编号")
-            self.api.send_msg(text("\n".join(lines)))
+            self.submit_message(text("\n".join(lines)))
             return
         if news.is_subscribed(self.bot_event.user_id, source.key):
-            self.api.send_msg(text(f"你已订阅「{source.name}」，无需重复订阅。"))
+            self.submit_message(text(f"你已订阅「{source.name}」，无需重复订阅。"))
             return
         news.subscribe(self.bot_event.user_id, source.key)
-        self.api.send_msg(text(f"已订阅「{source.name}」，该源有新消息时会提醒你。"))
+        self.submit_message(text(f"已订阅「{source.name}」，该源有新消息时会提醒你。"))
 
     def _handle_unsubscribe(self, source: NewsSource | None, bad: bool):
         news = self.dbmanager.news
         if bad:
-            self.api.send_msg(text("没有该编号的消息源，发送 /订阅 查看列表。"))
+            self.submit_message(text("没有该编号的消息源，发送 /订阅 查看列表。"))
             return
         if source is None:
-            self.api.send_msg(text("用法：/退订 消息源编号，发送 /订阅 查看列表。"))
+            self.submit_message(text("用法：/退订 消息源编号，发送 /订阅 查看列表。"))
             return
         if not news.is_subscribed(self.bot_event.user_id, source.key):
-            self.api.send_msg(text(f"你尚未订阅「{source.name}」。"))
+            self.submit_message(text(f"你尚未订阅「{source.name}」。"))
             return
         news.unsubscribe(self.bot_event.user_id, source.key)
-        self.api.send_msg(text(f"已退订「{source.name}」。"))
+        self.submit_message(text(f"已退订「{source.name}」。"))
 
     # ---- 轮询推送 ----
 
@@ -308,14 +308,9 @@ class NewsPlugin(TimedHeartbeatPlugin):
                     segs = [at(str(u)) for u in subs] + [text(body)]
                     if it.image_url:
                         segs.append(image(it.image_url))
-                    try:
-                        sent = self.api.send_msg(*segs)
-                    except Exception:
-                        logger.exception("新闻源 %s 发送失败", source.key)
-                        break
-                    if not sent:
-                        logger.warning("新闻源 %s 发送未确认，保留游标", source.key)
-                        break
+                    # 统一输出在事件末尾发送；失败不重试，游标照常推进（所有者 2026-11-06 裁定）
+                    self.operation.output.submit(
+                        segs, target=("group", int(_config.DEFAULT_GROUP_ID)), kind="segments")
                 news.save_cursor(source.key, it.id)
 
     def handle(self):
@@ -326,7 +321,7 @@ class NewsPlugin(TimedHeartbeatPlugin):
                     self._poll_and_push()
             return
         if not self.bot_event.is_group:
-            self.api.send_msg(text("订阅指令仅限群聊使用，请在群内操作。"))
+            self.submit_message(text("订阅指令仅限群聊使用，请在群内操作。"))
             return
         parsed = self._source_by_arg()
         source, bad = (None, parsed == "bad") if not isinstance(parsed, NewsSource) else (parsed, False)

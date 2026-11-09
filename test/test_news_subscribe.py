@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from plugins import news as news_mod
 from plugins.news import NewsItem, NewsPlugin, NewsSource
-from test.helper import MockApiWrapper, make_group_message, make_private_message
+from test.helper import MockApiWrapper, make_group_message, make_private_message, bind_output
 
 USER = 123456
 
@@ -53,6 +53,7 @@ class _Base(unittest.TestCase):
         ctx = ctx or make_group_message(text, USER)
         plugin = NewsPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         self.assertTrue(plugin.match("message"), f"指令应被匹配: {text}")
         plugin.handle()
         return plugin
@@ -124,6 +125,7 @@ class TestCommands(_Base):
         ctx = make_private_message("/订阅 1", USER)
         plugin = NewsPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         self.assertTrue(plugin.match("message"))
         plugin.handle()
         self.assertIn("仅限群聊", self._sent_texts(plugin)[0])
@@ -148,6 +150,7 @@ class TestCommands(_Base):
         ctx = make_group_message("/FF新闻", USER)
         plugin = NewsPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         self.assertFalse(plugin.match("message"))
 
 
@@ -157,6 +160,7 @@ class TestPush(_Base):
         ctx = {"post_type": "meta_event", "meta_event_type": "heartbeat"}
         plugin = NewsPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         record = plugin.api.send_msg
         plugin.api.send_msg = lambda *segments: (record(*segments), result)[1]
         # 部署门控：本组用例默认目标群已启用、未被黑名单拦截
@@ -173,21 +177,28 @@ class TestPush(_Base):
 
     def test_default_group_routing_and_image(self):
         from dataclasses import replace
-        from core import context
+        from core import config, context
         from core.api import ApiWrapper
+        from core.message_output import MessageOutput, send_request
+        from core.plugin_dispatch import Operation
         self._subscribe_test_source(USER)
         with patch.object(news_mod, "_SOURCES", [_fake_source([_item(10)])]):
             self._poll()
         ctx = {"post_type": "meta_event", "meta_event_type": "heartbeat"}
         plugin = NewsPlugin(ctx)
+        # 真实统一输出：验证目标为默认群且称号前缀仍注入（不经测试替身）
+        operation = Operation({"news": True}, MessageOutput(send_request, ("group", 987654)))
+        plugin.operation = operation
         item = replace(_item(11), image_url="https://example.invalid/news.jpg")
         with patch.object(news_mod, "_SOURCES", [_fake_source([item])]), \
+                patch.object(config, "DEFAULT_GROUP_ID", 987654), \
                 patch.object(context, "DEFAULT_GROUP_ID", 987654), \
                 patch.object(context, "effective_for_scope", return_value=True), \
                 patch("core.blacklist.admit_task", return_value=object()), \
                 patch.object(ApiWrapper, "_build_title_prefix", return_value="称号"), \
                 patch.object(ApiWrapper, "call_api", return_value={"status": "ok", "data": {"message_id": 42}}) as call:
             plugin._poll_and_push()
+            operation.finish()
         action, params = call.call_args.args
         self.assertEqual(action, "send_group_msg")
         self.assertEqual(params["group_id"], 987654)
@@ -279,16 +290,14 @@ class TestPush(_Base):
                 self.assertEqual(plugin.api.sent_messages, [])
                 self.assertEqual(plugin.dbmanager.news.get_cursor("test"), "10")
 
-    def test_failed_send_retries_without_losing_item(self):
+    def test_failed_send_advances_cursor_without_retry(self):
+        # 统一输出失败不重试（所有者 2026-11-06 裁定）：游标照常推进，不重推
         self._subscribe_test_source(USER)
         with patch.object(news_mod, "_SOURCES", [_fake_source([_item(10)])]):
             self._poll()
         with patch.object(news_mod, "_SOURCES", [_fake_source([_item(11)])]):
             failed = self._poll(result=0)
-            self.assertEqual(failed.dbmanager.news.get_cursor("test"), "10")
-            success = self._poll()
-            self.assertEqual(success.dbmanager.news.get_cursor("test"), "11")
-            self.assertEqual(len(success.api.sent_messages), 1)
+            self.assertEqual(failed.dbmanager.news.get_cursor("test"), "11")
             self.assertEqual(self._poll().api.sent_messages, [])
 
     def test_future_item_waits(self):
@@ -359,6 +368,7 @@ class TestDeploymentGating(_Base):
         ctx = {"post_type": "meta_event", "meta_event_type": "heartbeat"}
         plugin = NewsPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
+        bind_output(plugin)
         plugin._poll_and_push()
         return plugin
 
