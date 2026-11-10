@@ -258,20 +258,23 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ## Constraint: 功能开发主流程
 
-**多步开发任务（新功能/跨文件改动/多 commit）MUST 走完整主流程；单点小修（一行 fix、纯文档、单文件微调）不强制，避免流程税。**
+**判据：要 bump `BOTERO_VERSION` 就要提案。** 用户可见变更（新功能/行为修改）MUST 先有 OpenSpec 提案再动代码；纯文档/测试/内部重构（不 bump 版本）免提案。`docs/archive/superpowers/` 与 `docs/superpowers/` 为历史产物，不再新增。
 
-**四步（每步产出 commit 后再进入下一步）：**
+**四份产物（同在 `openspec/changes/<YYYY-MM-DD-slug>/`）：**
 
-1. **设计先行**：用 `superpowers:brainstorming` skill 澄清需求——先分类（bounded/architectural）、澄清问题一次一个、方案对比带推荐；architectural 级产出设计文档 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`（已确认决策表 D1…Dn、API 契约、边界情况、测试清单），经用户逐节确认后 commit
-2. **计划先行**：用 `superpowers:writing-plans` skill 产出实施计划 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`：头部 Goal/Architecture/Tech Stack/Spec 指针 + Global Constraints；按任务分块，每任务含精确文件清单、失败测试先行（`test/test_*.py` / `test/scripts/check_*.py` / `test/test_*.js` 按被测层选）、完整可落地代码、验证命令与预期输出、commit 步骤（遵循 §Commit 提交分块）；写完自审三查：spec 覆盖、占位符扫描、跨任务类型一致性
-3. **执行**：用 `superpowers:subagent-driven-development`（默认）逐任务派发：每任务独立实现者 + 独立审查者（spec 合规与质量双裁定）+ 修复环（≤5 轮；Minor 延期入台账不进环）；全部任务后一次全分支最终审查 + 单次修复波；台账记 `.superpowers/sdd/<plan>/progress.md`，崩溃后凭台账+git log 恢复
-4. **集成**：向用户确认 push 或保持本地（本仓库惯例：直接 push origin/master，就地 master 开发不用 worktree）
+1. **`proposal.md` 提案先行**：`Why`（引用所有者原始指令，不改写诉求）→ `What Changes`（逐条列出改动点：新增/删除的指令、数据文件、数据库表、页面路径）→ `Capabilities`（New / Modified，每个能力各自对应 `openspec/specs/<capability>/spec.md`）→ `Scope and Compatibility`（不做什么、对既有部署与旧数据的影响、社区版与私有版是否一致）→ `Acceptance Criteria` 表；**每条 AC 必须可独立执行验证**，给出验证命令与通过条件，禁止「工作正常」这类不可判定表述
+2. **`design.md` 设计**：数据格式与落盘位置、接口与路由、并发与失败路径、边界情况、测试清单
+3. **`tasks.md` 任务**：按层分块（数据层 / 插件 / web / 测试 / 文档与交付），每项标注对应 AC 编号；禁止 TBD / TODO / 「稍后补充」占位符
+4. **`acceptance.md` 验收记录**：逐条 AC 填证据（执行的命令、结果、通过与否）+ 实测发现与裁定，随实现同 commit
 
-**执行中裁定纪律（Rulings, not stalls）：** 计划执行不打断用户；发现计划缺陷或审查冲突当场裁定并记入台账，最终汇报全部 Ruling 供用户推翻。仅四类事项必须停下问：不可逆/破坏性操作、安全敏感、仓外副作用（push 共享分支等）、计划崩坏到处是猜测。
+**执行顺序：** 提案与设计经所有者审 → 实现（一次覆盖提案全部条目，不中途缩减范围）→ AC 逐条全绿 + 全量 `pytest` 绿 → `openspec validate <capability> --strict` 通过 → `openspec archive <slug>` 归档，**归档与实现同一 commit**。
+
+**执行中裁定纪律（Rulings, not stalls）：** 执行不打断所有者；发现提案缺陷当场裁定并回写提案文档，最终汇报全部 Ruling 供推翻。仅四类事项必须停下问：不可逆/破坏性操作、安全敏感、仓外副作用（push 共享分支等）、提案崩坏到处是猜测。
 
 **MUST NOT:**
-- 无计划直接开写多步任务；计划留 TBD / TODO / 「稍后补充」占位符
-- 任务审查有未处理的 Critical/Important（未修也未裁定延期）就进入下一任务
+- 无提案直接开写需 bump 版本的功能
+- 提案或任务留 TBD / TODO / 「稍后补充」占位符
+- AC 未全绿就点 `openspec archive`
 
 ---
 

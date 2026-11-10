@@ -30,7 +30,7 @@ BotEro（小埃同学）= **QQ 群聊机器人**（OneBot v11 over WebSocket，�
 - **Git hooks:** clone 后执行 `git config core.hooksPath .githooks` 启用 Conventional Commits 校验（commit-msg 钩子对 >12 个文件的暂存输出分块提示，警告不阻断）。
 - **Commit 消息 MUST 中文** + Conventional Commits（如 `feat(任务): 新增周常全清称号`）。
 - **Commits MUST 按逻辑分块**：一个 commit = 一个逻辑变更；同一逻辑变更的配套文件（代码 + 行为测试 + spec + 菜单文本 + CHANGELOG + KNOWLEDGE_BASE）进**同一个** commit，无关改动拆开（`specs/conventions.md` §Commit 提交分块）。
-- **多步开发任务（新功能/跨文件改动/多 commit 任务）MUST 走功能开发主流程：`superpowers:brainstorming` 澄清设计 → spec（`docs/superpowers/specs/`）→ `superpowers:writing-plans` 计划（`docs/superpowers/plans/`）→ `superpowers:subagent-driven-development` 逐任务实现+审查**；单点小修（一行 fix/纯文档）不强制。四步细则、执行裁定纪律与集成惯例见 `specs/conventions.md` §功能开发主流程。
+- **判据：要 bump `BOTERO_VERSION` 就要提案。** 用户可见变更（新功能/行为修改）MUST 先写 OpenSpec 提案再动代码：`openspec/changes/<YYYY-MM-DD-slug>/` 下 `proposal.md`（Why / What Changes / Capabilities / Scope and Compatibility / Acceptance Criteria 表，每条 AC 可独立执行验证）→ `design.md` → `tasks.md`，实现后逐条验收记 `acceptance.md`，`openspec validate <capability> --strict` 通过 → `openspec archive <slug>`，**归档与实现同一 commit**。纯文档/测试/内部重构（不 bump）免提案。细则见 `specs/conventions.md` §功能开发主流程；`docs/archive/superpowers/` 与 `docs/superpowers/` 为历史产物，不再新增。
 
 ## Plugin auto-import magic
 

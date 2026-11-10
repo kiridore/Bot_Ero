@@ -1,32 +1,40 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  项目：BotEro（小埃同学）—— QQ 群聊机器人（OneBot v11 over WebSocket，事件驱动 + 纯同步多线程插件架构）
+  + 单进程 FastAPI 社区站 webapp（模块各自导出 router，全站登录门控，SQLite 共享）。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  动代码前先读项目根 AGENTS.md（第一入口），再按需查 specs/（权威约束）与 kb/（知识库）。
+  流程见 specs/conventions.md §功能开发主流程：判据是「要 bump BOTERO_VERSION 就要提案」。
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  硬约束摘要：bot 进程禁止 async/await；禁止 f-string SQL（一律参数化）；插件 match() 无副作用；
+  禁止插件间相对导入；社区版与私有版共用同一套实现，差异只能来自配置，不得写 edition 分支。
+  提交用 Conventional Commits，消息 MUST 中文，按逻辑分块（代码 + 测试 + spec + 菜单文本 + CHANGELOG 同一 commit）。
+  测试统一入口 pytest（无 lint/formatter）；红线是测试绝不触碰真实 data.db/server_data。
+
+rules:
+  proposal:
+    - Why 必须引用所有者原始指令，不得改写诉求
+    - What Changes 逐条列出改动点，明确新增/删除的指令、数据文件、数据库表、页面路径
+    - 每条 Acceptance Criteria 必须可独立执行验证，给出验证命令与通过条件；禁止「工作正常」这类不可判定表述
+    - 必须写明社区版与私有版差异，无差异也要明确写「两者一致」
+    - 必须写明对既有部署与旧数据的影响，以及明确不做什么
+    - 版本号 bump 决策写进 proposal（新功能 minor / 修复 patch / 纯文档不 bump）
+  design:
+    - 写明数据格式与落盘位置、接口与路由、并发与失败路径、边界情况、测试清单
+    - 跨进程读写（bot 与 webapp）必须写明写入方、读取方、状态判定与半写/崩溃残留下如何表现
+  specs:
+    - 一个能力一个规范文件；修改既有能力 MUST 写入该能力既有规范文件，禁止在无对应规范的新能力下写 MODIFIED Requirements
+  tasks:
+    - 按层分块（数据层 / 插件 / web / 测试 / 文档与交付），每项标注对应 AC 编号
+    - 禁止 TBD / TODO / 「稍后补充」占位符
+
+operations:
+  apply:
+    guidance:
+      - 一次实现覆盖提案全部条目，不中途缩减范围；确实做不到时先停下确认，而不是静默放弃
+      - 验收标准逐条执行并把证据（命令与结果）记入 acceptance.md
+  archive:
+    guidance:
+      - 归档前确认全部 AC 通过、全量 pytest 绿、openspec validate <capability> --strict 通过
+      - 归档与实现同一 commit；归档后在 CHANGELOG 对应版本节记录用户可见变化
