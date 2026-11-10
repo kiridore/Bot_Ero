@@ -4,6 +4,14 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [1.62.0]
+
+- **跑团记录上网页**：新增 `/trpg/records` 列表页与 `/trpg/records/<群号>/<开始时间目录>` 详情页，以聊天气泡回顾跑团过程——自己的消息靠右、他人靠左带头像、名字显示「角色卡名（昵称）」、DM/观察者徽标、每条带时间、机器人骰子结果居中窄条、图片可点开大图；列表默认显示全部记录，顶部可切换「只看我参加的」。
+- **录制即落盘**：`/跑团记录 开始` 时立即建记录目录并写 `meta.json`，此后每条消息追加 `messages.jsonl`、图片即时下载，录制中即可在网页看到实时追加（详情页每 5 秒增量刷新）；结束写入结束时间；导出仍生成 `record.md`，但改为由结构化数据生成，回执消息额外附上该记录的网页链接。
+- **机器人消息入档**：录制期间的骰子结果与 `.dm`/`.ob` 提示会进入记录；暗骰结果同样入档但**默认隐藏**，详情页「显示暗骰」开关可展开。
+- **群名记录**：录制开始时取群名写入记录，网页列表显示群名而非群号；取不到时回退群号，不影响录制。
+- **内部**：`core/onebot_client.py` 的 OneBot HTTP 调用不再跟随进程级 `HTTP(S)_PROXY`（全局代理会把昵称/头像/群名这类内部请求一并劫走导致失败）；录制取群名走短超时接口，不再因 OneBot 不响应把「已开始」回执拖住。
+
 ## [未发布]
 
 - **开发流程改为 OpenSpec 提案制（不 bump 版本）**：`superpowers` 四步流程停用，判据改为「要 bump `BOTERO_VERSION` 就要提案」——用户可见变更先写 `openspec/changes/<日期-slug>/` 下的 proposal/design/tasks，实现后逐条验收记 acceptance.md，`openspec validate <capability> --strict` 通过再 `openspec archive`，归档与实现同一 commit；`openspec/config.yaml` 新增项目上下文与分产物规则（提案含可执行 AC、社区版与私有版差异声明、跨进程读写设计）、AGENTS.md 与 `specs/conventions.md §功能开发主流程` 同步重写；`docs/archive/superpowers/` 与 `docs/superpowers/` 转为历史产物不再新增

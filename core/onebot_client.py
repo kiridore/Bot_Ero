@@ -7,6 +7,11 @@ import requests
 from core.config import GROUP_ID, ONEBOT_HTTP_URL, ONEBOT_TOKEN
 
 
+# OneBot HTTP 通常在本地/内网，MUST NOT 跟随 HTTP(S)_PROXY（进程级代理会把内部调用掠去导致 502/超时）
+_session = requests.Session()
+_session.trust_env = False
+
+
 def _member_display_name(data: dict, user_id: str) -> str:
     card = (data.get("card") or "").strip()
     if card:
@@ -17,7 +22,7 @@ def _member_display_name(data: dict, user_id: str) -> str:
     return str(user_id)
 
 
-def _call_onebot(action: str, params: dict) -> dict | None:
+def _call_onebot(action: str, params: dict, timeout: float = 8) -> dict | None:
     base = ONEBOT_HTTP_URL.rstrip("/")
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if ONEBOT_TOKEN:
@@ -28,7 +33,7 @@ def _call_onebot(action: str, params: dict) -> dict | None:
         (base, {"action": action, "params": params}),
     ):
         try:
-            resp = requests.post(url, json=body, headers=headers, timeout=8)
+            resp = _session.post(url, json=body, headers=headers, timeout=timeout)
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, dict) and data.get("status") == "ok":
@@ -37,6 +42,19 @@ def _call_onebot(action: str, params: dict) -> dict | None:
         except (requests.RequestException, ValueError):
             continue
     return None
+
+
+def resolve_group_name(group_id) -> str:
+    """取群名；接口不可用时返回空串（调用方 MUST NOT 因此中断录制）。"""
+    try:
+        gid = int(group_id)
+    except (TypeError, ValueError):
+        return ""
+    # 群名只是展示用：用短超时，避免录制开始被不可达的 OneBot HTTP 拖住（两种 URL 写法各试一次）
+    data = _call_onebot("get_group_info", {"group_id": gid}, timeout=3)
+    if not data:
+        return ""
+    return str(data.get("group_name") or "")
 
 
 @lru_cache(maxsize=4096)

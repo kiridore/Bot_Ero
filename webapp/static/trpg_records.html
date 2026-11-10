@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>跑团记录</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/shared/profile.css" />
+  <link rel="stylesheet" href="/static/trpg.css" />
+</head>
+<body>
+  <header class="toolbar profile-toolbar">
+    <div class="auth-area" id="authArea"></div>
+  </header>
+
+  <nav class="trpg-tabs" aria-label="跑团页面">
+    <a class="trpg-tab" href="/trpg">车卡</a>
+    <a class="trpg-tab is-active" href="/trpg/records" aria-current="page">跑团记录</a>
+  </nav>
+
+  <main class="profile-main">
+    <div class="section-head">
+      <h2>跑团记录</h2>
+      <label class="trpg-filter">
+        <input type="checkbox" id="mineOnly" />
+        只看我参加的
+      </label>
+    </div>
+    <div id="recordList">
+      <p class="loading-msg">加载中…</p>
+    </div>
+  </main>
+
+  <script src="/shared/auth.js?v=3"></script>
+  <script src="/shared/motion.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/trpg_records.js"></script>
+</body>
+</html>

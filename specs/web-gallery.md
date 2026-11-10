@@ -15,7 +15,7 @@ Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`t
 | 图库 | `gallery` | `/gallery` | 打卡图库瀑布流 + /thumb /media + 打卡数据 API |
 | 留言簿 | `guestbook` | `/guestbook` | 留言列表/发表/点赞 |
 | 个人中心 | `profile` | `/profile`（`/profile/checkin` `/profile/shop` `/profile/settings`） | 个人主页/打卡/商店/称号/设置 5 域聚合 |
-| 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}`） | 车卡创建/编辑/查看 |
+| 跑团 | `trpg` | `/trpg`（`/trpg/char/{user_id}/{char_id}` `/trpg/records` `/trpg/records/{group_id}/{start_dir}` `/trpg/media/...`） | 车卡创建/编辑/查看 + 跑团记录列表与聊天气泡回顾 |
 | 日程/闹钟 | `alarms` | `/profile/schedule`（旧 `/alarms` 302） | 月历展开 + 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情（接龙/匹配/征集三类可并行，结束后可一键生成分享长图 PNG 下载） |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
@@ -242,6 +242,9 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `POST` | `/api/me/characters/{char_id}/activate` | 必须 | 设为当前角色 |
 | `GET` | `/api/characters/{user_id}/{char_id}` | 必须 | 查看他人角色（他人未公开 → 403） |
 | `GET` | `/api/trpg/rules` | 否 | DND5E 规则数据（属性/技能/种族/职业/购点） |
+| `GET` | `/api/trpg/records` | 必须 | 跑团记录列表（按开始时间倒序；`?mine=1` 只看自己参加的） |
+| `GET` | `/api/trpg/records/{group_id}/{start_dir}` | 必须 | 记录详情（`?from=N` 增量、`?reveal=1` 包含暗骰消息） |
+| `GET` | `/trpg/media/{group_id}/{start_dir}/{filename}` | 必须 | 记录图片（未登录 401；非图片文件名 400；不存在 404） |
 
 ### 留言簿（`guestbook` 模块）
 
@@ -393,8 +396,28 @@ server_data/user_settings/<user_id>.json          # 个人设置（文件不存�
 
 ---
 
-## Constraint: 时间线打卡隐私（读侧动态可见性）
+## Constraint: 跑团记录（录制落盘与网页浏览）
 
+跑团录制**录制即落盘**，结构化数据是唯一事实来源（bot 写、webapp 只读，路径常量集中在 `core/trpg/records.py`）：
+
+```
+server_data/trpg_records/<群号>/<YYYY-MM-DD_HH-MM-SS>/
+├── meta.json        # {version:2, group_id, group_name, start, end, roles, participants}
+├── messages.jsonl   # 每行一条：time/sender_type/user_id/nickname/char_name/role/segments[/secret]
+├── imgs/img_NNNN.<ext>  # 录制中图片即时下载
+└── record.md        # 导出时由 messages.jsonl 生成（不再由内存消息生成）
+```
+
+- **状态判定**（不存字段，按文件推断）：`meta.end` 为 null = 录制中；`end` 有值且无 `record.md` = 已结束·未导出；有 `record.md` = 已导出。崩溃残留按「录制中」展示，最新消息超 10 分钟时追加「（可能已中断）」，系统不自动改状态或删数据
+- **写入唯一方是 bot 进程**：`messages.jsonl` 在 `runtime_context.recording_lock` 内整行追加；`meta.json` 重写用 tmp + `os.replace` 原子替换；webapp 逐行解析并跳过半写坏行
+- **可见性**：所有登录用户可看全部记录，参与关系只用于「只看我参加的」筛选
+- **暗骰**：`.rh` 结果以 `secret: true` 入档；详情 API 默认过滤但计入 `total`（客户端游标取 `total`，过滤不会造成增量错位），`reveal=1` 才返回；页面默认不显示，顶部「显示暗骰」开关控制
+- **路径校验**：群号 `^\d+$`、目录名 `^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$`、媒体名 `^img_\d{4}\.(jpg|jpeg|png|gif|webp)$`，非法一律拒绝，禁止把请求参数直接拼进文件系统路径
+- `/trpg/media/` 在登录门控的 `_UNAUTHORIZED_PREFIXES` 内（未登录 401 而非 302，否则 `<img>` 会把登录页 HTML 当图片）
+
+---
+
+## Constraint: 时间线打卡隐私（读侧动态可见性）
 打卡事件在**读侧**按「事件标记 × 作者设置 × 查看者身份」动态过滤，写入侧不拦截、历史事件不回填：
 
 - **事件标记**：`source=checkin` 事件 `data.private=true` 表示私聊/网页打卡（QQ 群聊打卡无此标记）。无 `data.private` 标记的事件（含全部历史事件）视为群聊类型，由 `checkin_display_group` 状态管辖。

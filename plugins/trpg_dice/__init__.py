@@ -1,6 +1,6 @@
 import re
 
-from core.base import Plugin
+from core.base import Plugin, NICKNAME
 from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
@@ -45,10 +45,15 @@ class TrpgPlugin(Plugin):
             elif raw.startswith(".r"):
                 self._handle_roll(raw, nickname)
         except ValueError as e:
-            self.api.send_msg(text(str(e)))
+            self._send_with_record(str(e))
         except Exception:
             logger.exception("TRPG 插件处理异常")
-            self.api.send_msg(text("指令处理出错，请检查格式"))
+            self._send_with_record("指令处理出错，请检查格式")
+
+    def _send_with_record(self, out: str):
+        """输出统一出口：先发到当前会话，录制中同时写入跑团记录。"""
+        self.api.send_msg(text(out))
+        runtime_context.record_bot_message(self.bot_event.group_id, NICKNAME, out)
 
     # ── 规则系统分发 ──────────────────────────────────────
     # 未来规则切换功能修改 runtime_context.GAME_SYSTEM 即可
@@ -82,7 +87,7 @@ class TrpgPlugin(Plugin):
             # Bare .r → D100
             value, detail = parse("")
             out = self._format(nickname, "D100", detail, value, reason)
-            self.api.send_msg(text(out))
+            self._send_with_record(out)
             return
 
         # 角色属性/技能名替换为数值
@@ -92,7 +97,7 @@ class TrpgPlugin(Plugin):
 
         value, detail = parse(resolved)
         out = self._format(nickname, expr_label, detail, value, reason)
-        self.api.send_msg(text(out))
+        self._send_with_record(out)
 
     def _resolve_character_expr(self, expr: str):
         """若表达式含角色属性/技能名，替换为数值。返回 (解析后表达式, 显示用原式) 或 (None, None)。"""
@@ -110,7 +115,7 @@ class TrpgPlugin(Plugin):
         char = store.get_current(user_id)
         if not char:
             from plugins.trpg_char import WEB_TRPG_URL
-            self.api.send_msg(text("你还没有角色卡，请到网页端创建：\n" + WEB_TRPG_URL))
+            self._send_with_record("你还没有角色卡，请到网页端创建：\n" + WEB_TRPG_URL)
             return None, None
 
         values = resolve_expression_values(char)
@@ -127,7 +132,7 @@ class TrpgPlugin(Plugin):
         """DND d20 检定：.rc [优势|劣势] <属性|表达式> [豁免]"""
         parts = arg.split()
         if not parts:
-            self.api.send_msg(text("格式：.rc [优势|劣势] <属性|表达式> [豁免]"))
+            self._send_with_record("格式：.rc [优势|劣势] <属性|表达式> [豁免]")
             return
 
         is_save = False
@@ -141,7 +146,7 @@ class TrpgPlugin(Plugin):
             parts = parts[1:]
 
         if not parts:
-            self.api.send_msg(text("格式：.rc [优势|劣势] <属性|表达式> [豁免]"))
+            self._send_with_record("格式：.rc [优势|劣势] <属性|表达式> [豁免]")
             return
 
         expr = " ".join(parts)
@@ -166,7 +171,7 @@ class TrpgPlugin(Plugin):
             else:
                 value, detail = parse("d20")
                 out = f"{head}d20{mod_str}={detail}{mod_str}={value + mod}"
-            self.api.send_msg(text(out))
+            self._send_with_record(out)
             return
 
         # 复杂表达式：d20 + (表达式)
@@ -181,7 +186,7 @@ class TrpgPlugin(Plugin):
             adv = _eval_disadvantage(20)
             rest_value, rest_detail = parse(f"({resolved})")
             out = f"{head}d20劣势={adv['detail']} + {rest_detail}={adv['value'] + rest_value}"
-        self.api.send_msg(text(out))
+        self._send_with_record(out)
 
     # ── 暗骰 ──────────────────────────────────────────
 
@@ -193,7 +198,7 @@ class TrpgPlugin(Plugin):
 
         group_id = self.bot_event.group_id
         if group_id is None:
-            self.api.send_msg(text("暗骰只能在群聊中使用"))
+            self._send_with_record("暗骰只能在群聊中使用")
             return
 
         if not expr:
@@ -206,9 +211,10 @@ class TrpgPlugin(Plugin):
             value, detail = parse(resolved)
 
         # Group hint
-        self.api.send_msg(text("悄悄掷出骰子"))
+        self._send_with_record("悄悄掷出骰子")
 
-        # Private result
+        # Private result：结果只回私聊，录制中以暗骰标记入档，不在群内出现
         full = self._format(nickname, expr_label, detail, value, reason)
+        runtime_context.record_bot_message(group_id, NICKNAME, full, secret=True)
         if self.bot_event.user_id:
             self.api.send_private_msg(text(full))

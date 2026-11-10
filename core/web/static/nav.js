@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { label: "议事厅", path: "/forum" },
   { label: "个人中心", path: "/profile" },
   { label: "跑团", path: "/trpg" },
+  { label: "跑团记录", path: "/trpg/records" },
   { label: "留言簿", path: "/guestbook" },
   { label: "日程", path: "/profile/schedule" },
   { label: "活动", path: "/activities" },
@@ -58,9 +59,13 @@ const NAV_ITEMS = [
   document.head.appendChild(style);
 
   const current = location.pathname;
+  // 最长前缀匹配：/trpg/records 只点亮「跑团记录」，不再同时点亮「跑团」
+  const active = NAV_ITEMS
+    .filter((it) => current === it.path || current.startsWith(it.path + "/"))
+    .sort((a, b) => b.path.length - a.path.length)[0];
   const links = NAV_ITEMS.map(
     (it) =>
-      `<a href="${it.path}"${current.startsWith(it.path) ? ' class="active"' : ""}>${it.label}</a>`
+      `<a href="${it.path}"${it === active ? ' class="active"' : ""}>${it.label}</a>`
   ).join("");
 
   const nav = document.createElement("nav");

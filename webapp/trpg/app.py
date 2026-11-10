@@ -1,8 +1,9 @@
-"""跑团子应用：DND 车卡与角色查看。"""
+"""跑团子应用：DND 车卡、角色查看与跑团记录浏览。"""
 
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -10,11 +11,14 @@ from core import character_store as char_store
 from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
+from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
 
 router = APIRouter()
+
+MEDIA_URL_PREFIX = "/trpg/media"
 
 
 class CharacterIn(BaseModel):
@@ -284,4 +288,153 @@ def trpg_char_view_page(user_id: str, char_id: int):
     page = STATIC_DIR / "char_view.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少角色卡查看页")
+    return FileResponse(page)
+
+
+# —— 跑团记录（server_data/trpg_records 只读，结构见 core/trpg/records.py）——
+
+def _record_state(record_path: Path, meta: dict) -> str:
+    if meta.get("end") is None:
+        return "recording"
+    return "exported" if (record_path / "record.md").is_file() else "ended"
+
+
+def _segment_with_url(segment, group_id: str, start_dir: str):
+    if not isinstance(segment, dict) or segment.get("type") != "image":
+        return segment
+    seg = dict(segment)
+    try:
+        name = trpg_records.media_file(group_id, start_dir, Path(str(seg.get("local") or "")).name).name
+    except ValueError:
+        return seg  # 下载失败或路径异常的分段只保留 unavailable 标记
+    seg["url"] = f"{MEDIA_URL_PREFIX}/{group_id}/{start_dir}/{name}"
+    return seg
+
+
+def _summary(group_id: str, record_path: Path):
+    try:
+        trpg_records.record_dir(group_id, record_path.name)
+    except ValueError:
+        return None
+    meta = trpg_records.read_meta(record_path)
+    if not meta or meta.get("version") != 2:
+        return None
+    if not (record_path / "messages.jsonl").is_file():
+        return None
+    # shortcut: 列表为拿条数与最后时间整读 messages.jsonl，记录数上千时改由写入方把计数写进 meta.json
+    messages, _skipped = trpg_records.iter_messages(record_path)
+    return {
+        "group_id": group_id,
+        "group_name": meta.get("group_name") or "",
+        "start": meta.get("start") or "",
+        "start_dir": record_path.name,
+        "end": meta.get("end"),
+        "state": _record_state(record_path, meta),
+        "message_count": len(messages),
+        "last_message_at": messages[-1].get("time") if messages else None,
+        "participants": meta.get("participants") or [],
+    }
+
+
+def _require_record(group_id: str, start_dir: str) -> Path:
+    try:
+        record_path = trpg_records.record_dir(group_id, start_dir)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    meta = trpg_records.read_meta(record_path)
+    if not meta or meta.get("version") != 2 or not (record_path / "messages.jsonl").is_file():
+        raise HTTPException(status_code=404, detail="记录不存在")
+    return record_path
+
+
+@router.get("/api/trpg/records")
+def api_trpg_records(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    mine: int = 0,
+):
+    items = []
+    root = trpg_records.records_root()
+    if root.is_dir():
+        for group_path in root.iterdir():
+            if not group_path.is_dir():
+                continue
+            for record_path in group_path.iterdir():
+                if not record_path.is_dir():
+                    continue
+                item = _summary(group_path.name, record_path)
+                if item is None:
+                    continue
+                item["is_mine"] = any(
+                    str(p.get("user_id")) == str(user_id) for p in item["participants"] if isinstance(p, dict)
+                )
+                if mine and not item["is_mine"]:
+                    continue
+                items.append(item)
+    items.sort(key=lambda it: it["start_dir"], reverse=True)
+    return {"records": items}
+
+
+@router.get("/api/trpg/records/{group_id}/{start_dir}")
+def api_trpg_record(
+    group_id: str,
+    start_dir: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    start_from: int = Query(0, ge=0, alias="from"),
+    reveal: int = 0,
+):
+    record_path = _require_record(group_id, start_dir)
+    meta = trpg_records.read_meta(record_path) or {}
+    messages, _skipped = trpg_records.iter_messages(record_path)
+    total = len(messages)
+    window = messages[start_from:] if start_from < total else []
+    # 暗骰默认过滤但仍计入 total：客户端用 total 作为下一次 from，增量索引不漂移
+    visible = window if reveal else [m for m in window if not m.get("secret")]
+    return {
+        "group_id": group_id,
+        "group_name": meta.get("group_name") or "",
+        "start": meta.get("start") or "",
+        "end": meta.get("end"),
+        "state": _record_state(record_path, meta),
+        "participants": meta.get("participants") or [],
+        "total": total,
+        "from": start_from,
+        "messages": [
+            {
+                **entry,
+                "segments": [_segment_with_url(seg, group_id, start_dir) for seg in entry["segments"]],
+            }
+            for entry in visible
+        ],
+    }
+
+
+@router.get("/trpg/media/{group_id}/{start_dir}/{filename}")
+def trpg_record_media(
+    group_id: str,
+    start_dir: str,
+    filename: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    try:
+        path = trpg_records.media_file(group_id, start_dir, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return FileResponse(path)
+
+
+@router.get("/trpg/records")
+def trpg_records_page():
+    page = STATIC_DIR / "trpg_records.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
+
+
+@router.get("/trpg/records/{group_id}/{start_dir}")
+def trpg_record_page(group_id: str, start_dir: str):
+    page = STATIC_DIR / "trpg_record.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少静态页面")
     return FileResponse(page)

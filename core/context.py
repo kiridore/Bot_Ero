@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 import sqlite3
+import time
 from threading import Lock
 
 if TYPE_CHECKING:
@@ -9,6 +10,8 @@ if TYPE_CHECKING:
 
 script_start_time = datetime.now()
 from core import config as _config
+from core.logger import logger
+from core.trpg import records
 
 llonebot_data_path = _config.LLONEBOT_DATA_PATH    # 使用api是用这个地址（config.yaml）
 python_data_path = _config.PYTHON_DATA_PATH        # 在python脚本中访问用这个地址（config.yaml）
@@ -58,6 +61,40 @@ def pop_last_completed(group_id: int) -> dict | None:
 
 def is_plugin_allowed_during_recording(key: str) -> bool:
     return key in RECORDING_ALLOWED_PLUGINS
+
+def _session_record_dir(group_id: int, session: dict):
+    # 录制目录由 trpg_session 建立时写入 session["dir"]；未写入时按开始时间推算
+    return session.get("dir") or records.record_dir(group_id, records.start_dir_name(session["start"]))
+
+def record_bot_message(group_id: int, nickname: str, text: str, secret: bool = False) -> None:
+    """录制期间把机器人自己的发言写入 messages.jsonl；无录制时静默返回。"""
+    try:
+        with recording_lock:
+            session = recording_sessions.get(group_id)
+            if not session:
+                return
+            bot_id = str(_config.BOT_QQ)
+            entry = {
+                "time": int(time.time()),
+                "sender_type": "bot",
+                "user_id": bot_id,
+                "nickname": nickname,
+                "char_name": "",
+                "role": session.get("roles", {}).get(bot_id, ""),
+                "segments": [{"type": "text", "text": text}],
+            }
+            if secret:
+                entry["secret"] = True
+            path = _session_record_dir(group_id, session)
+            records.append_message(path, entry)
+            if bot_id not in session["participants"]:
+                session["participants"][bot_id] = {"nickname": nickname, "user_id": bot_id, "char_name": ""}
+                meta = records.read_meta(path)
+                if meta is not None:
+                    meta["participants"] = list(session["participants"].values())
+                    records.rewrite_meta(path, meta)
+    except Exception:
+        logger.exception("机器人消息入档失败")
 
 def plugin_key(plugin_cls: type["Plugin"]) -> str:
     return plugin_cls.__module__.split(".", 1)[1]

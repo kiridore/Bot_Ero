@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>跑团记录回顾</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/motion.css" />
+  <link rel="stylesheet" href="/shared/profile.css" />
+  <link rel="stylesheet" href="/static/trpg.css" />
+</head>
+<body>
+  <header class="toolbar profile-toolbar">
+    <div class="auth-area" id="authArea"></div>
+  </header>
+
+  <nav class="trpg-tabs" aria-label="跑团页面">
+    <a class="trpg-tab" href="/trpg">车卡</a>
+    <a class="trpg-tab is-active" href="/trpg/records" aria-current="page">跑团记录</a>
+  </nav>
+
+  <main class="profile-main">
+    <a class="back-link" href="/trpg/records">← 返回记录列表</a>
+    <div class="section-head trpg-record-head">
+      <div>
+        <h2 id="recordTitle">加载中…</h2>
+        <p class="trpg-meta" id="recordMeta"></p>
+        <span class="trpg-badge" id="recordState"></span>
+      </div>
+      <label class="trpg-filter">
+        <input type="checkbox" id="revealToggle" />
+        显示暗骰
+      </label>
+    </div>
+    <div class="trpg-thread" id="messageList"></div>
+    <p class="empty-hint center" id="threadHint"></p>
+  </main>
+
+  <script src="/shared/auth.js?v=3"></script>
+  <script src="/shared/motion.js"></script>
+  <script src="/shared/lightbox.js"></script>
+  <script src="/shared/nav.js"></script>
+  <script src="/static/trpg_record.js"></script>
+</body>
+</html>

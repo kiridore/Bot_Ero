@@ -65,7 +65,7 @@
   });
 
   document.addEventListener("click", function (e) {
-    var el = e.target.closest(".tl-images a, img.forum-img, img.work-img");
+    var el = e.target.closest(".tl-images a, img.forum-img, img.work-img, img.trpg-img");
     if (!el) return;
     var url = el.tagName === "A" ? el.getAttribute("href") : el.getAttribute("src");
     if (!url || url.startsWith("#")) return;

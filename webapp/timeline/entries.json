@@ -52,6 +52,11 @@
     "url": "/trpg"
   },
   {
+    "name": "跑团记录",
+    "desc": "跑团过程与聊天记录回顾",
+    "url": "/trpg/records"
+  },
+  {
     "name": "活动",
     "desc": "接龙与匹配活动的作品归档",
     "url": "/activities"
