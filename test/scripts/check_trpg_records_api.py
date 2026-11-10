@@ -82,10 +82,11 @@ def write_record(group, start_dir, meta, messages=None, record_md=False, image=F
     return path
 
 
-def meta(group, group_name, start, end, participants, roles=None):
+def meta(group, group_name, start, end, participants, roles=None, rules="dnd5e"):
     return {
         "version": 2, "group_id": int(group), "group_name": group_name,
         "start": start, "end": end, "roles": roles or {}, "participants": participants,
+        "rules": rules,
     }
 
 
@@ -113,7 +114,7 @@ write_record(
     "800001", "2026-11-09_10-00-00",
     meta("800001", "夜航团", "2026-11-09 10:00:00", "2026-11-09 12:00:00", [
         {"user_id": ME, "nickname": "老张", "char_name": "艾拉", "role": ""},
-    ]),
+    ], rules="coc7th"),
     [msg(1762653600, "user", ME, "老张", segments=[{"type": "text", "text": "上一场"}])],
 )
 write_record(
@@ -163,6 +164,12 @@ check("群名返回", by_dir[EXPORTED]["group_name"] == "夜航团")
 check("群名缺失返回空串", by_dir[RECORDING]["group_name"] == "")
 check("参与人返回", [p["nickname"] for p in by_dir[EXPORTED]["participants"]] == ["老张", "小王"])
 check("is_mine 判定", by_dir[EXPORTED]["is_mine"] is True and by_dir[RECORDING]["is_mine"] is False)
+check("规则名展示", by_dir[EXPORTED]["rules_name"] == "DND 5E" and by_dir[ENDED]["rules_name"] == "COC 7th",
+      f'{by_dir[EXPORTED]["rules_name"]}/{by_dir[ENDED]["rules_name"]}')
+check("玩家数排除 DM/观察者", by_dir[EXPORTED]["player_count"] == 1, str(by_dir[EXPORTED]["player_count"]))
+check("我的身份为 DM（带角色卡名）", by_dir[EXPORTED]["my_role"] == {"role": "dm", "char_name": "艾拉"},
+      str(by_dir[EXPORTED]["my_role"]))
+check("未参与的记录我的身份为空", by_dir[RECORDING]["my_role"] == {"role": "", "char_name": ""})
 r = client.get("/api/trpg/records?mine=1", headers=MH)
 mine_items = r.json()["records"]
 check("mine=1 只返回我参加的", [it["start_dir"] for it in mine_items] == [EXPORTED, ENDED],

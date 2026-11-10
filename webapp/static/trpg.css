@@ -62,11 +62,11 @@
   cursor: pointer;
 }
 
-/* 列表页卡片 */
-.trpg-card {
+/* 列表页条目：每场团一行，标题行 + 细节行 */
+.trpg-row {
   display: block;
-  padding: 0.7rem 0.85rem;
-  margin-bottom: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.5rem;
   border: 1px solid var(--rule);
   border-radius: 10px;
   background: var(--paper-card);
@@ -74,18 +74,18 @@
   text-decoration: none;
 }
 
-.trpg-card:hover {
+.trpg-row:hover {
   border-color: var(--accent);
 }
 
-.trpg-card-head {
+.trpg-row-head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
-.trpg-meta {
+.trpg-row-meta {
   margin: 0.3rem 0 0;
   font-size: 0.8rem;
   color: var(--ink-soft);
@@ -103,10 +103,6 @@
 .trpg-badge.is-recording {
   background: var(--accent-soft);
   color: var(--accent-ink);
-}
-
-.trpg-badge.is-exported {
-  color: var(--green);
 }
 
 .trpg-people {

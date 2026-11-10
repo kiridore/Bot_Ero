@@ -13,6 +13,7 @@ from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
 from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
+from core.trpg.game_systems import rule_name
 from core.web.auth_deps import get_current_user_id
 from webapp import STATIC_DIR
 
@@ -294,9 +295,17 @@ def trpg_char_view_page(user_id: str, char_id: int):
 # —— 跑团记录（server_data/trpg_records 只读，结构见 core/trpg/records.py）——
 
 def _record_state(record_path: Path, meta: dict) -> str:
-    if meta.get("end") is None:
-        return "recording"
-    return "ended"
+    return "recording" if meta.get("end") is None else "ended"
+
+
+def _my_role(participants, user_id) -> dict:
+    """登录用户在本场记录里的身份：dm / ob / player（附角色卡名），未参与为空。"""
+    for person in participants:
+        if not isinstance(person, dict) or str(person.get("user_id")) != str(user_id):
+            continue
+        role = person.get("role") or "player"
+        return {"role": role, "char_name": person.get("char_name") or ""}
+    return {"role": "", "char_name": ""}
 
 
 def _segment_with_url(segment, group_id: str, start_dir: str):
@@ -323,6 +332,7 @@ def _summary(group_id: str, record_path: Path):
         return None
     # shortcut: 列表为拿条数与最后时间整读 messages.jsonl，记录数上千时改由写入方把计数写进 meta.json
     messages, _skipped = trpg_records.iter_messages(record_path)
+    participants = meta.get("participants") or []
     return {
         "group_id": group_id,
         "group_name": meta.get("group_name") or "",
@@ -330,9 +340,12 @@ def _summary(group_id: str, record_path: Path):
         "start_dir": record_path.name,
         "end": meta.get("end"),
         "state": _record_state(record_path, meta),
+        "rules": meta.get("rules") or "",
+        "rules_name": rule_name(meta["rules"]) if meta.get("rules") else "未知规则",
+        "player_count": sum(1 for p in participants if isinstance(p, dict) and not p.get("role")),
         "message_count": len(messages),
         "last_message_at": messages[-1].get("time") if messages else None,
-        "participants": meta.get("participants") or [],
+        "participants": participants,
     }
 
 
@@ -367,6 +380,7 @@ def api_trpg_records(
                 item["is_mine"] = any(
                     str(p.get("user_id")) == str(user_id) for p in item["participants"] if isinstance(p, dict)
                 )
+                item["my_role"] = _my_role(item["participants"], user_id)
                 if mine and not item["is_mine"]:
                     continue
                 items.append(item)
@@ -395,6 +409,8 @@ def api_trpg_record(
         "start": meta.get("start") or "",
         "end": meta.get("end"),
         "state": _record_state(record_path, meta),
+        "rules": meta.get("rules") or "",
+        "rules_name": rule_name(meta["rules"]) if meta.get("rules") else "未知规则",
         "participants": meta.get("participants") or [],
         "total": total,
         "from": start_from,

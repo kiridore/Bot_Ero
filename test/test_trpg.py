@@ -101,9 +101,9 @@ class TestTrpgPluginMatch(unittest.TestCase):
         ctx = make_group_message(".r d20 攻击检定")
         self.assertTrue(TrpgPlugin(ctx).match("message"))
 
-    def test_no_match_ra(self):
+    def test_match_ra(self):
         ctx = make_group_message(".ra 70")
-        self.assertFalse(TrpgPlugin(ctx).match("message"))
+        self.assertTrue(TrpgPlugin(ctx).match("message"))
 
     def test_match_rc(self):
         ctx = make_group_message(".rc 70")
@@ -158,11 +158,13 @@ class TestTrpgPluginHandle(unittest.TestCase):
         self.assertIn("检定", out)
         self.assertIn("d20+15", out)
 
-    def test_handle_ra_no_response(self):
+    def test_handle_ra_rejected_under_dnd_rule(self):
         ctx = make_group_message(".ra 70")
         plugin = TrpgPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
-        self.assertFalse(plugin.match("message"))
+        with patch("plugins.trpg_dice.party.current_rule", return_value="dnd5e"):
+            plugin.handle()
+        self.assertIn("当前规则是 DND 5E", _sent_text(plugin))
 
     def test_handle_invalid_expr(self):
         ctx = make_group_message(".r abc")
@@ -193,6 +195,72 @@ class TestTrpgPluginHandle(unittest.TestCase):
         # Check we called send_private_msg
         api_calls = [(t, p) for t, p in plugin.api.sent_messages]
         self.assertTrue(any(t == "send_msg" for t, _ in api_calls))
+
+
+
+class TestCocRules(unittest.TestCase):
+    """COC 7th：检定成功等级与奖惩骰，以及规则切换后的指令门控。"""
+
+    def _plugin(self, msg):
+        ctx = make_group_message(msg)
+        plugin = TrpgPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        return plugin
+
+    def test_check_grades(self):
+        from plugins.trpg_dice.rolls import coc_check
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=10):
+            roll, grade = coc_check(60)
+        self.assertEqual((roll, grade), (10, "极限成功"))
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=25):
+            self.assertEqual(coc_check(60)[1], "困难成功")
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=55):
+            self.assertEqual(coc_check(60)[1], "常规成功")
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=97):
+            self.assertEqual(coc_check(60)[1], "大失败")
+
+    def test_check_rejects_out_of_range(self):
+        from plugins.trpg_dice.rolls import coc_check
+        with self.assertRaises(ValueError):
+            coc_check(0)
+        with self.assertRaises(ValueError):
+            coc_check(101)
+
+    def test_ra_under_coc_rule(self):
+        plugin = self._plugin(".ra 70")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+            plugin.handle()
+        self.assertIn("COC检定", _sent_text(plugin))
+        self.assertIn("常规成功", _sent_text(plugin))
+
+    def test_r_c_syntax_under_coc_rule(self):
+        plugin = self._plugin(".r c70")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+            plugin.handle()
+        self.assertIn("COC检定", _sent_text(plugin))
+
+    def test_bonus_and_penalty_dice(self):
+        for expr in (".r b2", ".r 1d100b2"):
+            plugin = self._plugin(expr)
+            with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"):
+                plugin.handle()
+            self.assertIn("奖励骰", _sent_text(plugin), expr)
+        plugin = self._plugin(".r p1")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"):
+            plugin.handle()
+        self.assertIn("惩罚骰", _sent_text(plugin))
+
+    def test_bonus_dice_refused_under_dnd_rule(self):
+        plugin = self._plugin(".r b2")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="dnd5e"):
+            plugin.handle()
+        self.assertIn("当前规则是 DND 5E", _sent_text(plugin))
+
+    def test_rc_refused_under_coc_rule(self):
+        plugin = self._plugin(".rc 力量")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"):
+            plugin.handle()
+        self.assertIn("COC 7th", _sent_text(plugin))
 
 
 if __name__ == "__main__":

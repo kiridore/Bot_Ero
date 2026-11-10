@@ -117,7 +117,7 @@ function renderMessage(m) {
 
 function renderHeader(data) {
   titleEl.textContent = data.group_name || `团 ${data.group_id}`;
-  metaEl.textContent = [data.start, durationText(data), `${data.total} 条消息`].filter(Boolean).join(" · ");
+  metaEl.textContent = [data.start, durationText(data), data.rules_name, `${data.total} 条消息`].filter(Boolean).join(" · ");
   recordState = data.state;
   stateEl.className = `trpg-badge is-${recordState}`;
   stateEl.textContent = STATE_LABEL[recordState] || recordState;

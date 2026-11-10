@@ -858,5 +858,75 @@ class TestHeartbeat(IsolationMixin, unittest.TestCase):
         self.assertEqual(len(plugin.api.calls), 1)
 
 
+# ── 规则选择与写入记录 ────────────────────────────────
+
+class TestRule(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def test_list_rules(self):
+        self.patch_members([{"user_id": "111", "nickname": "玩家A", "is_robot": False}])
+        out = _joined(_run([_text_seg("/跑团 规则")]))
+        self.assertIn("当前规则：DND 5E", out)
+        self.assertIn("COC 7th", out)
+
+    def test_dm_sets_rule(self):
+        self.seed_party()
+        plugin = _run([_text_seg("/跑团 规则 coc7th")])
+        self.assertIn("COC 7th", _sent_text(plugin))
+        self.assertEqual(party.read_pending(GROUP_ID)["rules"], "coc7th")
+
+    def test_non_dm_cannot_set_rule(self):
+        self.patch_members([
+            {"user_id": "111", "nickname": "玩家A", "is_robot": False},
+            {"user_id": "222", "nickname": "玩家B", "is_robot": False},
+        ])
+        plugin = _run([_text_seg("/跑团 规则 coc7th")], user_id=222, nickname="玩家B")
+        self.assertIn("只有 DM", _sent_text(plugin))
+
+    def test_rule_refused_during_recording(self):
+        _run([_text_seg("/跑团 记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 规则")])
+        self.assertIn("录制中", _sent_text(plugin))
+
+    def test_rule_written_into_meta_on_start(self):
+        self.seed_party()
+        _run([_text_seg("/跑团 规则 coc7th")], user_id=111, nickname="玩家A")
+        _run([_text_seg("/跑团 记录 开始")])
+        meta = self.meta(self.record_dir())
+        self.assertEqual(meta["rules"], "coc7th")
+        self.assertEqual(runtime_context.get_recording_session(GROUP_ID)["rules"], "coc7th")
+
+    def test_unknown_rule_rejected(self):
+        self.seed_party()
+        plugin = _run([_text_seg("/跑团 规则 gurps")])
+        self.assertIn("未知规则", _sent_text(plugin))
+        self.assertEqual(party.read_pending(GROUP_ID)["rules"], "dnd5e")
+
+
+class TestResumeRule(IsolationMixin, unittest.TestCase):
+    def test_resume_restores_rule_from_meta(self):
+        self.setUp()
+        self.use_temp_data_path()
+        import time as _time
+        now = int(_time.time())
+        path = records.group_dir(GROUP_ID) / "2026-11-10_20-00-00"
+        (path / "imgs").mkdir(parents=True, exist_ok=True)
+        records.rewrite_meta(path, {
+            "version": 2, "group_id": GROUP_ID, "group_name": "夜航团",
+            "start": "2026-11-10 20:00:00", "end": None, "rules": "coc7th",
+            "roles": {}, "participants": [],
+        })
+        records.append_message(path, {
+            "time": now - 60, "sender_type": "user", "user_id": "111",
+            "nickname": "玩家A", "char_name": "", "role": "",
+            "segments": [{"type": "text", "text": "hi"}],
+        })
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}):
+            self.assertEqual(recover_recordings(), 1)
+        self.assertEqual(runtime_context.get_recording_session(GROUP_ID)["rules"], "coc7th")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

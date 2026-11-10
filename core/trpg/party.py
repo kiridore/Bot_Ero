@@ -10,7 +10,9 @@ import os
 from pathlib import Path
 
 from core.logger import logger
+import core.context as runtime_context
 from core.trpg import records
+from core.trpg.game_systems import DEFAULT_RULE
 
 PENDING_NAME = "pending.json"
 PENDING_VERSION = 1
@@ -21,7 +23,7 @@ def pending_path(group_id) -> Path:
 
 
 def default_pending(group_id) -> dict:
-    return {"version": PENDING_VERSION, "group_id": group_id, "roles": {}, "prepared": {}}
+    return {"version": PENDING_VERSION, "group_id": group_id, "roles": {}, "prepared": {}, "rules": DEFAULT_RULE}
 
 
 def read_pending(group_id) -> dict:
@@ -39,6 +41,9 @@ def read_pending(group_id) -> dict:
         return empty
     if not isinstance(data.get("roles"), dict) or not isinstance(data.get("prepared"), dict):
         return empty
+    # 旧文件没有 rules 字段：补默认规则，不强制重写盘
+    if not isinstance(data.get("rules"), str) or not data["rules"]:
+        data["rules"] = DEFAULT_RULE
     return data
 
 
@@ -90,3 +95,24 @@ def clear_all(group_id) -> None:
         pending_path(group_id).unlink()
     except FileNotFoundError:
         return
+
+
+def set_rule(group_id, rule: str) -> dict:
+    data = read_pending(group_id)
+    data["rules"] = rule
+    write_pending(group_id, data)
+    return data
+
+
+def current_rule(group_id) -> str:
+    """本群当前生效的游戏规则。
+
+    录制中以记录里的规则为准（开录后 pending.json 会被清空）；
+    未录制时读准备状态；都没有则回默认规则。
+    """
+    if group_id is None:
+        return DEFAULT_RULE
+    session = runtime_context.get_recording_session(group_id)
+    if session:
+        return session.get("rules") or DEFAULT_RULE
+    return read_pending(group_id)["rules"]

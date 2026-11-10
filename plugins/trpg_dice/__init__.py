@@ -5,19 +5,51 @@ from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
 from core import character_store as store
+from core.trpg import party
 import core.context as runtime_context
 
 from .dice import parse, _eval_advantage, _eval_disadvantage
 from .games import GAME_SYSTEMS, DEFAULT_GAME_SYSTEM
+from .rolls import coc_bonus, coc_check, coc_penalty
+
+# COC 奖惩骰：`.r b2`、`.r p1`（独立原子写法）与 `.r 1d100b2`（后缀写法）
+BONUS_RE = re.compile(r"^(?:(\d*)d100)?b(\d*)$", re.IGNORECASE)
+PENALTY_RE = re.compile(r"^(?:(\d*)d100)?p(\d*)$", re.IGNORECASE)
+
+
+def _parse_bonus_count(matched) -> int:
+    raw = matched.group(2) or "1"
+    count = int(raw) if raw.isdigit() else 1
+    if count < 1:
+        raise ValueError("奖励骰数量必须大于0")
+    if count > 10:
+        raise ValueError("奖励骰最多 10 颗")
+    return count
+
+
+def _parse_penalty_count(matched) -> int:
+    raw = matched.group(2) or "1"
+    count = int(raw) if raw.isdigit() else 1
+    if count < 1:
+        raise ValueError("惩罚骰数量必须大于0")
+    if count > 10:
+        raise ValueError("惩罚骰最多 10 颗")
+    return count
+
+
+def _skill_value(expr: str) -> int | None:
+    """`.r c70` / `.rh c70` 的 COC 技能值；不是该形式返回 None。"""
+    matched = re.fullmatch(r"c(\d+)", (expr or "").strip(), re.IGNORECASE)
+    return int(matched.group(1)) if matched else None
 
 
 @register_plugin
 class TrpgPlugin(Plugin):
     name = "trpg_dice"
-    description = "跑团骰子系统：DND5E 检定、暗骰（规则可切换）"
+    description = "跑团骰子系统：DND5E / COC 7th 检定、奖惩骰、暗骰"
 
     PREFIX_RE = re.compile(
-        r"^\.(?:rh(?:\s|$)|rc\s|r(?:\s|$))",
+        r"^\.(?:rh(?:\s|$)|ra\s|rc\s|r(?:\s|$))",
         re.IGNORECASE,
     )
 
@@ -40,6 +72,8 @@ class TrpgPlugin(Plugin):
 
             if raw.startswith(".rh"):
                 self._handle_dark_roll(raw, nickname)
+            elif raw.startswith(".ra "):
+                self._handle_coc_check(raw[4:], nickname)
             elif raw.startswith(".rc "):
                 self._dispatch_check(raw[4:], nickname)
             elif raw.startswith(".r"):
@@ -56,16 +90,38 @@ class TrpgPlugin(Plugin):
         runtime_context.record_bot_message(self.bot_event.group_id, NICKNAME, out)
 
     # ── 规则系统分发 ──────────────────────────────────────
-    # 未来规则切换功能修改 runtime_context.GAME_SYSTEM 即可
 
     def _current_system(self) -> str:
-        return getattr(runtime_context, "GAME_SYSTEM", DEFAULT_GAME_SYSTEM)
+        """本群当前规则（录制中取记录里的规则，未录制取 /跑团 规则 的选择）。"""
+        return party.current_rule(self.bot_event.group_id)
+
+    def _rule_name(self) -> str:
+        return GAME_SYSTEMS.get(self._current_system(), {}).get("name", self._current_system())
+
+    def _require_rule(self, rule_id: str, hint: str) -> bool:
+        if self._current_system() == rule_id:
+            return True
+        self._send_with_record(f"当前规则是 {self._rule_name()}，{hint}")
+        return False
 
     def _dispatch_check(self, arg: str, nickname: str):
         system = self._current_system()
+        if system == "coc7th":
+            raise ValueError("当前规则是 COC 7th，属性检定请用 .ra <技能值>")
         cfg = GAME_SYSTEMS.get(system, GAME_SYSTEMS[DEFAULT_GAME_SYSTEM])
         handler = getattr(self, cfg["check_handler"])
         handler(arg, nickname)
+
+    def _handle_coc_check(self, arg: str, nickname: str):
+        """.ra <技能值> — COC 7th 技能检定"""
+        if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
+            return
+        try:
+            value = int(arg.strip())
+        except ValueError:
+            raise ValueError("格式：.ra <技能值> — 例：.ra 70")
+        roll, grade = coc_check(value)
+        self._send_with_record(f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}")
 
     def _get_nickname(self):
         sender = self.bot_event.sender
@@ -90,6 +146,10 @@ class TrpgPlugin(Plugin):
             self._send_with_record(out)
             return
 
+        # COC 专用形式：c<技能值> 检定、b/p 奖惩骰
+        if self._handle_coc_expr(expr, nickname, reason):
+            return
+
         # 角色属性/技能名替换为数值
         resolved, expr_label = self._resolve_character_expr(expr)
         if resolved is None:
@@ -98,6 +158,31 @@ class TrpgPlugin(Plugin):
         value, detail = parse(resolved)
         out = self._format(nickname, expr_label, detail, value, reason)
         self._send_with_record(out)
+
+    def _handle_coc_expr(self, expr: str, nickname: str, reason: str = "") -> bool:
+        """处理 COC 专用表达式；不是 COC 形式返回 False。"""
+        skill = _skill_value(expr)
+        if skill is not None:
+            if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
+                return True
+            roll, grade = coc_check(skill)
+            self._send_with_record(f"{nickname}的COC检定 D100={roll} [技能={skill}] → {grade}")
+            return True
+
+        bonus = BONUS_RE.match(expr)
+        penalty = PENALTY_RE.match(expr)
+        if bonus or penalty:
+            if not self._require_rule("coc7th", "奖惩骰请先由 DM 发送 /跑团 规则 coc7th"):
+                return True
+            if bonus:
+                value, detail = coc_bonus(_parse_bonus_count(bonus))
+                label = "奖励骰"
+            else:
+                value, detail = coc_penalty(_parse_penalty_count(penalty))
+                label = "惩罚骰"
+            self._send_with_record(self._format(nickname, label, detail, value, reason))
+            return True
+        return False
 
     def _resolve_character_expr(self, expr: str):
         """若表达式含角色属性/技能名，替换为数值。返回 (解析后表达式, 显示用原式) 或 (None, None)。"""
@@ -204,6 +289,14 @@ class TrpgPlugin(Plugin):
         if not expr:
             value, detail = parse("")
             expr_label = "D100"
+        elif _skill_value(expr) is not None:
+            if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
+                return
+            skill = _skill_value(expr)
+            roll, grade = coc_check(skill)
+            value = roll
+            expr_label = "COC检定"
+            detail = f"D100={roll} [技能={skill}] → {grade}"
         else:
             resolved, expr_label = self._resolve_character_expr(expr)
             if resolved is None:

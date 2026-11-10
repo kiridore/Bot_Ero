@@ -12,6 +12,7 @@ from core.onebot_client import fetch_group_list, fetch_group_members, resolve_gr
 from core.utils import register_plugin, download_image
 from core import character_store as store
 from core.trpg import party, records
+from core.trpg.game_systems import DEFAULT_RULE, GAME_SYSTEMS, normalize_rule, rule_name
 import core.context as runtime_context
 
 # 记录图片允许的扩展名，与 core.trpg.records 的媒体名校验保持一致
@@ -20,7 +21,7 @@ IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 RECORD_STATES = {"recording": "录制中", "ended": "已结束"}
 
 COMMAND = "/跑团"
-PARTY_SUBCMDS = frozenset({"准备", "取消准备", "名单"})
+PARTY_SUBCMDS = frozenset({"准备", "取消准备", "名单", "规则"})
 MAX_GATE_MEMBERS = 200
 WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
 
@@ -151,6 +152,7 @@ def resume_session(group_id: int, meta: dict, record_path) -> dict:
         "messages": [],
         "participants": participants,
         "roles": dict(meta.get("roles") or {}),
+        "rules": meta.get("rules") or DEFAULT_RULE,
         "dir": Path(record_path),
         "img_count": max_image_index(record_path),
         "resume_banner": True,
@@ -332,6 +334,8 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
                 self._handle_prepare()
             elif sub == "取消准备":
                 self._handle_unprepare()
+            elif sub == "规则":
+                self._handle_rule(parts[2:])
             else:
                 self._handle_card()
         elif sub == "记录":
@@ -386,6 +390,33 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             self.api.send_msg(text("录制中无法准备或查看准备名单，请先 /跑团 记录 结束"))
             return True
         return False
+
+    # ── 规则设置 ──────────────────────────────────────────
+
+    def _handle_rule(self, args: list):
+        group_id = self.bot_event.group_id
+        if group_id is None:
+            self.api.send_msg(text("跑团指令请在群内使用"))
+            return
+        if not args:
+            current = party.current_rule(group_id)
+            options = "\n".join(f"· {cfg['name']} → /跑团 规则 {rule_id}" for rule_id, cfg in GAME_SYSTEMS.items())
+            self.api.send_msg(text(f"当前规则：{rule_name(current)}\n可选规则：\n{options}"))
+            return
+        if not self._is_dm_or_admin(group_id):
+            self.api.send_msg(text("只有 DM 才能切换规则"))
+            return
+        rule_id = normalize_rule(args[0])
+        if rule_id is None:
+            self.api.send_msg(text("未知规则，可用：" + " / ".join(cfg["name"] for cfg in GAME_SYSTEMS.values())))
+            return
+        try:
+            party.set_rule(group_id, rule_id)
+        except OSError:
+            logger.exception("保存规则失败")
+            self.api.send_msg(text("保存规则失败，请稍后重试"))
+            return
+        self.api.send_msg(text(f"已将本群跑团规则设为 {rule_name(rule_id)}"))
 
     # ── 准备情况卡片 ──────────────────────────────────────
 
@@ -633,6 +664,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             "group_name": "",
             "start": start.strftime("%Y-%m-%d %H:%M:%S"),
             "end": None,
+            "rules": party.current_rule(group_id),
             "roles": roles,
             "participants": participants,
         }
@@ -643,6 +675,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
                 "messages": [],
                 "participants": {p["user_id"]: dict(p) for p in participants},
                 "roles": dict(roles),
+                "rules": meta["rules"],
                 "dir": path,
                 "img_count": 0,
             }
