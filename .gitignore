@@ -14,3 +14,6 @@ data.db-wal
 .zcode
 .worktrees/
 .superpowers/
+
+# Office 临时锁文件（打开 xlsx 时生成）
+docs/~$*
