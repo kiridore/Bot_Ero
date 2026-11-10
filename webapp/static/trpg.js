@@ -263,7 +263,7 @@ function renderEditor() {
 
   const form = document.createElement("div");
   form.className = "trpg-editor";
-  let pointBuyMode = false;
+  let attributesMode = editing.attributes_mode || "manual";
   form.innerHTML = `
     <section class="settings-section">
       <div class="section-head"><h2>基本信息</h2></div>
@@ -294,7 +294,9 @@ function renderEditor() {
         <button type="button" class="btn-sm" id="genPointBuy">购点法（27点）</button>
         <button type="button" class="btn-sm" id="genRoll">4d6k3 掷骰</button>
         <button type="button" class="btn-sm" id="genArray">标准数组</button>
+        <button type="button" class="btn-sm" id="genManual">手填</button>
         <span class="muted" id="pointBuyHint"></span>
+        <span class="muted" id="attrModeHint"></span>
       </div>
     </section>
 
@@ -323,7 +325,8 @@ function renderEditor() {
         <tr><th>死亡豁免成功</th><td><input type="number" data-f="death_saves_success" min="0" max="3"></td>
             <th>死亡豁免失败</th><td><input type="number" data-f="death_saves_fail" min="0" max="3"></td>
             <th colspan="2"></th></tr>
-        <tr><th>建议 HP</th><td colspan="5" id="hpHint"></td></tr>
+        <tr><th>建议 HP</th><td colspan="3" id="hpHint"></td>
+            <td colspan="2"><button type="button" class="btn-sm" id="applyHp">按规则计算</button></td></tr>
       </table>
     </section>
 
@@ -418,8 +421,8 @@ function renderEditor() {
       const tdScore = document.createElement("td");
       const input = document.createElement("input");
       input.type = "number";
-      input.min = pointBuyMode ? 8 : 1;
-      input.max = pointBuyMode ? 15 : 30;
+      input.min = attributesMode === "point_buy" ? 8 : attributesMode === "rolled" ? 3 : 1;
+      input.max = attributesMode === "array" ? 15 : attributesMode === "point_buy" ? 15 : attributesMode === "rolled" ? 18 : 30;
       input.value = data[key] ?? 8;
       input.dataset.attr = key;
       tdScore.appendChild(input);
@@ -427,7 +430,8 @@ function renderEditor() {
       const tdMod = document.createElement("td");
       tdMod.className = "muted";
       const bonus = (rules.races[data.race] || {})[attr] || 0;
-      tdMod.textContent = `加值 ${abilityMod(calc.scores[key]) >= 0 ? "+" : ""}${abilityMod(calc.scores[key])}${bonus ? `（种族+${bonus}）` : ""}`;
+      const finalScore = calc.scores[key];
+      tdMod.textContent = `${bonus ? `${data[key] ?? 8} + ${bonus} = ${finalScore}｜` : ""}加值 ${abilityMod(finalScore) >= 0 ? "+" : ""}${abilityMod(finalScore)}`;
       tr.appendChild(tdMod);
       const tdSave = document.createElement("td");
       const saveCb = document.createElement("input");
@@ -445,6 +449,14 @@ function renderEditor() {
       attrTable.appendChild(tr);
     }
     skillTable.innerHTML = "";
+    const clsInfo = rules.classes[data.class_name] || {};
+    const allowed = clsInfo.skills === "any" ? null : (clsInfo.skills || []);
+    const limitHint = document.createElement("p");
+    limitHint.className = "muted";
+    limitHint.textContent = clsInfo.skill_count
+      ? `职业可选 ${clsInfo.skill_count} 项；${allowed ? `范围：${allowed.join("、")}` : "任意技能"}`
+      : "未选择职业";
+    skillTable.appendChild(limitHint);
     for (const [skill, attr] of Object.entries(rules.skills)) {
       const tr = document.createElement("tr");
       tr.innerHTML = `<th>${skill}</th><td class="muted">${attr}</td>`;
@@ -453,6 +465,7 @@ function renderEditor() {
       cb.type = "checkbox";
       cb.checked = (data.proficient_skills || []).includes(skill);
       cb.dataset.skill = skill;
+      cb.disabled = allowed ? !allowed.includes(skill) : false;
       tdProf.appendChild(cb);
       tr.appendChild(tdProf);
       const tdMod = document.createElement("td");
@@ -461,9 +474,13 @@ function renderEditor() {
       tr.appendChild(tdMod);
       skillTable.appendChild(tr);
     }
-    const suggestedHp = calc.hpDie + abilityMod(calc.scores.con_score);
+    const conModForHp = abilityMod(calc.scores.con_score);
+    const lvl = Number(data.level) || 1;
+    const suggestedHp = Math.max(calc.hpDie + conModForHp + (lvl - 1) * (Math.floor(calc.hpDie / 2) + 1 + conModForHp), 1);
+    const hpBtn = document.getElementById("applyHp");
+    if (hpBtn) hpBtn.textContent = `按规则计算 ${suggestedHp}`;
     const suggestedAc = 10 + abilityMod(calc.scores.dex_score);
-    hpHint.textContent = `职业 HP 骰 d${calc.hpDie} + 体质加值 = ${suggestedHp}；敏捷加值 AC = ${suggestedAc}（可在上方手动覆盖）`;
+    hpHint.textContent = `1 级取满骰 d${calc.hpDie} + 体质 ${conModForHp}，之后每级取均值；AC 参考 10+敏捷 = ${suggestedAc}（可手动覆盖）`;
     document.getElementById("profBonusCell").textContent = `+${calc.profBonus}`;
     document.getElementById("initiativeCell").textContent = `${calc.initiative >= 0 ? "+" : ""}${calc.initiative}`;
     document.getElementById("hitDiceCell").textContent = calc.hitDice;
@@ -475,7 +492,10 @@ function renderEditor() {
       if (pointCost[v] !== undefined) spent += pointCost[v];
     });
     const hint = document.getElementById("pointBuyHint");
-    hint.textContent = `购点已用 ${spent}/27`;
+    hint.textContent = attributesMode === "point_buy"
+      ? `购点已用 ${spent}/27${spent > 27 ? "（超支，保存会被拒绝）" : ""}`
+      : "";
+    document.getElementById("attrModeHint").textContent = `当前生成方式：${(rules.attribute_modes || {})[attributesMode] || attributesMode}`;
     document.getElementById("levelCell").textContent = `Lv.${data.level || 1}`;
   }
 
@@ -492,18 +512,27 @@ function renderEditor() {
   const arrayScores = [15, 14, 13, 12, 10, 8];
 
   form.querySelector("#genRoll").addEventListener("click", () => {
+    attributesMode = "rolled";
+    form.querySelectorAll("[data-attr]").forEach((el) => { el.min = 3; el.max = 18; });
     const vals = rollScores();
     form.querySelectorAll("[data-attr]").forEach((el, i) => { el.value = vals[i]; });
     refresh();
   });
   form.querySelector("#genArray").addEventListener("click", () => {
+    attributesMode = "array";
+    form.querySelectorAll("[data-attr]").forEach((el) => { el.min = 8; el.max = 15; });
     form.querySelectorAll("[data-attr]").forEach((el, i) => { el.value = arrayScores[i]; });
     refresh();
   });
   form.querySelector("#genPointBuy").addEventListener("click", () => {
-    pointBuyMode = true;
+    attributesMode = "point_buy";
     form.querySelectorAll("[data-attr]").forEach((el) => { el.min = 8; el.max = 15; });
     showToast("购点模式：属性值 8-15，总花费不超过 27 点");
+    refresh();
+  });
+  form.querySelector("#genManual").addEventListener("click", () => {
+    attributesMode = "manual";
+    form.querySelectorAll("[data-attr]").forEach((el) => { el.min = 1; el.max = 30; });
     refresh();
   });
 
@@ -519,6 +548,7 @@ function renderEditor() {
       else data[key] = el.value;
     });
     data.inspiration = Boolean(form.querySelector('[data-f="inspiration"]').checked);
+    data.attributes_mode = attributesMode;
     // 阵营：双下拉组合，或自定义文本
     const law = form.querySelector('[data-f="alignment_law"]').value;
     const moral = form.querySelector('[data-f="alignment_moral"]').value;
@@ -540,6 +570,12 @@ function renderEditor() {
       : (editing.proficient_skills || []);
     return data;
   }
+
+  form.querySelector("#applyHp").addEventListener("click", () => {
+    const hpInput = form.querySelector('[data-f="hp"]');
+    hpInput.value = document.getElementById("applyHp").textContent.replace(/[^0-9]/g, "");
+    refresh();
+  });
 
   form.addEventListener("input", refresh);
   refresh();

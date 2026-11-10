@@ -45,20 +45,34 @@ RACES = {
     "侏儒": {"智力": 2},
 }
 
-# 职业：仅 HP 骰面数与可熟练技能数（其余为自由内容）
+# 职业：HP 骰面数、可熟练技能数、可选技能清单（"any" = 任意技能）
 CLASSES = {
-    "野蛮人": {"hp_die": 12, "skill_count": 2},
-    "吟游诗人": {"hp_die": 8, "skill_count": 3},
-    "牧师": {"hp_die": 8, "skill_count": 2},
-    "德鲁伊": {"hp_die": 8, "skill_count": 2},
-    "战士": {"hp_die": 10, "skill_count": 2},
-    "武僧": {"hp_die": 8, "skill_count": 2},
-    "圣武士": {"hp_die": 10, "skill_count": 2},
-    "游侠": {"hp_die": 10, "skill_count": 3},
-    "游荡者": {"hp_die": 8, "skill_count": 4},
-    "术士": {"hp_die": 8, "skill_count": 2},
-    "邪术师": {"hp_die": 8, "skill_count": 2},
-    "法师": {"hp_die": 6, "skill_count": 2},
+    "野蛮人": {"hp_die": 12, "skill_count": 2, "skills": ["驯兽", "运动", "威吓", "自然", "察觉", "生存"]},
+    "吟游诗人": {"hp_die": 8, "skill_count": 3, "skills": "any"},
+    "牧师": {"hp_die": 8, "skill_count": 2, "skills": ["历史", "洞悉", "医药", "游说", "宗教"]},
+    "德鲁伊": {"hp_die": 8, "skill_count": 2,
+              "skills": ["奥术", "驯兽", "洞悉", "医药", "自然", "察觉", "宗教", "生存"]},
+    "战士": {"hp_die": 10, "skill_count": 2,
+             "skills": ["杂技", "驯兽", "运动", "历史", "洞悉", "威吓", "察觉", "生存"]},
+    "武僧": {"hp_die": 8, "skill_count": 2, "skills": ["杂技", "运动", "历史", "洞悉", "宗教", "隐秘"]},
+    "圣武士": {"hp_die": 10, "skill_count": 2,
+              "skills": ["运动", "洞悉", "威吓", "医药", "游说", "宗教"]},
+    "游侠": {"hp_die": 10, "skill_count": 3,
+             "skills": ["驯兽", "运动", "洞悉", "调查", "自然", "察觉", "隐秘", "生存"]},
+    "游荡者": {"hp_die": 8, "skill_count": 4,
+              "skills": ["杂技", "运动", "欺瞒", "洞悉", "威吓", "调查", "察觉", "表演", "游说", "巧手", "隐秘"]},
+    "术士": {"hp_die": 8, "skill_count": 2, "skills": ["奥术", "欺瞒", "洞悉", "威吓", "游说", "宗教"]},
+    "邪术师": {"hp_die": 8, "skill_count": 2,
+              "skills": ["奥术", "欺瞒", "历史", "威吓", "调查", "自然", "宗教"]},
+    "法师": {"hp_die": 6, "skill_count": 2, "skills": ["奥术", "历史", "洞悉", "调查", "医药", "宗教"]},
+}
+
+# 属性生成方式（入库，供服务端按方式校验基础值）
+ATTRIBUTE_MODES = {
+    "point_buy": "购点法",
+    "rolled": "掷骰",
+    "array": "标准数组",
+    "manual": "手填",
 }
 
 # 标准购点成本：属性值 → 花费点数

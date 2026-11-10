@@ -26,6 +26,7 @@ MEDIA_URL_PREFIX = "/trpg/media"
 class CharacterIn(BaseModel):
     char_name: str
     rules: str = "dnd5e"
+    attributes_mode: str = "manual"
     # COC 7th 专属（DND 卡留空）
     occupation: str = ""
     age: int = 0
@@ -190,6 +191,9 @@ def _apply_rules(data: dict) -> None:
         return
     if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
         data["xp"] = trpg_rules.XP_THRESHOLDS[min(int(data["level"]) - 1, len(trpg_rules.XP_THRESHOLDS) - 1)]
+    problems = trpg_char.validate(data)
+    if problems:
+        raise HTTPException(status_code=400, detail="；".join(problems))
     finalized = trpg_char.finalize(data)
     data["hp"] = finalized["hp"]
     data["ac"] = finalized["ac"]
@@ -317,6 +321,7 @@ def api_trpg_rules():
         "point_buy_budget": trpg_rules.POINT_BUY_BUDGET,
         "standard_array": trpg_rules.STANDARD_ARRAY,
         "xp_thresholds": trpg_rules.XP_THRESHOLDS,
+        "attribute_modes": trpg_rules.ATTRIBUTE_MODES,
         "alignments": {
             "law": ["守序", "中立", "混乱"],
             "moral": ["善良", "中立", "邪恶"],

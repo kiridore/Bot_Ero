@@ -2,12 +2,19 @@ import json
 
 from .rules import (
     ATTRIBUTES,
+    CLASSES,
+    POINT_BUY_BUDGET,
+    POINT_BUY_COST,
+    RACES,
     SKILLS,
+    STANDARD_ARRAY,
     XP_THRESHOLDS,
     ability_modifier,
     class_info,
     race_bonuses,
 )
+
+VALID_MODES = ("point_buy", "rolled", "array", "manual")
 
 
 def level_from_xp(xp: int) -> int:
@@ -140,3 +147,70 @@ def _attr_key(attr: str) -> str:
     mapping = {"力量": "str_score", "敏捷": "dex_score", "体质": "con_score",
                "智力": "int_score", "感知": "wis_score", "魅力": "cha_score"}
     return mapping.get(attr, "")
+
+
+def _base_scores(char_data: dict) -> dict:
+    return {attr: int(char_data.get(_attr_key(attr), 0) or 0) for attr in ATTRIBUTES}
+
+
+def point_buy_spent(char_data: dict) -> int:
+    return sum(POINT_BUY_COST.get(value, 99) for value in _base_scores(char_data).values())
+
+
+def suggest_hp(char_data: dict) -> int:
+    """按 5E 规则算 HP：1 级取满骰，之后每级取骰面均值（向上取整）加上体质加值。"""
+    fin = finalize(char_data)
+    level = max(int(fin.get("level") or 1), 1)
+    die = class_info(char_data.get("class_name", "")).get("hp_die", 8)
+    con_mod = ability_modifier(fin["scores"]["con_score"])
+    average = die // 2 + 1
+    return max(die + con_mod + (level - 1) * (average + con_mod), 1)
+
+
+def validate(char_data: dict) -> list[str]:
+    """建卡校验：属性生成方式对应的取值范围、购点预算、技能选择与豁免数量。"""
+    problems = []
+    mode = char_data.get("attributes_mode") or "manual"
+    if mode not in VALID_MODES:
+        problems.append(f"未知的属性生成方式：{mode}")
+        mode = "manual"
+    base = _base_scores(char_data)
+    for attr, value in base.items():
+        if mode == "point_buy" and value not in POINT_BUY_COST:
+            problems.append(f"{attr}购点值需在 8-15（当前 {value}）")
+        elif mode == "rolled" and not 3 <= value <= 18:
+            problems.append(f"{attr}掷骰结果应在 3-18（当前 {value}）")
+        elif mode == "array" and value not in STANDARD_ARRAY:
+            problems.append(f"{attr}应取自标准数组 {STANDARD_ARRAY}（当前 {value}）")
+        elif mode == "manual" and not 1 <= value <= 30:
+            problems.append(f"{attr}应在 1-30（当前 {value}）")
+    if mode == "point_buy":
+        spent = point_buy_spent(char_data)
+        if spent > POINT_BUY_BUDGET:
+            problems.append(f"购点超出预算（{spent}/{POINT_BUY_BUDGET}）")
+
+    race = char_data.get("race") or ""
+    if race and race not in RACES:
+        problems.append(f"未知种族：{race}")
+    class_name = char_data.get("class_name") or ""
+    info = CLASSES.get(class_name)
+    if class_name and info is None:
+        problems.append(f"未知职业：{class_name}")
+
+    chosen = [skill for skill in (char_data.get("proficient_skills") or []) if skill]
+    unknown = [skill for skill in chosen if skill not in SKILLS]
+    if unknown:
+        problems.append("未知技能：" + "、".join(unknown))
+    if info:
+        allowed = info.get("skills")
+        if allowed != "any":
+            outside = [skill for skill in chosen if skill not in (allowed or [])]
+            if outside:
+                problems.append(f"{class_name}不可选技能：" + "、".join(outside))
+        if len(chosen) > info.get("skill_count", 0):
+            problems.append(f"{class_name}最多选 {info['skill_count']} 项技能（已选 {len(chosen)}）")
+
+    saves = [item for item in (char_data.get("saving_profs") or []) if item in ATTRIBUTES]
+    if len(saves) > 2:
+        problems.append(f"豁免熟练最多 2 项（已选 {len(saves)}）")
+    return problems
