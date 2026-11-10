@@ -5,6 +5,7 @@ from core.cq import text
 from core.logger import logger
 from core.utils import register_plugin
 from core import character_store as store
+from core.trpg import coc as coc_sheet
 from core.trpg import party
 import core.context as runtime_context
 
@@ -116,10 +117,18 @@ class TrpgPlugin(Plugin):
         """.ra <技能值> — COC 7th 技能检定"""
         if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
             return
-        try:
-            value = int(arg.strip())
-        except ValueError:
-            raise ValueError("格式：.ra <技能值> — 例：.ra 70")
+        text_arg = arg.strip()
+        if text_arg.isdigit():
+            value = int(text_arg)
+        else:
+            # 技能名从当前 COC 角色卡取最终成功率
+            user_id = self.bot_event.user_id
+            char = store.get_current(user_id) if user_id is not None else None
+            if not char or (char.get("rules") or "dnd5e") != "coc7th":
+                raise ValueError("格式：.ra <技能值或技能名> — 例：.ra 70 / .ra 侦查（需要 COC 角色卡）")
+            value = coc_sheet.skill_value(char, text_arg)
+            if value is None:
+                raise ValueError(f"角色卡里没有技能「{text_arg}」")
         roll, grade = coc_check(value)
         self._send_with_record(f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}")
 

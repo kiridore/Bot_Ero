@@ -263,3 +263,43 @@
   color: var(--gray);
   font-size: 0.8rem;
 }
+
+/* COC 7th 建卡工具 */
+.coc-block {
+  margin: 1rem 0;
+  padding: 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper-card);
+}
+
+.coc-block h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+}
+
+.coc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem 0.75rem;
+}
+
+.coc-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.coc-wide { grid-column: 1 / -1; }
+
+.coc-num { width: 5.5rem; }
+
+.coc-note { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--ink-soft); }
+.coc-warn { margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--red, #a33); }
+
+.coc-table-wrap { overflow-x: auto; }
+.coc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.coc-table th, .coc-table td { padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--rule); text-align: left; }
+.coc-total { font-weight: 700; }

@@ -11,6 +11,7 @@ from core import character_store as char_store
 from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
+from core.trpg import coc as trpg_coc
 from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
 from core.trpg.game_systems import rule_name
@@ -24,18 +25,39 @@ MEDIA_URL_PREFIX = "/trpg/media"
 
 class CharacterIn(BaseModel):
     char_name: str
-    race: str
-    class_name: str
+    rules: str = "dnd5e"
+    # COC 7th 专属（DND 卡留空）
+    occupation: str = ""
+    age: int = 0
+    sex: str = ""
+    residence: str = ""
+    birthplace: str = ""
+    era: str = ""
+    luck: int = 0
+    credit_rating: int = 0
+    cthulhu_mythos: int = 0
+    skills: dict = {}
+    weapons: list[dict] = []
+    assets: dict = {}
+    social_background: dict = {}
+    # DND 5E 专属
+    race: str = ""
+    class_name: str = ""
     level: int = 1
     background: str = ""
     alignment: str = ""
     xp: int = 0
-    str_score: int
-    dex_score: int
-    con_score: int
-    int_score: int
-    wis_score: int
-    cha_score: int
+    str_score: int = 0
+    dex_score: int = 0
+    con_score: int = 0
+    int_score: int = 0
+    wis_score: int = 0
+    cha_score: int = 0
+    # COC 7th 属性（与 DND 共用 str/con/dex/int，其余独立）
+    siz_score: int = 0
+    app_score: int = 0
+    pow_score: int = 0
+    edu_score: int = 0
     proficient_skills: list[str] = []
     saving_profs: list[str] = []
     hp: int = 0
@@ -61,96 +83,130 @@ class CharOut(BaseModel):
     id: int
     user_id: str
     display_name: str
-    char_name: str
-    race: str
-    class_name: str
-    level: int
-    hp: int
-    ac: int
-    skill_mods: dict
-    scores: dict
-    prof_bonus: int
-    save_mods: dict
-    passive_perception: int
-    initiative: int
-    hit_dice: str
-    proficient_skills: list[str]
-    notes: str
-    background: str
-    alignment: str
-    xp: int
-    str_score: int
-    dex_score: int
-    con_score: int
-    int_score: int
-    wis_score: int
-    cha_score: int
-    saving_profs: list[str]
-    current_hp: int
-    temp_hp: int
-    speed: int
-    death_saves_success: int
-    death_saves_fail: int
-    inspiration: bool
-    equipment: list[str]
-    other_proficiencies: str
-    attacks: list[str]
-    features: str
-    personality_traits: str
-    ideals: str
-    bonds: str
-    flaws: str
+    char_name: str = ""
+    rules: str = "dnd5e"
+    notes: str = ""
+    # 派生展示（按规则填充）
+    hp: int = 0
+    ac: int = 0
+    scores: dict = {}
+    skill_mods: dict = {}
+    save_mods: dict = {}
+    prof_bonus: int = 0
+    passive_perception: int = 0
+    initiative: int = 0
+    hit_dice: str = ""
+    # 通用
+    level: int = 1
+    xp: int = 0
+    background: str = ""
+    alignment: str = ""
+    # DND 5E
+    race: str = ""
+    class_name: str = ""
+    str_score: int = 0
+    dex_score: int = 0
+    con_score: int = 0
+    int_score: int = 0
+    wis_score: int = 0
+    cha_score: int = 0
+    # COC 7th 属性（与 DND 共用 str/con/dex/int，其余独立）
+    siz_score: int = 0
+    app_score: int = 0
+    pow_score: int = 0
+    edu_score: int = 0
+    proficient_skills: list[str] = []
+    saving_profs: list[str] = []
+    current_hp: int = 0
+    temp_hp: int = 0
+    speed: int = 30
+    death_saves_success: int = 0
+    death_saves_fail: int = 0
+    inspiration: bool = False
+    equipment: list[str] = []
+    other_proficiencies: str = ""
+    attacks: list[str] = []
+    features: str = ""
+    personality_traits: str = ""
+    ideals: str = ""
+    bonds: str = ""
+    flaws: str = ""
+    # COC 7th
+    occupation: str = ""
+    age: int = 0
+    sex: str = ""
+    residence: str = ""
+    birthplace: str = ""
+    era: str = ""
+    luck: int = 0
+    credit_rating: int = 0
+    cthulhu_mythos: int = 0
+    skills: dict = {}
+    weapons: list[dict] = []
+    assets: dict = {}
+    social_background: dict = {}
+    mp: int = 0
+    san: int = 0
+    max_san: int = 0
+    mov: int = 0
+    db: str = ""
+    build: int = 0
+    dodge: int = 0
+    occupation_info: dict | None = None
+    occupation_budget: int = 0
+    occupation_spent: int = 0
+    interest_budget: int = 0
+    interest_spent: int = 0
 
 
 def _char_to_out(data: dict) -> CharOut:
-    base_scores = {k: data.get(k, 8) for k in (
-        "str_score", "dex_score", "con_score", "int_score", "wis_score", "cha_score"
-    )}
+    payload = dict(data)
+    payload["display_name"] = resolve_display_name(data["user_id"])
+    rules = data.get("rules") or "dnd5e"
+    payload["rules"] = rules
+    if rules == "coc7th":
+        fin = trpg_coc.finalize(data)
+        for key in ("scores", "hp", "mp", "san", "max_san", "mov", "db", "build", "dodge",
+                    "skills", "occupation_info", "occupation_budget", "occupation_spent",
+                    "interest_budget", "interest_spent"):
+            payload[key] = fin[key]
+    else:
+        fin = trpg_char.finalize(data)
+        payload["hp"] = fin["hp"]
+        payload["ac"] = fin["ac"]
+        for key in ("skill_mods", "scores", "prof_bonus", "save_mods",
+                    "passive_perception", "initiative", "hit_dice"):
+            payload[key] = fin.get(key, payload.get(key))
+    return CharOut(**{k: v for k, v in payload.items() if k in CharOut.model_fields})
+
+
+def _apply_rules(data: dict) -> None:
+    """按卡片规则算派生值并校验；非法数据抛 400。"""
+    if (data.get("rules") or "dnd5e") == "coc7th":
+        problems = trpg_coc.validate(data)
+        if problems:
+            raise HTTPException(status_code=400, detail="；".join(problems))
+        data["hp"] = trpg_coc.finalize(data)["hp"]
+        return
+    if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
+        data["xp"] = trpg_rules.XP_THRESHOLDS[min(int(data["level"]) - 1, len(trpg_rules.XP_THRESHOLDS) - 1)]
     finalized = trpg_char.finalize(data)
-    return CharOut(
-        id=data["id"],
-        user_id=data["user_id"],
-        display_name=resolve_display_name(data["user_id"]),
-        char_name=finalized["char_name"],
-        race=finalized.get("race", ""),
-        class_name=finalized.get("class_name", ""),
-        level=int(finalized.get("level", 1)),
-        hp=finalized["hp"],
-        ac=finalized["ac"],
-        skill_mods=finalized.get("skill_mods", {}),
-        scores=finalized.get("scores", {}),
-        prof_bonus=finalized.get("prof_bonus", 2),
-        save_mods=finalized.get("save_mods", {}),
-        passive_perception=finalized.get("passive_perception", 10),
-        initiative=finalized.get("initiative", 0),
-        hit_dice=finalized.get("hit_dice", "1d8"),
-        proficient_skills=finalized.get("proficient_skills", []),
-        notes=finalized.get("notes", ""),
-        background=data.get("background", ""),
-        alignment=data.get("alignment", ""),
-        xp=int(data.get("xp", 0)),
-        str_score=base_scores["str_score"],
-        dex_score=base_scores["dex_score"],
-        con_score=base_scores["con_score"],
-        int_score=base_scores["int_score"],
-        wis_score=base_scores["wis_score"],
-        cha_score=base_scores["cha_score"],
-        saving_profs=data.get("saving_profs", []) or [],
-        current_hp=int(data.get("current_hp", 0)),
-        temp_hp=int(data.get("temp_hp", 0)),
-        speed=int(data.get("speed", 30)),
-        death_saves_success=int(data.get("death_saves_success", 0)),
-        death_saves_fail=int(data.get("death_saves_fail", 0)),
-        inspiration=bool(data.get("inspiration", False)),
-        equipment=data.get("equipment", []) or [],
-        other_proficiencies=data.get("other_proficiencies", ""),
-        attacks=data.get("attacks", []) or [],
-        features=data.get("features", ""),
-        personality_traits=data.get("personality_traits", ""),
-        ideals=data.get("ideals", ""),
-        bonds=data.get("bonds", ""),
-        flaws=data.get("flaws", ""),
-    )
+    data["hp"] = finalized["hp"]
+    data["ac"] = finalized["ac"]
+
+
+@router.get("/api/trpg/coc/options")
+def api_coc_options():
+    """建卡工具的数据源：技能基础值、职业模板与类别。"""
+    return {
+        "skill_base": trpg_coc.SKILL_BASE,
+        "skill_categories": list(trpg_coc.SKILL_CATEGORIES),
+        "occupations": [
+            {"seq": seq, "name": name, "credit_min": low, "credit_max": high,
+             "formula": formula, "own_skills": own}
+            for seq, name, low, high, formula, own in trpg_coc.OCCUPATIONS
+        ],
+    }
 
 
 @router.get("/api/me/characters")
@@ -170,11 +226,7 @@ def api_create_character(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     data = body.model_dump()
-    if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
-        data["xp"] = trpg_rules.XP_THRESHOLDS[min(int(data["level"]) - 1, len(trpg_rules.XP_THRESHOLDS) - 1)]
-    finalized = trpg_char.finalize(data)
-    data["hp"] = finalized["hp"]
-    data["ac"] = finalized["ac"]
+    _apply_rules(data)
     try:
         char_id = char_store.create_char(user_id, data)
     except ValueError as exc:
@@ -202,11 +254,7 @@ def api_update_character(
     if not char_store.get_char(user_id, char_id):
         raise HTTPException(status_code=404, detail="角色不存在")
     data = body.model_dump()
-    if int(data.get("xp", 0)) <= 0 and int(data.get("level", 1)) > 1:
-        data["xp"] = trpg_rules.XP_THRESHOLDS[min(int(data["level"]) - 1, len(trpg_rules.XP_THRESHOLDS) - 1)]
-    finalized = trpg_char.finalize(data)
-    data["hp"] = finalized["hp"]
-    data["ac"] = finalized["ac"]
+    _apply_rules(data)
     try:
         char_store.update_char(user_id, char_id, data)
     except ValueError as exc:
@@ -438,6 +486,15 @@ def trpg_record_media(
     if not path.is_file():
         raise HTTPException(status_code=404, detail="图片不存在")
     return FileResponse(path)
+
+
+@router.get("/trpg/coc")
+@router.get("/trpg/coc/{char_id}")
+def trpg_coc_page(char_id: int | None = None):
+    page = STATIC_DIR / "trpg_coc.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少 COC 建卡页面")
+    return FileResponse(page)
 
 
 @router.get("/trpg/records")

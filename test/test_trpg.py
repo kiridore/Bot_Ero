@@ -256,6 +256,20 @@ class TestCocRules(unittest.TestCase):
             plugin.handle()
         self.assertIn("当前规则是 DND 5E", _sent_text(plugin))
 
+    def test_ra_skill_name_from_coc_card(self):
+        card = {"rules": "coc7th", "skills": {"侦查": {"base": 25, "occupation": 20}}}
+        plugin = self._plugin(".ra 侦查")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card),                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+            plugin.handle()
+        self.assertIn("[技能=45]", _sent_text(plugin))
+
+    def test_ra_unknown_skill_reported(self):
+        card = {"rules": "coc7th", "skills": {"侦查": {"base": 25}}}
+        plugin = self._plugin(".ra 驾驶")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card):
+            plugin.handle()
+        self.assertIn("没有技能", _sent_text(plugin))
+
     def test_rc_refused_under_coc_rule(self):
         plugin = self._plugin(".rc 力量")
         with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"):

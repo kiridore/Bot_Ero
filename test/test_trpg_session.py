@@ -928,5 +928,27 @@ class TestResumeRule(IsolationMixin, unittest.TestCase):
         self.assertEqual(runtime_context.get_recording_session(GROUP_ID)["rules"], "coc7th")
 
 
+class TestPrepareRuleMatch(IsolationMixin, unittest.TestCase):
+    """本团规则与当前角色卡规则不一致时拒绝准备。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+        self.patch_members([{"user_id": "111", "nickname": "玩家A", "is_robot": False}])
+
+    def test_mismatch_refused(self):
+        party.set_rule(GROUP_ID, "coc7th")
+        store.create_char("111", {"char_name": "艾伦", "rules": "dnd5e"})
+        plugin = _run([_text_seg("/跑团 准备")])
+        self.assertIn("本团规则是 COC 7th", _sent_text(plugin))
+        self.assertEqual(party.read_pending(GROUP_ID)["prepared"], {})
+
+    def test_matching_rule_accepted(self):
+        party.set_rule(GROUP_ID, "coc7th")
+        store.create_char("111", {"char_name": "田宫真莉", "rules": "coc7th", "occupation": "药剂师"})
+        _run([_text_seg("/跑团 准备")])
+        self.assertIn("111", party.read_pending(GROUP_ID)["prepared"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

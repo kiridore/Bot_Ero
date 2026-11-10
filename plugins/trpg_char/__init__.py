@@ -5,6 +5,7 @@ from core.logger import logger
 from core.utils import register_plugin
 
 from core import character_store as store
+from core.trpg import coc as coc_sheet
 from . import character as char_logic
 
 WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
@@ -79,7 +80,10 @@ class TrpgCharPlugin(Plugin):
         lines = ["你的角色卡："]
         for c in chars:
             mark = " ◀ 当前" if c["id"] == current_id else ""
-            lines.append(f"#{c['id']} {c['char_name']} Lv.{c['level']} {c['race']} {c['class_name']}{mark}")
+            if (c.get("rules") or "dnd5e") == "coc7th":
+                lines.append(f"#{c['id']} {c['char_name']} COC 调查员 {c.get('occupation') or ''}{mark}")
+            else:
+                lines.append(f"#{c['id']} {c['char_name']} Lv.{c['level']} {c['race']} {c['class_name']}{mark}")
         self.api.send_msg(text("\n".join(lines)))
 
     def _handle_switch(self, args: list):

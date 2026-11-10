@@ -144,10 +144,16 @@ function renderList() {
   const head = document.createElement("div");
   head.className = "section-head";
   head.innerHTML = `<h2>我的角色卡</h2>`;
+  const cocBtn = document.createElement("button");
+  cocBtn.type = "button";
+  cocBtn.className = "btn-sm";
+  cocBtn.textContent = "新建 COC 7th 卡";
+  cocBtn.addEventListener("click", () => { window.location.href = "/trpg/coc"; });
+  head.appendChild(cocBtn);
   const newBtn = document.createElement("button");
   newBtn.type = "button";
   newBtn.className = "btn-sm primary";
-  newBtn.textContent = "新建角色";
+  newBtn.textContent = "新建 DND 5E 卡";
   newBtn.addEventListener("click", () => {
     editing = {
       char_name: "", race: "人类", class_name: "战士", level: 1, background: "",
@@ -181,8 +187,12 @@ function renderList() {
     row.innerHTML = `
       <div class="row-main">
         <strong>[#${c.id}] ${escapeHtml(c.char_name)}${isCur ? " ◀ 当前" : ""}</strong>
-        <span class="rarity">Lv.${c.level} ${escapeHtml(c.race)} ${escapeHtml(c.class_name)}</span>
-        <p class="desc">HP ${c.hp} / AC ${c.ac}</p>
+        <span class="rarity">${(c.rules || "dnd5e") === "coc7th"
+          ? `COC 7th · ${escapeHtml(c.occupation || "无职业")} · ${c.age || "?"}岁`
+          : `DND 5E · Lv.${c.level} ${escapeHtml(c.race)} ${escapeHtml(c.class_name)}`}</span>
+        <p class="desc">${(c.rules || "dnd5e") === "coc7th"
+          ? `HP ${c.hp} · MP ${c.mp} · SAN ${c.san} · MOV ${c.mov}`
+          : `HP ${c.hp} / AC ${c.ac}`}</p>
       </div>
     `;
     const actions = document.createElement("div");
@@ -198,6 +208,10 @@ function renderList() {
     editBtn.className = "btn-sm";
     editBtn.textContent = "编辑";
     editBtn.addEventListener("click", async () => {
+      if ((c.rules || "dnd5e") === "coc7th") {
+        window.location.href = `/trpg/coc/${c.id}`;
+        return;
+      }
       try {
         editing = await apiFetch(`/api/me/characters/${c.id}`);
         renderEditor();

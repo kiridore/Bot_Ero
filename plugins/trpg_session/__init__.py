@@ -486,6 +486,14 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         if not char:
             self.api.send_msg(text("你还没有角色卡，请到网页端创建后再准备：\n" + WEB_TRPG_URL))
             return
+        group_rule = party.current_rule(group_id)
+        card_rule = char.get("rules") or "dnd5e"
+        if card_rule != group_rule:
+            self.api.send_msg(text(
+                f"本团规则是 {rule_name(group_rule)}，你的当前角色卡是 {rule_name(card_rule)}：\n"
+                f"请切换角色卡（/跑团 角色 列表 → /跑团 角色 切换 <编号>），或让 DM 用 /跑团 规则 修改本团规则"
+            ))
+            return
         snapshot = {
             "user_id": user_id,
             "nickname": self._get_sender_nickname(),
