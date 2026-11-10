@@ -8,6 +8,7 @@ from core import character_store as store
 from . import character as char_logic
 
 WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
+COMMAND = "/跑团"
 
 
 @register_plugin
@@ -21,30 +22,35 @@ class TrpgCharPlugin(Plugin):
                 return seg.get("data", {}).get("text", "").strip()
         return ""
 
+    def _command_parts(self):
+        parts = self._first_text().split()
+        if len(parts) < 2 or parts[0] != COMMAND or parts[1] != "角色":
+            return None
+        return parts
+
     def match(self, message_type) -> bool:
         if message_type != "message":
             return False
-        return self._first_text().startswith("/角色")
+        return self._command_parts() is not None
 
     def handle(self):
         try:
-            msg = self._first_text()
-            if msg.startswith("/角色"):
-                self._route_command(msg)
+            parts = self._command_parts()
+            if parts is not None:
+                self._route_command(parts)
         except Exception:
             logger.exception("TrpgChar 处理异常")
 
-    def _route_command(self, msg: str):
-        parts = msg.split()
-        sub = parts[1] if len(parts) > 1 else ""
+    def _route_command(self, parts: list):
+        sub = parts[2] if len(parts) > 2 else ""
         if sub in ("创建", "编辑", "放弃"):
             self.api.send_msg(text(
                 "角色卡的创建与编辑已迁移到网页端：\n" + WEB_TRPG_URL
             ))
         elif sub == "切换":
-            self._handle_switch(parts[2:])
+            self._handle_switch(parts[3:])
         elif sub == "删除":
-            self._handle_delete(parts[2:])
+            self._handle_delete(parts[3:])
         elif sub == "列表":
             self._handle_list()
         else:
@@ -81,7 +87,7 @@ class TrpgCharPlugin(Plugin):
         if user_id is None:
             return
         if not args or not args[0].lstrip("#").isdigit():
-            self.api.send_msg(text("格式：/角色 切换 <编号>"))
+            self.api.send_msg(text("格式：/跑团 角色 切换 <编号>"))
             return
         char_id = int(args[0].lstrip("#"))
         try:
@@ -99,7 +105,7 @@ class TrpgCharPlugin(Plugin):
         if user_id is None:
             return
         if not args or not args[0].lstrip("#").isdigit():
-            self.api.send_msg(text("格式：/角色 删除 <编号>"))
+            self.api.send_msg(text("格式：/跑团 角色 删除 <编号>"))
             return
         char_id = int(args[0].lstrip("#"))
         char = store.get_char(user_id, char_id)

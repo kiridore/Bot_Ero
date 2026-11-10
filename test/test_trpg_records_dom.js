@@ -182,7 +182,7 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   await settle();
 
   // —— AC08 气泡渲染 ——
-  check("标题显示群名", els.recordTitle.textContent === "夜航团", els.recordTitle.textContent);
+  check("标题显示团名", els.recordTitle.textContent === "夜航团", els.recordTitle.textContent);
   check("状态徽标为已导出", els.recordState.textContent === "已导出", els.recordState.textContent);
   check("头部消息条数取 total", els.recordMeta.textContent.includes("5 条消息"), els.recordMeta.textContent);
   check("默认渲染 4 条（暗骰不返回）", msgList.children.length === 4, String(msgList.children.length));

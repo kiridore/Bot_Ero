@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core import character_store as store
 from core.config import BOT_QQ, NICKNAME, WEB_BASE_URL
-from core.trpg import records
+from core.trpg import party, records
 from plugins.trpg_dice import TrpgPlugin
 from plugins.trpg_session import TrpgSessionPlugin
 from test.helper import MockApiWrapper, make_private_message
@@ -89,11 +89,25 @@ class IsolationMixin:
     def _reset_state(self):
         runtime_context.recording_sessions.clear()
         runtime_context.last_completed.clear()
-        runtime_context.group_roles.clear()
-        # 群名走 HTTP，本机无 OneBot 时每次尝试要等 2 秒连接失败；默认桩掉，个别用例自行覆盖
+        # 群名与成员名单都走 HTTP，本机无 OneBot 时每次尝试要等 2 秒连接失败；默认桩掉，个别用例自行覆盖
         self._group_name_patch = patch("plugins.trpg_session.resolve_group_name", return_value="")
         self._group_name_patch.start()
         self.addCleanup(self._group_name_patch.stop)
+        self.patch_members([])
+
+    def patch_members(self, members):
+        patcher = patch("plugins.trpg_session.fetch_group_members", return_value=members)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def seed_party(self, dm_id="111", members=None, prepared=None):
+        """把 dm_id 设为 DM，可选预置准备名单与成员列表。"""
+        party.set_role(GROUP_ID, dm_id, "dm")
+        for uid, snap in (prepared or {}).items():
+            party.set_prepared(GROUP_ID, uid, {"user_id": str(uid), **snap})
+        self.patch_members(members if members is not None else [
+            {"user_id": str(dm_id), "nickname": "玩家A", "is_robot": False}
+        ])
 
     def use_temp_data_path(self) -> Path:
         tmp = tempfile.TemporaryDirectory()
@@ -101,6 +115,10 @@ class IsolationMixin:
         patcher = patch("core.config.PYTHON_DATA_PATH", tmp.name)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # 角色卡根目录是另一份配置，不隔离会让先跑的用例把车牌漏给后跑的用例
+        chars_patch = patch("core.character_store.CHARS_ROOT", Path(tmp.name) / "trpg_chars")
+        chars_patch.start()
+        self.addCleanup(chars_patch.stop)
         self.root = Path(tmp.name) / "trpg_records"
         return self.root
 
@@ -123,19 +141,27 @@ class IsolationMixin:
 
 class TestTrpgSessionMatch(IsolationMixin, unittest.TestCase):
     def test_match_command(self):
-        ctx = _group_event([_text_seg("/跑团记录 开始")])
+        ctx = _group_event([_text_seg("/跑团 记录 开始")])
         self.assertTrue(TrpgSessionPlugin(ctx).match("message"))
 
     def test_match_list(self):
-        ctx = _group_event([_text_seg("/跑团记录 列表")])
+        ctx = _group_event([_text_seg("/跑团 记录 列表")])
         self.assertTrue(TrpgSessionPlugin(ctx).match("message"))
 
     def test_match_plain_command(self):
-        ctx = _group_event([_text_seg("/跑团记录")])
+        ctx = _group_event([_text_seg("/跑团 记录")])
         self.assertTrue(TrpgSessionPlugin(ctx).match("message"))
 
     def test_no_match_other(self):
         ctx = _group_event([_text_seg(".r 2d6")])
+        self.assertFalse(TrpgSessionPlugin(ctx).match("message"))
+
+    def test_old_command_not_matched(self):
+        ctx = _group_event([_text_seg("/跑团记录 开始")])
+        self.assertFalse(TrpgSessionPlugin(ctx).match("message"))
+
+    def test_role_subcommand_left_to_char_plugin(self):
+        ctx = _group_event([_text_seg("/跑团 角色 查看")])
         self.assertFalse(TrpgSessionPlugin(ctx).match("message"))
 
     def test_no_match_non_message(self):
@@ -148,7 +174,7 @@ class TestTrpgSessionMatch(IsolationMixin, unittest.TestCase):
         self.assertTrue(TrpgSessionPlugin(ctx).match("message"))
 
     def test_private_message_refused(self):
-        ctx = make_private_message("/跑团记录 开始")
+        ctx = make_private_message("/跑团 记录 开始")
         plugin = TrpgSessionPlugin(ctx)
         plugin.api = MockApiWrapper(ctx)
         plugin.handle()
@@ -163,7 +189,7 @@ class TestRecordFilesOnDisk(IsolationMixin, unittest.TestCase):
         self.use_temp_data_path()
 
     def test_start_creates_dir_and_meta(self):
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
         path = self.record_dir()
         self.assertTrue(path.is_dir())
@@ -178,7 +204,7 @@ class TestRecordFilesOnDisk(IsolationMixin, unittest.TestCase):
         self.assertEqual(meta["roles"], {})
 
     def test_messages_jsonl_appends_one_line_per_message(self):
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
         _run([_text_seg("第二句")], user_id=111, nickname="玩家A")
         path = self.record_dir()
@@ -198,7 +224,7 @@ class TestRecordFilesOnDisk(IsolationMixin, unittest.TestCase):
         self.assertEqual(entries[1]["segments"], [{"type": "text", "text": "第二句"}])
 
     def test_participants_synced_on_first_speech(self):
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
         participants = self.meta(self.record_dir())["participants"]
         self.assertEqual(len(participants), 1)
@@ -214,20 +240,20 @@ class TestRecordFilesOnDisk(IsolationMixin, unittest.TestCase):
         self.addCleanup(chars_patch.stop)
         store.create_char("111", {"char_name": "艾拉"})
 
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
         path = self.record_dir()
         self.assertEqual(self.messages(path)[0]["char_name"], "艾拉")
         self.assertEqual(self.meta(path)["participants"][0]["char_name"], "艾拉")
 
     def test_recording_skips_bot_own_message(self):
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         # 机器人自己发出的群消息由 record_bot_message 入档，不再经 message 事件重复录制
         _run([_text_seg("bot 消息")], user_id=int(BOT_QQ), nickname="小埃同学")
         self.assertEqual(self.messages(self.record_dir()), [])
 
     def test_at_segment_recorded(self):
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([{"type": "at", "data": {"qq": "123456"}}, _text_seg("你看这里")], user_id=111)
         self.assertEqual(
             self.messages(self.record_dir())[0]["segments"],
@@ -241,7 +267,7 @@ class TestImageRecording(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
 
     @patch("plugins.trpg_session.download_image", side_effect=_fake_download)
     def test_image_saved_to_imgs(self, _mock_dl):
@@ -288,7 +314,7 @@ class TestBotMessageRecording(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
 
     def _run_dice(self, text: str, user_id=111, nickname="玩家A") -> TrpgPlugin:
         ctx = _group_event([_text_seg(text)], user_id=user_id, nickname=nickname)
@@ -351,12 +377,12 @@ class TestGroupName(IsolationMixin, unittest.TestCase):
 
     def test_group_name_written_when_available(self):
         with patch("plugins.trpg_session.resolve_group_name", return_value="夜航团"):
-            _run([_text_seg("/跑团记录 开始")], api_cls=RecordingApi)
+            _run([_text_seg("/跑团 记录 强制开始")], api_cls=RecordingApi)
         self.assertEqual(self.meta(self.record_dir())["group_name"], "夜航团")
 
     def test_group_name_failure_keeps_recording(self):
         with patch("plugins.trpg_session.resolve_group_name", return_value=""):
-            plugin = _run([_text_seg("/跑团记录 开始")], api_cls=RecordingApi)
+            plugin = _run([_text_seg("/跑团 记录 强制开始")], api_cls=RecordingApi)
         self.assertIn("已开始", _sent_text(plugin))
         self.assertEqual(self.meta(self.record_dir())["group_name"], "")
         self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
@@ -370,35 +396,36 @@ class TestStartGuards(IsolationMixin, unittest.TestCase):
         self.use_temp_data_path()
 
     def test_start_twice_warns(self):
-        _run([_text_seg("/跑团记录 开始")])
-        plugin = _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 记录 强制开始")])
         self.assertIn("已在录制", _sent_text(plugin))
         self.assertEqual(len(list((self.root / str(GROUP_ID)).iterdir())), 1)
 
     def test_start_with_unexported_warns(self):
         runtime_context.last_completed[GROUP_ID] = {"messages": [{"dummy": True}]}
-        plugin = _run([_text_seg("/跑团记录 开始")])
+        self.seed_party()
+        plugin = _run([_text_seg("/跑团 记录 开始")])
         self.assertIn("尚未导出", _sent_text(plugin))
         self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
 
     def test_force_start_discards_unexported(self):
         runtime_context.last_completed[GROUP_ID] = {"messages": [{"dummy": True}]}
-        plugin = _run([_text_seg("/跑团记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 记录 强制开始")])
         self.assertIn("已丢弃", _sent_text(plugin))
         self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
         self.assertIsNone(runtime_context.get_last_completed(GROUP_ID))
 
     def test_stop_while_not_recording(self):
-        plugin = _run([_text_seg("/跑团记录 结束")])
+        plugin = _run([_text_seg("/跑团 记录 结束")])
         self.assertIn("没有进行中", _sent_text(plugin))
 
     def test_export_while_recording_refused(self):
-        _run([_text_seg("/跑团记录 开始")])
-        plugin = _run([_text_seg("/跑团记录 导出")])
+        _run([_text_seg("/跑团 记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 记录 导出")])
         self.assertIn("录制中无法导出", _sent_text(plugin))
 
     def test_export_no_completed_refused(self):
-        plugin = _run([_text_seg("/跑团记录 导出")])
+        plugin = _run([_text_seg("/跑团 记录 导出")])
         self.assertIn("没有可导出", _sent_text(plugin))
 
 
@@ -408,9 +435,9 @@ class TestStopAndExport(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
-        _run([_text_seg("/跑团记录 结束")])
+        _run([_text_seg("/跑团 记录 结束")])
 
     def test_stop_writes_end(self):
         path = self.record_dir()
@@ -419,7 +446,7 @@ class TestStopAndExport(IsolationMixin, unittest.TestCase):
         self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
 
     def test_export_report_contains_web_link(self):
-        plugin = _run([_text_seg("/跑团记录 导出")])
+        plugin = _run([_text_seg("/跑团 记录 导出")])
         path = self.record_dir()
         self.assertIn("导出成功", _sent_text(plugin))
         self.assertIn(
@@ -429,7 +456,7 @@ class TestStopAndExport(IsolationMixin, unittest.TestCase):
         self.assertTrue((path / "record.md").is_file())
 
     def test_export_md_generated_from_jsonl(self):
-        plugin = _run([_text_seg("/跑团记录 导出")])
+        plugin = _run([_text_seg("/跑团 记录 导出")])
         path = self.record_dir()
         md = (path / "record.md").read_text(encoding="utf-8")
         meta = self.meta(path)
@@ -448,7 +475,7 @@ class TestExportRichSegments(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([_text_seg(".dm")], user_id=111, nickname="玩家A")
 
     @patch("plugins.trpg_session.download_image", side_effect=_fake_download)
@@ -461,8 +488,8 @@ class TestExportRichSegments(IsolationMixin, unittest.TestCase):
             user_id=111,
             nickname="玩家A",
         )
-        _run([_text_seg("/跑团记录 结束")])
-        _run([_text_seg("/跑团记录 导出")])
+        _run([_text_seg("/跑团 记录 结束")])
+        _run([_text_seg("/跑团 记录 导出")])
         md = (self.record_dir() / "record.md").read_text(encoding="utf-8")
         self.assertIn("[DM] 玩家A", md)
         self.assertIn("看一下这个", md)
@@ -476,26 +503,26 @@ class TestListAndView(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团记录 开始")])
+        _run([_text_seg("/跑团 记录 强制开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
-        _run([_text_seg("/跑团记录 结束")])
+        _run([_text_seg("/跑团 记录 结束")])
 
     def test_list_shows_state_and_count(self):
-        plugin = _run([_text_seg("/跑团记录 列表")])
+        plugin = _run([_text_seg("/跑团 记录 列表")])
         out = _sent_text(plugin)
         self.assertIn("[1]", out)
         self.assertIn("已结束·未导出", out)
         self.assertIn("1 条", out)
 
     def test_view_shows_participants(self):
-        plugin = _run([_text_seg("/跑团记录 #1")])
+        plugin = _run([_text_seg("/跑团 记录 #1")])
         out = _sent_text(plugin)
         self.assertIn("#1", out)
         self.assertIn("玩家A", out)
         self.assertIn("已结束·未导出", out)
 
     def test_view_index_out_of_range(self):
-        plugin = _run([_text_seg("/跑团记录 #9")])
+        plugin = _run([_text_seg("/跑团 记录 #9")])
         self.assertIn("编号无效", _sent_text(plugin))
 
 
@@ -505,12 +532,194 @@ class TestListEmpty(IsolationMixin, unittest.TestCase):
         self.use_temp_data_path()
 
     def test_list_empty(self):
-        plugin = _run([_text_seg("/跑团记录 列表")])
+        plugin = _run([_text_seg("/跑团 记录 列表")])
         self.assertIn("暂无", _sent_text(plugin))
 
     def test_view_without_records(self):
-        plugin = _run([_text_seg("/跑团记录 #1")])
+        plugin = _run([_text_seg("/跑团 记录 #1")])
         self.assertIn("暂无", _sent_text(plugin))
+
+
+
+# ── AC01–AC03 准备与卡片 ────────────────────────────
+
+def _joined(plugin) -> str:
+    """把最后一条消息的分段拼成可断言文本（@ 显示为 @QQ）。"""
+    segs = plugin.api.sent_messages[-1][1]
+    return "".join(
+        seg["data"].get("text", "") if seg.get("type") == "text" else "@" + str(seg["data"].get("qq"))
+        for seg in segs
+    )
+
+
+class TestPartyCard(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def test_card_lists_dm_and_pending(self):
+        self.patch_members([
+            {"user_id": "111", "nickname": "老张", "is_robot": False},
+            {"user_id": "222", "nickname": "小王", "is_robot": False},
+        ])
+        _run([_text_seg(".dm")], user_id=111, nickname="老张")
+        out = _joined(_run([_text_seg("/跑团")]))
+        self.assertIn("DM：老张", out)
+        self.assertIn("已准备 0/1", out)
+        self.assertIn("@222", out)
+
+    def test_dm_unique(self):
+        self.patch_members([
+            {"user_id": "111", "nickname": "老张", "is_robot": False},
+            {"user_id": "222", "nickname": "小王", "is_robot": False},
+        ])
+        _run([_text_seg(".dm")], user_id=111, nickname="老张")
+        _run([_text_seg(".dm")], user_id=222, nickname="小王")
+        self.assertEqual(party.read_pending(GROUP_ID)["roles"], {"222": "dm"})
+
+    def test_ob_replaces_dm_for_same_user(self):
+        self.patch_members([{"user_id": "111", "nickname": "老张", "is_robot": False}])
+        _run([_text_seg(".dm")], user_id=111, nickname="老张")
+        _run([_text_seg(".ob")], user_id=111, nickname="老张")
+        self.assertEqual(party.read_pending(GROUP_ID)["roles"], {"111": "ob"})
+
+    def test_card_notes_unavailable_members(self):
+        self.patch_members(None)
+        out = _joined(_run([_text_seg("/跑团")]))
+        self.assertIn("成员名单不可用", out)
+
+
+class TestPrepare(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+        self.patch_members([{"user_id": "111", "nickname": "玩家A", "is_robot": False}])
+
+    def test_prepare_without_char_refused(self):
+        plugin = _run([_text_seg("/跑团 准备")])
+        self.assertIn("角色卡", _sent_text(plugin))
+        self.assertEqual(party.read_pending(GROUP_ID)["prepared"], {})
+
+    def test_prepare_records_snapshot(self):
+        store.create_char("111", {"char_name": "艾拉", "race": "精灵", "class_name": "游侠", "level": 3})
+        out = _joined(_run([_text_seg("/跑团 准备")]))
+        prepared = party.read_pending(GROUP_ID)["prepared"]["111"]
+        self.assertEqual(prepared["char_name"], "艾拉")
+        self.assertEqual(prepared["level"], 3)
+        self.assertIn("艾拉", out)
+
+    def test_snapshot_survives_char_switch(self):
+        first = store.create_char("111", {"char_name": "艾拉", "race": "精灵", "class_name": "游侠", "level": 3})
+        second = store.create_char("111", {"char_name": "阿铁", "race": "人类", "class_name": "战士", "level": 2})
+        _run([_text_seg("/跑团 准备")])
+        store.set_current("111", second)
+        self.assertEqual(party.read_pending(GROUP_ID)["prepared"]["111"]["char_name"], "艾拉")
+        self.assertNotEqual(first, second)
+
+    def test_unprepare_removes_entry(self):
+        store.create_char("111", {"char_name": "艾拉", "race": "精灵", "class_name": "游侠", "level": 3})
+        _run([_text_seg("/跑团 准备")])
+        _run([_text_seg("/跑团 取消准备")])
+        self.assertEqual(party.read_pending(GROUP_ID)["prepared"], {})
+
+    def test_prepare_refused_during_recording(self):
+        _run([_text_seg("/跑团 记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 准备")])
+        self.assertIn("录制中无法准备", _sent_text(plugin))
+
+
+# ── AC04–AC06 准入校验与开录预置 ────────────────────
+
+def _member(uid, nickname, is_robot=False):
+    return {"user_id": str(uid), "nickname": nickname, "is_robot": is_robot}
+
+
+class TestGate(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _start(self, force=False):
+        return _run([_text_seg("/跑团 记录 强制开始" if force else "/跑团 记录 开始")])
+
+    def test_no_dm_refused(self):
+        self.patch_members([_member(111, "玩家A")])
+        store.create_char("111", {"char_name": "艾拉"})
+        plugin = self._start()
+        self.assertIn("DM", _joined(plugin))
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_missing_char_and_prepare_reported_together(self):
+        self.seed_party(dm_id="111", members=[_member(111, "DM"), _member(222, "无卡"), _member(333, "未准备")])
+        store.create_char("333", {"char_name": "阿铁"})
+        out = _joined(self._start())
+        self.assertIn("缺少角色卡", out)
+        self.assertIn("@222", out)
+        self.assertIn("尚未准备", out)
+        self.assertIn("@333", out)
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_dm_and_ob_exempt_from_card_and_prepare(self):
+        self.seed_party(dm_id="111", members=[_member(111, "DM"), _member(222, "OB"), _member(333, "玩家C")])
+        party.set_role(GROUP_ID, "222", "ob")
+        store.create_char("333", {"char_name": "阿铁", "race": "人类", "class_name": "战士", "level": 2})
+        party.set_prepared(GROUP_ID, "333", {
+            "user_id": "333", "nickname": "玩家C", "char_id": 1, "char_name": "阿铁",
+            "race": "人类", "class_name": "战士", "level": 2, "prepared_at": "2026-11-10 20:00:00",
+        })
+        self._start()
+        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_members_unavailable_refused(self):
+        self.seed_party(dm_id="111")
+        self.patch_members(None)
+        out = _joined(self._start())
+        self.assertIn("无法获取群成员列表", out)
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_member_limit_refused(self):
+        self.seed_party(dm_id="111")
+        self.patch_members([_member(111, "DM")] + [_member(200000 + i, f"成员{i}") for i in range(201)])
+        out = _joined(self._start())
+        self.assertIn("超过校验上限", out)
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_bot_member_excluded(self):
+        self.seed_party(dm_id="111", members=[_member(111, "DM"), _member(BOT_QQ, "小埃", True)])
+        self._start()
+        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_force_start_bypasses_gate(self):
+        self.patch_members([_member(222, "无卡")])
+        plugin = self._start(force=True)
+        self.assertIn("已开始", _sent_text(plugin))
+        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
+
+
+class TestStartSeed(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def test_participants_preseeded_and_pending_cleared(self):
+        self.seed_party(dm_id="111", members=[_member(111, "DM"), _member(222, "玩家B")])
+        store.create_char("222", {"char_name": "阿铁", "race": "人类", "class_name": "战士", "level": 2})
+        party.set_prepared(GROUP_ID, "222", {
+            "user_id": "222", "nickname": "玩家B", "char_id": 1, "char_name": "阿铁",
+            "race": "人类", "class_name": "战士", "level": 2, "prepared_at": "2026-11-10 20:00:00",
+        })
+        _run([_text_seg("/跑团 记录 开始")])
+        meta = self.meta(self.record_dir())
+        self.assertEqual([p["user_id"] for p in meta["participants"]], ["111", "222"])
+        self.assertEqual(meta["roles"], {"111": "dm"})
+        self.assertEqual(meta["participants"][1]["char_name"], "阿铁")
+        self.assertFalse(party.pending_path(GROUP_ID).exists())
+
+    def test_pending_file_corrupt_is_tolerated(self):
+        party.pending_path(GROUP_ID).parent.mkdir(parents=True, exist_ok=True)
+        party.pending_path(GROUP_ID).write_text("not json", encoding="utf-8")
+        out = _joined(_run([_text_seg("/跑团")]))
+        self.assertIn("开团准备", out)
 
 
 if __name__ == "__main__":

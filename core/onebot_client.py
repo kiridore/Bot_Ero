@@ -22,7 +22,7 @@ def _member_display_name(data: dict, user_id: str) -> str:
     return str(user_id)
 
 
-def _call_onebot(action: str, params: dict, timeout: float = 8) -> dict | None:
+def _call_onebot(action: str, params: dict, timeout: float = 8):
     base = ONEBOT_HTTP_URL.rstrip("/")
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if ONEBOT_TOKEN:
@@ -38,14 +38,15 @@ def _call_onebot(action: str, params: dict, timeout: float = 8) -> dict | None:
             data = resp.json()
             if isinstance(data, dict) and data.get("status") == "ok":
                 payload = data.get("data")
-                return payload if isinstance(payload, dict) else {}
+                # 群成员列表等接口返回数组，字典以外的返回一律视为空
+                return payload if isinstance(payload, (dict, list)) else {}
         except (requests.RequestException, ValueError):
             continue
     return None
 
 
 def resolve_group_name(group_id) -> str:
-    """取群名；接口不可用时返回空串（调用方 MUST NOT 因此中断录制）。"""
+    """取群名；接口不可用时返回空串（调用方 MUST NOT 因此中断流程）。"""
     try:
         gid = int(group_id)
     except (TypeError, ValueError):
@@ -55,6 +56,28 @@ def resolve_group_name(group_id) -> str:
     if not data:
         return ""
     return str(data.get("group_name") or "")
+
+
+def fetch_group_members(group_id) -> list[dict] | None:
+    """群成员名单：返回 [{user_id, nickname, is_robot}]；接口不可用返回 None。
+
+    None 与「群里没人」区分，调用方据此拒绝开团而不是把群当空群。
+    """
+    try:
+        gid = int(group_id)
+    except (TypeError, ValueError):
+        return None
+    data = _call_onebot("get_group_member_list", {"group_id": gid, "no_cache": False}, timeout=5)
+    if not isinstance(data, list):
+        return None
+    members = []
+    for item in data:
+        if not isinstance(item, dict) or item.get("user_id") is None:
+            continue
+        uid = str(item["user_id"])
+        name = (item.get("card_or_nickname") or item.get("card") or item.get("nickname") or "").strip()
+        members.append({"user_id": uid, "nickname": name or uid, "is_robot": bool(item.get("is_robot"))})
+    return members
 
 
 @lru_cache(maxsize=4096)

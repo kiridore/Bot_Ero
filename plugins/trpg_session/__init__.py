@@ -2,20 +2,37 @@ import os
 import time
 from datetime import datetime
 
-from core.base import Plugin, BOT_QQ, NICKNAME
-from core.cq import text
+from core.base import Plugin, BOT_QQ, NICKNAME, SUPER_USER
+from core.cq import at, text
 from core.config import WEB_BASE_URL
 from core.logger import logger
-from core.onebot_client import resolve_group_name
+from core.onebot_client import fetch_group_members, resolve_group_name
 from core.utils import register_plugin, download_image
 from core import character_store as store
-from core.trpg import records
+from core.trpg import party, records
 import core.context as runtime_context
 
 # 记录图片允许的扩展名，与 core.trpg.records 的媒体名校验保持一致
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 
 RECORD_STATES = {"recording": "录制中", "ended": "已结束·未导出", "exported": "已导出"}
+
+COMMAND = "/跑团"
+PARTY_SUBCMDS = frozenset({"准备", "取消准备", "名单"})
+MAX_GATE_MEMBERS = 200
+WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
+
+# 群名只用于展示：进程内缓存，取不到不缓存（下次重试）
+_group_name_cache: dict[int, str] = {}
+
+
+def cached_group_name(group_id) -> str:
+    if group_id in _group_name_cache:
+        return _group_name_cache[group_id]
+    name = resolve_group_name(group_id)
+    if name:
+        _group_name_cache[group_id] = name
+    return name
 
 
 def record_state(path) -> str:
@@ -29,7 +46,9 @@ def record_state(path) -> str:
 @register_plugin
 class TrpgSessionPlugin(Plugin):
     name = "trpg_session"
-    description = "跑团记录：开始/结束/导出/列表/查看"
+    description = "跑团：准备/名单/记录（开始、结束、导出、列表、查看）"
+
+    # ── 事件消息 ──────────────────────────────────────────
 
     def _first_text(self) -> str:
         for seg in self.bot_event.message:
@@ -43,124 +62,192 @@ class TrpgSessionPlugin(Plugin):
             return sender.get("card") or sender.get("nickname") or f"用户{self.bot_event.user_id}"
         return f"用户{self.bot_event.user_id}"
 
+    def _command_parts(self):
+        parts = self._first_text().split()
+        if not parts or parts[0] != COMMAND:
+            return None
+        return parts
+
     def match(self, message_type) -> bool:
         if message_type != "message":
             return False
         msg = self._first_text()
         if not msg:
             return False
-        if msg.startswith("/跑团记录") or msg.startswith(".dm") or msg.startswith(".ob"):
+        if msg.startswith(".dm") or msg.startswith(".ob"):
             return True
+        parts = self._command_parts()
+        if parts is not None:
+            sub = parts[1] if len(parts) > 1 else ""
+            return sub == "" or sub in PARTY_SUBCMDS or sub == "记录"
         group_id = self.bot_event.group_id
-        if group_id is not None and runtime_context.is_group_recording(group_id):
-            return True
-        return False
+        return group_id is not None and runtime_context.is_group_recording(group_id)
 
     def handle(self):
         try:
             msg = self._first_text()
-            if msg.startswith("/跑团记录"):
-                self._route_command(msg)
-            elif msg.startswith(".dm"):
+            if msg.startswith(".dm"):
                 self._handle_set_role("dm")
             elif msg.startswith(".ob"):
                 self._handle_set_role("ob")
-            elif self.bot_event.group_id and runtime_context.is_group_recording(self.bot_event.group_id):
-                self._record_user_message()
+            else:
+                parts = self._command_parts()
+                if parts is not None:
+                    self._route(parts)
+                elif self.bot_event.group_id and runtime_context.is_group_recording(self.bot_event.group_id):
+                    self._record_user_message()
         except Exception:
             logger.exception("TrpgSession 处理异常")
 
     # ── 指令路由 ──────────────────────────────────────────
 
-    def _route_command(self, msg: str):
-        parts = msg.split()
+    def _route(self, parts: list):
         sub = parts[1] if len(parts) > 1 else ""
+        if sub == "":
+            self._handle_card()
+        elif sub in PARTY_SUBCMDS:
+            if self._reject_if_recording():
+                return
+            if sub == "准备":
+                self._handle_prepare()
+            elif sub == "取消准备":
+                self._handle_unprepare()
+            else:
+                self._handle_card()
+        elif sub == "记录":
+            self._route_record(parts[2:])
+        else:
+            self._handle_card()
 
+    def _route_record(self, args: list):
+        sub = args[0] if args else "列表"
         if sub == "开始":
-            self._handle_start()
+            self._handle_start(force=False)
         elif sub == "强制开始":
-            self._handle_force_start()
+            self._handle_start(force=True)
         elif sub == "结束":
             self._handle_stop()
         elif sub == "导出":
             self._handle_export()
-        elif parts[0] == "/跑团记录" and (sub == "列表" or not sub):
-            self._handle_list()
-        elif parts[0] == "/跑团记录" and sub and sub.startswith("#"):
+        elif sub.startswith("#"):
             self._handle_view(sub[1:])
         else:
             self._handle_list()
 
-    # ── 记录目录 ──────────────────────────────────────────
+    def _reject_if_recording(self) -> bool:
+        group_id = self.bot_event.group_id
+        if group_id is not None and runtime_context.is_group_recording(group_id):
+            self.api.send_msg(text("录制中无法准备或查看准备名单，请先 /跑团 记录 结束"))
+            return True
+        return False
 
-    def _fetch_group_name(self, group_id: int) -> str:
-        # 走 HTTP 短超时接口：call_api 走 WS 时无响应要等 30 秒，会把录制开始拖住
-        try:
-            return resolve_group_name(group_id)
-        except Exception:
-            logger.exception("获取群名失败")
-            return ""
+    # ── 准备情况卡片 ──────────────────────────────────────
 
-    def _sync_meta(self, path, session: dict):
-        """把会话里的 roles / participants 重写进 meta.json。"""
-        meta = records.read_meta(path)
-        if meta is None:
+    def _group_title(self, group_id) -> str:
+        return cached_group_name(group_id) or f"群 {group_id}"
+
+    def _handle_card(self):
+        group_id = self.bot_event.group_id
+        if group_id is None:
+            self.api.send_msg(text("跑团指令请在群内使用"))
             return
-        meta["roles"] = dict(session.get("roles", {}))
-        meta["participants"] = list(session.get("participants", {}).values())
-        records.rewrite_meta(path, meta)
+        self.api.send_msg(*self._card_segments(group_id))
 
-    def _start_session(self, group_id: int, notice: str):
-        start = datetime.now()
-        path = records.ensure_record_dir(group_id, records.start_dir_name(start))
-        roles = dict(runtime_context.group_roles.get(group_id, {}))
-        meta = {
-            "version": 2,
-            "group_id": group_id,
-            "group_name": "",
-            "start": start.strftime("%Y-%m-%d %H:%M:%S"),
-            "end": None,
-            "roles": roles,
-            "participants": [],
+    def _card_segments(self, group_id) -> list:
+        data = party.read_pending(group_id)
+        prepared = data["prepared"]
+        roles = data["roles"]
+        members = fetch_group_members(group_id)
+        member_ids = {m["user_id"] for m in members} if members is not None else None
+        names = {m["user_id"]: m["nickname"] for m in members} if members is not None else {}
+
+        def name_of(uid):
+            return names.get(uid) or (prepared.get(uid) or {}).get("nickname") or uid
+
+        dm_ids = [u for u, r in roles.items() if r == "dm" and (member_ids is None or u in member_ids)]
+        ob_ids = [u for u, r in roles.items() if r == "ob" and (member_ids is None or u in member_ids)]
+        pending = []
+        if member_ids is not None:
+            exempt = set(dm_ids) | set(ob_ids)
+            pending = [u for u in member_ids if u not in exempt and u not in prepared]
+        ready = [u for u in prepared if member_ids is None or u in member_ids]
+
+        lines = [f"【{self._group_title(group_id)}】开团准备"]
+        lines.append(f"DM：{name_of(dm_ids[0])}" if dm_ids else "DM：未设置（一人发送 .dm）")
+        lines.append("观察者：" + ("、".join(name_of(u) for u in ob_ids) if ob_ids else "无"))
+        lines.append(f"已准备 {len(ready)}/{len(ready) + len(pending)}：")
+        for uid in sorted(ready, key=lambda u: prepared[u].get("prepared_at", "")):
+            snap = prepared[uid]
+            lines.append(
+                f"· {name_of(uid)} → {snap.get('char_name') or '?'}"
+                f"（{snap.get('race') or '?'} {snap.get('class_name') or '?'} Lv.{snap.get('level') or '?'}）"
+            )
+        if not ready:
+            lines.append("· 暂无")
+
+        segments = [text("\n".join(lines))]
+        if pending:
+            segments.append(text("\n未准备："))
+            for uid in pending:
+                segments.append(at(uid))
+                segments.append(text(" "))
+        elif member_ids is None:
+            segments.append(text("\n（成员名单不可用，未准备者未知）"))
+        return segments
+
+    # ── 准备 / 取消准备 ──────────────────────────────────
+
+    def _handle_prepare(self):
+        group_id = self.bot_event.group_id
+        if group_id is None:
+            self.api.send_msg(text("跑团指令请在群内使用"))
+            return
+        user_id = str(self.bot_event.user_id) if self.bot_event.user_id else ""
+        if not user_id:
+            return
+        char = store.get_current(user_id)
+        if not char:
+            self.api.send_msg(text("你还没有角色卡，请到网页端创建后再准备：\n" + WEB_TRPG_URL))
+            return
+        snapshot = {
+            "user_id": user_id,
+            "nickname": self._get_sender_nickname(),
+            "char_id": char.get("id"),
+            "char_name": char.get("char_name", ""),
+            "race": char.get("race", ""),
+            "class_name": char.get("class_name", ""),
+            "level": int(char.get("level") or 1),
+            "prepared_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        records.rewrite_meta(path, meta)
-        with runtime_context.recording_lock:
-            runtime_context.recording_sessions[group_id] = {
-                "start": start,
-                "messages": [],
-                "participants": {},
-                "roles": roles,
-                "dir": path,
-                "img_count": 0,
-            }
-        self.api.send_msg(text(notice))
-        # 群名只用于展示：先回执再取，避免不可达的 OneBot HTTP 拖慢「已开始」
-        name = self._fetch_group_name(group_id)
-        if name:
-            meta["group_name"] = name
-            try:
-                records.rewrite_meta(path, meta)
-            except Exception:
-                logger.exception("写入群名失败")
+        try:
+            party.set_prepared(group_id, user_id, snapshot)
+        except OSError:
+            logger.exception("保存准备状态失败")
+            self.api.send_msg(text("保存准备状态失败，请稍后重试"))
+            return
+        self.api.send_msg(*self._card_segments(group_id))
 
-    def _record_dirs(self, group_id: int) -> list[str]:
-        """该群已落盘的记录目录名（升序，只含合法目录名且已写入 messages.jsonl）。"""
-        base = records.group_dir(group_id)
-        if not base.is_dir():
-            return []
-        names = []
-        for entry in base.iterdir():
-            if not entry.is_dir():
-                continue
-            try:
-                records.record_dir(group_id, entry.name)
-            except ValueError:
-                continue
-            if (entry / "messages.jsonl").is_file():
-                names.append(entry.name)
-        return sorted(names)
+    def _handle_unprepare(self):
+        group_id = self.bot_event.group_id
+        if group_id is None:
+            self.api.send_msg(text("跑团指令请在群内使用"))
+            return
+        user_id = str(self.bot_event.user_id) if self.bot_event.user_id else ""
+        if not user_id:
+            return
+        data = party.read_pending(group_id)
+        if user_id not in data["prepared"]:
+            self.api.send_msg(text("你还没有准备"))
+            return
+        try:
+            party.clear_prepared(group_id, user_id)
+        except OSError:
+            logger.exception("保存准备状态失败")
+            self.api.send_msg(text("保存准备状态失败，请稍后重试"))
+            return
+        self.api.send_msg(*self._card_segments(group_id))
 
-    # ── DM/OB 角色设置 ──────────────────────────────────
+    # ── DM / 观察者标记 ──────────────────────────────────
 
     def _handle_set_role(self, role: str):
         group_id = self.bot_event.group_id
@@ -168,63 +255,172 @@ class TrpgSessionPlugin(Plugin):
             self.api.send_msg(text("角色设置只能在群聊中使用"))
             return
         user_id = str(self.bot_event.user_id) if self.bot_event.user_id else "0"
-        # 先清空该用户在当前群的旧角色
-        if group_id not in runtime_context.group_roles:
-            runtime_context.group_roles[group_id] = {}
-        runtime_context.group_roles[group_id][user_id] = role
-        # 如果在录制中，同步到 session 与 meta.json
         session = runtime_context.get_recording_session(group_id)
-        if session and "roles" in session:
-            session["roles"][user_id] = role
-            if user_id in session["participants"]:
-                session["participants"][user_id]["role"] = role
-            if session.get("dir") is not None:
+        if session:
+            # 录制中只改记录 meta，不重建 pending.json
+            roles = session.setdefault("roles", {})
+            if role == "dm":
+                for other in [k for k, v in roles.items() if v == "dm" and k != user_id]:
+                    roles.pop(other)
+            roles[user_id] = role
+            entry = session.get("participants", {}).get(user_id)
+            if entry:
+                entry["role"] = role
+            path = session.get("dir")
+            if path is not None:
                 try:
-                    self._sync_meta(session["dir"], session)
+                    self._sync_meta(path, session)
                 except Exception:
                     logger.exception("写入跑团记录角色失败")
-        label = "DM" if role == "dm" else "观察者"
-        notice = f"已将 {self._get_sender_nickname()} 设为{label}"
-        runtime_context.record_bot_message(group_id, NICKNAME, notice)
-        self.api.send_msg(text(notice))
+            label = "DM" if role == "dm" else "观察者"
+            notice = f"已将 {self._get_sender_nickname()} 设为{label}"
+            runtime_context.record_bot_message(group_id, NICKNAME, notice)
+            self.api.send_msg(text(notice))
+            return
+        try:
+            party.set_role(group_id, user_id, role)
+        except OSError:
+            logger.exception("保存角色标记失败")
+            self.api.send_msg(text("保存角色设置失败，请稍后重试"))
+            return
+        self.api.send_msg(*self._card_segments(group_id))
+
+    # ── 开录准入校验 ──────────────────────────────────────
+
+    def _is_dm_or_admin(self, group_id) -> bool:
+        user_id = str(self.bot_event.user_id or "")
+        if user_id.isdigit() and int(user_id) in SUPER_USER:
+            return True
+        return party.read_pending(group_id)["roles"].get(user_id) == "dm"
+
+    def _check_gate(self, data: dict, members) -> list:
+        """返回问题列表；空列表表示通过。问题项为 {text, at?}。"""
+        if members is None:
+            return [{"text": "无法获取群成员列表：OneBot 接口未响应，无法校验成员（可改用 /跑团 记录 强制开始）"}]
+        members = [m for m in members if not m.get("is_robot") and m["user_id"] != str(BOT_QQ)]
+        if len(members) > MAX_GATE_MEMBERS:
+            return [{"text": f"群成员 {len(members)} 人，超过校验上限 {MAX_GATE_MEMBERS} 人（可改用 /跑团 记录 强制开始）"}]
+        member_ids = {m["user_id"] for m in members}
+        roles = {u: r for u, r in data["roles"].items() if u in member_ids}
+        prepared = data["prepared"]
+        dm_ids = [u for u, r in roles.items() if r == "dm"]
+        exempt = set(dm_ids) | {u for u, r in roles.items() if r == "ob"}
+        players = [m["user_id"] for m in members if m["user_id"] not in exempt]
+
+        problems = []
+        if not dm_ids:
+            problems.append({"text": "还没有 DM：请一人发送 .dm"})
+        no_card = [u for u in players if store.get_current(u) is None]
+        not_ready = [u for u in players if u not in prepared]
+        if no_card:
+            problems.append({"text": f"缺少角色卡（到 {WEB_TRPG_URL} 创建）：", "at": no_card})
+        if not_ready:
+            problems.append({"text": "尚未准备（发送 /跑团 准备）：", "at": not_ready})
+        return problems
+
+    def _send_problems(self, problems: list):
+        segments = [text("无法开始录制，请先处理：")]
+        for problem in problems:
+            segments.append(text("\n· " + problem["text"]))
+            for uid in problem.get("at", []):
+                segments.append(at(uid))
+                segments.append(text(" "))
+        self.api.send_msg(*segments)
 
     # ── 开始录制 ──────────────────────────────────────────
 
-    def _handle_start(self):
+    def _handle_start(self, force: bool = False):
         group_id = self.bot_event.group_id
         if group_id is None:
             self.api.send_msg(text("跑团记录只能在群聊中使用"))
             return
-
         if runtime_context.is_group_recording(group_id):
             self.api.send_msg(text("当前已在录制中"))
             return
+        if not force and not self._is_dm_or_admin(group_id):
+            self.api.send_msg(text("只有 DM 才能开始录制：请先由一人发送 .dm"))
+            return
 
-        # 检查是否有上次未导出的记录
+        data = party.read_pending(group_id)
+        # 强制开始的场景往往就是成员接口坏了，不要再为取昵称去撞一次 5 秒超时
+        members = None if force else fetch_group_members(group_id)
+        if not force:
+            problems = self._check_gate(data, members)
+            if problems:
+                self._send_problems(problems)
+                return
+
         unexported = runtime_context.get_last_completed(group_id)
         if unexported:
-            self.api.send_msg(text(
-                "上次记录尚未导出！请先使用 /跑团记录 导出 保存记录，"
-                "或使用 /跑团记录 强制开始 放弃并重新开始"
-            ))
-            return
+            if not force:
+                self.api.send_msg(text(
+                    "上次记录尚未导出！请先使用 /跑团 记录 导出 保存记录，"
+                    "或使用 /跑团 记录 强制开始 放弃并重新开始"
+                ))
+                return
+            runtime_context.pop_last_completed(group_id)
 
-        self._start_session(group_id, "跑团记录已开始——")
+        notice = "已丢弃上次记录，跑团记录已开始——" if unexported else "跑团记录已开始——"
+        self._start_session(group_id, notice, data, members)
 
-    def _handle_force_start(self):
-        group_id = self.bot_event.group_id
-        if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
-            return
+    def _start_session(self, group_id: int, notice: str, data: dict, members):
+        start = datetime.now()
+        path = records.ensure_record_dir(group_id, records.start_dir_name(start))
+        roles = dict(data["roles"])
+        prepared = data["prepared"]
+        names = {m["user_id"]: m["nickname"] for m in (members or [])} if members else {}
 
-        if runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("当前已在录制中"))
-            return
+        dm_ids = [u for u, r in roles.items() if r == "dm"]
+        ob_ids = [u for u, r in roles.items() if r == "ob"]
+        ordered = dm_ids + ob_ids + [
+            u for u in sorted(prepared, key=lambda k: prepared[k].get("prepared_at", ""))
+            if u not in dm_ids and u not in ob_ids
+        ]
+        participants = []
+        for uid in ordered:
+            snap = prepared.get(uid) or {}
+            char = store.get_current(uid)
+            participants.append({
+                "user_id": uid,
+                "nickname": names.get(uid) or snap.get("nickname") or uid,
+                "char_name": snap.get("char_name") or (char or {}).get("char_name", ""),
+                "role": roles.get(uid, ""),
+            })
 
-        # 丢弃未导出记录
-        runtime_context.pop_last_completed(group_id)
+        meta = {
+            "version": 2,
+            "group_id": group_id,
+            "group_name": "",
+            "start": start.strftime("%Y-%m-%d %H:%M:%S"),
+            "end": None,
+            "roles": roles,
+            "participants": participants,
+        }
+        records.rewrite_meta(path, meta)
+        with runtime_context.recording_lock:
+            runtime_context.recording_sessions[group_id] = {
+                "start": start,
+                "messages": [],
+                "participants": {p["user_id"]: dict(p) for p in participants},
+                "roles": dict(roles),
+                "dir": path,
+                "img_count": 0,
+            }
+        self.api.send_msg(text(notice))
 
-        self._start_session(group_id, "已丢弃上次记录，跑团记录已开始——")
+        try:
+            party.clear_all(group_id)
+        except OSError:
+            logger.exception("清理准备状态失败")
+
+        # 群名只用于展示：先回执再取，避免不可达的 OneBot HTTP 拖慢「已开始」
+        name = cached_group_name(group_id)
+        if name:
+            meta["group_name"] = name
+            try:
+                records.rewrite_meta(path, meta)
+            except Exception:
+                logger.exception("写入群名失败")
 
     # ── 结束录制 ──────────────────────────────────────────
 
@@ -363,6 +559,23 @@ class TrpgSessionPlugin(Plugin):
 
     # ── 列表 ──────────────────────────────────────────
 
+    def _record_dirs(self, group_id: int) -> list[str]:
+        """该群已落盘的记录目录名（升序，只含合法目录名且已写入 messages.jsonl）。"""
+        base = records.group_dir(group_id)
+        if not base.is_dir():
+            return []
+        names = []
+        for entry in base.iterdir():
+            if not entry.is_dir():
+                continue
+            try:
+                records.record_dir(group_id, entry.name)
+            except ValueError:
+                continue
+            if (entry / "messages.jsonl").is_file():
+                names.append(entry.name)
+        return sorted(names)
+
     def _handle_list(self):
         group_id = self.bot_event.group_id
         if group_id is None:
@@ -394,7 +607,7 @@ class TrpgSessionPlugin(Plugin):
         try:
             idx = int(index_str)
         except ValueError:
-            self.api.send_msg(text("请输入有效编号，格式：/跑团记录 #数字"))
+            self.api.send_msg(text("请输入有效编号，格式：/跑团 记录 #数字"))
             return
 
         names = self._record_dirs(group_id)
@@ -537,3 +750,12 @@ class TrpgSessionPlugin(Plugin):
                 "group_id": group_id,
                 "messages": nodes,
             })
+
+    def _sync_meta(self, path, session: dict):
+        """把会话里的 roles / participants 重写进 meta.json。"""
+        meta = records.read_meta(path)
+        if meta is None:
+            return
+        meta["roles"] = dict(session.get("roles", {}))
+        meta["participants"] = list(session.get("participants", {}).values())
+        records.rewrite_meta(path, meta)

@@ -48,7 +48,7 @@ function recordCard(r) {
   return `
     <a class="trpg-card" data-reveal href="${href}">
       <div class="trpg-card-head">
-        <strong>${escapeHtml(r.group_name || `群 ${r.group_id}`)}</strong>
+        <strong>${escapeHtml(r.group_name || `团 ${r.group_id}`)}</strong>
         ${stateBadge(r)}
         ${r.is_mine ? '<span class="trpg-person member-me">我参加的</span>' : ""}
       </div>
@@ -59,7 +59,7 @@ function recordCard(r) {
 
 function renderList(records) {
   if (!records.length) {
-    listEl.innerHTML = '<p class="empty-hint center">还没有跑团记录；群内发送 /跑团记录 开始 即可开始录制</p>';
+    listEl.innerHTML = '<p class="empty-hint center">还没有跑团记录；群内由 DM 发送 /跑团 记录 开始 即可开始录制</p>';
     return;
   }
   listEl.innerHTML = records.map(recordCard).join("");

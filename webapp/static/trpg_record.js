@@ -117,7 +117,7 @@ function renderMessage(m) {
 }
 
 function renderHeader(data) {
-  titleEl.textContent = data.group_name || `群 ${data.group_id}`;
+  titleEl.textContent = data.group_name || `团 ${data.group_id}`;
   metaEl.textContent = [data.start, durationText(data), `${data.total} 条消息`].filter(Boolean).join(" · ");
   recordState = data.state;
   const stale = recordState === "recording" && Boolean(lastSeen)

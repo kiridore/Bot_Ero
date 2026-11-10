@@ -38,9 +38,6 @@ recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime,
 last_completed: dict[int, dict] = {}           # group_id → {"start": datetime, "end": datetime, "messages": list, "participants": dict}
 RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session", "trpg_char"})
 
-# 跑团角色：group_id → {user_id → "dm"|"ob"}
-group_roles: dict[int, dict[str, str]] = {}
-
 # 当前游戏规则系统（跑团骰子检定用），未来规则切换功能修改此值
 GAME_SYSTEM = "dnd5e"
 

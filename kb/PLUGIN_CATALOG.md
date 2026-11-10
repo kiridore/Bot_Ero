@@ -23,7 +23,7 @@
 | 13 | `immortal_lottery` | `immortal_lottery/` | `/仙人彩`/`下注 XXXX` + meta | 仙人彩（开奖播报与周报展示注单及中奖明细） |
 | 14 | `dice` | `dice/` | 正则 `.r\d+d\d+` | 掷 A 个 B 面骰子（最大 100/1000） |
 | 15 | `trpg_dice` | `trpg_dice/` | 正则前缀 `.r/rc/rh` | 跑团骰子系统：DND5E 万能骰点、d20检定、暗骰、属性引用（规则可切换） |
-| 16 | `trpg_char` | `trpg_char/` | CommandPlugin `/角色` 前缀匹配 | DND5E 角色卡：查看/列表/切换/删除（创建与编辑引导至网页端，存储层 `core.character_store`） |
+| 16 | `trpg_char` | `trpg_char/` | `/跑团 角色` 前缀匹配 | DND5E 角色卡：查看/列表/切换/删除（创建与编辑引导至网页端，存储层 `core.character_store`） |
 | 17 | `divination` | `divination/` | CommandPlugin `/占卜` | 22 张大阿尔卡那 + 正逆位 |
 | 18 | `title` | `title/` | CommandPlugin `/称号`/`/稱號` | 称号系统 |
 | 19 | `redeem_shop` | `redeem_shop/` | CommandPlugin `/商店 [id]` | 积分商店 |
@@ -36,7 +36,7 @@
 | 26 | `gallery_login_key` | `gallery_login_key/` | CommandPlugin `/图库密钥`/`/网页密钥` | HMAC 登录密钥（仅私聊） |
 | 27 | `news` | `news/` | `/订阅 [编号]`、`/退订 编号` + 心跳 | 新闻订阅（1号 FF14 国服官网、2号明日方舟官方微博；微博需Chromium，仅首页）；每半小时检测，推默认群并 @订阅者，仅群聊可管理订阅 |
 | 28 | `weekly_quest` | `weekly_quest/` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
-| 29 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团记录` + 录制期间全匹配 | 跑团聊天记录：录制即落盘（结构化 jsonl + 即时图片 + 群名）、合并转发、导出Markdown、浏览；导出回执附网页链接，网页端 `/trpg/records` 按团回顾气泡
+| 29 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团` + 录制期间全匹配 | 跑团：开团前准备（`准备`/`取消准备`/`名单`）、开录准入校验（除机器人/DM/观察者外全员需有角色卡并已准备）、录制即落盘（结构化 jsonl + 即时图片 + 团名）、合并转发、导出Markdown、浏览；导出回执附网页链接，网页端 `/trpg/records` 按团回顾气泡 |
 | 30 | `who_is_spy` | `who_is_spy/` | `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` `/房间列表` `/游戏记录 [列表 页码\|查看 记录编号]` + 私聊游戏输入 | 出局观战、离房释放占用；SQLite持久参与历史与事务结算；开局仅词条不告知阵营，重启中断不续局 |
 | 31 | `activity` | `activity/` | 自定义 match: 群聊 `/活动` + 私聊 `/提交` | 群活动：接龙（每人限时、机器人接力转发）、匹配下家（圆桌单环，开始通知下家、作品玩家自提）与征集（各自在截止前提交一次，无链环），结束自动归档；**单群可并行多个活动**（`/活动 加入\|退出\|开始\|状态\|结束 [编号]`，`/提交 [活动id]` 定向）；开始报名/正式开始/结束向时间线发事件（source `activity`，actor=小埃同学） |
 | 45 | `redeem_code` | `redeem_code/` | CommandPlugin `/兑换码`/`/兌換碼` | 迁移提示桩：撤回指令消息并提示已迁至网页个人主页「兑换码」页签（兑换逻辑在 webapp，不碰数据库） |

@@ -108,19 +108,26 @@ class TestTrpgCharPlugin(unittest.TestCase):
         return p
 
     def test_match_command(self):
-        ctx = make_group_message("/角色")
+        ctx = make_group_message("/跑团 角色")
         self.assertTrue(TrpgCharPlugin(ctx).match("message"))
         ctx2 = make_group_message("随便什么")
         self.assertFalse(TrpgCharPlugin(ctx2).match("message"))
 
+    def test_old_command_no_longer_matches(self):
+        # 指令已迁到 /跑团 角色 下，旧 /角色 不再被任何插件处理
+        self.assertFalse(TrpgCharPlugin(make_group_message("/角色 查看")).match("message"))
+
+    def test_other_party_subcommand_not_matched(self):
+        self.assertFalse(TrpgCharPlugin(make_group_message("/跑团 准备")).match("message"))
+
     def test_view_own_current(self):
-        p = self._plugin("/角色 查看")
+        p = self._plugin("/跑团 角色 查看")
         with patch("core.character_store.get_current", return_value=_base_data()):
             p.handle()
         self.assertIn("【艾伦】", _sent_text(p))
 
     def test_view_without_char(self):
-        p = self._plugin("/角色 查看")
+        p = self._plugin("/跑团 角色 查看")
         with patch("core.character_store.get_current", return_value=None):
             p.handle()
         out = _sent_text(p)
@@ -128,22 +135,22 @@ class TestTrpgCharPlugin(unittest.TestCase):
         self.assertIn(WEB_TRPG_URL, out)
 
     def test_create_redirects_to_web(self):
-        p = self._plugin("/角色 创建")
+        p = self._plugin("/跑团 角色 创建")
         p.handle()
         self.assertIn(WEB_TRPG_URL, _sent_text(p))
 
     def test_edit_redirects_to_web(self):
-        p = self._plugin("/角色 编辑 hp 10")
+        p = self._plugin("/跑团 角色 编辑 hp 10")
         p.handle()
         self.assertIn(WEB_TRPG_URL, _sent_text(p))
 
     def test_abandon_redirects_to_web(self):
-        p = self._plugin("/角色 放弃")
+        p = self._plugin("/跑团 角色 放弃")
         p.handle()
         self.assertIn(WEB_TRPG_URL, _sent_text(p))
 
     def test_list(self):
-        p = self._plugin("/角色 列表")
+        p = self._plugin("/跑团 角色 列表")
         with patch("core.character_store.list_chars", return_value=[_base_data()]), \
                 patch("core.character_store.get_current", return_value=_base_data()):
             p.handle()
@@ -153,32 +160,32 @@ class TestTrpgCharPlugin(unittest.TestCase):
         self.assertIn("当前", out)
 
     def test_switch(self):
-        p = self._plugin("/角色 切换 1")
+        p = self._plugin("/跑团 角色 切换 1")
         with patch("core.character_store.set_current"), \
                 patch("core.character_store.get_char", return_value=_base_data()):
             p.handle()
         self.assertIn("切换为 艾伦", _sent_text(p))
 
     def test_switch_missing(self):
-        p = self._plugin("/角色 切换 99")
+        p = self._plugin("/跑团 角色 切换 99")
         with patch("core.character_store.set_current", side_effect=ValueError("角色不存在")):
             p.handle()
         self.assertIn("角色不存在", _sent_text(p))
 
     def test_switch_bad_format(self):
-        p = self._plugin("/角色 切换 abc")
+        p = self._plugin("/跑团 角色 切换 abc")
         p.handle()
         self.assertIn("格式", _sent_text(p))
 
     def test_delete(self):
-        p = self._plugin("/角色 删除 1")
+        p = self._plugin("/跑团 角色 删除 1")
         with patch("core.character_store.get_char", return_value=_base_data()), \
                 patch("core.character_store.delete_char"):
             p.handle()
         self.assertIn("已删除角色 艾伦", _sent_text(p))
 
     def test_delete_missing(self):
-        p = self._plugin("/角色 删除 99")
+        p = self._plugin("/跑团 角色 删除 99")
         with patch("core.character_store.get_char", return_value=None):
             p.handle()
         self.assertIn("角色不存在", _sent_text(p))
