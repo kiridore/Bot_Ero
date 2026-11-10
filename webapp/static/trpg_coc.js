@@ -140,6 +140,26 @@ function skillRow(name, entry) {
     </tr>`;
 }
 
+const WEAPON_FIELDS = [
+  ["name", "武器", "text"],
+  ["success", "成功率", "number"],
+  ["damage", "伤害", "text"],
+  ["range", "射程", "text"],
+  ["attacks", "次数", "text"],
+  ["ammo", "弹药", "text"],
+  ["malfunction", "故障值", "text"],
+  ["pierce", "贯穿", "text"],
+];
+
+function weaponRow(weapon) {
+  const cells = WEAPON_FIELDS.map(([key, , type]) => {
+    const value = weapon[key] != null ? weapon[key] : "";
+    const cls = type === "number" ? "coc-num" : "";
+    return `<td><input type="${type}" data-weapon="${key}" value="${escapeHtml(value)}" class="${cls}" /></td>`;
+  }).join("");
+  return `<tr data-weapon-row>${cells}<td><button type="button" class="btn-sm" data-remove-weapon>删</button></td></tr>`;
+}
+
 function render() {
   const bg = card.social_background || {};
   main.innerHTML = `
@@ -197,6 +217,16 @@ function render() {
         <table class="coc-table">
           <thead><tr><th>技能</th><th>基础</th><th>成长</th><th>职业</th><th>兴趣</th><th>成功率</th><th></th></tr></thead>
           <tbody id="skillBody">${Object.entries(card.skills || {}).map(([n, e]) => skillRow(n, e)).join("")}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="coc-block">
+      <h3>武器 <button type="button" class="btn-sm" id="addWeapon">添加武器</button></h3>
+      <div class="coc-table-wrap">
+        <table class="coc-table">
+          <thead><tr>${WEAPON_FIELDS.map(([, label]) => `<th>${label}</th>`).join("")}<th></th></tr></thead>
+          <tbody id="weaponBody">${(card.weapons || []).map(weaponRow).join("")}</tbody>
         </table>
       </div>
     </section>
@@ -262,6 +292,16 @@ function bind() {
     tbody.insertAdjacentHTML("beforeend", skillRow(name.trim(), { base: options.skill_base[name.trim()] || 0 }));
     rerenderDerived();
   });
+  document.getElementById("addWeapon").addEventListener("click", () => {
+    document.getElementById("weaponBody").insertAdjacentHTML(
+      "beforeend",
+      weaponRow({ name: "", success: 0, damage: "", range: "", attacks: "", ammo: "", malfunction: "", pierce: "" })
+    );
+  });
+  document.getElementById("weaponBody").addEventListener("click", (e) => {
+    if (!e.target.matches("[data-remove-weapon]")) return;
+    e.target.closest("tr").remove();
+  });
   document.getElementById("skillBody").addEventListener("click", (e) => {
     if (!e.target.matches("[data-remove]")) return;
     e.target.closest("tr").remove();
@@ -304,6 +344,13 @@ function collect() {
       spending_level: document.getElementById("spending_level").value.trim(),
       living_standard: document.getElementById("living_standard").value.trim(),
     },
+    weapons: [...document.querySelectorAll("[data-weapon-row]")].map((row) => {
+      const weapon = {};
+      row.querySelectorAll("[data-weapon]").forEach((el) => {
+        weapon[el.dataset.weapon] = el.type === "number" ? Number(el.value || 0) : el.value.trim();
+      });
+      return weapon;
+    }).filter((weapon) => weapon.name),
     social_background: bg,
     notes: document.getElementById("notes").value,
   };
@@ -341,7 +388,11 @@ async function init() {
       if (!res.ok) throw new Error(data.detail || "读取角色卡失败");
       card = data;
     } else {
-      card = { age: 25, skills: { 侦查: { base: 25 }, 聆听: { base: 20 }, 图书馆: { base: 20 }, 闪避: { base: 0 } } };
+      card = {
+        age: 25,
+        skills: { 侦查: { base: 25 }, 聆听: { base: 20 }, 图书馆: { base: 20 }, 闪避: { base: 0 } },
+        weapons: [{ name: "徒手格斗", success: 25, damage: "1D3+DB", range: "—", attacks: "1", ammo: "—", malfunction: "—", pierce: "—" }],
+      };
     }
     render();
   } catch (err) {

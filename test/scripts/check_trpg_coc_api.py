@@ -77,6 +77,12 @@ CARD = {
     "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
     "luck": 50, "credit_rating": 40, "cthulhu_mythos": 0,
     "skills": {"侦查": {"base": 25, "occupation": 20}, "聆听": {"base": 20, "interest": 10}},
+    "weapons": [
+        {"name": "徒手格斗", "success": 25, "damage": "1D3+DB", "range": "—",
+         "attacks": "1", "ammo": "—", "malfunction": "—", "pierce": "—"},
+        {"name": ".32 自动手枪", "success": 40, "damage": "1D8", "range": "15m",
+         "attacks": "1(3)", "ammo": "8", "malfunction": "98", "pierce": "—"},
+    ],
     "assets": {"cash": "40", "spending_level": "普通", "living_standard": "小康"},
     "social_background": {"traits": "好奇心旺盛"},
     "notes": "",
@@ -91,6 +97,8 @@ check("MP 派生", created["mp"] == 13, str(created.get("mp")))
 check("MOV 派生", created["mov"] == 9, str(created.get("mov")))
 check("闪避派生", created["dodge"] == 27, str(created.get("dodge")))
 check("技能总数计入", created["skills"]["侦查"]["total"] == 45, str(created["skills"].get("侦查")))
+check("武器表保留", len(created.get("weapons") or []) == 2 and created["weapons"][1]["name"] == ".32 自动手枪",
+      str(created.get("weapons")))
 check("职业点预算", created["occupation_budget"] == 180, str(created.get("occupation_budget")))
 check("兴趣点预算", created["interest_budget"] == 170, str(created.get("interest_budget")))
 
@@ -109,11 +117,15 @@ check("未选职业 400", r.status_code == 400 and "职业" in r.text, r.text[:1
 r = client.get("/api/me/characters", headers=H)
 check("列表含 COC 卡", any(c["rules"] == "coc7th" for c in r.json()["characters"]))
 
-updated = dict(CARD, str_score=85, siz_score=70, skills={"侦查": {"base": 25, "occupation": 20}})
+updated = dict(CARD, str_score=85, siz_score=70,
+               skills={"侦查": {"base": 25, "occupation": 20}},
+               weapons=[{"name": "短棍", "success": 35, "damage": "1D6+DB"}])
 r = client.put(f"/api/me/characters/{created['id']}", headers=H, json=updated)
 check("更新 200", r.status_code == 200, r.text[:200])
 check("更新后伤害加值变化", r.json()["db"] == "+1D4", str(r.json().get("db")))
 check("更新后 HP 变化", r.json()["hp"] == 12, str(r.json().get("hp")))
+check("更新后武器表替换", [w["name"] for w in r.json().get("weapons") or []] == ["短棍"],
+      str(r.json().get("weapons")))
 
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)
