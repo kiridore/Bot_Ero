@@ -80,6 +80,22 @@ def fetch_group_members(group_id) -> list[dict] | None:
     return members
 
 
+def fetch_group_list() -> set[int] | None:
+    """机器人所在的群号集合；接口不可用返回 None（不能当成“一个群都没有”）。"""
+    data = _call_onebot("get_group_list", {}, timeout=5)
+    if not isinstance(data, list):
+        return None
+    groups = set()
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        try:
+            groups.add(int(item["group_id"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return groups
+
+
 @lru_cache(maxsize=4096)
 def resolve_display_name(user_id: str) -> str:
     uid = str(user_id)

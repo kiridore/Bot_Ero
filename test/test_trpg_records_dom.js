@@ -151,7 +151,7 @@ const allMessages = [
 ];
 const detail = {
   group_id: "800001", group_name: "夜航团", start: "2026-11-10 20:00:00",
-  end: "2026-11-10 23:10:00", state: "exported", participants, total: allMessages.length,
+  end: "2026-11-10 23:10:00", state: "ended", participants, total: allMessages.length,
 };
 
 global.fetch = async (url) => {
@@ -183,7 +183,7 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
 
   // —— AC08 气泡渲染 ——
   check("标题显示团名", els.recordTitle.textContent === "夜航团", els.recordTitle.textContent);
-  check("状态徽标为已导出", els.recordState.textContent === "已导出", els.recordState.textContent);
+  check("状态徽标为已结束", els.recordState.textContent === "已结束", els.recordState.textContent);
   check("头部消息条数取 total", els.recordMeta.textContent.includes("5 条消息"), els.recordMeta.textContent);
   check("默认渲染 4 条（暗骰不返回）", msgList.children.length === 4, String(msgList.children.length));
 

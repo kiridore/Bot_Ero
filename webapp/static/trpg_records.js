@@ -2,9 +2,8 @@
 const listEl = document.getElementById("recordList");
 const mineToggle = document.getElementById("mineOnly");
 
-const STATE_LABEL = { recording: "录制中", ended: "已结束·未导出", exported: "已导出" };
+const STATE_LABEL = { recording: "录制中", ended: "已结束" };
 const ROLE_LABEL = { dm: "DM", ob: "观察者" };
-const STALE_SECONDS = 600; // 录制中最久一条消息距今超 10 分钟 → 可能已中断
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -24,13 +23,8 @@ function durationText(r) {
   return hours ? `${hours} 小时 ${minutes % 60} 分` : `${minutes} 分`;
 }
 
-function isStale(r) {
-  return r.state === "recording" && Boolean(r.last_message_at)
-    && Date.now() / 1000 - Number(r.last_message_at) > STALE_SECONDS;
-}
-
 function stateBadge(r) {
-  const label = (STATE_LABEL[r.state] || r.state) + (isStale(r) ? "（可能已中断）" : "");
+  const label = STATE_LABEL[r.state] || r.state;
   return `<span class="trpg-badge is-${escapeHtml(r.state)}">${escapeHtml(label)}</span>`;
 }
 

@@ -1,12 +1,14 @@
 import os
+import re
 import time
 from datetime import datetime
+from pathlib import Path
 
-from core.base import Plugin, BOT_QQ, NICKNAME, SUPER_USER
+from core.base import TimedHeartbeatPlugin, BOT_QQ, NICKNAME, SUPER_USER
 from core.cq import at, text
 from core.config import WEB_BASE_URL
 from core.logger import logger
-from core.onebot_client import fetch_group_members, resolve_group_name
+from core.onebot_client import fetch_group_list, fetch_group_members, resolve_group_name
 from core.utils import register_plugin, download_image
 from core import character_store as store
 from core.trpg import party, records
@@ -15,7 +17,7 @@ import core.context as runtime_context
 # 记录图片允许的扩展名，与 core.trpg.records 的媒体名校验保持一致
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 
-RECORD_STATES = {"recording": "录制中", "ended": "已结束·未导出", "exported": "已导出"}
+RECORD_STATES = {"recording": "录制中", "ended": "已结束"}
 
 COMMAND = "/跑团"
 PARTY_SUBCMDS = frozenset({"准备", "取消准备", "名单"})
@@ -24,6 +26,13 @@ WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
 
 # 群名只用于展示：进程内缓存，取不到不缓存（下次重试）
 _group_name_cache: dict[int, str] = {}
+
+# 录制状态恢复：超过这个时长无新消息的残留录制一律终止
+RESUME_WINDOW_SECONDS = 7 * 24 * 3600
+# 群解散检测间隔（分钟，需能整除 60）
+HEARTBEAT_MINUTES = 5
+TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+PUBLIC_RECORDS_URL = f"{WEB_BASE_URL}/trpg/records"
 
 
 def cached_group_name(group_id) -> str:
@@ -36,17 +45,223 @@ def cached_group_name(group_id) -> str:
 
 
 def record_state(path) -> str:
-    """由文件推断状态：meta.end 为 null → 录制中；record.md 存在 → 已导出。"""
+    """由文件推断状态：meta.end 为 null → 录制中；否则已结束。"""
     meta = records.read_meta(path) or {}
-    if not meta.get("end"):
-        return "recording"
-    return "exported" if (path / "record.md").is_file() else "ended"
+    return "recording" if not meta.get("end") else "ended"
+
+
+def build_record_md(meta: dict, entries: list) -> str:
+    """由 messages.jsonl 的结构化消息生成 record.md。"""
+    lines = [
+        "# 跑团记录\n",
+        f"- 开始时间：{meta.get('start', '')}",
+        f"- 结束时间：{meta.get('end') or ''}",
+        "- 参与人：",
+    ]
+    for p in meta.get("participants", []):
+        uid = p.get("user_id", "")
+        label = f"{p.get('nickname', '?')} ({uid})"
+        if uid == str(BOT_QQ):
+            label += " Bot"
+        if p.get("role"):
+            label += f" [{p['role'].upper()}]"
+        lines.append(f"  - {label}")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    for entry in entries:
+        ts = datetime.fromtimestamp(entry["time"]).strftime("%H:%M:%S")
+        sender = entry.get("nickname") or "未知"
+        if entry.get("char_name"):
+            sender = f"{entry['char_name']}({sender})"
+        prefix = {"dm": "[DM] ", "ob": "[OB] "}.get(entry.get("role", ""), "")
+        lines.append(f"[{ts}] **{prefix}{sender}**:")
+        for seg in entry.get("segments", []):
+            seg_type = seg.get("type", "")
+            if seg_type == "text":
+                lines.append(seg.get("text", ""))
+            elif seg_type == "image":
+                if seg.get("local"):
+                    lines.append(f"![图片]({seg['local']})")
+                else:
+                    lines.append(f"[图片: {seg.get('file', '?')}]")
+            elif seg_type == "at":
+                lines.append(f"@{seg.get('qq', '')}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def write_record_md(record_path) -> bool:
+    """由 messages.jsonl 生成 record.md；失败只记日志。"""
+    try:
+        meta = records.read_meta(record_path)
+        if meta is None:
+            return False
+        entries, skipped = records.iter_messages(record_path)
+        if skipped:
+            logger.warning("跑团记录 %s 跳过 %d 条损坏消息", record_path, skipped)
+        with open(Path(record_path) / "record.md", "w", encoding="utf-8") as f:
+            f.write(build_record_md(meta, entries))
+        return True
+    except Exception:
+        logger.exception("生成 record.md 失败：%s", record_path)
+        return False
+
+
+def finalize_quietly(record_path, end_ts=None, reason: str = "") -> None:
+    """自动终止：写 end 并生成 md；无群可发，不产生任何用户可见回执。"""
+    try:
+        records.finalize_record(record_path, end_ts)
+    except Exception:
+        logger.exception("写入跑团记录结束时间失败：%s", record_path)
+    ok = write_record_md(record_path)
+    if reason:
+        logger.info("跑团记录自动结束（%s）：%s%s", reason, record_path, "" if ok else "（record.md 生成失败）")
+
+
+def max_image_index(record_path) -> int:
+    imgs = Path(record_path) / "imgs"
+    if not imgs.is_dir():
+        return 0
+    best = 0
+    for item in imgs.iterdir():
+        matched = re.match(r"img_(\d+)\.", item.name)
+        if matched:
+            best = max(best, int(matched.group(1)))
+    return best
+
+
+def _parse_start(meta: dict) -> int | None:
+    try:
+        return int(datetime.strptime(meta["start"], TIME_FORMAT).timestamp())
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def resume_session(group_id: int, meta: dict, record_path) -> dict:
+    """用磁盘上的 meta 重建录制会话，并在记录里留一条中断/恢复消息。"""
+    start = datetime.fromtimestamp(_parse_start(meta) or time.time())
+    participants = {}
+    for person in meta.get("participants") or []:
+        if isinstance(person, dict) and person.get("user_id") is not None:
+            participants[str(person["user_id"])] = dict(person)
+    session = {
+        "start": start,
+        "messages": [],
+        "participants": participants,
+        "roles": dict(meta.get("roles") or {}),
+        "dir": Path(record_path),
+        "img_count": max_image_index(record_path),
+        "resume_banner": True,
+    }
+    with runtime_context.recording_lock:
+        runtime_context.recording_sessions[group_id] = session
+
+    interrupted_at = records.last_message_time(record_path)
+    if interrupted_at:
+        gap_text = (
+            f"录制于 {datetime.fromtimestamp(interrupted_at).strftime('%Y-%m-%d %H:%M')} 中断，"
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M')} 恢复"
+        )
+    else:
+        gap_text = f"{datetime.now().strftime('%Y-%m-%d %H:%M')} 恢复录制（此前无消息）"
+    try:
+        records.append_message(record_path, {
+            "time": int(time.time()),
+            "sender_type": "bot",
+            "user_id": str(BOT_QQ),
+            "nickname": NICKNAME,
+            "char_name": "",
+            "role": "",
+            "segments": [{"type": "text", "text": gap_text}],
+        })
+    except Exception:
+        logger.exception("写入中断/恢复消息失败：%s", record_path)
+    return session
+
+
+def recover_recordings() -> int:
+    """启动时按磁盘状态重建录制：续录、超时终止、群解散终止。返回续录数量。"""
+    root = records.records_root()
+    if not root.is_dir():
+        return 0
+    groups = fetch_group_list()
+    now = int(time.time())
+    resumed = 0
+    for group_path in sorted(root.iterdir()):
+        if not group_path.is_dir():
+            continue
+        try:
+            group_id = int(group_path.name)
+        except ValueError:
+            continue
+        pending = []
+        for record_path in sorted(group_path.iterdir()):
+            if not record_path.is_dir():
+                continue
+            try:
+                records.record_dir(group_id, record_path.name)
+            except ValueError:
+                continue
+            meta = records.read_meta(record_path)
+            if not meta or meta.get("version") != 2 or meta.get("end"):
+                continue
+            pending.append((meta, record_path))
+        if not pending:
+            continue
+        pending.sort(key=lambda item: (item[0].get("start") or "", item[1].name), reverse=True)
+        for index, (meta, record_path) in enumerate(pending):
+            last_at = records.last_message_time(record_path) or _parse_start(meta) or now
+            if groups is not None and group_id not in groups:
+                finalize_quietly(record_path, last_at, "群已解散")
+                continue
+            if index > 0:
+                finalize_quietly(record_path, last_at, "同群多条待恢复，仅续最新一条")
+                continue
+            if now - last_at > RESUME_WINDOW_SECONDS:
+                finalize_quietly(record_path, last_at, "超过 7 天无新消息")
+                continue
+            resume_session(group_id, meta, record_path)
+            resumed += 1
+    if resumed:
+        logger.info("已从磁盘恢复 %d 场跑团录制", resumed)
+    return resumed
+
+
+def _auto_finish(group_id: int, reason: str) -> None:
+    """运行期自动终止（群已解散）：弹出会话并归档。"""
+    session = runtime_context.get_recording_session(group_id)
+    if not session:
+        return
+    with runtime_context.recording_lock:
+        runtime_context.recording_sessions.pop(group_id, None)
+    path = session.get("dir")
+    if path is None:
+        return
+    end_ts = records.last_message_time(path) or int(session["start"].timestamp())
+    finalize_quietly(path, end_ts, reason)
 
 
 @register_plugin
-class TrpgSessionPlugin(Plugin):
+class TrpgSessionPlugin(TimedHeartbeatPlugin):
     name = "trpg_session"
-    description = "跑团：准备/名单/记录（开始、结束、导出、列表、查看）"
+    description = "跑团：准备/名单/记录（开始、结束、列表、查看）"
+
+    def should_run_on_heartbeat(self, event_type: str) -> bool:
+        """基类按固定时刻触发，这里改成每 HEARTBEAT_MINUTES 分钟一次。"""
+        if event_type != "meta":
+            return False
+        now = datetime.now()
+        if now.minute % HEARTBEAT_MINUTES:
+            return False
+        if not self._passes_weekday_filter(now) or not self._passes_annual_filter(now):
+            return False
+        key = now.strftime("%Y-%m-%d %H:%M")
+        if self._last_run_minute.get(type(self).__name__) == key:
+            return False
+        self._last_run_minute[type(self).__name__] = key
+        return True
 
     # ── 事件消息 ──────────────────────────────────────────
 
@@ -69,6 +284,8 @@ class TrpgSessionPlugin(Plugin):
         return parts
 
     def match(self, message_type) -> bool:
+        if self.should_run_on_heartbeat(message_type):
+            return True
         if message_type != "message":
             return False
         msg = self._first_text()
@@ -85,6 +302,9 @@ class TrpgSessionPlugin(Plugin):
 
     def handle(self):
         try:
+            if self.bot_event.post_type == "meta":
+                self._on_heartbeat()
+                return
             msg = self._first_text()
             if msg.startswith(".dm"):
                 self._handle_set_role("dm")
@@ -127,12 +347,38 @@ class TrpgSessionPlugin(Plugin):
             self._handle_start(force=True)
         elif sub == "结束":
             self._handle_stop()
-        elif sub == "导出":
-            self._handle_export()
         elif sub.startswith("#"):
             self._handle_view(sub[1:])
         else:
             self._handle_list()
+
+    # ── 心跳：恢复公告与群解散检测 ────────────────────
+
+    def _on_heartbeat(self):
+        self._send_resume_banners()
+        active = list(runtime_context.recording_sessions)
+        if not active:
+            return
+        groups = fetch_group_list()
+        if groups is None:
+            return
+        for group_id in active:
+            if group_id not in groups:
+                _auto_finish(group_id, "群已解散")
+
+    def _send_resume_banners(self):
+        for group_id, session in list(runtime_context.recording_sessions.items()):
+            if not session.get("resume_banner"):
+                continue
+            start_text = session["start"].strftime("%Y-%m-%d %H:%M")
+            ret = self.api.call_api("send_group_msg", {
+                "group_id": group_id,
+                "message": [text(f"已恢复 {start_text} 开始的跑团录制，如需结束请由 DM 发送 /跑团 记录 结束")],
+            })
+            if isinstance(ret, dict) and ret.get("status") == "ok":
+                session["resume_banner"] = False
+            else:
+                logger.warning("恢复公告发送失败，下个心跳重试：群 %s", group_id)
 
     def _reject_if_recording(self) -> bool:
         group_id = self.bot_event.group_id
@@ -291,7 +537,12 @@ class TrpgSessionPlugin(Plugin):
         user_id = str(self.bot_event.user_id or "")
         if user_id.isdigit() and int(user_id) in SUPER_USER:
             return True
-        return party.read_pending(group_id)["roles"].get(user_id) == "dm"
+        # 录制中 pending.json 已被清空，DM 身份以会话里的 roles 为准
+        session = runtime_context.get_recording_session(group_id)
+        roles = session.get("roles") if session else None
+        if roles is None:
+            roles = party.read_pending(group_id)["roles"]
+        return roles.get(user_id) == "dm"
 
     def _check_gate(self, data: dict, members) -> list:
         """返回问题列表；空列表表示通过。问题项为 {text, at?}。"""
@@ -350,18 +601,7 @@ class TrpgSessionPlugin(Plugin):
                 self._send_problems(problems)
                 return
 
-        unexported = runtime_context.get_last_completed(group_id)
-        if unexported:
-            if not force:
-                self.api.send_msg(text(
-                    "上次记录尚未导出！请先使用 /跑团 记录 导出 保存记录，"
-                    "或使用 /跑团 记录 强制开始 放弃并重新开始"
-                ))
-                return
-            runtime_context.pop_last_completed(group_id)
-
-        notice = "已丢弃上次记录，跑团记录已开始——" if unexported else "跑团记录已开始——"
-        self._start_session(group_id, notice, data, members)
+        self._start_session(group_id, "跑团记录已开始——", data, members)
 
     def _start_session(self, group_id: int, notice: str, data: dict, members):
         start = datetime.now()
@@ -434,128 +674,35 @@ class TrpgSessionPlugin(Plugin):
             self.api.send_msg(text("当前没有进行中的记录"))
             return
 
+        if not self._is_dm_or_admin(group_id):
+            self.api.send_msg(text("只有 DM 才能结束录制"))
+            return
+
         session = runtime_context.get_recording_session(group_id)
         if not session:
             self.api.send_msg(text("内部错误：找不到录制会话"))
             return
 
-        end_time = datetime.now()
-        messages = session["messages"]
-
-        # 按时间排序，同时间用户消息排在 bot 消息前面
-        messages.sort(key=lambda m: (m.get("time", 0), 1 if m.get("type") == "bot" else 0))
-
         path = session.get("dir")
-        if path is not None:
-            try:
-                meta = records.read_meta(path)
-                if meta is not None:
-                    meta["end"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-                    records.rewrite_meta(path, meta)
-            except Exception:
-                # 结束时间写失败不阻断结束流程，网页侧该记录显示为「录制中」
-                logger.exception("写入跑团记录结束时间失败")
-
+        start_dir = records.start_dir_name(session["start"])
         with runtime_context.recording_lock:
             runtime_context.recording_sessions.pop(group_id, None)
-            runtime_context.last_completed[group_id] = {
-                "start": session["start"],
-                "end": end_time,
-                "messages": messages,
-                "participants": session["participants"],
-                "roles": session.get("roles", {}),
-                "dir": path,
-            }
 
-        if not messages:
-            self.api.send_msg(text("跑团记录已结束——\n（无记录内容）"))
+        if path is None:
+            self.api.send_msg(text("记录数据缺失，无法结束"))
             return
-
-        self._send_forward(group_id, messages)
-        self.api.send_msg(text("跑团记录已结束——"))
-
-    # ── 导出到磁盘 ──────────────────────────────────────────
-
-    def _handle_export(self):
-        group_id = self.bot_event.group_id
-        if group_id is None:
-            self.api.send_msg(text("跑团记录只能在群聊中使用"))
-            return
-
-        if runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("录制中无法导出，请先结束录制"))
-            return
-
-        recording = runtime_context.pop_last_completed(group_id)
-        if not recording:
-            self.api.send_msg(text("没有可导出的记录"))
-            return
-
-        start_dir = records.start_dir_name(recording["start"])
-        path = recording.get("dir") or records.record_dir(group_id, start_dir)
 
         try:
-            meta = records.read_meta(path)
-            if meta is None:
-                self.api.send_msg(text("记录数据缺失，无法导出"))
-                return
+            records.finalize_record(path)
+        except Exception:
+            # 结束时间写失败不阻断结束流程，网页侧该记录显示为「录制中」
+            logger.exception("写入跑团记录结束时间失败")
 
-            entries, skipped = records.iter_messages(path)
-            if skipped:
-                logger.warning("跑团记录 %s 跳过 %d 条损坏消息", start_dir, skipped)
-
-            with open(path / "record.md", "w", encoding="utf-8") as f:
-                f.write(self._build_record_md(meta, entries))
-
-            self.api.send_msg(text(
-                f"导出成功：{start_dir}，共 {len(entries)} 条消息\n"
-                f"查看：{WEB_BASE_URL}/trpg/records/{group_id}/{start_dir}"
-            ))
-
-        except Exception as e:
-            logger.exception("导出记录失败")
-            self.api.send_msg(text(f"导出失败：{e}"))
-
-    def _build_record_md(self, meta: dict, entries: list) -> str:
-        """由 messages.jsonl 的结构化消息生成 record.md（格式与旧纯文本导出一致）。"""
-        lines = [
-            "# 跑团记录\n",
-            f"- 开始时间：{meta.get('start', '')}",
-            f"- 结束时间：{meta.get('end') or ''}",
-            "- 参与人：",
-        ]
-        for p in meta.get("participants", []):
-            uid = p.get("user_id", "")
-            label = f"{p.get('nickname', '?')} ({uid})"
-            if uid == str(BOT_QQ):
-                label += " Bot"
-            if p.get("role"):
-                label += f" [{p['role'].upper()}]"
-            lines.append(f"  - {label}")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        for entry in entries:
-            ts = datetime.fromtimestamp(entry["time"]).strftime("%H:%M:%S")
-            sender = entry.get("nickname") or "未知"
-            if entry.get("char_name"):
-                sender = f"{entry['char_name']}({sender})"
-            prefix = {"dm": "[DM] ", "ob": "[OB] "}.get(entry.get("role", ""), "")
-            lines.append(f"[{ts}] **{prefix}{sender}**:")
-            for seg in entry.get("segments", []):
-                seg_type = seg.get("type", "")
-                if seg_type == "text":
-                    lines.append(seg.get("text", ""))
-                elif seg_type == "image":
-                    if seg.get("local"):
-                        lines.append(f"![图片]({seg['local']})")
-                    else:
-                        lines.append(f"[图片: {seg.get('file', '?')}]")
-                elif seg_type == "at":
-                    lines.append(f"@{seg.get('qq', '')}")
-            lines.append("")
-        return "\n".join(lines)
+        md_ok = write_record_md(path)
+        tail = "" if md_ok else "\n（record.md 生成失败，网页仍可查看）"
+        self.api.send_msg(text(
+            f"跑团记录已结束——\n查看：{PUBLIC_RECORDS_URL}/{group_id}/{start_dir}{tail}"
+        ))
 
     # ── 列表 ──────────────────────────────────────────
 
@@ -730,26 +877,6 @@ class TrpgSessionPlugin(Plugin):
         except Exception:
             logger.exception("跑团记录图片入档失败")
             return {"type": "image", "unavailable": True, "file": file_name}
-
-    # ── 合并转发 ──────────────────────────────────────────
-
-    def _send_forward(self, group_id: int, messages: list):
-        nodes = []
-        for entry in messages:
-            nodes.append({
-                "type": "node",
-                "data": {
-                    "user_id": entry.get("user_id", "0"),
-                    "nickname": entry.get("nickname", ""),
-                    "content": entry.get("message", []),
-                },
-            })
-
-        if nodes:
-            self.api.call_api("send_group_forward_msg", {
-                "group_id": group_id,
-                "messages": nodes,
-            })
 
     def _sync_meta(self, path, session: dict):
         """把会话里的 roles / participants 重写进 meta.json。"""

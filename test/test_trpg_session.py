@@ -8,7 +8,9 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import time
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,7 +22,7 @@ from core import character_store as store
 from core.config import BOT_QQ, NICKNAME, WEB_BASE_URL
 from core.trpg import party, records
 from plugins.trpg_dice import TrpgPlugin
-from plugins.trpg_session import TrpgSessionPlugin
+from plugins.trpg_session import TrpgSessionPlugin, recover_recordings
 from test.helper import MockApiWrapper, make_private_message
 import core.context as runtime_context
 
@@ -88,7 +90,6 @@ class IsolationMixin:
 
     def _reset_state(self):
         runtime_context.recording_sessions.clear()
-        runtime_context.last_completed.clear()
         # 群名与成员名单都走 HTTP，本机无 OneBot 时每次尝试要等 2 秒连接失败；默认桩掉，个别用例自行覆盖
         self._group_name_patch = patch("plugins.trpg_session.resolve_group_name", return_value="")
         self._group_name_patch.start()
@@ -388,7 +389,7 @@ class TestGroupName(IsolationMixin, unittest.TestCase):
         self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
 
 
-# ── 开始/结束的既有守卫 ────────────────────────────────
+# ── 开始/结束守卫与结束归档 ────────────────────────────
 
 class TestStartGuards(IsolationMixin, unittest.TestCase):
     def setUp(self):
@@ -401,82 +402,59 @@ class TestStartGuards(IsolationMixin, unittest.TestCase):
         self.assertIn("已在录制", _sent_text(plugin))
         self.assertEqual(len(list((self.root / str(GROUP_ID)).iterdir())), 1)
 
-    def test_start_with_unexported_warns(self):
-        runtime_context.last_completed[GROUP_ID] = {"messages": [{"dummy": True}]}
-        self.seed_party()
-        plugin = _run([_text_seg("/跑团 记录 开始")])
-        self.assertIn("尚未导出", _sent_text(plugin))
-        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
-
-    def test_force_start_discards_unexported(self):
-        runtime_context.last_completed[GROUP_ID] = {"messages": [{"dummy": True}]}
-        plugin = _run([_text_seg("/跑团 记录 强制开始")])
-        self.assertIn("已丢弃", _sent_text(plugin))
-        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
-        self.assertIsNone(runtime_context.get_last_completed(GROUP_ID))
-
     def test_stop_while_not_recording(self):
         plugin = _run([_text_seg("/跑团 记录 结束")])
         self.assertIn("没有进行中", _sent_text(plugin))
 
-    def test_export_while_recording_refused(self):
+    def test_stop_requires_dm(self):
         _run([_text_seg("/跑团 记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 记录 结束")])
+        self.assertIn("只有 DM", _sent_text(plugin))
+        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
+
+    def test_export_command_removed(self):
         plugin = _run([_text_seg("/跑团 记录 导出")])
-        self.assertIn("录制中无法导出", _sent_text(plugin))
-
-    def test_export_no_completed_refused(self):
-        plugin = _run([_text_seg("/跑团 记录 导出")])
-        self.assertIn("没有可导出", _sent_text(plugin))
+        self.assertIn("暂无", _sent_text(plugin))
 
 
-# ── AC04 结束与导出 ────────────────────────────────────
-
-class TestStopAndExport(IsolationMixin, unittest.TestCase):
+class TestStopArchive(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团 记录 强制开始")])
+        self.seed_party()
+        _run([_text_seg("/跑团 记录 开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
-        _run([_text_seg("/跑团 记录 结束")])
+        self.stop_plugin = _run([_text_seg("/跑团 记录 结束")])
 
-    def test_stop_writes_end(self):
+    def test_stop_writes_end_and_md(self):
         path = self.record_dir()
         self.assertTrue(self.meta(path)["end"])
-        self.assertFalse((path / "record.md").is_file())
+        self.assertTrue((path / "record.md").is_file())
         self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
 
-    def test_export_report_contains_web_link(self):
-        plugin = _run([_text_seg("/跑团 记录 导出")])
+    def test_stop_reply_contains_web_link(self):
         path = self.record_dir()
-        self.assertIn("导出成功", _sent_text(plugin))
         self.assertIn(
             f"查看：{WEB_BASE_URL}/trpg/records/{GROUP_ID}/{path.name}",
-            _sent_text(plugin),
+            _sent_text(self.stop_plugin),
         )
-        self.assertTrue((path / "record.md").is_file())
 
-    def test_export_md_generated_from_jsonl(self):
-        plugin = _run([_text_seg("/跑团 记录 导出")])
+    def test_md_generated_from_jsonl(self):
         path = self.record_dir()
         md = (path / "record.md").read_text(encoding="utf-8")
         meta = self.meta(path)
-        entries = self.messages(path)
         self.assertIn(f"- 开始时间：{meta['start']}", md)
         self.assertIn(f"- 结束时间：{meta['end']}", md)
-        self.assertIn("玩家A", md)
+        self.assertIn("[DM] 玩家A", md)
         self.assertIn("我推开酒馆的门", md)
-        # 每条消息的发送方与正文都来自 messages.jsonl
-        for entry in entries:
-            self.assertIn(entry["segments"][0]["text"], md)
-        self.assertIn("导出成功", _sent_text(plugin))
 
 
-class TestExportRichSegments(IsolationMixin, unittest.TestCase):
+class TestArchiveRichSegments(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团 记录 强制开始")])
-        _run([_text_seg(".dm")], user_id=111, nickname="玩家A")
+        self.seed_party()
+        _run([_text_seg("/跑团 记录 开始")])
 
     @patch("plugins.trpg_session.download_image", side_effect=_fake_download)
     def test_md_keeps_role_prefix_image_and_mention(self, _mock_dl):
@@ -489,7 +467,6 @@ class TestExportRichSegments(IsolationMixin, unittest.TestCase):
             nickname="玩家A",
         )
         _run([_text_seg("/跑团 记录 结束")])
-        _run([_text_seg("/跑团 记录 导出")])
         md = (self.record_dir() / "record.md").read_text(encoding="utf-8")
         self.assertIn("[DM] 玩家A", md)
         self.assertIn("看一下这个", md)
@@ -503,7 +480,8 @@ class TestListAndView(IsolationMixin, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.use_temp_data_path()
-        _run([_text_seg("/跑团 记录 强制开始")])
+        self.seed_party()
+        _run([_text_seg("/跑团 记录 开始")])
         _run([_text_seg("我推开酒馆的门")], user_id=111, nickname="玩家A")
         _run([_text_seg("/跑团 记录 结束")])
 
@@ -511,7 +489,7 @@ class TestListAndView(IsolationMixin, unittest.TestCase):
         plugin = _run([_text_seg("/跑团 记录 列表")])
         out = _sent_text(plugin)
         self.assertIn("[1]", out)
-        self.assertIn("已结束·未导出", out)
+        self.assertIn("已结束", out)
         self.assertIn("1 条", out)
 
     def test_view_shows_participants(self):
@@ -519,7 +497,7 @@ class TestListAndView(IsolationMixin, unittest.TestCase):
         out = _sent_text(plugin)
         self.assertIn("#1", out)
         self.assertIn("玩家A", out)
-        self.assertIn("已结束·未导出", out)
+        self.assertIn("已结束", out)
 
     def test_view_index_out_of_range(self):
         plugin = _run([_text_seg("/跑团 记录 #9")])
@@ -720,6 +698,164 @@ class TestStartSeed(IsolationMixin, unittest.TestCase):
         party.pending_path(GROUP_ID).write_text("not json", encoding="utf-8")
         out = _joined(_run([_text_seg("/跑团")]))
         self.assertIn("开团准备", out)
+
+
+# ── AC01–AC05 重启恢复与心跳 ──────────────────────────
+
+class _FixedDateTime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 11, 10, 20, 5, 0)
+
+
+def _write_record(group_id, start_dir, *, end=None, start="2026-11-10 20:00:00", messages=(), imgs=()):
+    path = records.group_dir(group_id) / start_dir
+    (path / "imgs").mkdir(parents=True, exist_ok=True)
+    records.rewrite_meta(path, {
+        "version": 2,
+        "group_id": group_id,
+        "group_name": "夜航团",
+        "start": start,
+        "end": end,
+        "roles": {"111": "dm"},
+        "participants": [{"user_id": "111", "nickname": "玩家A", "char_name": "", "role": "dm"}],
+    })
+    for entry in messages:
+        records.append_message(path, entry)
+    for name in imgs:
+        (path / "imgs" / name).write_bytes(b"x")
+    return path
+
+
+def _msg(ts, body="hello"):
+    return {"time": ts, "sender_type": "user", "user_id": "111", "nickname": "玩家A",
+            "char_name": "", "role": "", "segments": [{"type": "text", "text": body}]}
+
+
+class TestRecovery(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def test_resume_recent_record(self):
+        now = int(time.time())
+        path = _write_record(GROUP_ID, "2026-11-10_20-00-00", messages=[_msg(now - 3600)], imgs=["img_0003.jpg"])
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}):
+            self.assertEqual(recover_recordings(), 1)
+        session = runtime_context.get_recording_session(GROUP_ID)
+        self.assertEqual(session["dir"], path)
+        self.assertEqual(session["img_count"], 3)
+        self.assertTrue(session["resume_banner"])
+        self.assertEqual(session["start"].strftime("%Y-%m-%d %H:%M:%S"), "2026-11-10 20:00:00")
+        gap = self.messages(path)[-1]["segments"][0]["text"]
+        self.assertIn("中断", gap)
+        self.assertIn("恢复", gap)
+        # 续录后新消息簿到同一目录
+        _run([_text_seg("继续跑")], user_id=111, nickname="玩家A")
+        self.assertEqual(len(self.messages(path)), 3)
+
+    def test_resumed_image_number_continues(self):
+        now = int(time.time())
+        path = _write_record(GROUP_ID, "2026-11-10_20-00-00", messages=[_msg(now - 60)], imgs=["img_0003.jpg"])
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}):
+            recover_recordings()
+        with patch("plugins.trpg_session.download_image", side_effect=_fake_download):
+            _run([{"type": "image", "data": {"file": "b.jpg"}}],
+                 api_cls=RecordingApi, api_kwargs={"image_url": "https://example.test/b.jpg"},
+                 user_id=111, nickname="玩家A")
+        self.assertTrue((path / "imgs" / "img_0004.jpg").is_file())
+
+    def test_stale_record_finalized(self):
+        old = int(time.time()) - 8 * 24 * 3600
+        path = _write_record(GROUP_ID, "2026-10-01_20-00-00", messages=[_msg(old)])
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}):
+            self.assertEqual(recover_recordings(), 0)
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+        self.assertEqual(self.meta(path)["end"], datetime.fromtimestamp(old).strftime("%Y-%m-%d %H:%M:%S"))
+        self.assertTrue((path / "record.md").is_file())
+
+    def test_dissolved_group_finalized(self):
+        path = _write_record(GROUP_ID, "2026-11-09_20-00-00", messages=[_msg(int(time.time()) - 60)])
+        with patch("plugins.trpg_session.fetch_group_list", return_value=set()):
+            self.assertEqual(recover_recordings(), 0)
+        self.assertTrue(self.meta(path)["end"])
+        self.assertTrue((path / "record.md").is_file())
+
+    def test_group_list_unavailable_still_resumes(self):
+        _write_record(GROUP_ID, "2026-11-10_20-00-00", messages=[_msg(int(time.time()) - 60)])
+        with patch("plugins.trpg_session.fetch_group_list", return_value=None):
+            self.assertEqual(recover_recordings(), 1)
+
+    def test_only_latest_resumed_for_same_group(self):
+        now = int(time.time())
+        older = _write_record(GROUP_ID, "2026-11-09_20-00-00", start="2026-11-09 20:00:00", messages=[_msg(now - 7200)])
+        newer = _write_record(GROUP_ID, "2026-11-10_20-00-00", start="2026-11-10 20:00:00", messages=[_msg(now - 60)])
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}):
+            self.assertEqual(recover_recordings(), 1)
+        self.assertEqual(runtime_context.get_recording_session(GROUP_ID)["dir"], newer)
+        self.assertTrue(self.meta(older)["end"])
+
+
+class TestHeartbeat(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _plugin(self):
+        ctx = {"post_type": "meta", "meta_event_type": "heartbeat"}
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        return plugin
+
+    def test_heartbeat_runs_every_five_minutes(self):
+        plugin = self._plugin()
+        with patch("plugins.trpg_session.datetime", _FixedDateTime):
+            self.assertTrue(plugin.should_run_on_heartbeat("meta"))
+            self.assertFalse(plugin.should_run_on_heartbeat("meta"))
+        self.assertFalse(plugin.should_run_on_heartbeat("message"))
+
+    def test_heartbeat_skips_poll_without_recordings(self):
+        plugin = self._plugin()
+        with patch("plugins.trpg_session.fetch_group_list") as fake:
+            plugin._on_heartbeat()
+        fake.assert_not_called()
+
+    def test_heartbeat_finishes_dissolved_group(self):
+        now = int(time.time())
+        path = _write_record(GROUP_ID, "2026-11-10_20-00-00", messages=[_msg(now - 60)])
+        runtime_context.recording_sessions[GROUP_ID] = {
+            "start": datetime.fromtimestamp(now - 600), "messages": [], "participants": {},
+            "roles": {}, "dir": path, "img_count": 0,
+        }
+        plugin = self._plugin()
+        with patch("plugins.trpg_session.fetch_group_list", return_value=set()):
+            plugin._on_heartbeat()
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+        self.assertEqual(self.meta(path)["end"], datetime.fromtimestamp(now - 60).strftime("%Y-%m-%d %H:%M:%S"))
+        self.assertTrue((path / "record.md").is_file())
+
+    def test_resume_banner_sent_once(self):
+        class OkApi(MockApiWrapper):
+            def __init__(self, ctx):
+                super().__init__(ctx)
+                self.calls = []
+
+            def call_api(self, action, params):
+                self.calls.append((action, params))
+                return {"status": "ok"}
+
+        session = {"start": datetime(2026, 11, 10, 20, 0), "messages": [], "participants": {},
+                   "roles": {}, "dir": None, "img_count": 0, "resume_banner": True}
+        runtime_context.recording_sessions[GROUP_ID] = session
+        ctx = {"post_type": "meta"}
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = OkApi(ctx)
+        plugin._on_heartbeat()
+        self.assertEqual([c[0] for c in plugin.api.calls], ["send_group_msg"])
+        self.assertFalse(session["resume_banner"])
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}):
+            plugin._on_heartbeat()
+        self.assertEqual(len(plugin.api.calls), 1)
 
 
 if __name__ == "__main__":

@@ -11,10 +11,9 @@ const GROUP_ID = decodeURIComponent(PATH_PARTS[2] || "");
 const START_DIR = decodeURIComponent(PATH_PARTS[3] || "");
 const API_URL = `/api/trpg/records/${GROUP_ID}/${START_DIR}`;
 
-const STATE_LABEL = { recording: "录制中", ended: "已结束·未导出", exported: "已导出" };
+const STATE_LABEL = { recording: "录制中", ended: "已结束" };
 const ROLE_LABEL = { dm: "DM", ob: "观察者" };
 const POLL_MS = 5000;
-const STALE_SECONDS = 600; // 录制中最久一条消息距今超 10 分钟 → 可能已中断
 
 let me = null;
 let cursor = 0;          // 已消费到 messages.jsonl 第几条（含被过滤的暗骰，口径由服务端 total 给出）
@@ -120,10 +119,8 @@ function renderHeader(data) {
   titleEl.textContent = data.group_name || `团 ${data.group_id}`;
   metaEl.textContent = [data.start, durationText(data), `${data.total} 条消息`].filter(Boolean).join(" · ");
   recordState = data.state;
-  const stale = recordState === "recording" && Boolean(lastSeen)
-    && Date.now() / 1000 - lastSeen > STALE_SECONDS;
   stateEl.className = `trpg-badge is-${recordState}`;
-  stateEl.textContent = (STATE_LABEL[recordState] || recordState) + (stale ? "（可能已中断）" : "");
+  stateEl.textContent = STATE_LABEL[recordState] || recordState;
 }
 
 function isAtBottom() {

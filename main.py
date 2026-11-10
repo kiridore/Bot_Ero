@@ -70,6 +70,9 @@ if __name__ == "__main__":
     logger.info("BotEro v%s 启动（WS: %s）", BOTERO_VERSION, WS_URL)
     from plugins.who_is_spy.history import recover_interrupted_games
     recover_interrupted_games()
+    # 跑团录制状态以磁盘为准：重启后续录、超时/群解散的自动归档
+    from plugins.trpg_session import recover_recordings
+    recover_recordings()
     api.echo = api.Echo()
     api.WS_APP = websocket.WebSocketApp(
         WS_URL,

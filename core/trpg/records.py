@@ -108,3 +108,23 @@ def iter_messages(record_path) -> tuple[list[dict], int]:
                 continue
             entries.append(entry)
     return entries, skipped
+
+
+def last_message_time(record_path) -> int | None:
+    """记录中最后一条消息的 epoch 时间；无消息返回 None。"""
+    entries, _skipped = iter_messages(record_path)
+    for entry in reversed(entries):
+        ts = entry.get("time")
+        if isinstance(ts, (int, float)):
+            return int(ts)
+    return None
+
+
+def finalize_record(record_path, end_ts=None) -> None:
+    """写 meta.end（时间格式与开录一致）；end_ts 为 epoch，缺省取当前时间。"""
+    meta = read_meta(record_path)
+    if meta is None:
+        return
+    moment = datetime.fromtimestamp(end_ts) if end_ts else datetime.now()
+    meta["end"] = moment.strftime("%Y-%m-%d %H:%M:%S")
+    rewrite_meta(record_path, meta)

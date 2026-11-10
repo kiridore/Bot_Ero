@@ -32,10 +32,9 @@ SYSTEM_PLUGINS = frozenset({
     "message_logger",
 })
 
-# 跑团录制状态
+# 跑团录制状态（进程内；启动时由 trpg_session.recover_recordings() 从磁盘重建）
 recording_lock = Lock()
-recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime, "messages": list, "participants": dict}
-last_completed: dict[int, dict] = {}           # group_id → {"start": datetime, "end": datetime, "messages": list, "participants": dict}
+recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime, "messages": list, "participants": dict, ...}
 RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session", "trpg_char"})
 
 # 当前游戏规则系统（跑团骰子检定用），未来规则切换功能修改此值
@@ -49,12 +48,6 @@ def is_group_recording(group_id: int) -> bool:
 
 def get_recording_session(group_id: int) -> dict | None:
     return recording_sessions.get(group_id)
-
-def get_last_completed(group_id: int) -> dict | None:
-    return last_completed.get(group_id)
-
-def pop_last_completed(group_id: int) -> dict | None:
-    return last_completed.pop(group_id, None)
 
 def is_plugin_allowed_during_recording(key: str) -> bool:
     return key in RECORDING_ALLOWED_PLUGINS

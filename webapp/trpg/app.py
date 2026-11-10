@@ -296,7 +296,7 @@ def trpg_char_view_page(user_id: str, char_id: int):
 def _record_state(record_path: Path, meta: dict) -> str:
     if meta.get("end") is None:
         return "recording"
-    return "exported" if (record_path / "record.md").is_file() else "ended"
+    return "ended"
 
 
 def _segment_with_url(segment, group_id: str, start_dir: str):

@@ -49,12 +49,24 @@
 - **WHEN** `get_group_info` 返回失败或超时
 - **THEN** 录制照常开始，`group_name` 为空串
 
-### Requirement: 结束与导出
-结束录制时 SHALL 在 `meta.json` 写入 `end`。导出 SHALL 从 `messages.jsonl` 生成 `record.md`（标题、开始/结束时间、参与人、逐条消息，保留 DM/观察者前缀、图片引用与 @ 提及），并 SHALL 在群内回一条成功消息，其中包含可访问的网页地址 `<web_base_url>/trpg/records/<群号>/<开始时间目录>`。
+### Requirement: 结束与归档
+结束录制时 SHALL 在 `meta.json` 写入 `end`，并 SHALL 由 `messages.jsonl` 自动生成 `record.md`（标题、开始/结束时间、参与人、逐条消息，保留 DM/观察者前缀、图片引用与 @ 提及），群内回执 SHALL 包含可访问的网页地址 `<web_base_url>/trpg/records/<群号>/<开始时间目录>`。结束录制 SHALL 仅允许当前 DM 或超级用户执行，其他人 MUST 被拒绝且录制继续。本能力 MUST NOT 提供导出指令，MUST NOT 在结束时发送合并转发。`record.md` 生成失败 SHALL NOT 阻断结束流程，但 SHALL 在回执中说明。
 
 #### Scenario: 导出记录
-- **WHEN** 结束录制后发送 `/跑团记录 导出`
-- **THEN** 记录目录出现 `record.md`，内容与 `messages.jsonl` 对应，群内回执包含该记录的网页链接
+- **WHEN** 一条记录结束后查看记录目录
+- **THEN** `record.md` 已由结束流程自动生成，无需任何导出指令
+
+#### Scenario: DM 结束录制
+- **WHEN** DM 发送 `/跑团 记录 结束`
+- **THEN** `meta.end` 写入当前时间、`record.md` 生成、回执包含网页链接，且不发送合并转发
+
+#### Scenario: 非 DM 结束录制
+- **WHEN** 非 DM 且非超级用户发送 `/跑团 记录 结束`
+- **THEN** 机器人拒绝并提示只有 DM 才能结束，录制状态保持不变
+
+#### Scenario: 导出指令已移除
+- **WHEN** 发送 `/跑团 记录 导出`
+- **THEN** 机器人列出记录列表（按未知子命令处理），不会生成任何文件
 
 ### Requirement: 记录目录与校验集中管理
 记录根路径、开始时间目录名格式与媒体文件名校验 SHALL 由一个共享模块提供（`core/trpg/records.py`），插件与 webapp MUST 共用同一实现，MUST NOT 各自硬编码相对路径；非法群号、非法目录名与非法媒体文件名 SHALL 被拒绝而不是拼进文件系统路径。
