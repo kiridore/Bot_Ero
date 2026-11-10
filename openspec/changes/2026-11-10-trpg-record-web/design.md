@@ -16,6 +16,7 @@
 | D10 | 列表默认全部，顶部提供「只看我参加的」开关 | 所有者 Q11:A |
 | D11 | 录制开始时取群名写入 `meta.json`，失败回退群号 | 所有者 Q12:A |
 | D12 | 开发流程文档缺口先单独提交修正 | 所有者 Q7:A（已完成 commit f4b4f70） |
+| D13 | 暗骰结果入档，网页默认不显示，详情页提供「显示暗骰」开关 | 所有者 2026-11-10 追加 |
 
 ## 2. 数据格式
 
@@ -63,9 +64,12 @@
 ```json
 {"time": 1762776000, "sender_type": "user", "user_id": "123456", "nickname": "老张", "char_name": "艾拉", "role": "dm", "segments": [{"type": "text", "text": "我推开酒馆的门"}]}
 {"time": 1762776031, "sender_type": "bot", "user_id": "3915014383", "nickname": "小埃", "char_name": "", "role": "", "segments": [{"type": "text", "text": "老张的感知检定: D20=13=13"}]}
+{"time": 1762776040, "sender_type": "bot", "user_id": "3915014383", "nickname": "小埃", "char_name": "", "role": "", "secret": true, "segments": [{"type": "text", "text": "暗骰：老张的D20=7=7"}]}
 {"time": 1762776050, "sender_type": "user", "user_id": "234567", "nickname": "小王", "char_name": "", "role": "", "segments": [{"type": "image", "local": "imgs/img_0001.jpg"}]}
 {"time": 1762776060, "sender_type": "user", "user_id": "234567", "nickname": "小王", "char_name": "", "role": "", "segments": [{"type": "at", "qq": "123456"}, {"type": "text", "text": "你看这里"}]}
 ```
+
+行级可选字段：`secret`（缺省不写，视为 `false`）。暗骰结果写入时置 `true`，网页默认过滤不展示。
 
 分段类型收敛为四种，其余 OneBot 段类型统一落为 `{"type": "other"}`（渲染时显示占位）：
 
@@ -139,7 +143,7 @@ start_dir_name(dt) -> str                    # strftime 包装，写入与校验
 - `is_mine`：当前登录用户在 `participants` 中；`mine=1` 时只返回 `is_mine` 为真的条目。
 - `message_count`：逐行计数非空行（记录规模小，直接读；见 `shortcut:` 注释：记录数过千时改为把计数写进 `meta.json`）。
 
-### 6.2 `GET /api/trpg/records/{group_id}/{start_dir}?from=<n>`
+### 6.2 `GET /api/trpg/records/{group_id}/{start_dir}?from=<n>&reveal=<0|1>`
 
 ```json
 {
@@ -152,6 +156,7 @@ start_dir_name(dt) -> str                    # strftime 包装，写入与校验
 ```
 
 - `from` 缺省为 0；返回第 `from` 条（0 基）起的全部消息。
+- `reveal` 缺省为 0：`secret` 为 `true` 的消息不包含在 `messages` 中，但仍计入 `total`（索引口径稳定，增量不会错位）；`reveal=1` 时一并返回并各自带 `secret: true`。
 - 图片段由服务端把 `local` 转为 `url`：`/trpg/media/<群号>/<目录>/<文件名>`。
 - 记录或 `messages.jsonl` 不存在 → 404；群号/目录名非法 → 400。
 
@@ -186,6 +191,7 @@ start_dir_name(dt) -> str                    # strftime 包装，写入与校验
 | 时间戳 | 每条显示 `HH:MM:SS` |
 | 图片段 | `<img loading="lazy">`，点击调 `window.BoteroLightbox.open(url)`（沿用 `/shared/lightbox.js` 现有入口） |
 | `unavailable` 图片 | 灰底占位「图片获取失败」 |
+| 暗骰消息（`secret: true`） | 默认不渲染；打开「显示暗骰」后以虚线边框窄条插入对应时间位置，与普通机器人消息可区分 |
 | `other` 段 | 占位「[暂不支持的附件]」 |
 | `at` 段 | 渲染为「@昵称」文本 |
 
@@ -197,9 +203,14 @@ start_dir_name(dt) -> str                    # strftime 包装，写入与校验
 - 新消息追加到列表尾部；若请求前滚动条位于底部则追加后自动滚到底，否则不移动视口。
 
 ### 7.4 导航入口
-
 - `core/web/static/nav.js`：`NAV_ITEMS` 增加 `{ label: "跑团记录", path: "/trpg/records" }`；同时把高亮判定从 `current.startsWith(it.path)` 改为**最长前缀匹配**，否则 `/trpg/records` 会同时点亮「跑团」与「跑团记录」。
 - `webapp/timeline/entries.json`：新增一张卡片 `{ "name": "跑团记录", "desc": "跑团过程与聊天记录回顾", "url": "/trpg/records" }`。
+
+### 7.5 暗骰开关
+
+- 详情页顶部工具条提供「显示暗骰」开关，默认关闭。
+- 关闭时请求不带 `reveal`（服务端不返回 `secret` 消息）；打开时整页重新从 `from=0` 拉取 `reveal=1` 并重建消息列表（记录规模小，重新拉取比维护两套游标简单）。
+- 开关状态只保存在页面内存，不写 localStorage、不走服务端。
 
 ## 8. 失败路径
 
@@ -233,9 +244,9 @@ start_dir_name(dt) -> str                    # strftime 包装，写入与校验
 
 | 层 | 文件 | 覆盖 |
 |---|---|---|
-| bot 进程内 | `test/test_trpg_session.py`（扩展） | AC01–AC04：目录与 meta 结构、逐条追加、参与者同步、图片成功/失败、机器人消息与暗骰排除、群名成功/失败、结束写 end、导出 md 与链接 |
-| webapp 独立进程 | `test/scripts/check_trpg_records_api.py`（新增，`_env.write_config` 把 `bot.python_data_path` 指向临时目录） | AC05–AC07：列表排序与状态、`mine=1` 过滤、坏目录跳过、详情与 `from` 增量、坏行跳过、404/400、媒体正常与穿越拒绝、未登录 401 |
-| 前端 DOM | `test/test_trpg_records_dom.js`（新增） | AC08：自己/他人/机器人气泡类名与位置、徽标、图片段、页签高亮 |
+| bot 进程内 | `test/test_trpg_session.py`（扩展） | AC01–AC04：目录与 meta 结构、逐条追加、参与者同步、图片成功/失败、机器人消息、群名成功/失败、结束写 end、导出 md 与链接 |
+| webapp 独立进程 | `test/scripts/check_trpg_records_api.py`（新增，`_env.write_config` 把 `bot.python_data_path` 指向临时目录） | AC05–AC07、AC10：列表排序与状态、`mine=1` 过滤、坏目录跳过、详情与 `from` 增量、`reveal` 过滤、坏行跳过、404/400、媒体正常与穿越拒绝、未登录 401 |
+| 前端 DOM | `test/test_trpg_records_dom.js`（新增） | AC08、AC10：自己/他人/机器人气泡类名与位置、徽标、图片段、页签高亮、暗骰默认隐藏与开关后显示 |
 | 全量 | `python -m pytest -q` | AC09：回归全绿 + `openspec validate --strict` |
 
 ## 11. 版本

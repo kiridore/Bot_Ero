@@ -23,9 +23,9 @@
 
 ## 4. 测试
 
-- [ ] 4.1 扩展 `test/test_trpg_session.py`：目录与 `meta.json` 结构、逐条追加与参与者同步、图片成功/失败、机器人消息与暗骰排除、群名成功/失败、结束写 `end`、导出 md 与网页链接；原 `TRPG_RECORDS_ROOT` patch 改为把 `bot.python_data_path` 指向临时目录。对应 AC01–AC04。
-- [ ] 4.2 新建 `test/scripts/check_trpg_records_api.py`（`_env.write_config` 重定向 `bot.python_data_path`）：列表排序与三种状态、`mine=1` 过滤、坏目录跳过、详情与 `from` 增量、坏行跳过、404/400、媒体正常与目录穿越拒绝、未登录 401。对应 AC05–AC07。
-- [ ] 4.3 新建 `test/test_trpg_records_dom.js`（沿用现有 DOM stub 布局）：自己/他人/机器人气泡类名、DM 与观察者徽标、图片段渲染、页签高亮与导航最长前缀匹配。对应 AC08。
+- [ ] 4.1 扩展 `test/test_trpg_session.py`：目录与 `meta.json` 结构、逐条追加与参与者同步、图片成功/失败、机器人消息与暗骰标记、群名成功/失败、结束写 `end`、导出 md 与网页链接；原 `TRPG_RECORDS_ROOT` patch 改为把 `bot.python_data_path` 指向临时目录。对应 AC01–AC04、AC10。
+- [ ] 4.2 新建 `test/scripts/check_trpg_records_api.py`（`_env.write_config` 重定向 `bot.python_data_path`）：列表排序与三种状态、`mine=1` 过滤、坏目录跳过、详情与 `from` 增量、`reveal` 默认过滤与开启后返回、坏行跳过、404/400、媒体正常与目录穿越拒绝、未登录 401。对应 AC05–AC07、AC10。
+- [ ] 4.3 新建 `test/test_trpg_records_dom.js`（沿用现有 DOM stub 布局）：自己/他人/机器人气泡类名、DM 与观察者徽标、图片段渲染、页签高亮与导航最长前缀匹配、暗骰默认隐藏与开关后显示。对应 AC08、AC10。
 
 ## 5. 文档与交付
 

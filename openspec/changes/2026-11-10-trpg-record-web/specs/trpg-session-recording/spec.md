@@ -17,15 +17,15 @@
 - **THEN** `messages.jsonl` 追加一行，`sender_type` 为 `user`，`segments` 含该文本，`participants` 中出现该用户的昵称与角色卡名
 
 ### Requirement: 机器人消息入档
-录制期间机器人向群内发送的消息 SHALL 以 `sender_type` 为 `bot` 写入 `messages.jsonl`，包括骰子结果与 `.dm`/`.ob` 角色设置提示。暗骰的私聊结果 MUST NOT 入档。机器人的 QQ 与昵称 SHALL 在首次入档时加入 `participants`。
+录制期间机器人向群内发送的消息 SHALL 以 `sender_type` 为 `bot` 写入 `messages.jsonl`，包括骰子结果与 `.dm`/`.ob` 角色设置提示。暗骰（`.rh`）的掷骰结果 SHALL 同样入档，并在该行标记 `secret: true`；该结果 MUST NOT 作为普通消息发送到群内（仍按现有行为仅在私聊返回给使用者）。机器人的 QQ 与昵称 SHALL 在首次入档时加入 `participants`。
 
 #### Scenario: 骰子结果入档
 - **WHEN** 录制中群成员使用 `.rc 力量` 触发骰子结果
 - **THEN** 该骰子结果以 `sender_type: "bot"` 出现在 `messages.jsonl`
 
-#### Scenario: 暗骰不入档
+#### Scenario: 暗骰入档并标记
 - **WHEN** 录制中群成员使用 `.rh d20`
-- **THEN** 群内的「悄悄掷出骰子」与私聊中的结果均不出现在 `messages.jsonl`
+- **THEN** `messages.jsonl` 新增一行带 `secret: true` 的机器人消息，内容为暗骰结果；同步写入的普通机器人消息只有群内可见的「悄悄掷出骰子」提示
 
 ### Requirement: 图片即时入档
 录制期间收到的图片消息 SHALL 在写入 `messages.jsonl` 前下载到该记录的 `imgs/` 目录，分段 SHALL 记录相对路径 `imgs/img_NNNN.<扩展名>`。下载失败时该分段 SHALL 标记不可用（`unavailable: true`）且不阻断录制，后续消息 SHALL 正常入档。
