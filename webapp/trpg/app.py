@@ -230,6 +230,7 @@ def api_coc_options():
     return {
         "skill_base": trpg_coc.SKILL_BASE,
         "skill_categories": list(trpg_coc.SKILL_CATEGORIES),
+        "skill_aliases": dict(trpg_coc.SKILL_ALIASES),
         "occupations": [
             {"seq": seq, "name": name, "credit_min": low, "credit_max": high,
              "formula": formula, "own_skills": own}

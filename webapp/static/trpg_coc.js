@@ -19,6 +19,22 @@ let options = null;
 let card = null;
 let me = null;
 
+// 技能名规范化：别名（侦查→侦察）→ 官方名 → 「类别:专攻」；无效返回 null
+function canonSkill(name) {
+  const raw = String(name || "").trim();
+  return (options.skill_aliases || {})[raw] || raw;
+}
+
+function normalizeSkillName(name) {
+  const canon = canonSkill(name);
+  if (canon in (options.skill_base || {})) return canon;
+  const cats = options.skill_categories || [];
+  const cat = cats.find((c) => canon.startsWith(c));
+  if (!cat) return null;
+  const rest = canon.slice(cat.length).replace(/^[:：\s]+/, "").trim();
+  return rest ? `${cat}:${rest}` : null;
+}
+
 function escapeHtml(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -293,10 +309,22 @@ function bind() {
     rerenderDerived();
   });
   document.getElementById("addSkill").addEventListener("click", () => {
-    const name = prompt("技能名（可用类别：技艺:xxx / 科学:xxx / 语言:xxx / 格斗:xxx / 射击:xxx）");
-    if (!name) return;
+    const raw = prompt("技能名：官方技能名，或「类别:专攻」写法\\n可用类别：" +
+      (options.skill_categories || []).join(" / "));
+    if (!raw) return;
+    const name = normalizeSkillName(raw);
+    if (!name) {
+      showToast(`无法识别的技能名「${raw.trim()}」：用官方技能名，或「科学:生物学」这类「类别:专攻」写法`, true);
+      return;
+    }
+    const exists = [...document.querySelectorAll("[data-skill]")]
+      .some((row) => canonSkill(row.dataset.name) === canonSkill(name));
+    if (exists) {
+      showToast(`技能已存在：${name}`, true);
+      return;
+    }
     const tbody = document.getElementById("skillBody");
-    tbody.insertAdjacentHTML("beforeend", skillRow(name.trim(), { base: options.skill_base[name.trim()] || 0 }));
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
     rerenderDerived();
   });
   document.getElementById("addWeapon").addEventListener("click", () => {
