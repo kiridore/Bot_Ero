@@ -95,6 +95,12 @@ class TestBuilderScript(unittest.TestCase):
         self.assertIn("coc-choice-warn-on", src)
         self.assertIn("多选了", src)
 
+    def test_non_occ_rows_disable_occ_column(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertIn("occInput.disabled = !allowed;", src)
+        self.assertIn("is-not-occ", src)
+        self.assertIn("data-occ]:disabled", (PROJECT_ROOT / "webapp" / "static" / "trpg.css").read_text(encoding="utf-8"))
+
     def test_no_dead_roll_helper(self):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertNotIn("rollDieReady", src)

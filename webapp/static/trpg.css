@@ -349,6 +349,19 @@
 
 .coc-choice > input { flex: 1 1 16rem; }
 
+/* 非本职技能行：只能加兴趣点，职业列禁用 */
+.coc-table tr.is-not-occ td:first-child,
+.coc-table tr.is-not-occ td:nth-child(2),
+.coc-table tr.is-not-occ td:nth-child(3) {
+  color: var(--ink-soft);
+}
+
+.coc-table input[data-occ]:disabled {
+  background: var(--paper);
+  color: var(--gray);
+  cursor: not-allowed;
+}
+
 /* 未选满 / 超选提示：低饱和红，避免和真正的错误混淆 */
 #occ-choice-warn { display: none; }
 #occ-choice-warn.coc-choice-warn-on {

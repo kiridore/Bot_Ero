@@ -20,6 +20,31 @@ let card = null;
 let me = null;
 let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 choices 顺序对应
 
+// 可加职业点的技能名集合：固定项（含 类别:* 通配）+ 已选中的池内技能
+function occAllowedNames(occ, choices) {
+  const out = { exact: new Set(), wild: [] };
+  if (!occ) return out;
+  const struct = (options.occupation_skills || {})[String(occ.seq)];
+  if (!struct) return out;
+  (struct.required || []).forEach((name) => {
+    const fixed = canonSkill(name);
+    if (fixed.endsWith(":*")) out.wild.push(fixed.slice(0, -1));
+    else out.exact.add(fixed);
+  });
+  Object.values(choices || {}).forEach((list) => {
+    (list || []).forEach((name) => {
+      const fixed = normalizeSkillName(name);
+      if (fixed) out.exact.add(canonSkill(fixed));
+    });
+  });
+  return out;
+}
+
+function occAllows(allowed, name) {
+  const fixed = canonSkill(name);
+  return allowed.exact.has(fixed) || allowed.wild.some((prefix) => fixed.startsWith(prefix));
+}
+
 // 技能名规范化：别名（侦查→侦察）→ 官方名 → 「类别:专攻」；无效返回 null
 function canonSkill(name) {
   const raw = String(name || "").trim();
@@ -197,9 +222,21 @@ function rerenderDerived() {
   const mov = Math.max(baseMov(str, dex, siz) - agePenalty(age), 0);
   const occ = currentOccupation();
   const occBudget = occ ? pointsBudget(occ.formula, (k) => (ATTR_SCORE[k] ? ATTR_SCORE[k]() : null)) : 0;
+  const allowedOcc = occAllowedNames(occ, occChoices);
+  const cleared = [];
   let occSpent = 0, intSpent = 0;
   document.querySelectorAll("[data-skill]").forEach((row) => {
-    occSpent += Number(row.querySelector("[data-occ]").value || 0);
+    const occInput = row.querySelector("[data-occ]");
+    const allowed = occAllows(allowedOcc, row.dataset.name);
+    if (!allowed && Number(occInput.value || 0) > 0) {
+      // 技能被移出可选池/换了职业：清掉它的职业点，避免留下一填就报错的死数据
+      cleared.push(row.dataset.name);
+      occInput.value = 0;
+    }
+    occInput.disabled = !allowed;
+    occInput.title = allowed ? "" : "非本职技能，只能用兴趣点";
+    row.classList.toggle("is-not-occ", !allowed);
+    occSpent += Number(occInput.value || 0);
     intSpent += Number(row.querySelector("[data-int]").value || 0);
     const base = Number(row.querySelector("[data-base]").value || 0);
     const growth = Number(row.querySelector("[data-growth]").value || 0);
@@ -220,6 +257,9 @@ function rerenderDerived() {
   set("out-cur-mp", card.current_mp != null ? card.current_mp : Math.floor(pow / 5));
   set("out-occ-budget", occBudget);
   set("out-occ-spent", occSpent);
+  if (cleared.length && typeof showToast === "function") {
+    showToast(`已清除职业点：${cleared.join("、")}（不是本职技能）`, true);
+  }
   set("out-int-budget", interestBudget);
   set("out-int-spent", intSpent);
   const occNote = document.getElementById("occ-note");
