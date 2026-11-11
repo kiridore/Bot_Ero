@@ -37,6 +37,10 @@ class CharacterIn(BaseModel):
     luck: int = 0
     credit_rating: int = 0
     cthulhu_mythos: int = 0
+    san_loss_day: str = ""
+    san_loss_today: int = 0
+    current_mp: int = 0
+    current_san: int = 0
     skills: dict = {}
     weapons: list[dict] = []
     assets: dict = {}
@@ -142,6 +146,10 @@ class CharOut(BaseModel):
     luck: int = 0
     credit_rating: int = 0
     cthulhu_mythos: int = 0
+    san_loss_day: str = ""
+    san_loss_today: int = 0
+    current_mp: int = 0
+    current_san: int = 0
     skills: dict = {}
     weapons: list[dict] = []
     assets: dict = {}
@@ -149,6 +157,8 @@ class CharOut(BaseModel):
     mp: int = 0
     san: int = 0
     max_san: int = 0
+    current_mp: int = 0
+    current_san: int = 0
     mov: int = 0
     db: str = ""
     build: int = 0
@@ -167,7 +177,8 @@ def _char_to_out(data: dict) -> CharOut:
     payload["rules"] = rules
     if rules == "coc7th":
         fin = trpg_coc.finalize(data)
-        for key in ("scores", "hp", "mp", "san", "max_san", "mov", "db", "build", "dodge",
+        for key in ("scores", "hp", "mp", "san", "max_san", "current_hp", "current_mp", "current_san",
+                    "mov", "db", "build", "dodge",
                     "skills", "occupation_info", "occupation_budget", "occupation_spent",
                     "interest_budget", "interest_spent"):
             payload[key] = fin[key]
@@ -231,6 +242,12 @@ def api_create_character(
 ):
     data = body.model_dump()
     _apply_rules(data)
+    if data.get("rules") == "coc7th":
+        # 新建 COC 卡：当前值未填时按上限初始化，避免存成 0
+        fin = trpg_coc.finalize(data)
+        for key, cap in (("current_hp", "hp"), ("current_mp", "mp"), ("current_san", "san")):
+            if not data.get(key):
+                data[key] = fin[cap]
     try:
         char_id = char_store.create_char(user_id, data)
     except ValueError as exc:

@@ -37,7 +37,8 @@
 | 27 | `news` | `news/` | `/订阅 [编号]`、`/退订 编号` + 心跳 | 新闻订阅（1号 FF14 国服官网、2号明日方舟官方微博；微博需Chromium，仅首页）；每半小时检测，推默认群并 @订阅者，仅群聊可管理订阅 |
 | 28 | `weekly_quest` | `weekly_quest/` | CommandPlugin `/周常` | 查看本周打卡/抽奖任务进度 |
 | 29 | `trpg_session` | `trpg_session/` | 消息前缀 `/跑团` + 录制期间全匹配 + 心跳（每 5 分钟） | 跑团：开团前准备（`准备`/`取消准备`/`名单`）、开录准入校验（除机器人/DM/观察者外全员需有角色卡并已准备）、录制即落盘（结构化 jsonl + 即时图片 + 团名）、结束即归档（自动生成 record.md，仅 DM 可结束）、重启续录与 7 天/群解散自动终止；网页端 `/trpg/records` 按团回顾气泡 |
-| 30 | `who_is_spy` | `who_is_spy/` | `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` `/房间列表` `/游戏记录 [列表 页码\|查看 记录编号]` + 私聊游戏输入 | 出局观战、离房释放占用；SQLite持久参与历史与事务结算；开局仅词条不告知阵营，重启中断不续局 |
+| 30 | `trpg_vitals` | `trpg_vitals/` | 前缀 `.hp` / `.san` / `.sc` | 跑团数值：`.hp ±值\|满` 扣/加 HP（两套规则）、`.san ±值\|满` 扣/加 SAN、`.sc 成功/失败损失` 理智检定（COC）；DM 可 @ 他人，变动写入跑团记录 |
+| 31 | `who_is_spy` | `who_is_spy/` | `/创建游戏` `/开始` `/加入` `/离开` `/退出` `/状态` `/放弃` `/房间列表` `/游戏记录 [列表 页码\|查看 记录编号]` + 私聊游戏输入 | 出局观战、离房释放占用；SQLite持久参与历史与事务结算；开局仅词条不告知阵营，重启中断不续局 |
 | 31 | `activity` | `activity/` | 自定义 match: 群聊 `/活动` + 私聊 `/提交` | 群活动：接龙（每人限时、机器人接力转发）、匹配下家（圆桌单环，开始通知下家、作品玩家自提）与征集（各自在截止前提交一次，无链环），结束自动归档；**单群可并行多个活动**（`/活动 加入\|退出\|开始\|状态\|结束 [编号]`，`/提交 [活动id]` 定向）；开始报名/正式开始/结束向时间线发事件（source `activity`，actor=小埃同学） |
 | 45 | `redeem_code` | `redeem_code/` | CommandPlugin `/兑换码`/`/兌換碼` | 迁移提示桩：撤回指令消息并提示已迁至网页个人主页「兑换码」页签（兑换逻辑在 webapp，不碰数据库） |
 
@@ -81,7 +82,7 @@
 | **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
 | **休闲娱乐** | `news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | 新闻订阅、闹钟、骰子、占卜、随机图、召唤 |
 | **匿名游戏** | `who_is_spy` | 谁是卧底：群聊创建房间，私聊匿名进行 |
-| **跑团** | `trpg_dice`, `trpg_session`, `trpg_char` | Sealdice 风格骰子 + 跑团聊天记录 + DND5E 角色卡 |
+| **跑团** | `trpg_dice`, `trpg_session`, `trpg_char`, `trpg_vitals` | Sealdice 风格骰子 + 跑团记录 + DND5E/COC7th 角色卡 + HP/SAN 数值变动 |
 | **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |
 
 **语义：**

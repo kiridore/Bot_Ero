@@ -99,8 +99,15 @@ check("闪避派生", created["dodge"] == 27, str(created.get("dodge")))
 check("技能总数计入", created["skills"]["侦查"]["total"] == 45, str(created["skills"].get("侦查")))
 check("武器表保留", len(created.get("weapons") or []) == 2 and created["weapons"][1]["name"] == ".32 自动手枪",
       str(created.get("weapons")))
+check("当前 SAN 缺省等于上限", created["current_san"] == 65, str(created.get("current_san")))
+check("当前 MP 缺省等于上限", created["current_mp"] == 13, str(created.get("current_mp")))
 check("职业点预算", created["occupation_budget"] == 180, str(created.get("occupation_budget")))
 check("兴趣点预算", created["interest_budget"] == 170, str(created.get("interest_budget")))
+
+damaged = dict(CARD, current_san=40, current_hp=6)
+r = client.post("/api/me/characters", headers=H, json=damaged)
+check("当前值原样保存", r.status_code == 200 and r.json()["current_san"] == 40 and r.json()["current_hp"] == 6,
+      r.text[:160])
 
 bad = dict(CARD, skills={"侦查": {"base": 25, "occupation": 500}})
 r = client.post("/api/me/characters", headers=H, json=bad)

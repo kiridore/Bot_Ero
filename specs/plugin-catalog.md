@@ -29,6 +29,7 @@
 | `trpg_dice/` | `TrpgPlugin` | `trpg_dice` | 正则前缀 `.r` / `.rc` / `.ra` / `.rh` | `.r [表达式]` `.rc …` `.ra <技能值>` `.r b2/p1` `.rh` | 跑团骰子：DND 5E d20 检定、COC 7th 技能检定与奖惩骰、暗骰、属性引用；规则由 `/跑团 规则` 按群切换 |
 | `trpg_char/` | `TrpgCharPlugin` | `trpg_char` | CommandPlugin `/跑团 角色` 前缀匹配 | `/跑团 角色 查看/列表/切换/删除` | DND5E 角色卡：查看(仅自己)/列表/切换/删除；创建与编辑迁移至网页端 `littlero.tech/trpg` |
 | `trpg_session/` | `TrpgSessionPlugin` | `trpg_session` | CommandPlugin + 录制期间全匹配 + 心跳（每 5 分钟） | `/跑团 准备/取消准备/名单` `/跑团 记录 开始/强制开始/结束/列表/#N` `.dm` `.ob` | 跑团：开团前准备与准入校验（除机器人/DM/观察者外全员需有角色卡并已准备，DM 唯一）；录制即落盘（`server_data/trpg_records`，结构化 jsonl + 即时图片）、结束即归档（自动生成 record.md，仅 DM 可结束）、重启续录与 7 天/群解散自动终止；网页端按团回顾气泡 |
+| `trpg_vitals/` | `TrpgVitalsPlugin` | `trpg_vitals` | 前缀 `.hp` / `.san` / `.sc` | `.hp ±值\|满 [@人]` `.san ±值\|满 [@人]` `.sc <成功>/<失败>` | 跑团数值：HP/SAN 变动与 COC 理智检定；DM 可 @ 他人；卡片规则须与本团规则一致；变动写入跑团记录 |
 | `divination/` | `DivinationPlugin` | `divination` | CommandPlugin | `/占卜` | 抽取塔罗牌（含正位/逆位解读） |
 | `title/` | `TitlePlugin` | `title` | CommandPlugin | `/称号 [子命令]` `/称号一览` | 称号系统：查看、装备、卸下、详情、随机 |
 | `redeem_shop/` | `RedeemShopPlugin` | `redeem_shop` | CommandPlugin | `/商店 [商品id]` | 积分商店：浏览商品、兑换 |

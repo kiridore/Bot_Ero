@@ -107,6 +107,9 @@ function rerenderDerived() {
   set("out-db", db);
   set("out-build", build);
   set("out-dodge", Math.floor(dex / 2));
+  set("out-cur-hp", card.current_hp != null ? card.current_hp : Math.floor((con + siz) / 10));
+  set("out-cur-san", card.current_san != null ? card.current_san : pow);
+  set("out-cur-mp", card.current_mp != null ? card.current_mp : Math.floor(pow / 5));
   set("out-occ-budget", occBudget);
   set("out-occ-spent", occSpent);
   set("out-int-budget", interestBudget);
@@ -208,6 +211,7 @@ function render() {
         HP <b id="out-hp">0</b> · MP <b id="out-mp">0</b> · SAN <b id="out-san">0</b> ·
         MOV <b id="out-mov">0</b> · 伤害加值 <b id="out-db">0</b> · 体格 <b id="out-build">0</b> · 闪避 <b id="out-dodge">0</b>
       </p>
+      <p class="coc-note">当前：HP <b id="out-cur-hp">0</b> / SAN <b id="out-cur-san">0</b> / MP <b id="out-cur-mp">0</b>（运行时数值，只能在群里用 .hp / .san 修改）</p>
       <p class="coc-note">职业点 <b id="out-occ-spent">0</b>/<b id="out-occ-budget">0</b> · 兴趣点 <b id="out-int-spent">0</b>/<b id="out-int-budget">0</b></p>
     </section>
 

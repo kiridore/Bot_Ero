@@ -33,6 +33,16 @@ DB_TABLE = ((2, -2, -2), (65, -1, -1), (85, 0, 0), (125, "+1D4", 1), (165, "+1D6
 AGE_MOV_PENALTY = ((40, 1), (50, 2), (60, 3), (70, 4), (80, 5))
 
 
+def _clamp_or(value, default: int, upper: int | None = None) -> int:
+    """当前值缺省取 default；有值时截断到 0..upper（缺省 upper=default）。"""
+    cap = default if upper is None else upper
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return min(default, cap)
+    return max(0, min(number, cap))
+
+
 def _score(data: dict, key: str) -> int:
     try:
         return int(data.get(key) or 0)
@@ -168,16 +178,26 @@ def finalize(data: dict) -> dict:
     occupation_spent = sum(entry["occupation"] for entry in skills.values())
     interest_spent = sum(entry["interest"] for entry in skills.values())
 
+    max_san = max(99 - int(data.get("cthulhu_mythos") or 0), 0)
+    derived_hp = max((con_score + siz_score) // 10, 0)
+    derived_mp = max(pow_score // 5, 0)
+    current_hp = _clamp_or(data.get("current_hp"), derived_hp)
+    current_mp = _clamp_or(data.get("current_mp"), derived_mp)
+    current_san = _clamp_or(data.get("current_san"), max(pow_score, 0), max_san)
+
     out.update({
         "rules": "coc7th",
         "scores": {
             "力量": str_score, "体质": con_score, "体型": siz_score, "敏捷": dex_score,
             "外貌": app_score, "智力": int_score, "意志": pow_score, "教育": edu_score,
         },
-        "hp": max((con_score + siz_score) // 10, 0),
-        "mp": max(pow_score // 5, 0),
+        "hp": derived_hp,
+        "mp": derived_mp,
         "san": max(pow_score, 0),
-        "max_san": max(99 - int((data.get("cthulhu_mythos") or 0)), 0),
+        "max_san": max_san,
+        "current_hp": current_hp,
+        "current_mp": current_mp,
+        "current_san": current_san,
         "mov": max(base_mov(str_score, dex_score, siz_score) - age_mov_penalty(data.get("age")), 0),
         "db": str(db),
         "build": build,

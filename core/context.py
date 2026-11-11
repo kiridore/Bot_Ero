@@ -35,7 +35,7 @@ SYSTEM_PLUGINS = frozenset({
 # 跑团录制状态（进程内；启动时由 trpg_session.recover_recordings() 从磁盘重建）
 recording_lock = Lock()
 recording_sessions: dict[int, dict] = {}      # group_id → {"start": datetime, "messages": list, "participants": dict, ...}
-RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session", "trpg_char"})
+RECORDING_ALLOWED_PLUGINS = frozenset({"trpg_dice", "trpg_session", "trpg_char", "trpg_vitals"})
 
 # 当前游戏规则系统（跑团骰子检定用），未来规则切换功能修改此值
 GAME_SYSTEM = "dnd5e"
