@@ -18,6 +18,7 @@ const BACKGROUND_FIELDS = [
 let options = null;
 let card = null;
 let me = null;
+let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 choices 顺序对应
 
 // 技能名规范化：别名（侦查→侦察）→ 官方名 → 「类别:专攻」；无效返回 null
 function canonSkill(name) {
@@ -80,6 +81,79 @@ function poolHint(occ) {
     : `${c.from.join("、")} 中选 ${c.count} 项`));
   const fixed = (struct.required || []).length;
   return `（固定 ${fixed} 项；可选：${parts.join("；")}）`;
+}
+
+// 可选池控件：具名池用多选，类别通配/自由池用文本输入
+function renderOccChoices() {
+  const box = document.getElementById("occ-choices");
+  if (!box) return;
+  box.innerHTML = "";
+  const occ = currentOccupation();
+  const struct = occ ? (options.occupation_skills || {})[String(occ.seq)] : null;
+  if (!struct || !(struct.choices || []).length) return;
+
+  struct.choices.forEach((choice, index) => {
+    const wrap = document.createElement("div");
+    wrap.className = "coc-choice";
+    const picked = occChoices[String(index)] || [];
+    const label = document.createElement("strong");
+    const named = choice.from !== "*" && !choice.from.some((n) => n.endsWith(":*"));
+    label.textContent = `可选 #${index + 1}（选 ${choice.count} 项）`;
+    wrap.appendChild(label);
+
+    if (named) {
+      const list = document.createElement("div");
+      list.className = "coc-choice-list";
+      choice.from.forEach((name) => {
+        const item = document.createElement("label");
+        item.className = "coc-choice-item";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = name;
+        cb.checked = picked.includes(name);
+        cb.addEventListener("change", () => {
+          const current = new Set(occChoices[String(index)] || []);
+          if (cb.checked) current.add(name); else current.delete(name);
+          occChoices[String(index)] = [...current];
+          syncChosenSkills();
+          rerenderDerived();
+        });
+        item.appendChild(cb);
+        item.appendChild(document.createTextNode(name));
+        list.appendChild(item);
+      });
+      wrap.appendChild(list);
+    } else {
+      const hint = choice.from === "*"
+        ? "任意技能，如：攀爬、技艺:烹饪"
+        : `从 ${choice.from.join("、")} 里选，如：${choice.from[0]}`;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = hint;
+      input.value = picked.join("、");
+      input.addEventListener("change", () => {
+        occChoices[String(index)] = input.value
+          .split(/[、,，;；]/).map((x) => x.trim()).filter(Boolean);
+        syncChosenSkills();
+        rerenderDerived();
+      });
+      wrap.appendChild(input);
+    }
+    box.appendChild(wrap);
+  });
+}
+
+// 选了池内技能但技能表里还没有 → 自动补一行，保证能填职业点
+function syncChosenSkills() {
+  const tbody = document.getElementById("skillBody");
+  if (!tbody) return;
+  const existing = new Set([...document.querySelectorAll("[data-skill]")].map((r) => canonSkill(r.dataset.name)));
+  Object.values(occChoices).flat().forEach((raw) => {
+    const name = normalizeSkillName(raw);
+    if (!name || existing.has(canonSkill(name))) return;
+    existing.add(canonSkill(name));
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
+  });
 }
 
 function currentOccupation() {
@@ -146,6 +220,16 @@ function rerenderDerived() {
     occNote.textContent = occ
       ? `职业点 ${occ.formula}；信用评级 ${occ.credit_min}-${occ.credit_max}；本职技能：${occ.own_skills}${poolHint(occ)}`
       : "未选择职业";
+  }
+  const choiceWarn = document.getElementById("occ-choice-warn");
+  if (choiceWarn) {
+    const struct = occ ? (options.occupation_skills || {})[String(occ.seq)] : null;
+    const gaps = [];
+    (struct?.choices || []).forEach((choice, index) => {
+      const picked = (occChoices[String(index)] || []).length;
+      if (picked < choice.count) gaps.push(`可选 #${index + 1} 还差 ${choice.count - picked} 项`);
+    });
+    choiceWarn.textContent = gaps.join("；");
   }
   const occWarn = document.getElementById("occ-warn");
   if (occWarn) {
@@ -231,6 +315,8 @@ function render() {
           </select>
         </label>
       </div>
+      <div id="occ-choices" class="coc-choices"></div>
+      <p class="coc-note" id="occ-choice-warn"></p>
       <p class="coc-note" id="occ-note"></p>
       <p class="coc-warn" id="occ-warn"></p>
     </section>
@@ -297,6 +383,7 @@ function render() {
     </section>
   `;
   bind();
+  renderOccChoices();
   rerenderDerived();
 }
 
@@ -326,6 +413,8 @@ function bind() {
   main.addEventListener("input", rerenderDerived);
   main.addEventListener("change", rerenderDerived);
   document.getElementById("occupation").addEventListener("change", () => {
+    occChoices = {};
+    renderOccChoices();
     const occ = currentOccupation();
     if (occ) {
       const credit = document.getElementById("credit_rating");
@@ -385,6 +474,7 @@ function collect() {
     rules: "coc7th",
     char_name: document.getElementById("char_name").value.trim() || "无名调查员",
     occupation: document.getElementById("occupation").value,
+    occupation_choices: occChoices,
     age: Number(document.getElementById("age").value || 0),
     sex: document.getElementById("sex").value.trim(),
     residence: document.getElementById("residence").value.trim(),
@@ -445,6 +535,7 @@ async function init() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "读取角色卡失败");
       card = data;
+      occChoices = { ...(card.occupation_choices || {}) };
     } else {
       card = {
         age: 25,

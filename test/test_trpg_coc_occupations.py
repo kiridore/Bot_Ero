@@ -91,12 +91,27 @@ class TestOccupationData(unittest.TestCase):
 
 
 class TestOccupationalPoints(unittest.TestCase):
-    def _problems(self, card):
+    def _ctx(self, card):
+        from contextlib import ExitStack
         name = card.get("occupation") or ""
         struct = STRUCT.get(name)
         info = {"seq": -1, "name": name, "credit_min": 0, "credit_max": 99, "formula": "", "own_skills": ""}
-        with patch("core.trpg.coc.occupation_by_name", return_value=info if name else None),                 patch("core.trpg.coc.occupation_slots", return_value=struct):
+        stack = ExitStack()
+        stack.enter_context(patch("core.trpg.coc.occupation_by_name", return_value=info if name else None))
+        stack.enter_context(patch("core.trpg.coc.occupation_slots", return_value=struct))
+        return stack
+
+    def _problems(self, card):
+        with self._ctx(card):
             return coc.occupational_point_problems(card)
+
+    def _choice_problems(self, card):
+        with self._ctx(card):
+            return coc.occupation_choice_problems(card)
+
+    def _warnings(self, card):
+        with self._ctx(card):
+            return coc.occupation_choice_warnings(card)
 
     def test_required_skill_allowed(self):
         card = _card(skills={"会计": {"base": 5, "occupation": 40}})
@@ -111,28 +126,48 @@ class TestOccupationalPoints(unittest.TestCase):
         problems = self._problems(card)
         self.assertTrue(any("不是摄影师的本职技能" in p for p in problems), problems)
 
-    def test_free_pool_quota(self):
-        ok = _card(skills={"摄影": {"base": 5, "occupation": 10}, "攀爬": {"base": 20, "occupation": 10}})
+    def test_free_pool_requires_explicit_choice(self):
+        # 会计师的自由池是「任意两项」，必须显式选定后才能加点
+        ok = _card(occupation_choices={"0": ["摄影", "攀爬"]},
+                   skills={"摄影": {"base": 5, "occupation": 10},
+                           "攀爬": {"base": 20, "occupation": 10}})
         self.assertEqual(self._problems(ok), [])
-        over = _card(skills={
-            "摄影": {"base": 5, "occupation": 10},
-            "攀爬": {"base": 20, "occupation": 10},
-            "游泳": {"base": 20, "occupation": 10},
-        })
-        self.assertTrue(self._problems(over))
+        unchosen = _card(skills={"摄影": {"base": 5, "occupation": 10}})
+        self.assertTrue(self._problems(unchosen))
+        over = _card(occupation_choices={"0": ["摄影", "攀爬", "游泳"]},
+                     skills={"摄影": {"base": 5, "occupation": 10}})
+        self.assertTrue(coc.occupation_choice_problems(over))
 
     def test_named_pool(self):
-        ok = _card(occupation="摄影师",
+        ok = _card(occupation="摄影师", occupation_choices={"0": ["魅惑", "话术"]},
                    skills={"魅惑": {"base": 15, "occupation": 20}, "话术": {"base": 5, "occupation": 20}})
         self.assertEqual(self._problems(ok), [])
-        outside = _card(occupation="摄影师", skills={"攀爬": {"base": 20, "occupation": 20}})
+        outside = _card(occupation="摄影师", occupation_choices={"0": ["魅惑"]},
+                        skills={"攀爬": {"base": 20, "occupation": 20}})
         self.assertTrue(self._problems(outside))
-        too_many = _card(occupation="摄影师", skills={
-            "魅惑": {"base": 15, "occupation": 10},
-            "话术": {"base": 5, "occupation": 10},
-            "恐吓": {"base": 15, "occupation": 10},
-        })
-        self.assertTrue(self._problems(too_many))
+        too_many = _card(occupation="摄影师", occupation_choices={"0": ["魅惑", "话术", "恐吓"]},
+                         skills={"魅惑": {"base": 15, "occupation": 10}})
+        self.assertTrue(self._choice_problems(too_many))
+
+    def test_choice_outside_pool_rejected(self):
+        card = _card(occupation="摄影师", occupation_choices={"0": ["攀爬"]})
+        problems = self._choice_problems(card)
+        self.assertTrue(any("不在摄影师的可选池" in p for p in problems), problems)
+
+    def test_choice_unknown_skill_rejected(self):
+        card = _card(occupation="会计师", occupation_choices={"0": ["飞天"]})
+        problems = self._choice_problems(card)
+        self.assertTrue(any("不在技能表内" in p for p in problems), problems)
+
+    def test_choice_index_unknown(self):
+        card = _card(occupation="摄影师", occupation_choices={"9": ["魅惑"]})
+        self.assertTrue(any("没有第 9 个可选池" in p for p in self._choice_problems(card)))
+
+    def test_choice_warnings_when_underfilled(self):
+        card = _card(occupation="摄影师", occupation_choices={"0": ["魅惑"]})
+        self.assertEqual(self._warnings(card), ["摄影师的可选池 #1 还差 1 项"])
+        full = _card(occupation="摄影师", occupation_choices={"0": ["魅惑", "话术"]})
+        self.assertEqual(self._warnings(full), [])
 
     def test_category_wildcard_matches_any_specialty(self):
         for skill in ("技艺:摄影", "技艺:烹饪", "技艺:伪造证件"):
@@ -145,12 +180,14 @@ class TestOccupationalPoints(unittest.TestCase):
 
     def test_pool_wildcard_matches_specialty(self):
         for skill in ("格斗:斗殴", "格斗:剑", "射击:步枪"):
-            card = _card(occupation="赏金猎人", skills={skill: {"base": 25, "occupation": 40}})
+            card = _card(occupation="赏金猎人", occupation_choices={"0": [skill]},
+                         skills={skill: {"base": 25, "occupation": 40}})
             self.assertEqual(self._problems(card), [], skill)
 
     def test_pool_wildcard_rejects_other_category(self):
-        card = _card(occupation="赏金猎人", skills={"技艺:摄影": {"base": 5, "occupation": 20}})
-        self.assertTrue(self._problems(card))
+        card = _card(occupation="赏金猎人", occupation_choices={"0": ["技艺:摄影"]},
+                     skills={"技艺:摄影": {"base": 5, "occupation": 20}})
+        self.assertTrue(self._choice_problems(card))
 
     def test_no_occupation_skips(self):
         card = _card(occupation="", skills={"攀爬": {"base": 20, "occupation": 10}})

@@ -116,22 +116,14 @@ def occupation_slots(seq) -> dict | None:
     return OCCUPATION_SKILLS.get(str(seq))
 
 
-def occupational_point_problems(data: dict) -> list[str]:
-    """职业点只能加在本职技能（固定项）或可选池配额内。"""
-    occ = occupation_by_name((data.get("occupation") or "").strip())
-    if not occ:
-        return []
-    struct = occupation_slots(occ["seq"])
-    if not struct:
-        return []
-    required = {canonical_skill(name) for name in struct.get("required") or []}
-    # 「语言:*」这类带通配的固定项按类别前缀匹配（规则书里的「任一专攻」）
-    wildcards = [name[:-1] for name in required if name.endswith(":*")]
+def _parsed_pools(struct: dict) -> list[dict]:
+    """把职业定义里的可选池展开成可比较结构。"""
     pools = []
     for choice in struct.get("choices") or []:
         source = choice.get("from")
+        count = int(choice.get("count") or 0)
         if source == "*":
-            pools.append({"count": int(choice.get("count") or 0), "from": "*", "wild": []})
+            pools.append({"count": count, "exact": set(), "wild": [], "star": True})
             continue
         exact, wild = set(), []
         for name in source or []:
@@ -140,7 +132,83 @@ def occupational_point_problems(data: dict) -> list[str]:
                 wild.append(fixed[:-1])
             else:
                 exact.add(fixed)
-        pools.append({"count": int(choice.get("count") or 0), "from": exact, "wild": wild})
+        pools.append({"count": count, "exact": exact, "wild": wild, "star": False})
+    return pools
+
+
+def _pool_accepts(pool: dict, name: str) -> bool:
+    if pool["star"]:
+        return True
+    return name in pool["exact"] or any(name.startswith(prefix) for prefix in pool["wild"])
+
+
+def occupation_structure(data: dict):
+    """返回 (职业, 固定项集合, 通配前缀, 池列表)；无职业或无定义时返回 None。"""
+    occ = occupation_by_name((data.get("occupation") or "").strip())
+    if not occ:
+        return None
+    struct = occupation_slots(occ["seq"])
+    if not struct:
+        return None
+    required = {canonical_skill(name) for name in struct.get("required") or []}
+    wildcards = [name[:-1] for name in required if name.endswith(":*")]
+    return occ, required, wildcards, _parsed_pools(struct)
+
+
+def occupation_choice_problems(data: dict) -> list[str]:
+    """可选池的选择本身是否合法：技能存在、落在对应池、不超配额。"""
+    info = occupation_structure(data)
+    if not info:
+        return []
+    occ, _, _, pools = info
+    choices = data.get("occupation_choices")
+    if not isinstance(choices, dict):
+        return []
+    problems = []
+    for index, raw_list in choices.items():
+        pool_index = int(index) if str(index).isdigit() else -1
+        if not 0 <= pool_index < len(pools):
+            problems.append(f"{occ['name']}没有第 {index} 个可选池")
+            continue
+        pool = pools[pool_index]
+        names = [str(n).strip() for n in (raw_list or []) if str(n).strip()]
+        if len(names) > pool["count"]:
+            problems.append(
+                f"{occ['name']}的可选池 #{pool_index + 1} 最多选 {pool['count']} 项（已选 {len(names)}）")
+        for name in names:
+            fixed = canonical_skill(name)
+            if not skill_name_ok(fixed):
+                problems.append(f"可选技能「{name}」不在技能表内")
+            elif not _pool_accepts(pool, fixed):
+                problems.append(f"「{name}」不在{occ['name']}的可选池 #{pool_index + 1} 中")
+    return problems
+
+
+def occupation_choice_warnings(data: dict) -> list[str]:
+    """池没选满时给出提示（不阻止保存）。"""
+    info = occupation_structure(data)
+    if not info:
+        return []
+    occ, _, _, pools = info
+    choices = data.get("occupation_choices") or {}
+    warnings = []
+    for index, pool in enumerate(pools):
+        picked = len([n for n in (choices.get(str(index)) or []) if str(n).strip()])
+        if picked < pool["count"]:
+            warnings.append(f"{occ['name']}的可选池 #{index + 1} 还差 {pool['count'] - picked} 项")
+    return warnings
+
+
+def occupational_point_problems(data: dict) -> list[str]:
+    """职业点只能加在固定项或**已选定**的可选池技能上。"""
+    info = occupation_structure(data)
+    if not info:
+        return []
+    occ, required, wildcards, _ = info
+    chosen = set()
+    for names in (data.get("occupation_choices") or {}).values():
+        for name in names or []:
+            chosen.add(canonical_skill(str(name)))
 
     problems = []
     for raw_name, entry in (data.get("skills") or {}).items():
@@ -155,21 +223,11 @@ def occupational_point_problems(data: dict) -> list[str]:
         name = canonical_skill(raw_name)
         if name in required or any(name.startswith(prefix) for prefix in wildcards):
             continue
-        for pool in pools:
-            hit = isinstance(pool["from"], set) and (
-                name in pool["from"] or any(name.startswith(prefix) for prefix in pool["wild"]))
-            if hit and pool["count"] > 0:
-                pool["count"] -= 1
-                break
-        else:
-            for pool in pools:
-                if pool["from"] == "*" and pool["count"] > 0:
-                    pool["count"] -= 1
-                    break
-            else:
-                problems.append(
-                    f"技能「{raw_name}」不是{occ['name']}的本职技能，不能加职业点"
-                )
+        if name in chosen:
+            continue
+        problems.append(
+            f"技能「{raw_name}」不是{occ['name']}的本职技能，不能加职业点"
+        )
     return problems
 
 
@@ -390,6 +448,7 @@ def validate(data: dict) -> list[str]:
     for name, entry in fin["skills"].items():
         if entry["total"] < 0 or entry["total"] > SKILL_CEILING:
             problems.append(f"技能「{name}」成功率应在 0-{SKILL_CEILING} 之间")
+    problems.extend(occupation_choice_problems(data))
     problems.extend(occupational_point_problems(data))
     problems.extend(weapon_problems(data.get("weapons") or []))
     return problems

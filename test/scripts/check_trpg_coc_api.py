@@ -77,7 +77,9 @@ CARD = {
     "str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
     "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
     "luck": 50, "credit_rating": 40, "cthulhu_mythos": 0,
-    "skills": {"图书馆使用": {"base": 20, "occupation": 20}, "聆听": {"base": 20, "interest": 10}},
+    "occupation_choices": {"0": ["魅惑"], "1": ["科学:制药"]},
+    "skills": {"图书馆使用": {"base": 20, "occupation": 20}, "聆听": {"base": 20, "interest": 10},
+               "魅惑": {"base": 15, "occupation": 10}},
     "weapons": [
         {"name": "徒手格斗", "success": 25, "damage": "1D3+DB", "range": "—",
          "attacks": "1", "ammo": "—", "malfunction": "—", "pierce": "—"},
@@ -115,6 +117,20 @@ grown = dict(CARD, skills={"图书馆使用": {"base": 20, "growth": 80}})
 r = client.post("/api/me/characters", headers=H, json=grown)
 check("成长可超过 100%", r.status_code == 200 and any(
     entry["total"] >= 100 for entry in r.json()["skills"].values()), r.text[:160])
+
+unchosen = dict(CARD, skills={"科学:化学": {"base": 1, "occupation": 10}})
+r = client.post("/api/me/characters", headers=H, json=unchosen)
+check("未选入池即加点 400", r.status_code == 400 and "本职技能" in r.text, r.text[:200])
+
+bad_choice = dict(CARD, occupation_choices={"0": ["攀爬"]})
+r = client.post("/api/me/characters", headers=H, json=bad_choice)
+check("池外选择 400", r.status_code == 400 and "不在药剂师的可选池" in r.text, r.text[:200])
+
+over_choice = dict(CARD, occupation_choices={"0": ["魅惑", "话术"]})
+r = client.post("/api/me/characters", headers=H, json=over_choice)
+check("超选 400", r.status_code == 400 and "最多选 1 项" in r.text, r.text[:200])
+
+check("选择已回传", created.get("occupation_choices", {}).get("0") == ["魅惑"], str(created.get("occupation_choices")))
 
 not_own = dict(CARD, skills={"攀爬": {"base": 20, "occupation": 20}})
 r = client.post("/api/me/characters", headers=H, json=not_own)

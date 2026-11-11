@@ -323,6 +323,32 @@
 
 .coc-num { width: 5.5rem; }
 
+.coc-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+}
+
+.coc-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.coc-choice strong { color: var(--ink-soft); font-weight: 600; }
+
+.coc-choice-list { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; }
+
+.coc-choice-item { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+.coc-choice > input { flex: 1 1 16rem; }
+
 .coc-note { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--ink-soft); }
 .coc-warn { margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--red, #a33); }
 

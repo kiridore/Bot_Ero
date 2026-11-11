@@ -44,6 +44,7 @@ class CharacterIn(BaseModel):
     san_loss_today: int = 0
     current_mp: int = 0
     current_san: int = 0
+    occupation_choices: dict[str, list[str]] = {}
     skills: dict = {}
     weapons: list[dict] = []
     assets: dict = {}
@@ -156,6 +157,7 @@ class CharOut(BaseModel):
     san_loss_today: int = 0
     current_mp: int = 0
     current_san: int = 0
+    occupation_choices: dict[str, list[str]] = {}
     skills: dict = {}
     weapons: list[dict] = []
     assets: dict = {}

@@ -28,6 +28,7 @@ def _card(**over):
             "聆听": {"base": 20, "interest": 10},
             "科学:化学": {"base": 1, "occupation": 5},
         },
+        "occupation_choices": {"1": ["科学:化学"]},
     }
     base.update(over)
     return base
