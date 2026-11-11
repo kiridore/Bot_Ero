@@ -95,6 +95,13 @@ class TestBuilderScript(unittest.TestCase):
         self.assertIn("coc-choice-warn-on", src)
         self.assertIn("多选了", src)
 
+    def test_add_skill_uses_inline_input(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertNotIn("prompt(", src)
+        self.assertIn('id="skillName"', src)
+        self.assertIn('list="skillOptions"', src)
+        self.assertIn("addSkillFromInput", src)
+
     def test_non_occ_rows_disable_occ_column(self):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertIn("occInput.disabled = !allowed;", src)

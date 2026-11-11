@@ -349,6 +349,27 @@
 
 .coc-choice > input { flex: 1 1 16rem; }
 
+/* 添加技能：页面内输入 + 下拉提示 */
+.coc-add-skill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.coc-add-skill input[type="text"] {
+  flex: 1 1 18rem;
+  min-width: 12rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.coc-add-hint { font-size: 0.8rem; color: var(--ink-soft); }
+.coc-add-hint.is-error { color: color-mix(in srgb, var(--red) 62%, var(--ink-soft)); }
+
 /* 非本职技能行：只能加兴趣点，职业列禁用 */
 .coc-table tr.is-not-occ td:first-child,
 .coc-table tr.is-not-occ td:nth-child(2),

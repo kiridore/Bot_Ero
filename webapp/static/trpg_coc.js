@@ -392,7 +392,15 @@ function render() {
     </section>
 
     <section class="coc-block">
-      <h3>技能 <button type="button" class="btn-sm" id="addSkill">添加技能</button></h3>
+      <h3>技能</h3>
+      <div class="coc-add-skill">
+        <input type="text" id="skillName" list="skillOptions" placeholder="输入或选择技能名，如 侦察 / 技艺:烹饪" />
+        <datalist id="skillOptions">
+          ${Object.keys(options.skill_base || {}).map((n) => `<option value="${escapeHtml(n)}"></option>`).join("")}
+        </datalist>
+        <button type="button" class="btn-sm" id="addSkill">添加技能</button>
+        <span class="coc-add-hint" id="skillAddHint"></span>
+      </div>
       <div class="coc-table-wrap">
         <table class="coc-table">
           <thead><tr><th>技能</th><th>基础</th><th>成长</th><th>职业</th><th>兴趣</th><th>成功率</th><th></th></tr></thead>
@@ -471,24 +479,15 @@ function bind() {
     }
     rerenderDerived();
   });
+  skillInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addSkillFromInput();
+    }
+  });
+  skillInput.addEventListener("input", () => setSkillHint(""));
   document.getElementById("addSkill").addEventListener("click", () => {
-    const raw = prompt("技能名：官方技能名，或「类别:专攻」写法\\n可用类别：" +
-      (options.skill_categories || []).join(" / "));
-    if (!raw) return;
-    const name = normalizeSkillName(raw);
-    if (!name) {
-      showToast(`无法识别的技能名「${raw.trim()}」：用官方技能名，或「科学:生物学」这类「类别:专攻」写法`, true);
-      return;
-    }
-    const exists = [...document.querySelectorAll("[data-skill]")]
-      .some((row) => canonSkill(row.dataset.name) === canonSkill(name));
-    if (exists) {
-      showToast(`技能已存在：${name}`, true);
-      return;
-    }
-    const tbody = document.getElementById("skillBody");
-    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
-    rerenderDerived();
+    addSkillFromInput();
   });
   document.getElementById("addWeapon").addEventListener("click", () => {
     document.getElementById("weaponBody").insertAdjacentHTML(
