@@ -267,13 +267,16 @@ function bind() {
       const el = document.querySelector(`[data-attr="${key}"]`);
       if (el) el.value = rollDie(spec);
     });
+    // 幸运与八项属性同属「属性」区，全部重掷必须一起掷
+    const luck = document.getElementById("luck");
+    if (luck) luck.value = rollDie("3d6");
     rerenderDerived();
   });
   main.querySelectorAll("[data-roll]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const key = btn.dataset.roll;
       const spec = btn.dataset.spec;
-      const value = key === "luck" ? rollDieReady(spec) : rollDie(spec);
+      const value = rollDie(spec);
       const el = key === "luck" ? document.getElementById("luck") : document.querySelector(`[data-attr="${key}"]`);
       if (el) el.value = value;
       rerenderDerived();
@@ -312,8 +315,6 @@ function bind() {
     rerenderDerived();
   });
 }
-function rollDieReady(spec) { return rollDie(spec); }
-
 function collect() {
   const skills = {};
   document.querySelectorAll("[data-skill]").forEach((row) => {

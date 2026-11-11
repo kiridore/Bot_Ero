@@ -74,6 +74,20 @@ class TestDerived(unittest.TestCase):
         self.assertEqual(fin["skills"]["侦查"]["total"], coc.SKILL_CEILING)
 
 
+class TestBuilderScript(unittest.TestCase):
+    """建卡页脚本的静态守卫：这类页面没有 DOM 测试，用源码断言挡住关键回归。"""
+
+    def test_roll_all_includes_luck(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        start = src.index('document.getElementById("rollAll").addEventListener')
+        block = src[start:start + 500]
+        self.assertIn("luck", block, "「全部重掷」必须同时重掷幸运")
+
+    def test_no_dead_roll_helper(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertNotIn("rollDieReady", src)
+
+
 class TestBudgets(unittest.TestCase):
     def test_formula_variants(self):
         card = _card()
