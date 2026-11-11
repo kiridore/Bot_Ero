@@ -25,6 +25,14 @@
   margin-bottom: 16px;
 }
 
+.trpg-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
 /* ── 页签与跑团记录页（列表 / 聊天气泡），颜色一律取 :root token ── */
 .trpg-tabs {
   display: flex;

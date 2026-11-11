@@ -144,15 +144,11 @@ function renderList() {
   const head = document.createElement("div");
   head.className = "section-head";
   head.innerHTML = `<h2>我的角色卡</h2>`;
-  const cocBtn = document.createElement("button");
-  cocBtn.type = "button";
-  cocBtn.className = "btn-sm";
-  cocBtn.textContent = "新建 COC 7th 卡";
-  cocBtn.addEventListener("click", () => { window.location.href = "/trpg/coc"; });
-  head.appendChild(cocBtn);
+  const headActions = document.createElement("div");
+  headActions.className = "trpg-head-actions";
   const newBtn = document.createElement("button");
   newBtn.type = "button";
-  newBtn.className = "btn-sm primary";
+  newBtn.className = "btn-sm";
   newBtn.textContent = "新建 DND 5E 卡";
   newBtn.addEventListener("click", () => {
     editing = {
@@ -168,13 +164,20 @@ function renderList() {
     };
     renderEditor();
   });
-  head.appendChild(newBtn);
+  headActions.appendChild(newBtn);
+  const cocBtn = document.createElement("button");
+  cocBtn.type = "button";
+  cocBtn.className = "btn-sm";
+  cocBtn.textContent = "新建 COC 7th 卡";
+  cocBtn.addEventListener("click", () => { window.location.href = "/trpg/coc"; });
+  headActions.appendChild(cocBtn);
+  head.appendChild(headActions);
   trpgMain.appendChild(head);
 
   if (!chars.length) {
     const p = document.createElement("p");
     p.className = "empty-hint";
-    p.textContent = "还没有角色卡，点击右上角「新建角色」开始车卡";
+    p.textContent = "还没有角色卡：点右上角「新建 DND 5E 卡」或「新建 COC 7th 卡」开始车卡";
     trpgMain.appendChild(p);
     return;
   }
