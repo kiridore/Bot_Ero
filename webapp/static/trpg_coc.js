@@ -71,6 +71,17 @@ function agePenalty(age) {
   [[40, 1], [50, 2], [60, 3], [70, 4], [80, 5]].forEach(([limit, value]) => { if (age >= limit) p = value; });
   return p;
 }
+// 结构化本职技能的可选池说明：职业点只能加在固定项或这些池内
+function poolHint(occ) {
+  const struct = (options.occupation_skills || {})[String(occ.seq)];
+  if (!struct || !(struct.choices || []).length) return "";
+  const parts = struct.choices.map((c) => (c.from === "*"
+    ? `任意 ${c.count} 项`
+    : `${c.from.join("、")} 中选 ${c.count} 项`));
+  const fixed = (struct.required || []).length;
+  return `（固定 ${fixed} 项；可选：${parts.join("；")}）`;
+}
+
 function currentOccupation() {
   const name = document.getElementById("occupation")?.value || "";
   return (options.occupations || []).find((o) => o.name === name) || null;
@@ -133,7 +144,7 @@ function rerenderDerived() {
   const occNote = document.getElementById("occ-note");
   if (occNote) {
     occNote.textContent = occ
-      ? `职业点 ${occ.formula}；信用评级 ${occ.credit_min}-${occ.credit_max}；本职技能：${occ.own_skills}`
+      ? `职业点 ${occ.formula}；信用评级 ${occ.credit_min}-${occ.credit_max}；本职技能：${occ.own_skills}${poolHint(occ)}`
       : "未选择职业";
   }
   const occWarn = document.getElementById("occ-warn");

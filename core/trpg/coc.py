@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from core.trpg.coc_data import OCCUPATIONS, SKILL_BASE, SKILL_CATEGORIES
+from core.trpg.coc_data import OCCUPATION_SKILLS, OCCUPATIONS, SKILL_BASE, SKILL_CATEGORIES
 
 SKILL_MAX = 99
 SKILL_CEILING = 199  # 幕间成长可使技能超过 100%
@@ -109,6 +109,68 @@ def occupation_by_name(name: str):
             return {"seq": seq, "name": job, "credit_min": low, "credit_max": high,
                     "formula": formula, "own_skills": own}
     return None
+
+
+def occupation_slots(seq) -> dict | None:
+    """结构化本职技能定义：{required: [...], choices: [{count, from}]}。"""
+    return OCCUPATION_SKILLS.get(str(seq))
+
+
+def occupational_point_problems(data: dict) -> list[str]:
+    """职业点只能加在本职技能（固定项）或可选池配额内。"""
+    occ = occupation_by_name((data.get("occupation") or "").strip())
+    if not occ:
+        return []
+    struct = occupation_slots(occ["seq"])
+    if not struct:
+        return []
+    required = {canonical_skill(name) for name in struct.get("required") or []}
+    # 「语言:*」这类带通配的固定项按类别前缀匹配（规则书里的「任一专攻」）
+    wildcards = [name[:-1] for name in required if name.endswith(":*")]
+    pools = []
+    for choice in struct.get("choices") or []:
+        source = choice.get("from")
+        if source == "*":
+            pools.append({"count": int(choice.get("count") or 0), "from": "*", "wild": []})
+            continue
+        exact, wild = set(), []
+        for name in source or []:
+            fixed = canonical_skill(name)
+            if fixed.endswith(":*"):
+                wild.append(fixed[:-1])
+            else:
+                exact.add(fixed)
+        pools.append({"count": int(choice.get("count") or 0), "from": exact, "wild": wild})
+
+    problems = []
+    for raw_name, entry in (data.get("skills") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        try:
+            points = int(entry.get("occupation") or 0)
+        except (TypeError, ValueError):
+            continue
+        if points <= 0:
+            continue
+        name = canonical_skill(raw_name)
+        if name in required or any(name.startswith(prefix) for prefix in wildcards):
+            continue
+        for pool in pools:
+            hit = isinstance(pool["from"], set) and (
+                name in pool["from"] or any(name.startswith(prefix) for prefix in pool["wild"]))
+            if hit and pool["count"] > 0:
+                pool["count"] -= 1
+                break
+        else:
+            for pool in pools:
+                if pool["from"] == "*" and pool["count"] > 0:
+                    pool["count"] -= 1
+                    break
+            else:
+                problems.append(
+                    f"技能「{raw_name}」不是{occ['name']}的本职技能，不能加职业点"
+                )
+    return problems
 
 
 def points_budget(formula: str, data: dict) -> int:
@@ -328,6 +390,7 @@ def validate(data: dict) -> list[str]:
     for name, entry in fin["skills"].items():
         if entry["total"] < 0 or entry["total"] > SKILL_CEILING:
             problems.append(f"技能「{name}」成功率应在 0-{SKILL_CEILING} 之间")
+    problems.extend(occupational_point_problems(data))
     problems.extend(weapon_problems(data.get("weapons") or []))
     return problems
 

@@ -4,6 +4,9 @@
 需要更新时重新从该 xlsx 生成。
 """
 
+import json
+from pathlib import Path
+
 SKILL_BASE = {
     '会计': 5,
     '人类学': 1,
@@ -167,3 +170,17 @@ OCCUPATIONS = [
     (113, '狂热者', 0, 30, '教育×2＋外貌或意志×2', '历史，两项社交技能（魅惑、话术、恐吓、说服），心理学，潜行，任意三项其他个人或时代特长。'),
     (114, '饲养员', 9, 40, '教育×4', '驯兽，会计，闪避，急救，博物学，医学，科学（制药，动物学）。'),
 ]
+
+
+# 职业本职技能结构化定义（seq -> {required, choices}），与散文版 own_skills 并存
+_SKILLS_PATH = Path(__file__).with_name("occupation_skills.json")
+
+
+def _load_occupation_skills() -> dict:
+    try:
+        return json.loads(_SKILLS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+OCCUPATION_SKILLS = _load_occupation_skills()

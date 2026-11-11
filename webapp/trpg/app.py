@@ -14,6 +14,7 @@ from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
 from core.trpg import levelup as trpg_levelup
 from core.trpg import coc as trpg_coc
+from core.trpg import coc_data
 from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
 from core.trpg.game_systems import rule_name
@@ -235,7 +236,9 @@ def api_coc_options():
             {"seq": seq, "name": name, "credit_min": low, "credit_max": high,
              "formula": formula, "own_skills": own}
             for seq, name, low, high, formula, own in trpg_coc.OCCUPATIONS
+            if seq >= 1  # seq 0 是 xlsx 里的工具说明行，不是职业
         ],
+        "occupation_skills": coc_data.OCCUPATION_SKILLS,
     }
 
 

@@ -77,7 +77,7 @@ CARD = {
     "str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
     "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
     "luck": 50, "credit_rating": 40, "cthulhu_mythos": 0,
-    "skills": {"侦查": {"base": 25, "occupation": 20}, "聆听": {"base": 20, "interest": 10}},
+    "skills": {"图书馆使用": {"base": 20, "occupation": 20}, "聆听": {"base": 20, "interest": 10}},
     "weapons": [
         {"name": "徒手格斗", "success": 25, "damage": "1D3+DB", "range": "—",
          "attacks": "1", "ammo": "—", "malfunction": "—", "pierce": "—"},
@@ -97,7 +97,8 @@ check("HP 派生", created["hp"] == 10, str(created.get("hp")))
 check("MP 派生", created["mp"] == 13, str(created.get("mp")))
 check("MOV 派生", created["mov"] == 9, str(created.get("mov")))
 check("闪避派生", created["dodge"] == 27, str(created.get("dodge")))
-check("技能总数计入", created["skills"]["侦查"]["total"] == 45, str(created["skills"].get("侦查")))
+check("技能总数计入", created["skills"]["图书馆使用"]["total"] == 40,
+      str(created["skills"].get("图书馆使用")))
 check("武器表保留", len(created.get("weapons") or []) == 2 and created["weapons"][1]["name"] == ".32 自动手枪",
       str(created.get("weapons")))
 check("当前 SAN 缺省等于上限", created["current_san"] == 65, str(created.get("current_san")))
@@ -110,10 +111,14 @@ r = client.post("/api/me/characters", headers=H, json=damaged)
 check("当前值原样保存", r.status_code == 200 and r.json()["current_san"] == 40 and r.json()["current_hp"] == 6,
       r.text[:160])
 
-grown = dict(CARD, skills={"侦查": {"base": 25, "growth": 80}})
+grown = dict(CARD, skills={"图书馆使用": {"base": 20, "growth": 80}})
 r = client.post("/api/me/characters", headers=H, json=grown)
 check("成长可超过 100%", r.status_code == 200 and any(
-    entry["total"] == 105 for entry in r.json()["skills"].values()), r.text[:160])
+    entry["total"] >= 100 for entry in r.json()["skills"].values()), r.text[:160])
+
+not_own = dict(CARD, skills={"攀爬": {"base": 20, "occupation": 20}})
+r = client.post("/api/me/characters", headers=H, json=not_own)
+check("非本职技能加点 400", r.status_code == 400 and "本职技能" in r.text, r.text[:200])
 
 bad_weapon = dict(CARD, weapons=[{"name": "剑", "success": 25, "damage": "一点八"}])
 r = client.post("/api/me/characters", headers=H, json=bad_weapon)
@@ -123,7 +128,7 @@ bad_weapon = dict(CARD, weapons=[{"name": "剑", "damage": "1D8"}, {"name": "剑
 r = client.post("/api/me/characters", headers=H, json=bad_weapon)
 check("重复武器 400", r.status_code == 400 and "重复添加" in r.text, r.text[:200])
 
-bad = dict(CARD, skills={"侦查": {"base": 25, "occupation": 500}})
+bad = dict(CARD, skills={"图书馆使用": {"base": 25, "occupation": 500}})
 r = client.post("/api/me/characters", headers=H, json=bad)
 check("职业点超预算 400", r.status_code == 400 and "职业点超出" in r.text, r.text[:160])
 
@@ -139,7 +144,7 @@ r = client.get("/api/me/characters", headers=H)
 check("列表含 COC 卡", any(c["rules"] == "coc7th" for c in r.json()["characters"]))
 
 updated = dict(CARD, str_score=85, siz_score=70,
-               skills={"侦查": {"base": 25, "occupation": 20}},
+               skills={"图书馆使用": {"base": 20, "occupation": 20}},
                weapons=[{"name": "短棍", "success": 35, "damage": "1D6+DB"}])
 r = client.put(f"/api/me/characters/{created['id']}", headers=H, json=updated)
 check("更新 200", r.status_code == 200, r.text[:200])

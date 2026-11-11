@@ -23,9 +23,10 @@ def _card(**over):
         "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
         "luck": 50, "credit_rating": 40,
         "skills": {
-            "侦查": {"base": 25, "occupation": 20},
+            # 药剂师：图书馆使用是固定本职技能，科学:化学属于可选池
+            "图书馆使用": {"base": 20, "occupation": 20},
             "聆听": {"base": 20, "interest": 10},
-            "技艺:摄影": {"base": 5, "occupation": 5},
+            "科学:化学": {"base": 1, "occupation": 5},
         },
     }
     base.update(over)
@@ -60,14 +61,14 @@ class TestDerived(unittest.TestCase):
     def test_dodge_and_skill_total(self):
         fin = coc.finalize(_card())
         self.assertEqual(fin["dodge"], 27)
-        self.assertEqual(fin["skills"]["侦查"]["total"], 45)
+        self.assertEqual(fin["skills"]["图书馆使用"]["total"], 40)
         self.assertEqual(fin["skills"]["聆听"]["total"], 30)
-        self.assertEqual(fin["skills"]["技艺:摄影"]["total"], 10)
+        self.assertEqual(fin["skills"]["科学:化学"]["total"], 6)
 
     def test_growth_may_exceed_100(self):
         # 7 版：幕间成长可以让技能超过 100%
-        fin = coc.finalize(_card(skills={"侦查": {"base": 90, "growth": 20}}))
-        self.assertEqual(fin["skills"]["侦查"]["total"], 110)
+        fin = coc.finalize(_card(skills={"图书馆使用": {"base": 90, "growth": 20}}))
+        self.assertEqual(fin["skills"]["图书馆使用"]["total"], 110)
 
     def test_skill_ceiling(self):
         fin = coc.finalize(_card(skills={"侦查": {"base": 90, "growth": 500}}))
@@ -165,11 +166,11 @@ class TestBudgets(unittest.TestCase):
         self.assertEqual(fin["occupation_spent"], 25)
 
     def test_validate_over_budget(self):
-        problems = coc.validate(_card(skills={"侦查": {"base": 25, "occupation": 200}}))
+        problems = coc.validate(_card(skills={"图书馆使用": {"base": 25, "occupation": 200}}))
         self.assertTrue(any("职业点超出" in p for p in problems))
 
     def test_validate_interest_over_budget(self):
-        problems = coc.validate(_card(skills={"侦查": {"base": 25, "interest": 200}}))
+        problems = coc.validate(_card(skills={"图书馆使用": {"base": 25, "interest": 200}}))
         self.assertTrue(any("兴趣点超出" in p for p in problems))
 
     def test_validate_credit_range(self):
@@ -187,9 +188,9 @@ class TestBudgets(unittest.TestCase):
 class TestSkillLookup(unittest.TestCase):
     def test_exact_and_prefix(self):
         card = _card()
-        self.assertEqual(coc.skill_value(card, "侦查"), 45)
-        self.assertEqual(coc.skill_value(card, "技艺:摄影"), 10)
-        self.assertEqual(coc.skill_value(card, "技艺"), 10)
+        self.assertEqual(coc.skill_value(card, "图书馆"), 40)
+        self.assertEqual(coc.skill_value(card, "科学:化学"), 6)
+        self.assertEqual(coc.skill_value(card, "科学"), 6)
         self.assertIsNone(coc.skill_value(card, "驾驶"))
 
     def test_format_sheet(self):
@@ -197,7 +198,7 @@ class TestSkillLookup(unittest.TestCase):
         self.assertIn("药剂师", text)
         self.assertIn("HP 10", text)
         self.assertIn("MOV 9", text)
-        self.assertIn("侦查 45%", text)
+        self.assertIn("图书馆使用 40%", text)
         self.assertNotIn("会计", text)  # 基础值技能不列出
 
 
