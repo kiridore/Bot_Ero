@@ -88,6 +88,69 @@ class TestBuilderScript(unittest.TestCase):
         self.assertNotIn("rollDieReady", src)
 
 
+class TestWeapons(unittest.TestCase):
+    """武器表：保留自由文本，但校验可解析性与基础范围。"""
+
+    def _problems(self, weapons):
+        return coc.weapon_problems(weapons)
+
+    def test_sheet_style_weapons_pass(self):
+        weapons = [
+            {"name": "徒手格斗", "success": 25, "damage": "1D3+DB", "range": "—",
+             "attacks": "1", "ammo": "—", "malfunction": "—", "pierce": "—"},
+            {"name": ".32 自动手枪", "success": 40, "damage": "1D8", "range": "15m",
+             "attacks": "1(3)", "ammo": "8", "malfunction": "98", "pierce": "—"},
+            {"name": "矛", "success": 20, "damage": "1D10+1D4"},
+        ]
+        self.assertEqual(self._problems(weapons), [])
+
+    def test_damage_forms(self):
+        for damage in ("1D6", "2d10", "1D8+2", "1D3+DB", "DB", "0", "—", ""):
+            self.assertEqual(self._problems([{"name": "剑", "damage": damage}]), [], damage)
+
+    def test_damage_rejects_garbage(self):
+        for damage in ("一点八", "D", "1D", "abc", "1D8+", "+1D8", "1D0", "21D6"):
+            self.assertTrue(self._problems([{"name": "剑", "damage": damage}]), damage)
+
+    def test_empty_name_rejected(self):
+        problems = self._problems([{"name": "  ", "damage": "1D6"}])
+        self.assertTrue(any("缺少名称" in p for p in problems), problems)
+
+    def test_duplicate_name_rejected(self):
+        problems = self._problems([{"name": "剑", "damage": "1D8"}, {"name": " 剑 ", "damage": "1D6"}])
+        self.assertTrue(any("重复添加" in p for p in problems), problems)
+
+    def test_long_name_rejected(self):
+        problems = self._problems([{"name": "剑" * 31, "damage": "1D8"}])
+        self.assertTrue(any("名称过长" in p for p in problems), problems)
+
+    def test_success_range(self):
+        self.assertTrue(self._problems([{"name": "枪", "success": 999}]))
+        self.assertTrue(self._problems([{"name": "枪", "success": -1}]))
+        self.assertEqual(self._problems([{"name": "枪", "success": 99}]), [])
+
+    def test_malfunction_range(self):
+        self.assertTrue(self._problems([{"name": "枪", "malfunction": "abc"}]))
+        self.assertTrue(self._problems([{"name": "枪", "malfunction": 101}]))
+        self.assertEqual(self._problems([{"name": "枪", "malfunction": "96"}]), [])
+
+    def test_attacks_format(self):
+        self.assertEqual(self._problems([{"name": "枪", "attacks": "1(3)"}]), [])
+        self.assertTrue(self._problems([{"name": "枪", "attacks": "三连发"}]))
+
+    def test_row_limit(self):
+        problems = self._problems([{"name": f"枪{i}", "damage": "1D8"} for i in range(51)])
+        self.assertTrue(any("最多 50 行" in p for p in problems), problems)
+
+    def test_field_length_limits(self):
+        self.assertTrue(self._problems([{"name": "枪", "range": "很" * 21}]))
+        self.assertTrue(self._problems([{"name": "枪", "ammo": "9" * 11}]))
+
+    def test_validate_includes_weapons(self):
+        card = _card(weapons=[{"name": "剑", "damage": "一点八"}])
+        self.assertTrue(any("不是合法写法" in p for p in coc.validate(card)))
+
+
 class TestBudgets(unittest.TestCase):
     def test_formula_variants(self):
         card = _card()

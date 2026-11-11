@@ -166,15 +166,29 @@ const WEAPON_FIELDS = [
   ["range", "射程", "text"],
   ["attacks", "次数", "text"],
   ["ammo", "弹药", "text"],
-  ["malfunction", "故障值", "text"],
+  ["malfunction", "故障值", "number"],
   ["pierce", "贯穿", "text"],
 ];
+
+const WEAPON_LIMITS = {
+  success: { min: 0, max: 99, placeholder: "25" },
+  damage: { placeholder: "1D8 / 1D3+DB" },
+  range: { maxlength: 20, placeholder: "15m / 接触" },
+  attacks: { maxlength: 12, placeholder: "1(3)" },
+  ammo: { maxlength: 10, placeholder: "8" },
+  malfunction: { min: 0, max: 100, placeholder: "98" },
+  pierce: { maxlength: 10, placeholder: "—" },
+};
 
 function weaponRow(weapon) {
   const cells = WEAPON_FIELDS.map(([key, , type]) => {
     const value = weapon[key] != null ? weapon[key] : "";
     const cls = type === "number" ? "coc-num" : "";
-    return `<td><input type="${type}" data-weapon="${key}" value="${escapeHtml(value)}" class="${cls}" /></td>`;
+    const limit = WEAPON_LIMITS[key] || {};
+    const attrs = Object.entries(limit)
+      .map(([name, v]) => `${name}="${escapeHtml(v)}"`)
+      .join(" ");
+    return `<td><input type="${type}" data-weapon="${key}" value="${escapeHtml(value)}" class="${cls}" ${attrs} /></td>`;
   }).join("");
   return `<tr data-weapon-row>${cells}<td><button type="button" class="btn-sm" data-remove-weapon>删</button></td></tr>`;
 }

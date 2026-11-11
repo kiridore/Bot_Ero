@@ -7,10 +7,21 @@
 
 from __future__ import annotations
 
+import re
+
 from core.trpg.coc_data import OCCUPATIONS, SKILL_BASE, SKILL_CATEGORIES
 
 SKILL_MAX = 99
 SKILL_CEILING = 199  # 幕间成长可使技能超过 100%
+
+# 武器表：文本字段保留原表自由度，但校验可解析性与基础范围
+WEAPON_ROWS_MAX = 50
+WEAPON_NAME_MAX = 30
+WEAPON_TEXT_MAX = {"range": 20, "ammo": 10, "attacks": 12, "pierce": 10}
+WEAPON_FIELD_LABEL = {"range": "射程", "ammo": "弹药", "attacks": "次数", "pierce": "贯穿"}
+DICE_TERM_RE = re.compile(r"^(\d{0,2})[dD](\d{1,3})$")
+ATTACKS_RE = re.compile(r"^\d{1,2}(\(\d{1,2}\))?$")
+DASHES = ("", "—", "-", "–", "－")
 
 
 # xlsx 技能名与规则书常用译名的对应（玩家按习惯输入都能对上）
@@ -214,6 +225,80 @@ def finalize(data: dict) -> dict:
     return out
 
 
+def damage_ok(text) -> bool:
+    """伤害列允许：数字、NdM、多项相加（1D10+1D4）、以及 +DB 这类伤害加值。"""
+    raw = str(text or "").strip().replace("＋", "+").replace("－", "-").replace("：", ":")
+    if raw in DASHES:
+        return True
+    parts = [part.strip() for part in re.split(r"[+-]", raw)]
+    if not parts or any(not part for part in parts):
+        return False
+    for part in parts:
+        if part.upper() == "DB":
+            continue
+        if part.isdigit() and 0 <= int(part) <= 999:
+            continue
+        matched = DICE_TERM_RE.match(part)
+        if not matched:
+            return False
+        count = int(matched.group(1) or 1)
+        sides = int(matched.group(2))
+        if not 1 <= count <= 20 or not 2 <= sides <= 1000:
+            return False
+    return True
+
+
+def weapon_problems(weapons) -> list[str]:
+    problems = []
+    if not isinstance(weapons, list):
+        return ["武器表格式错误"]
+    if len(weapons) > WEAPON_ROWS_MAX:
+        problems.append(f"武器最多 {WEAPON_ROWS_MAX} 行（当前 {len(weapons)}）")
+    seen = set()
+    for index, weapon in enumerate(weapons, start=1):
+        if not isinstance(weapon, dict):
+            problems.append(f"武器 #{index} 格式错误")
+            continue
+        name = str(weapon.get("name") or "").strip()
+        label = f"武器「{name}」" if name else f"武器 #{index}"
+        if not name:
+            problems.append(f"武器 #{index} 缺少名称")
+        else:
+            if len(name) > WEAPON_NAME_MAX:
+                problems.append(f"{label}名称过长（上限 {WEAPON_NAME_MAX} 字）")
+            if name.casefold() in seen:
+                problems.append(f"{label}重复添加")
+            seen.add(name.casefold())
+        success = weapon.get("success")
+        if success not in (None, ""):
+            try:
+                value = int(success)
+            except (TypeError, ValueError):
+                problems.append(f"{label}的成功率必须是数字")
+            else:
+                if not 0 <= value <= 99:
+                    problems.append(f"{label}的成功率应在 0-99（当前 {value}）")
+        if not damage_ok(weapon.get("damage")):
+            problems.append(f"{label}的伤害「{weapon.get('damage')}」不是合法写法（例：1D8、1D3+DB、1D10+1D4）")
+        malfunction = str(weapon.get("malfunction") or "").strip()
+        if malfunction not in DASHES:
+            try:
+                value = int(malfunction)
+            except (TypeError, ValueError):
+                problems.append(f"{label}的故障值必须是数字（0-100）")
+            else:
+                if not 0 <= value <= 100:
+                    problems.append(f"{label}的故障值应在 0-100（当前 {value}）")
+        attacks = str(weapon.get("attacks") or "").strip()
+        if attacks not in DASHES and not ATTACKS_RE.match(attacks):
+            problems.append(f"{label}的次数应写成 1 或 1(3)（当前「{attacks}」）")
+        for field, limit in WEAPON_TEXT_MAX.items():
+            value = str(weapon.get(field) or "").strip()
+            if len(value) > limit:
+                problems.append(f"{label}的{WEAPON_FIELD_LABEL[field]}过长（上限 {limit} 字）")
+    return problems
+
+
 def validate(data: dict) -> list[str]:
     """建卡约束：属性范围、技能点不超预算、信用评级在职业区间内。"""
     problems = []
@@ -243,6 +328,7 @@ def validate(data: dict) -> list[str]:
     for name, entry in fin["skills"].items():
         if entry["total"] < 0 or entry["total"] > SKILL_CEILING:
             problems.append(f"技能「{name}」成功率应在 0-{SKILL_CEILING} 之间")
+    problems.extend(weapon_problems(data.get("weapons") or []))
     return problems
 
 

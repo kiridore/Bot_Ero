@@ -115,6 +115,14 @@ r = client.post("/api/me/characters", headers=H, json=grown)
 check("成长可超过 100%", r.status_code == 200 and any(
     entry["total"] == 105 for entry in r.json()["skills"].values()), r.text[:160])
 
+bad_weapon = dict(CARD, weapons=[{"name": "剑", "success": 25, "damage": "一点八"}])
+r = client.post("/api/me/characters", headers=H, json=bad_weapon)
+check("非法伤害 400", r.status_code == 400 and "不是合法写法" in r.text, r.text[:200])
+
+bad_weapon = dict(CARD, weapons=[{"name": "剑", "damage": "1D8"}, {"name": "剑", "damage": "1D6"}])
+r = client.post("/api/me/characters", headers=H, json=bad_weapon)
+check("重复武器 400", r.status_code == 400 and "重复添加" in r.text, r.text[:200])
+
 bad = dict(CARD, skills={"侦查": {"base": 25, "occupation": 500}})
 r = client.post("/api/me/characters", headers=H, json=bad)
 check("职业点超预算 400", r.status_code == 400 and "职业点超出" in r.text, r.text[:160])
