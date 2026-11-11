@@ -104,21 +104,28 @@ function renderOccChoices() {
     if (named) {
       const list = document.createElement("div");
       list.className = "coc-choice-list";
+      const single = choice.count === 1;
       choice.from.forEach((name) => {
         const item = document.createElement("label");
         item.className = "coc-choice-item";
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.value = name;
-        cb.checked = picked.includes(name);
-        cb.addEventListener("change", () => {
-          const current = new Set(occChoices[String(index)] || []);
-          if (cb.checked) current.add(name); else current.delete(name);
-          occChoices[String(index)] = [...current];
+        const input = document.createElement("input");
+        // 选 1 项用单选，选多项才用多选
+        input.type = single ? "radio" : "checkbox";
+        if (single) input.name = `occ-pool-${index}`;
+        input.value = name;
+        input.checked = picked.includes(name);
+        input.addEventListener("change", () => {
+          if (single) {
+            occChoices[String(index)] = [name];
+          } else {
+            const current = new Set(occChoices[String(index)] || []);
+            if (input.checked) current.add(name); else current.delete(name);
+            occChoices[String(index)] = [...current];
+          }
           syncChosenSkills();
           rerenderDerived();
         });
-        item.appendChild(cb);
+        item.appendChild(input);
         item.appendChild(document.createTextNode(name));
         list.appendChild(item);
       });
@@ -224,12 +231,14 @@ function rerenderDerived() {
   const choiceWarn = document.getElementById("occ-choice-warn");
   if (choiceWarn) {
     const struct = occ ? (options.occupation_skills || {})[String(occ.seq)] : null;
-    const gaps = [];
+    const notes = [];
     (struct?.choices || []).forEach((choice, index) => {
       const picked = (occChoices[String(index)] || []).length;
-      if (picked < choice.count) gaps.push(`可选 #${index + 1} 还差 ${choice.count - picked} 项`);
+      if (picked < choice.count) notes.push(`可选 #${index + 1} 还差 ${choice.count - picked} 项`);
+      else if (picked > choice.count) notes.push(`可选 #${index + 1} 多选了 ${picked - choice.count} 项`);
     });
-    choiceWarn.textContent = gaps.join("；");
+    choiceWarn.textContent = notes.join("；");
+    choiceWarn.classList.toggle("coc-choice-warn-on", notes.length > 0);
   }
   const occWarn = document.getElementById("occ-warn");
   if (occWarn) {

@@ -85,6 +85,16 @@ class TestBuilderScript(unittest.TestCase):
         block = src[start:start + 500]
         self.assertIn("luck", block, "「全部重掷」必须同时重掷幸运")
 
+    def test_pool_single_choice_uses_radio(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertIn('input.type = single ? "radio" : "checkbox";', src)
+        self.assertIn("const single = choice.count === 1;", src)
+
+    def test_choice_warning_toggles_class(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertIn("coc-choice-warn-on", src)
+        self.assertIn("多选了", src)
+
     def test_no_dead_roll_helper(self):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertNotIn("rollDieReady", src)

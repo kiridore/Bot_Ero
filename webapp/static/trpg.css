@@ -349,6 +349,13 @@
 
 .coc-choice > input { flex: 1 1 16rem; }
 
+/* 未选满 / 超选提示：低饱和红，避免和真正的错误混淆 */
+#occ-choice-warn { display: none; }
+#occ-choice-warn.coc-choice-warn-on {
+  display: block;
+  color: color-mix(in srgb, var(--red) 62%, var(--ink-soft));
+}
+
 .coc-note { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--ink-soft); }
 .coc-warn { margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--red, #a33); }
 
