@@ -100,8 +100,14 @@ class TestLevelFromXp(unittest.TestCase):
         self.assertEqual(level_from_xp(355000), 20)
         self.assertEqual(level_from_xp(999999), 20)
 
-    def test_finalize_level_derived_from_xp(self):
+    def test_finalize_level_from_card_not_xp(self):
+        # 1.71 起等级显式保存：XP 够 5 级但没走向导，就仍是 1 级
         data = finalize(_base(xp=6500, level=1))
+        self.assertEqual(data["level"], 1)
+        self.assertEqual(data["prof_bonus"], 2)
+
+    def test_finalize_stored_level_after_upgrade(self):
+        data = finalize(_base(xp=6500, level=5))
         self.assertEqual(data["level"], 5)
         self.assertEqual(data["prof_bonus"], 3)
 

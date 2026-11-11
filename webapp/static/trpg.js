@@ -218,6 +218,14 @@ function renderList() {
       } catch (err) { showToast(err.message, true); }
     });
     actions.appendChild(editBtn);
+    if ((c.rules || "dnd5e") !== "coc7th" && c.can_level_up) {
+      const lvBtn = document.createElement("button");
+      lvBtn.type = "button";
+      lvBtn.className = "btn-sm";
+      lvBtn.textContent = `升级到 Lv.${(c.level || 1) + 1}`;
+      lvBtn.addEventListener("click", () => { window.location.href = `/trpg/levelup/${c.id}`; });
+      actions.appendChild(lvBtn);
+    }
     if (!isCur) {
       const swBtn = document.createElement("button");
       swBtn.type = "button";
@@ -411,7 +419,6 @@ function renderEditor() {
   function refresh() {
     const data = readForm();
     const xpVal = Number(data.xp) || 0;
-    if (xpVal > 0) data.level = levelFromXp(xpVal, rules.xp_thresholds);
     const calc = computeSheet(data);
     attrTable.innerHTML = "";
     for (const attr of rules.attributes) {
@@ -496,7 +503,12 @@ function renderEditor() {
       ? `购点已用 ${spent}/27${spent > 27 ? "（超支，保存会被拒绝）" : ""}`
       : "";
     document.getElementById("attrModeHint").textContent = `当前生成方式：${(rules.attribute_modes || {})[attributesMode] || attributesMode}`;
-    document.getElementById("levelCell").textContent = `Lv.${data.level || 1}`;
+    const storedLevel = Number(data.level || editing.level || 1);
+    const nextXp = (rules.xp_thresholds || [])[storedLevel];
+    const canLv = nextXp !== undefined && xpVal >= nextXp;
+    document.getElementById("levelCell").textContent = canLv
+      ? `Lv.${storedLevel}（XP 已够 ${storedLevel + 1} 级，请去升级向导）`
+      : `Lv.${storedLevel}${nextXp ? `｜升级还需 ${Math.max(nextXp - xpVal, 0)} XP` : "（满级）"}`;
   }
 
   function rollScores() {

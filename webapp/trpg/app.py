@@ -1,5 +1,6 @@
 """跑团子应用：DND 车卡、角色查看与跑团记录浏览。"""
 
+import random
 from pathlib import Path
 from typing import Annotated
 
@@ -11,6 +12,7 @@ from core import character_store as char_store
 from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
+from core.trpg import levelup as trpg_levelup
 from core.trpg import coc as trpg_coc
 from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
@@ -101,6 +103,9 @@ class CharOut(BaseModel):
     passive_perception: int = 0
     initiative: int = 0
     hit_dice: str = ""
+    can_level_up: bool = False
+    xp_to_next: int = 0
+    hp_gain: int = 0
     # 通用
     level: int = 1
     xp: int = 0
@@ -170,6 +175,12 @@ class CharOut(BaseModel):
     interest_spent: int = 0
 
 
+class LevelUpIn(BaseModel):
+    hp_mode: str = "average"
+    asi: dict[str, int] = {}
+    features: str = ""
+
+
 def _char_to_out(data: dict) -> CharOut:
     payload = dict(data)
     payload["display_name"] = resolve_display_name(data["user_id"])
@@ -189,6 +200,9 @@ def _char_to_out(data: dict) -> CharOut:
         for key in ("skill_mods", "scores", "prof_bonus", "save_mods",
                     "passive_perception", "initiative", "hit_dice"):
             payload[key] = fin.get(key, payload.get(key))
+        state = trpg_levelup.status(data)
+        payload["can_level_up"] = state["can_level_up"]
+        payload["xp_to_next"] = state["xp_to_next"]
     return CharOut(**{k: v for k, v in payload.items() if k in CharOut.model_fields})
 
 
@@ -283,6 +297,29 @@ def api_update_character(
     return _char_to_out(char_store.get_char(user_id, char_id))
 
 
+@router.post("/api/me/characters/{char_id}/levelup", response_model=CharOut)
+def api_level_up(
+    char_id: int,
+    body: LevelUpIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    char = char_store.get_char(user_id, char_id)
+    if not char:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    if (char.get("rules") or "dnd5e") != "dnd5e":
+        raise HTTPException(status_code=400, detail="升级向导只适用于 DND 5E 角色卡")
+    roll = random.randint(1, trpg_levelup.status(char)["hp_die"]) if body.hp_mode == "roll" else None
+    try:
+        result = trpg_levelup.apply_level_up(
+            char, body.hp_mode, body.asi, body.features, roll=roll)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    char_store.update_char(user_id, char_id, char)
+    out = _char_to_out(char_store.get_char(user_id, char_id))
+    out.hp_gain = result["hp_gain"]
+    return out
+
+
 @router.delete("/api/me/characters/{char_id}")
 def api_delete_character(
     char_id: int,
@@ -351,6 +388,14 @@ def trpg_page():
     page = STATIC_DIR / "trpg.html"
     if not page.is_file():
         raise HTTPException(status_code=500, detail="缺少静态页面")
+    return FileResponse(page)
+
+
+@router.get("/trpg/levelup/{char_id}")
+def trpg_levelup_page(char_id: int):
+    page = STATIC_DIR / "trpg_levelup.html"
+    if not page.is_file():
+        raise HTTPException(status_code=500, detail="缺少升级向导页")
     return FileResponse(page)
 
 

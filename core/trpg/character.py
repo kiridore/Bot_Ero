@@ -51,8 +51,12 @@ def finalize(char_data: dict) -> dict:
     out["hp"] = hp_die + con_mod if char_data.get("hp") in (None, 0) else int(char_data["hp"])
     out["ac"] = 10 + dex_mod if char_data.get("ac") in (None, 0) else int(char_data["ac"])
 
-    xp = int(char_data.get("xp", 0))
-    level = level_from_xp(xp) if xp > 0 else int(char_data.get("level", 1))
+    # 等级由卡片显式保存（升级走向导），XP 只用来判断「够不够升」
+    level = int(char_data.get("level") or 0)
+    if level <= 0:
+        xp = int(char_data.get("xp", 0))
+        level = level_from_xp(xp) if xp > 0 else 1
+    level = max(1, min(level, 20))
     out["level"] = level
     out["prof_bonus"] = 2 + (level - 1) // 4
 
