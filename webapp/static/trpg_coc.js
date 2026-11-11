@@ -479,6 +479,38 @@ function bind() {
     }
     rerenderDerived();
   });
+  const skillInput = document.getElementById("skillName");
+  const skillHint = document.getElementById("skillAddHint");
+  const setSkillHint = (text) => {
+    if (!skillHint) return;
+    skillHint.textContent = text || "";
+    skillHint.classList.toggle("is-error", Boolean(text));
+  };
+  function addSkillFromInput() {
+    const raw = (skillInput.value || "").trim();
+    if (!raw) {
+      setSkillHint("先输入技能名");
+      skillInput.focus();
+      return;
+    }
+    const name = normalizeSkillName(raw);
+    if (!name) {
+      setSkillHint(`无法识别「${raw}」：用官方技能名，或「科学:生物学」这类「类别:专攻」写法`);
+      return;
+    }
+    const exists = [...document.querySelectorAll("[data-skill]")]
+      .some((row) => canonSkill(row.dataset.name) === canonSkill(name));
+    if (exists) {
+      setSkillHint(`技能已存在：${name}`);
+      return;
+    }
+    const tbody = document.getElementById("skillBody");
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
+    skillInput.value = "";
+    setSkillHint("");
+    rerenderDerived();
+    skillInput.focus();
+  }
   skillInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();

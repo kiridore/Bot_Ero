@@ -101,6 +101,11 @@ class TestBuilderScript(unittest.TestCase):
         self.assertIn('id="skillName"', src)
         self.assertIn('list="skillOptions"', src)
         self.assertIn("addSkillFromInput", src)
+        # 定义必须真的落地，否则 bind() 里会抛 skillInput is not defined
+        self.assertIn("const skillInput = document.getElementById(\"skillName\");", src)
+        self.assertIn("const skillHint = document.getElementById(\"skillAddHint\");", src)
+        self.assertIn("const setSkillHint = (text) =>", src)
+        self.assertIn("function addSkillFromInput()", src)
 
     def test_non_occ_rows_disable_occ_column(self):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
