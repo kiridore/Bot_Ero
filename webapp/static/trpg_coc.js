@@ -95,7 +95,7 @@ function rerenderDerived() {
     intSpent += Number(row.querySelector("[data-int]").value || 0);
     const base = Number(row.querySelector("[data-base]").value || 0);
     const growth = Number(row.querySelector("[data-growth]").value || 0);
-    const value = Math.min(base + growth + Number(row.querySelector("[data-occ]").value || 0) + Number(row.querySelector("[data-int]").value || 0), 99);
+    const value = Math.min(base + growth + Number(row.querySelector("[data-occ]").value || 0) + Number(row.querySelector("[data-int]").value || 0), 199);
     row.querySelector("[data-total]").textContent = value;
   });
   const interestBudget = int * 2;
@@ -135,7 +135,7 @@ function skillRow(name, entry) {
     <tr data-skill data-name="${escapeHtml(name)}">
       <td>${escapeHtml(name)}</td>
       <td><input type="number" data-base value="${base}" min="0" max="99" class="coc-num" /></td>
-      <td><input type="number" data-growth value="${entry.growth || 0}" min="0" max="99" class="coc-num" /></td>
+      <td><input type="number" data-growth value="${entry.growth || 0}" min="0" max="199" class="coc-num" />${entry.check ? " ✓" : ""}</td>
       <td><input type="number" data-occ value="${entry.occupation || 0}" min="0" max="99" class="coc-num" /></td>
       <td><input type="number" data-int value="${entry.interest || 0}" min="0" max="99" class="coc-num" /></td>
       <td data-total class="coc-total">0</td>

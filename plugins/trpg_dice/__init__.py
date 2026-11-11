@@ -6,7 +6,7 @@ from core.logger import logger
 from core.utils import register_plugin
 from core import character_store as store
 from core.trpg import coc as coc_sheet
-from core.trpg import party
+from core.trpg import growth, party
 import core.context as runtime_context
 
 from .dice import parse, _eval_advantage, _eval_disadvantage
@@ -118,6 +118,7 @@ class TrpgPlugin(Plugin):
         if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
             return
         text_arg = arg.strip()
+        char = None
         if text_arg.isdigit():
             value = int(text_arg)
         else:
@@ -130,7 +131,16 @@ class TrpgPlugin(Plugin):
             if value is None:
                 raise ValueError(f"角色卡里没有技能「{text_arg}」")
         roll, grade = coc_check(value)
-        self._send_with_record(f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}")
+        text_out = f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}"
+        if char is not None and grade not in ("失败", "大失败"):
+            # 成功使用技能 → 打成长标记（数值检定不涉及角色卡）
+            if growth.mark(char, text_arg):
+                text_out += "\n· 已标记技能成长"
+                try:
+                    store.update_char(char.get("user_id"), char.get("id"), char)
+                except Exception:
+                    logger.exception("写入技能成长标记失败")
+        self._send_with_record(text_out)
 
     def _get_nickname(self):
         sender = self.bot_event.sender

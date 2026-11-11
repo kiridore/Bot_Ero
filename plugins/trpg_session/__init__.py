@@ -11,7 +11,7 @@ from core.logger import logger
 from core.onebot_client import fetch_group_list, fetch_group_members, resolve_group_name
 from core.utils import register_plugin, download_image
 from core import character_store as store
-from core.trpg import party, records
+from core.trpg import growth, party, records
 from core.trpg.game_systems import DEFAULT_RULE, GAME_SYSTEMS, normalize_rule, rule_name
 import core.context as runtime_context
 
@@ -338,6 +338,8 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
                 self._handle_rule(parts[2:])
             else:
                 self._handle_card()
+        elif sub == "成长":
+            self._handle_growth(parts[2:])
         elif sub == "记录":
             self._route_record(parts[2:])
         else:
@@ -571,6 +573,55 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         self.api.send_msg(*self._card_segments(group_id))
 
     # ── 开录准入校验 ──────────────────────────────────────
+
+    # ── 幕间成长 ──────────────────────────────────────────
+
+    def _handle_growth(self, args: list):
+        sender = str(self.bot_event.user_id or "")
+        target = None
+        for seg in self.bot_event.message:
+            if seg.get("type") == "at":
+                qq = str(seg.get("data", {}).get("qq", ""))
+                if qq and qq != "all":
+                    target = qq
+                    break
+        target = target or sender
+        if target != sender and not self._is_dm_or_admin(self.bot_event.group_id):
+            self.api.send_msg(text("只有 DM 可以替他人结算幕间成长"))
+            return
+        char = store.get_current(target)
+        if not char:
+            self.api.send_msg(text("还没有角色卡，请到网页端创建 COC 调查员卡"))
+            return
+        if (char.get("rules") or "dnd5e") != "coc7th":
+            self.api.send_msg(text("幕间成长是 COC 7th 功能，当前角色卡不是 COC 调查员卡"))
+            return
+        group_id = self.bot_event.group_id
+        if group_id is not None and (party.current_rule(group_id) != "coc7th"):
+            self.api.send_msg(text(f"本团规则是 {rule_name(party.current_rule(group_id))}，幕间成长需要 COC 7th"))
+            return
+        pending = growth.checked_skills(char)
+        if not pending:
+            self.api.send_msg(text("没有已标记的技能：先用 .ra <技能名> 检定成功，才能获得成长标记"))
+            return
+        details, san_change = growth.settle(char)
+        try:
+            store.update_char(target, char.get("id"), char)
+        except Exception:
+            logger.exception("保存幕间成长结果失败")
+            self.api.send_msg(text("保存成长结果失败，请稍后重试"))
+            return
+        name = char.get("char_name") or target
+        lines = [f"{name} 的幕间成长（{len(details)} 项）"]
+        for skill, before, roll, gain, after in details:
+            if gain:
+                lines.append(f"· {skill}：D100={roll} > {before} → +{gain}，{before} → {after}")
+            else:
+                lines.append(f"· {skill}：D100={roll} ≤ {before}，未增长")
+        if san_change:
+            lines.append(f"· 有技能达到 90% 或更高，SAN +{san_change}")
+        lines.append("已清空本次成长标记")
+        self.api.send_msg(text("\n".join(lines)))
 
     def _is_dm_or_admin(self, group_id) -> bool:
         user_id = str(self.bot_event.user_id or "")

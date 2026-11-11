@@ -952,3 +952,69 @@ class TestPrepareRuleMatch(IsolationMixin, unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestGrowth(IsolationMixin, unittest.TestCase):
+    """幕间成长：/跑团 成长 只结算自己的卡，DM 可 @ 他人。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _seed_card(self, user_id="111", **over):
+        card = {
+            "rules": "coc7th", "char_name": "田宫", "occupation": "药剂师",
+            "str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
+            "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
+            "current_san": 65,
+            "skills": {"侦察": {"base": 25, "growth": 0, "check": True},
+                       "图书馆": {"base": 20, "growth": 0}},
+        }
+        card.update(over)
+        char_id = store.create_char(user_id, card)
+        store.set_current(user_id, char_id)
+        return card
+
+    def test_settles_checked_skills(self):
+        self.seed_party()
+        party.set_rule(GROUP_ID, "coc7th")
+        self._seed_card()
+        with patch("core.trpg.growth.random.randint", side_effect=[90, 4]):
+            plugin = _run([_text_seg("/跑团 成长")])
+        out = _sent_text(plugin)
+        self.assertIn("幕间成长", out)
+        self.assertIn("+4", out)
+        self.assertIn("已清空", out)
+        card = store.get_current("111")
+        self.assertEqual(card["skills"]["侦察"]["growth"], 4)
+        self.assertFalse(card["skills"]["侦察"]["check"])
+
+    def test_no_marks_message(self):
+        self.seed_party()
+        party.set_rule(GROUP_ID, "coc7th")
+        self._seed_card(skills={"侦察": {"base": 25, "growth": 0}})
+        plugin = _run([_text_seg("/跑团 成长")])
+        self.assertIn("没有已标记的技能", _sent_text(plugin))
+
+    def test_dnd_card_refused(self):
+        self.seed_party()
+        self._seed_card(rules="dnd5e")
+        plugin = _run([_text_seg("/跑团 成长")])
+        self.assertIn("不是 COC 调查员卡", _sent_text(plugin))
+
+    def test_group_rule_mismatch_refused(self):
+        self.seed_party()
+        self._seed_card()
+        plugin = _run([_text_seg("/跑团 成长")])
+        self.assertIn("本团规则是 DND 5E", _sent_text(plugin))
+
+    def test_non_dm_cannot_target_other(self):
+        self.patch_members([
+            {"user_id": "111", "nickname": "玩家A", "is_robot": False},
+            {"user_id": "222", "nickname": "玩家B", "is_robot": False},
+        ])
+        self._seed_card()
+        _run([_text_seg("/跑团 规则 coc7th")], user_id=111, nickname="玩家A")
+        plugin = _run([_text_seg("/跑团 成长"), {"type": "at", "data": {"qq": "111"}}],
+                      user_id=222, nickname="玩家B")
+        self.assertIn("只有 DM", _sent_text(plugin))

@@ -217,14 +217,20 @@ class TestCocRules(unittest.TestCase):
         with patch("plugins.trpg_dice.rolls.random.randint", return_value=55):
             self.assertEqual(coc_check(60)[1], "常规成功")
         with patch("plugins.trpg_dice.rolls.random.randint", return_value=97):
+            self.assertEqual(coc_check(60)[1], "失败")
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=100):
             self.assertEqual(coc_check(60)[1], "大失败")
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=96):
+            self.assertEqual(coc_check(40)[1], "大失败")
+        with patch("plugins.trpg_dice.rolls.random.randint", return_value=1):
+            self.assertEqual(coc_check(60)[1], "大成功")
 
     def test_check_rejects_out_of_range(self):
         from plugins.trpg_dice.rolls import coc_check
         with self.assertRaises(ValueError):
             coc_check(0)
         with self.assertRaises(ValueError):
-            coc_check(101)
+            coc_check(200)
 
     def test_ra_under_coc_rule(self):
         plugin = self._plugin(".ra 70")
@@ -257,11 +263,25 @@ class TestCocRules(unittest.TestCase):
         self.assertIn("当前规则是 DND 5E", _sent_text(plugin))
 
     def test_ra_skill_name_from_coc_card(self):
-        card = {"rules": "coc7th", "skills": {"侦查": {"base": 25, "occupation": 20}}}
+        card = {"rules": "coc7th", "id": 3, "user_id": "10000",
+                "skills": {"侦查": {"base": 25, "occupation": 20}}}
         plugin = self._plugin(".ra 侦查")
-        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card),                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card),                 patch("plugins.trpg_dice.store.update_char") as saved,                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
             plugin.handle()
         self.assertIn("[技能=45]", _sent_text(plugin))
+        self.assertIn("已标记技能成长", _sent_text(plugin))
+        self.assertTrue(card["skills"]["侦查"]["check"])
+        self.assertEqual(saved.call_count, 1)
+
+    def test_ra_failure_does_not_mark(self):
+        card = {"rules": "coc7th", "id": 3, "user_id": "10000",
+                "skills": {"侦查": {"base": 25, "occupation": 20}}}
+        plugin = self._plugin(".ra 侦查")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card),                 patch("plugins.trpg_dice.store.update_char") as saved,                 patch("plugins.trpg_dice.rolls.random.randint", return_value=90):
+            plugin.handle()
+        self.assertNotIn("已标记技能成长", _sent_text(plugin))
+        self.assertFalse(card["skills"]["侦查"].get("check"))
+        self.assertEqual(saved.call_count, 0)
 
     def test_ra_unknown_skill_reported(self):
         card = {"rules": "coc7th", "skills": {"侦查": {"base": 25}}}

@@ -82,7 +82,7 @@
 | **基础扩展包** | `lottery`, `redeem_shop`, `grant_points_all`, `title`, `weekly_quest`, `immortal_lottery` | 抽奖、商店、称号、周常、仙人彩 |
 | **休闲娱乐** | `news`, `group_alarm`, `dice`, `divination`, `random_reference`, `call` | 新闻订阅、闹钟、骰子、占卜、随机图、召唤 |
 | **匿名游戏** | `who_is_spy` | 谁是卧底：群聊创建房间，私聊匿名进行 |
-| **跑团** | `trpg_dice`, `trpg_session`, `trpg_char`, `trpg_vitals` | Sealdice 风格骰子 + 跑团记录 + DND5E/COC7th 角色卡 + HP/SAN 数值变动 |
+| **跑团** | `trpg_dice`, `trpg_session`, `trpg_char`, `trpg_vitals` | Sealdice 风格骰子 + 跑团记录 + DND5E/COC7th 角色卡 + HP/SAN 数值变动 + 幕间成长 |
 | **群管理工具** | `group_essence`, `at_all_reply`, `recall_message`, `set_group_title` | 精华、@全体、撤回、头衔 |
 
 **语义：**

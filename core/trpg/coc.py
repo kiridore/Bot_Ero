@@ -10,6 +10,8 @@ from __future__ import annotations
 from core.trpg.coc_data import OCCUPATIONS, SKILL_BASE, SKILL_CATEGORIES
 
 SKILL_MAX = 99
+SKILL_CEILING = 199  # 幕间成长可使技能超过 100%
+
 
 # xlsx 技能名与规则书常用译名的对应（玩家按习惯输入都能对上）
 SKILL_ALIASES = {
@@ -127,7 +129,7 @@ def skill_total(entry: dict) -> int:
             total += int(entry.get(key) or 0)
         except (TypeError, ValueError):
             continue
-    return min(total, SKILL_MAX)
+    return min(total, SKILL_CEILING)
 
 
 def canonical_skill(name: str) -> str:
@@ -239,8 +241,8 @@ def validate(data: dict) -> list[str]:
     if fin["interest_spent"] > fin["interest_budget"]:
         problems.append(f"兴趣点超出预算（{fin['interest_spent']}/{fin['interest_budget']}）")
     for name, entry in fin["skills"].items():
-        if entry["total"] < 0 or entry["total"] > SKILL_MAX:
-            problems.append(f"技能「{name}」成功率应在 0-99 之间")
+        if entry["total"] < 0 or entry["total"] > SKILL_CEILING:
+            problems.append(f"技能「{name}」成功率应在 0-{SKILL_CEILING} 之间")
     return problems
 
 

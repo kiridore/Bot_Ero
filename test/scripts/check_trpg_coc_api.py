@@ -109,6 +109,11 @@ r = client.post("/api/me/characters", headers=H, json=damaged)
 check("当前值原样保存", r.status_code == 200 and r.json()["current_san"] == 40 and r.json()["current_hp"] == 6,
       r.text[:160])
 
+grown = dict(CARD, skills={"侦查": {"base": 25, "growth": 80}})
+r = client.post("/api/me/characters", headers=H, json=grown)
+check("成长可超过 100%", r.status_code == 200 and any(
+    entry["total"] == 105 for entry in r.json()["skills"].values()), r.text[:160])
+
 bad = dict(CARD, skills={"侦查": {"base": 25, "occupation": 500}})
 r = client.post("/api/me/characters", headers=H, json=bad)
 check("职业点超预算 400", r.status_code == 400 and "职业点超出" in r.text, r.text[:160])

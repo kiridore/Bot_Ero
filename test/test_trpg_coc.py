@@ -64,9 +64,14 @@ class TestDerived(unittest.TestCase):
         self.assertEqual(fin["skills"]["聆听"]["total"], 30)
         self.assertEqual(fin["skills"]["技艺:摄影"]["total"], 10)
 
-    def test_skill_capped_at_99(self):
+    def test_growth_may_exceed_100(self):
+        # 7 版：幕间成长可以让技能超过 100%
         fin = coc.finalize(_card(skills={"侦查": {"base": 90, "growth": 20}}))
-        self.assertEqual(fin["skills"]["侦查"]["total"], 99)
+        self.assertEqual(fin["skills"]["侦查"]["total"], 110)
+
+    def test_skill_ceiling(self):
+        fin = coc.finalize(_card(skills={"侦查": {"base": 90, "growth": 500}}))
+        self.assertEqual(fin["skills"]["侦查"]["total"], coc.SKILL_CEILING)
 
 
 class TestBudgets(unittest.TestCase):
