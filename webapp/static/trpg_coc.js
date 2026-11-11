@@ -252,7 +252,7 @@ function render() {
         <label>克苏鲁神话<input id="cthulhu_mythos" type="number" min="0" max="99" value="${card.cthulhu_mythos || 0}" class="coc-num" /></label>
         <label>古籍、咒文和魔法物品<textarea rows="2" data-bg="arcane_tomes">${escapeHtml(bg.arcane_tomes || "")}</textarea></label>
       </div>
-      <label class="coc-wide">调查员笔记<textarea id="notes" rows="3">${escapeHtml(card.notes || "")}</textarea></label>
+      <label class="coc-wide">调查员笔记<textarea id="notes" rows="4">${escapeHtml(card.notes || "")}</textarea></label>
     </section>
   `;
   bind();
