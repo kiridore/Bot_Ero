@@ -7,9 +7,7 @@
 
 import random
 
-from .coc import (
-    canonical_skill, finalize, skill_name_ok, skill_note_index, skill_total, weapon_skill_base,
-)
+from .coc import canonical_skill, finalize, skill_base_map, skill_name_ok, skill_total
 from .vitals import clamp
 
 SAN_REWARD_SKILL = 90
@@ -33,12 +31,8 @@ def _resolve_key(skills: dict, name: str) -> str | None:
 
 
 def _base_for_new_skill(canon: str) -> int | None:
-    """卡上没有这一行时补行用的基础值：标准技能由 finalize 兜底，其余查附表/武器技能表。"""
-    note = skill_note_index().get(canon) or {}
-    text = str(note.get("base") or "").strip()
-    if text.endswith("%") and text[:-1].isdigit():
-        return int(text[:-1])
-    return weapon_skill_base().get(canon)
+    """卡上没有这一行时补行用的基础值（与 finalize 兜底同一张表）。"""
+    return skill_base_map().get(canon)
 
 
 def mark(card: dict, name: str) -> bool:

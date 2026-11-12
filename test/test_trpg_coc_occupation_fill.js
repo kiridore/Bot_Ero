@@ -9,6 +9,8 @@ function slice(from, to) {
   return src.slice(a, b);
 }
 const helpers = slice("function requiredSkillNames", "function escapeHtml");
+// skillBaseFor 是三处补行共用的基础值查询，必须一起注入沙箱
+const baseHelper = slice("function skillBaseFor", "function poolHint");
 const fillers = slice("function fillRequiredSkills", "function syncChosenSkills");
 
 const checks = [];
@@ -57,7 +59,7 @@ const factory = new Function(
   "options",
   "document",
   "skillRow",
-  `${helpers}\n${fillers}\nreturn { requiredSkillNames, fillRequiredSkills, pruneAutoAdded, get autoAdded() { return autoAdded; } };`,
+  `${helpers}\n${baseHelper}\n${fillers}\nreturn { requiredSkillNames, fillRequiredSkills, pruneAutoAdded, get autoAdded() { return autoAdded; } };`,
 );
 const api = factory(
   options,

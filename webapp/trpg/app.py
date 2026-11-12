@@ -237,7 +237,8 @@ def _apply_rules(data: dict) -> None:
 def api_coc_options():
     """建卡工具的数据源：技能基础值、职业模板与类别。"""
     return {
-        "skill_base": trpg_coc.SKILL_BASE,
+        "skill_base": trpg_coc.skill_base_map(),
+        "default_skills": trpg_coc.default_skill_names(),
         "skill_categories": list(trpg_coc.SKILL_CATEGORIES),
         "skill_aliases": dict(trpg_coc.SKILL_ALIASES),
         "occupations": [

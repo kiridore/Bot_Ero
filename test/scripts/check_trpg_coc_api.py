@@ -220,6 +220,15 @@ check("非法生活水平 400", r.status_code == 400 and "不在 6 档" in r.tex
 opts = client.get("/api/trpg/coc/options", headers=H).json()
 library = opts.get("weapon_library") or []
 check("武器库随选项下发", len(library) >= 100, str(len(library)))
+base_map = opts.get("skill_base") or {}
+check("基础值表含三类技能",
+      base_map.get("会计") == 5 and base_map.get("科学:化学") == 1 and base_map.get("斗殴") == 25,
+      str({k: base_map.get(k) for k in ("会计", "科学:化学", "斗殴")}))
+check("播种名单只含标准技能",
+      len(opts.get("default_skills") or []) == 39
+      and "科学:化学" not in (opts.get("default_skills") or []),
+      str(len(opts.get("default_skills") or [])))
+
 notes = opts.get("skill_notes") or {}
 check("技能说明随选项下发", len(notes) >= 100 and notes.get("会计", {}).get("base") == "5%"
       and notes.get("技艺:表演"), str(len(notes)))

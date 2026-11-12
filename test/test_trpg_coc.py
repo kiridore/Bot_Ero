@@ -455,3 +455,36 @@ class TestGrowthMarkDefaults(unittest.TestCase):
         card = _card(skills={})
         self.assertFalse(growth.mark(card, "飞天"))
         self.assertEqual(card["skills"], {})
+
+
+class TestSkillBaseConsistency(unittest.TestCase):
+    """技能基础值只能有一个来源：标准技能、专攻、武器技能都必须查同一张表。"""
+
+    def test_map_covers_three_kinds(self):
+        table = coc.skill_base_map()
+        self.assertEqual(table["会计"], 5)        # 标准技能
+        self.assertEqual(table["科学:化学"], 1)    # 附表专攻
+        self.assertEqual(table["斗殴"], 25)        # 武器技能
+        self.assertGreaterEqual(len(table), 100)
+
+    def test_finalize_uses_same_table(self):
+        for name in ("会计", "科学:化学", "技艺:表演", "斗殴", "手枪"):
+            base = coc.finalize({"rules": "coc7th", "skills": {name: {}}})["skills"][name]["base"]
+            self.assertEqual(base, coc.skill_base_map()[name], name)
+
+    def test_growth_mark_uses_same_table(self):
+        from core.trpg import growth
+        for name in ("科学:化学", "技艺:表演", "斗殴"):
+            card = {"rules": "coc7th", "skills": {}}
+            self.assertTrue(growth.mark(card, name))
+            self.assertEqual(card["skills"][name]["base"], coc.skill_base_map()[name], name)
+
+    def test_default_skills_are_standard_only(self):
+        names = coc.default_skill_names()
+        self.assertEqual(len(names), 39)
+        self.assertIn("会计", names)
+        self.assertNotIn("科学:化学", names)
+        self.assertNotIn("斗殴", names)
+
+    def test_dodge_still_derived(self):
+        self.assertEqual(coc.skill_defaults(55)["闪避"], 27)

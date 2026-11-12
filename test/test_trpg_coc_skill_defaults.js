@@ -11,7 +11,11 @@ const factory = new Function(
   `${src.slice(start, end)}\nreturn { skillDefaults, mergeSkillDefaults };`,
 );
 
-const options = { skill_base: { 会计: 5, 侦察: 25, 急救: 30, 图书馆使用: 20, 闪避: 0 } };
+const options = {
+  // 后端 skill_base_map：标准技能 + 专攻 + 武器技能；default_skills 只含标准技能
+  skill_base: { 会计: 5, 侦察: 25, 急救: 30, 图书馆使用: 20, 闪避: 0, "科学:化学": 1, 斗殴: 25 },
+  default_skills: ["会计", "侦察", "急救", "图书馆使用", "闪避"],
+};
 const api = factory(options, (n) => n);
 
 const fails = [];
@@ -20,11 +24,13 @@ function check(name, ok, extra) {
   if (!ok) fails.push(name);
 }
 
-const defaults = api.skillDefaults(options.skill_base, 55);
-check("覆盖技能表全部条目", Object.keys(defaults).length === Object.keys(options.skill_base).length);
+const defaults = api.skillDefaults(options.skill_base, 55, options.default_skills);
+check("只铺标准技能（不含专攻与武器技能）",
+  Object.keys(defaults).length === options.default_skills.length
+  && !("科学:化学" in defaults) && !("斗殴" in defaults), String(Object.keys(defaults)));
 check("基础值取表值", defaults["会计"].base === 5 && defaults["急救"].base === 30);
 check("闪避按 敏捷/2", defaults["闪避"].base === 27, String(defaults["闪避"].base));
-check("敏捷缺省为 0", api.skillDefaults(options.skill_base, undefined)["闪避"].base === 0);
+check("敏捷缺省为 0", api.skillDefaults(options.skill_base, undefined, options.default_skills)["闪避"].base === 0);
 
 const merged = api.mergeSkillDefaults(
   { skills: { 会计: { base: 5, occupation: 20 }, 射击游戏: { base: 9 } } },

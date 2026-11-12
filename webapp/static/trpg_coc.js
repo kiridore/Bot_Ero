@@ -65,18 +65,27 @@ let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 ch
 let autoAdded = new Set();  // 选职业时自动补进来的技能（换职业时若没填点数会撤掉）
 
 // 规则默认技能：技能表全部标准技能的基础值，闪避按 DEX/2
-function skillDefaults(skillBase, dexScore) {
+function skillDefaults(skillBase, dexScore, names) {
   const out = {};
-  Object.entries(skillBase || {}).forEach(([name, base]) => {
-    out[name] = { base: Number(base || 0) };
-  });
+  const pick = names && names.length ? names : Object.keys(skillBase || {});
+  pick.forEach((name) => { out[name] = { base: Number((skillBase || {})[name] || 0) }; });
   out["闪避"] = { base: Math.floor(Number(dexScore || 0) / 2) };
   return out;
 }
 
+// 任意技能的基础值（标准技能 / 专攻 / 武器技能）——后端 skill_base_map 是唯一来源
+function skillBaseFor(name) {
+  const canon = canonSkill(normalizeSkillName(name) || name);
+  const table = options.skill_base || {};
+  if (table[canon] != null) return Number(table[canon]);
+  const parts = canon.split(":");
+  if (parts.length > 1 && table[parts[1]] != null) return Number(table[parts[1]]);
+  return 0;
+}
+
 // 卡上已存的技能覆盖默认值（保留成长/职业/兴趣点）
 function mergeSkillDefaults(card, dexScore) {
-  const merged = skillDefaults(options.skill_base, dexScore);
+  const merged = skillDefaults(options.skill_base, dexScore, options.default_skills);
   Object.entries((card && card.skills) || {}).forEach(([name, entry]) => {
     const canon = normalizeSkillName(name) || name;
     merged[canon] = { ...(merged[canon] || {}), ...(entry || {}) };
@@ -257,7 +266,7 @@ function fillRequiredSkills(occ) {
     if (!name || existing.has(canonSkill(name))) return;
     existing.add(canonSkill(name));
     autoAdded.add(canonSkill(name));
-    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: skillBaseFor(name) }));
     added += 1;
   });
   return added;
@@ -282,7 +291,7 @@ function syncChosenSkills() {
     const name = normalizeSkillName(raw);
     if (!name || existing.has(canonSkill(name))) return;
     existing.add(canonSkill(name));
-    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: skillBaseFor(name) }));
   });
 }
 
@@ -447,7 +456,7 @@ function skillNoteTitle(note) {
 }
 
 function skillRow(name, entry) {
-  const base = entry.base != null ? entry.base : (options.skill_base[name] || 0);
+  const base = entry.base != null ? entry.base : skillBaseFor(name);
   return `
     <tr data-skill data-name="${escapeHtml(name)}">
       <td>${escapeHtml(name)}${(() => {
@@ -521,7 +530,7 @@ function renderWeaponLibrary() {
 function currentSkillTotal(name) {
   const row = [...document.querySelectorAll("[data-skill]")]
     .find((r) => canonSkill(r.dataset.name) === canonSkill(name));
-  if (!row) return 0;
+  if (!row) return skillBaseFor(name);
   const num = (sel) => Number(row.querySelector(sel).value || 0);
   return Math.min(num("[data-base]") + num("[data-growth]") + num("[data-occ]") + num("[data-int]"), 199);
 }
@@ -757,7 +766,7 @@ function bind() {
       return;
     }
     const tbody = document.getElementById("skillBody");
-    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: skillBaseFor(name) }));
     skillInput.value = "";
     setSkillHint("");
     rerenderDerived();
@@ -924,7 +933,7 @@ async function init() {
     } else {
       card = {
         age: 25,
-        skills: skillDefaults(options.skill_base, 0),
+        skills: skillDefaults(options.skill_base, 0, options.default_skills),
         weapons: [{ name: "徒手格斗", type: "常规武器", skill: "斗殴", success: 25, damage: "1D3+DB", range: "接触", attacks: "1", ammo: "", malfunction: "", pierce: "×" }],
       };
     }

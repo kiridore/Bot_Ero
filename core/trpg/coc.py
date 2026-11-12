@@ -330,9 +330,34 @@ def skill_note_index() -> dict[str, dict]:
     return index
 
 
+def skill_base_map() -> dict[str, int]:
+    """所有已知技能的基础值：标准 39 项 + 附表专攻（技艺:表演…）+ 武器技能（斗殴…）。
+
+    这是「某技能基础成功率是多少」的唯一来源——finalize 的兜底、成长补行、
+    网页播种与武器成功率都用它，避免同一技能在不同路径算出不同数字。
+    """
+    table = {canonical_skill(name): int(base or 0) for name, base in SKILL_BASE.items()}
+    from .skill_notes import SKILL_NOTES
+
+    for name, note in SKILL_NOTES.items():
+        base = _percent_value(note.get("base"))
+        key = canonical_skill(NOTE_ALIASES.get(name, name))
+        if base is not None and key not in table:
+            table[key] = base
+    for name, base in weapon_skill_base().items():
+        table.setdefault(name, base)
+    return table
+
+
+def default_skill_names() -> list[str]:
+    """建卡时铺进技能表的标准技能（专攻与武器技能不铺，避免每张卡多出几十行）。"""
+    return [canonical_skill(name) for name in SKILL_BASE]
+
+
 def skill_defaults(dex_score: int) -> dict[str, int]:
-    """规则层面每个标准技能的默认基础值；闪避按 DEX/2 派生，不取表里的 0。"""
-    defaults = {canonical_skill(name): int(base or 0) for name, base in SKILL_BASE.items()}
+    """标准技能的默认基础值；闪避按 DEX/2 派生，不取表里的 0。"""
+    table = skill_base_map()
+    defaults = {name: table.get(name, 0) for name in default_skill_names()}
     defaults["闪避"] = max(int(dex_score or 0) // 2, 0)
     return defaults
 
@@ -361,7 +386,7 @@ def finalize(data: dict) -> dict:
             # 闪避的基础值由敏捷决定，卡上存的值不作为口径
             base = max(dex_score // 2, 0)
         elif base is None:
-            base = SKILL_BASE.get(name, 0)
+            base = skill_base_map().get(name, 0)
         merged = {
             "base": int(base or 0),
             "growth": int(entry.get("growth") or 0),
