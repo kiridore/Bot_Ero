@@ -98,9 +98,10 @@ party.set_group_name(GROUP, "夜航团")
 with_name = ((client.get("/api/trpg/parties", headers=auth(DM)).json() or {}).get("parties") or [{}])[0]
 check("群名随准备名单下发", with_name.get("group_name") == "夜航团", str(with_name.get("group_name")))
 
-check("DM 昵称来自 role_names", first.get("dm_name") == "守密人"
-      and any(m["user_id"] == DM and m["nickname"] == "守密人" for m in first.get("members") or []),
-      str(first.get("dm_name")))
+check("DM 昵称回落快照", first.get("dm_name") == "守密人", str(first.get("dm_name")))
+check("成员快照昵称保留", any(m["user_id"] == DM and m["nickname"] == "守密人"
+                             for m in first.get("members") or []),
+      str([m["nickname"] for m in first.get("members") or []]))
 
 r = client.get("/api/trpg/parties", headers=auth(STRANGER))
 other = (r.json() or {}).get("parties") or []
@@ -108,6 +109,15 @@ check("非 DM 也能看到准备中名单", bool(other) and other[0].get("is_dm"
       str((other[0] if other else {}).get("is_dm")))
 check("非 DM 无审核权限", bool(other) and other[0].get("can_audit") is False,
       str((other[0] if other else {}).get("can_audit")))
+
+# 实时名片优先于快照；取不到时回落快照
+from unittest.mock import patch as _patch  # noqa: E402
+with _patch("webapp.trpg.app.resolve_group_member_name", return_value="实时名片"):
+    live = (((client.get("/api/trpg/parties", headers=auth(DM)).json() or {}).get("parties")) or [{}])[0]
+check("DM 昵称实时获取", live.get("dm_name") == "实时名片", str(live.get("dm_name")))
+with _patch("webapp.trpg.app.resolve_group_member_name", return_value=""):
+    fallback = (((client.get("/api/trpg/parties", headers=auth(DM)).json() or {}).get("parties")) or [{}])[0]
+check("实时取不到回落快照", fallback.get("dm_name") == "守密人", str(fallback.get("dm_name")))
 
 # 超级用户不是本群 DM 时：不能冒充 DM，但有审核权限
 from unittest.mock import patch  # noqa: E402

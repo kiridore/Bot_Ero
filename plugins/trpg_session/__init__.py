@@ -355,7 +355,8 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         nickname = str(raw.get("card_new") or raw.get("card") or "").strip()
         if not nickname:
             # 取消群名片时通知里只剩空串：现拉一次成员信息拿 QQ 昵称，别留着旧名片
-            nickname = resolve_group_member_name(group_id, user_id)
+            # 事件驱动的一次性查询，直接要最新的
+            nickname = resolve_group_member_name(group_id, user_id, use_cache=False)
         if not nickname:
             return
         try:

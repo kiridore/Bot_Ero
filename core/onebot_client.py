@@ -1,5 +1,6 @@
 """通过 OneBot HTTP 接口解析 QQ 昵称（群名片优先）。"""
 
+import time
 from functools import lru_cache
 
 import requests
@@ -96,20 +97,36 @@ def fetch_group_list() -> set[int] | None:
     return groups
 
 
-def resolve_group_member_name(group_id, user_id) -> str:
-    """取某个群的成员显示名（名片优先，其次 QQ 昵称）；取不到返回空串。"""
+_NAME_TTL_OK = 60      # 命中
+_NAME_TTL_FAIL = 30    # 未命中（接口不可用时不至于每次请求都等超时）
+_member_name_cache: dict[tuple[int, int], tuple[float, str]] = {}
+
+
+def resolve_group_member_name(group_id, user_id, use_cache: bool = True) -> str:
+    """取某个群的成员显示名（名片优先，其次 QQ 昵称）；取不到返回空串。
+
+    webapp 每次打开名单都会问一次，所以带 TTL 缓存：成功 60 秒、失败 30 秒，
+    避免 OneBot 不可达时每个请求都卡在超时上。
+    """
     try:
         gid, uid = int(group_id), int(user_id)
     except (TypeError, ValueError):
         return ""
+    key = (gid, uid)
+    now = time.time()
+    if use_cache:
+        cached = _member_name_cache.get(key)
+        if cached:
+            age = now - cached[0]
+            if age < (_NAME_TTL_OK if cached[1] else _NAME_TTL_FAIL):
+                return cached[1]
     info = _call_onebot("get_group_member_info",
-                        {"group_id": gid, "user_id": uid, "no_cache": True}, timeout=3)
-    if not info:
-        return ""
-    card = str(info.get("card") or "").strip()
-    if card:
-        return card
-    return str(info.get("nickname") or "").strip()
+                        {"group_id": gid, "user_id": uid, "no_cache": True}, timeout=2)
+    name = ""
+    if info:
+        name = str(info.get("card") or "").strip() or str(info.get("nickname") or "").strip()
+    _member_name_cache[key] = (now, name)
+    return name
 
 
 @lru_cache(maxsize=4096)

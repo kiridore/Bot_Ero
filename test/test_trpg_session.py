@@ -1197,3 +1197,38 @@ class TestGroupCardNotice(IsolationMixin, unittest.TestCase):
         plugin = TrpgSessionPlugin({"post_type": "notice", "notice_type": "group_recall",
                                     "group_id": GROUP_ID, "user_id": 111, "time": 0})
         self.assertFalse(plugin.match("notice"))
+
+
+class TestMemberNameCache(unittest.TestCase):
+    """webapp 每次打开名单都会问一次名片：命中缓存 60 秒、失败 30 秒，避免反复等超时。"""
+
+    def setUp(self):
+        from core import onebot_client as mod
+        mod._member_name_cache.clear()
+        self.addCleanup(mod._member_name_cache.clear)
+        self.mod = mod
+
+    def test_success_is_cached(self):
+        with patch("core.onebot_client._call_onebot", return_value={"card": "名片"}) as call:
+            self.assertEqual(self.mod.resolve_group_member_name(1, 2), "名片")
+            self.assertEqual(self.mod.resolve_group_member_name(1, 2), "名片")
+        self.assertEqual(call.call_count, 1)
+
+    def test_card_empty_falls_back_to_nickname(self):
+        with patch("core.onebot_client._call_onebot", return_value={"card": "", "nickname": "昵称"}):
+            self.assertEqual(self.mod.resolve_group_member_name(1, 2), "昵称")
+
+    def test_failure_cached_short(self):
+        with patch("core.onebot_client._call_onebot", return_value=None) as call:
+            self.assertEqual(self.mod.resolve_group_member_name(1, 2), "")
+            self.assertEqual(self.mod.resolve_group_member_name(1, 2), "")
+        self.assertEqual(call.call_count, 1)
+
+    def test_cache_can_be_bypassed(self):
+        with patch("core.onebot_client._call_onebot", return_value={"card": "旧"}) as call:
+            self.mod.resolve_group_member_name(1, 2)
+            self.mod.resolve_group_member_name(1, 2, use_cache=False)
+        self.assertEqual(call.call_count, 2)
+
+    def test_bad_ids_return_empty(self):
+        self.assertEqual(self.mod.resolve_group_member_name("abc", 2), "")

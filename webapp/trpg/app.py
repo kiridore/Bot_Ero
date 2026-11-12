@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from core import character_store as char_store
 from core import config as core_config
 from core import user_settings as user_settings_mod
-from core.onebot_client import resolve_display_name
+from core.onebot_client import resolve_display_name, resolve_group_member_name
 from core.trpg import character as trpg_char
 from core.trpg import levelup as trpg_levelup
 from core.trpg import coc as trpg_coc
@@ -541,13 +541,16 @@ def _pending_roster(group_id: str) -> dict | None:
             "prepared": str(uid) in prepared,
         })
     rules = data.get("rules") or ""
+    dm_id = str(dm_ids[0])
+    # 实时取 DM 名片（带 TTL 缓存）；OneBot 不可用时回落 .dm 时刻的快照，再回落 QQ 号
+    live_name = resolve_group_member_name(group_id, dm_id) or ""
     return {
         "group_id": str(group_id),
         "group_name": data.get("group_name") or "",
         "rules": rules,
         "rules_name": rule_name(rules) if rules else "未知规则",
-        "dm": str(dm_ids[0]),
-        "dm_name": role_names.get(dm_ids[0]) or str(dm_ids[0]),
+        "dm": dm_id,
+        "dm_name": live_name or role_names.get(dm_id) or dm_id,
         "prepared_count": len([u for u in prepared]),
         "member_count": len(members),
         "members": members,
