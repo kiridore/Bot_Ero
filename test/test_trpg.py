@@ -172,7 +172,7 @@ class TestTrpgPluginHandle(unittest.TestCase):
         plugin.api = MockApiWrapper(ctx)
         plugin.handle()
         out = _sent_text(plugin)
-        self.assertTrue("出错" in out or "无效" in out)
+        self.assertTrue("出错" in out or "无效" in out or "无法解析" in out)
 
     @patch("plugins.trpg_dice.dice.random.randint", return_value=42)
     def test_handle_rh_group_hint(self, _):

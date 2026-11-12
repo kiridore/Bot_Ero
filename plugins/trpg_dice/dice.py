@@ -31,6 +31,21 @@ def _eval_dice(count, sides, values):
     return {"value": total, "detail": detail}
 
 
+def _eval_keep(count, sides, values, mode, keep):
+    """取高（kh）/取低（kl）：保留 keep 颗，其余丢弃。"""
+    if keep < 1 or keep > count:
+        raise ValueError(f"保留数量应在 1~{count} 之间")
+    ordered = sorted(values, reverse=(mode == "high"))
+    kept = ordered[:keep]
+    dropped = ordered[keep:]
+    total = sum(kept)
+    tag = "kh" if mode == "high" else "kl"
+    detail = f"[{count}d{sides}{tag}{keep}={total}, {' + '.join(str(v) for v in kept)}"
+    if dropped:
+        detail += f" | 弃 {' '.join(str(v) for v in dropped)}"
+    return {"value": total, "detail": detail + "]"}
+
+
 def _eval_advantage(sides):
     a = random.randint(1, sides)
     b = random.randint(1, sides)
@@ -100,6 +115,18 @@ def _tokenize(s):
             tokens.append((c.lower(), c))
             i += 1
             continue
+        if c.lower() == "k":
+            j = i + 1
+            mode = "high"
+            if j < len(s) and s[j].lower() in ("h", "l"):
+                mode = "high" if s[j].lower() == "h" else "low"
+                j += 1
+            start = j
+            while j < len(s) and s[j].isdigit():
+                j += 1
+            tokens.append(("keep", mode, int(s[start:j]) if j > start else 1))
+            i = j
+            continue
         if s.startswith("优势", i):
             tokens.append(("优势", "优势"))
             i += 2
@@ -108,7 +135,9 @@ def _tokenize(s):
             tokens.append(("劣势", "劣势"))
             i += 2
             continue
-        break  # unknown char → reason text
+        raise ValueError(
+            f"无法解析「{s[i:]}」：只支持数字、d、b、p、+ - * / ( ) # % 与 k/kh/kl；"
+            f"说明文字请用空格与算式分开，例如 .r 1d20 偷袭")
     return tokens
 
 
@@ -237,4 +266,7 @@ def _parse_dice_result(count, sides, tokens, pos):
         return _eval_disadvantage(sides), pos + 1
 
     values = roll(count, sides)
+    if pos < len(tokens) and tokens[pos][0] == "keep":
+        _, mode, keep = tokens[pos]
+        return _eval_keep(count, sides, values, mode, keep), pos + 1
     return _eval_dice(count, sides, values), pos
