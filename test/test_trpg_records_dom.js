@@ -133,8 +133,9 @@ for (const [name, html, active] of [
 
 // ── 详情页数据 stub ────────────────────────────────────
 const participants = [
-  { user_id: ME, nickname: "老张", char_name: "艾拉", role: "dm" },
-  { user_id: OTHER, nickname: "小王", char_name: "", role: "ob" },
+  { user_id: ME, nickname: "老张", display_name: "老张（实时）", avatar_url: "https://q1.qlogo.cn/g?b=qq&nk=1",
+    char_name: "艾拉", role: "dm" },
+  { user_id: OTHER, nickname: "小王", display_name: "小王", avatar_url: "", char_name: "", role: "ob" },
 ];
 const allMessages = [
   { time: 1762776000, sender_type: "user", user_id: ME, nickname: "老张", char_name: "艾拉",
@@ -193,11 +194,26 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("他人消息不带 is-self 且带头像",
     !otherNode.className.includes("is-self") && childrenWithClass(otherNode, "trpg-avatar").length === 1);
   const selfHead = childrenWithClass(selfNode, "trpg-msg-body")[0].children[0];
-  check("名字行显示角色名（昵称）", selfHead.children[0].textContent === "艾拉（老张）", selfHead.children[0].textContent);
+  check("名字行显示角色名（实时名称）", selfHead.children[0].textContent === "艾拉（老张（实时））",
+    selfHead.children[0].textContent);
   check("DM 徽标", childrenWithClass(selfHead, "role-dm")[0].textContent === "DM");
   const otherHead = childrenWithClass(otherNode, "trpg-msg-body")[0].children[0];
   check("观察者徽标", childrenWithClass(otherHead, "role-ob")[0].textContent === "观察者");
   check("无角色卡时名字只显示昵称", otherHead.children[0].textContent === "小王", otherHead.children[0].textContent);
+  check("有头像的参与者用 QQ 头像图片", (() => {
+    rebuildNickMap([{ user_id: "777", nickname: "旧名", display_name: "路人",
+      avatar_url: "https://q1.qlogo.cn/g?b=qq&nk=777" }]);
+    const node = renderMessage({ sender_type: "user", user_id: "777", nickname: "旧名",
+      char_name: "", segments: [{ type: "text", text: "hi" }] });
+    const avatars = childrenWithClass(node, "trpg-avatar");
+    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
+    return avatars.length === 1 && avatars[0].tagName === "IMG"
+      && avatars[0].src.includes("qlogo.cn") && head.children[0].textContent === "路人";
+  })());
+  check("没有头像时回落名字首字", (() => {
+    const node = renderAvatar({ user_id: "999999", nickname: "无名", char_name: "" });
+    return node.tagName === "DIV" && node.className === "trpg-avatar" && node.textContent === "无";
+  })());
   check("机器人消息带 is-bot 且无头像",
     botNode.className.includes("is-bot") && !childrenWithClass(botNode, "trpg-avatar").length);
   check("每条消息显示时间", childrenWithClass(selfHead, "trpg-msg-time")[0].textContent === "20:00:00",

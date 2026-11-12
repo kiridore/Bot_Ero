@@ -163,6 +163,13 @@ check("最后消息时间取最后一条有效行", by_dir[EXPORTED]["last_messa
 check("群名返回", by_dir[EXPORTED]["group_name"] == "夜航团")
 check("群名缺失返回空串", by_dir[RECORDING]["group_name"] == "")
 check("参与人返回", [p["nickname"] for p in by_dir[EXPORTED]["participants"]] == ["老张", "小王"])
+# 参与者带上实时昵称与头像字段（取不到时回落昵称/空串，不阻塞接口）
+detail = client.get(f"/api/trpg/records/800001/{EXPORTED}", headers=MH).json()
+people = detail.get("participants") or []
+check("参与人带 display_name/avatar_url",
+      bool(people) and all("display_name" in p and "avatar_url" in p for p in people)
+      and all(p["display_name"] for p in people),
+      str([{k: p.get(k) for k in ("nickname", "display_name", "avatar_url")} for p in people])[:200])
 check("is_mine 判定", by_dir[EXPORTED]["is_mine"] is True and by_dir[RECORDING]["is_mine"] is False)
 check("规则名展示", by_dir[EXPORTED]["rules_name"] == "DND 5E" and by_dir[ENDED]["rules_name"] == "COC 7th",
       f'{by_dir[EXPORTED]["rules_name"]}/{by_dir[ENDED]["rules_name"]}')

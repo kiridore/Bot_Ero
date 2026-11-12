@@ -1,6 +1,7 @@
 """跑团子应用：DND 车卡、角色查看与跑团记录浏览。"""
 
 import random
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Annotated
 
@@ -11,7 +12,9 @@ from pydantic import BaseModel
 from core import character_store as char_store
 from core import config as core_config
 from core import user_settings as user_settings_mod
-from core.onebot_client import resolve_display_name, resolve_group_member_name
+from core.onebot_client import (
+    resolve_avatar_url, resolve_display_name, resolve_group_member_name,
+)
 from core.trpg import character as trpg_char
 from core.trpg import levelup as trpg_levelup
 from core.trpg import coc as trpg_coc
@@ -418,8 +421,40 @@ def trpg_char_view_page(user_id: str, char_id: int):
 
 # —— 跑团记录（server_data/trpg_records 只读，结构见 core/trpg/records.py）——
 
+def _participants_with_identity(meta: dict) -> list:
+    """参与者副本 + 实时昵称/头像（不写回 meta.json）。"""
+    participants = [dict(p) for p in (meta.get("participants") or []) if isinstance(p, dict)]
+    _enrich_participants(participants)
+    return participants
+
+
 def _record_state(record_path: Path, meta: dict) -> str:
     return "recording" if meta.get("end") is None else "ended"
+
+
+_RESOLVE_WORKERS = 16  # 昵称/头像并发解析（与时间线一致，OneBot HTTP 局域网）
+
+
+def _enrich_participants(participants: list) -> None:
+    """给记录参与者补 `display_name` / `avatar_url`：与论坛、时间线同一套取法。"""
+    ids = [str(p.get("user_id")) for p in participants
+           if isinstance(p, dict) and p.get("user_id")]
+    if not ids:
+        return
+    unique = list(dict.fromkeys(ids))
+
+    def resolve(uid: str):
+        return resolve_display_name(uid), resolve_avatar_url(uid)
+
+    with ThreadPoolExecutor(max_workers=min(_RESOLVE_WORKERS, len(unique))) as pool:
+        resolved = dict(zip(unique, pool.map(resolve, unique)))
+    for person in participants:
+        if not isinstance(person, dict):
+            continue
+        uid = str(person.get("user_id") or "")
+        name, avatar = resolved.get(uid, ("", ""))
+        person["display_name"] = name if name and name != uid else (person.get("nickname") or uid)
+        person["avatar_url"] = avatar or ""
 
 
 def _my_role(participants, user_id) -> dict:
@@ -631,7 +666,7 @@ def api_trpg_record(
         "state": _record_state(record_path, meta),
         "rules": meta.get("rules") or "",
         "rules_name": rule_name(meta["rules"]) if meta.get("rules") else "未知规则",
-        "participants": meta.get("participants") or [],
+        "participants": _participants_with_identity(meta),
         "total": total,
         "from": start_from,
         "messages": [

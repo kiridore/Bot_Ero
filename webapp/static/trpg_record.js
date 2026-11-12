@@ -21,7 +21,8 @@ let me = null;
 let cursor = 0;          // 已消费到 messages.jsonl 第几条（含被过滤的暗骰，口径由服务端 total 给出）
 let recordState = "";
 let lastSeen = 0;        // 已渲染消息里的最大时间戳，用于判定残留录制
-let nickByQQ = {};
+let nickByQQ = {};        // QQ → 显示名（优先实时解析，回落消息里的昵称）
+let avatarByQQ = {};      // QQ → 头像地址（与论坛/时间线同一取法）
 let pollTimer = null;
 
 function makeEl(tag, className, text) {
@@ -61,15 +62,39 @@ function isSelf(m) {
 }
 
 function displayName(m) {
-  if (m.char_name) return `${m.char_name}（${m.nickname || m.user_id}）`;
-  return m.nickname || String(m.user_id || "");
+  const qq = String(m.user_id || "");
+  const who = nickByQQ[qq] || m.nickname || qq;
+  if (m.char_name) return `${m.char_name}（${who}）`;
+  return who;
 }
 
 function rebuildNickMap(participants) {
   nickByQQ = {};
+  avatarByQQ = {};
   for (const p of participants || []) {
-    if (p && p.user_id != null) nickByQQ[String(p.user_id)] = p.nickname || String(p.user_id);
+    if (!p || p.user_id == null) continue;
+    const qq = String(p.user_id);
+    nickByQQ[qq] = p.display_name || p.nickname || qq;
+    avatarByQQ[qq] = p.avatar_url || "";
   }
+}
+
+// 头像：有 QQ 头像就用图片，取不到（或没参与名单）回落到名字首字
+function renderAvatar(m) {
+  const qq = String(m.user_id || "");
+  const url = avatarByQQ[qq] || "";
+  const fallback = (m.char_name || nickByQQ[qq] || m.nickname || "?").slice(0, 1);
+  if (!url) return makeEl("div", "trpg-avatar", fallback);
+  const img = document.createElement("img");
+  img.className = "trpg-avatar";
+  img.src = url;
+  img.alt = "";
+  img.loading = "lazy";
+  img.onerror = () => {
+    const node = makeEl("div", "trpg-avatar", fallback);
+    if (img.parentNode) img.parentNode.replaceChild(node, img);
+  };
+  return img;
 }
 
 function renderSegment(seg) {
@@ -98,8 +123,7 @@ function renderMessage(m) {
   const node = makeEl("div", classes.join(" "));
 
   if (!isBot && !isSelf(m)) {
-    const who = m.char_name || m.nickname || String(m.user_id || "?");
-    node.appendChild(makeEl("div", "trpg-avatar", who.slice(0, 1)));
+    node.appendChild(renderAvatar(m));
   }
 
   const body = makeEl("div", "trpg-msg-body");
