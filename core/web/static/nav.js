@@ -7,7 +7,6 @@ const NAV_ITEMS = [
   { label: "议事厅", path: "/forum" },
   { label: "个人中心", path: "/profile" },
   { label: "跑团", path: "/trpg" },
-  { label: "跑团记录", path: "/trpg/records" },
   { label: "留言簿", path: "/guestbook" },
   { label: "日程", path: "/profile/schedule" },
   { label: "活动", path: "/activities" },
@@ -59,7 +58,7 @@ const NAV_ITEMS = [
   document.head.appendChild(style);
 
   const current = location.pathname;
-  // 最长前缀匹配：/trpg/records 只点亮「跑团记录」，不再同时点亮「跑团」
+  // 最长前缀匹配：/trpg/records 仍点亮「跑团」，页内用「车卡 / 跑团记录」页签切换
   const active = NAV_ITEMS
     .filter((it) => current === it.path || current.startsWith(it.path + "/"))
     .sort((a, b) => b.path.length - a.path.length)[0];

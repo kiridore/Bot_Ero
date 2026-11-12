@@ -20,6 +20,9 @@ checks.push(["样式已注入", headStyle && headStyle.tagName === "style"]);
 checks.push(["含主页入口", inserted && inserted.innerHTML.includes("littlero.tech")]);
 checks.push(["当前分区高亮", inserted && inserted.innerHTML.includes('class="active"') && inserted.innerHTML.includes('href="/profile"')]);
 checks.push(["含全部分区", inserted && ["/gallery", "/trpg", "/guestbook", "/profile/schedule", "/activities"].every((p) => inserted.innerHTML.includes('href="' + p + '"'))]);
+// 跑团只保留一个顶层入口，跑团记录在页内页签里切换
+checks.push(["跑团入口唯一", inserted && (inserted.innerHTML.match(/href="\/trpg"/g) || []).length === 1]);
+checks.push(["顶层不再有跑团记录", inserted && !inserted.innerHTML.includes('href="/trpg/records"')]);
 
 let fail = 0;
 for (const [name, ok] of checks) {

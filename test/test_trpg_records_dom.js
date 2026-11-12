@@ -102,14 +102,14 @@ global.requestAnimationFrame = (fn) => fn();
     els[id].id = id;
   });
 
-// ── 顶部导航：/trpg/records 只点亮「跑团记录」 ─────────────
+// ── 顶部导航：跑团只有一个顶层入口，/trpg/records 点亮它 ─────────────
 eval(fs.readFileSync("core/web/static/nav.js", "utf8"));
 const nav = bodyChildren[0];
 check("nav 已注入", nav && nav.tagName === "NAV" && nav.className === "site-nav");
-check("nav 含跑团记录入口", nav && nav.innerHTML.includes('href="/trpg/records"') && nav.innerHTML.includes(">跑团记录<"));
-check("nav 含跑团入口", nav && nav.innerHTML.includes('<a href="/trpg">跑团</a>'));
+check("顶层不再有跑团记录入口", nav && !nav.innerHTML.includes('href="/trpg/records"'));
+check("nav 含跑团入口", nav && nav.innerHTML.includes('href="/trpg"') && nav.innerHTML.includes(">跑团<"));
 const activeNav = (nav.innerHTML.match(/<a href="([^"]+)" class="active"/) || [])[1];
-check("nav 最长前缀匹配只点亮跑团记录", activeNav === "/trpg/records", String(activeNav));
+check("nav 高亮跑团入口", activeNav === "/trpg", String(activeNav));
 check("nav 只有一个高亮项", (nav.innerHTML.match(/class="active"/g) || []).length === 1);
 check("nav 已注入样式", headStyle && headStyle.tagName === "STYLE");
 

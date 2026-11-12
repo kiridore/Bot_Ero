@@ -13,7 +13,6 @@
   },
   {
     "name": "狼人杀",
-
     "desc": "谁是卧底与狼人杀桌游网页",
     "url": "https://werewolf.littlero.tech"
   },
@@ -48,13 +47,8 @@
   },
   {
     "name": "跑团",
-    "desc": "DND 车卡与角色查看",
+    "desc": "车卡、跑团记录与角色卡查看",
     "url": "/trpg"
-  },
-  {
-    "name": "跑团记录",
-    "desc": "跑团过程与聊天记录回顾",
-    "url": "/trpg/records"
   },
   {
     "name": "活动",
