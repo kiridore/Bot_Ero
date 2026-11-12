@@ -8,6 +8,8 @@ from core import config
 from core.feature_packs import FEATURE_PACKS
 
 ACTIONS = {"on": "on", "开启": "on", "off": "off", "关闭": "off"}
+# 群主可自助开启的功能包（其余包、单插件、关闭操作都只限超级用户）
+OWNER_PACKS = ("基础包", "跑团")
 
 
 def _get_config(group_id: int) -> set[str]:
@@ -130,8 +132,21 @@ class GroupManagerPlugin(CommandPlugin):
         target_gid = _resolve_target_gid(clean, gid)
         return first, action, target_gid
 
+    def owner_user(self) -> bool:
+        """QQ 群主（sender.role == owner）或超级用户。"""
+        if self.super_user():
+            return True
+        sender = self.bot_event.sender or {}
+        return isinstance(sender, dict) and sender.get("role") == "owner"
+
     def handle(self):
-        if not self.super_user():
+        if self.super_user():
+            pass
+        elif self.owner_user():
+            if self._owner_request():
+                return
+            return
+        else:
             self.api.send_msg(text("仅超级用户可管理插件"))
             return
         parsed = self._parse()
@@ -143,6 +158,40 @@ class GroupManagerPlugin(CommandPlugin):
             self._plugin(name, action, target_gid)
         else:
             self._pack(name, action, target_gid)
+
+    def _owner_request(self) -> bool:
+        """群主的受限路径：只能给自己所在的群开启白名单里的功能包。成功返回 True。"""
+        gid = self.bot_event.group_id
+        if gid is None:
+            self.api.send_msg(text("功能包只能在群聊中由群主开启"))
+            return True
+        parsed = self._parse()
+        if isinstance(parsed, str):
+            self.api.send_msg(text(parsed))
+            return True
+        name, action, target_gid = parsed
+        if self.cmd != "/功能包":
+            self.api.send_msg(text("群主只能开启功能包（/功能包 跑团），单个插件的增删请联系超级用户"))
+            return True
+        if target_gid != gid:
+            self.api.send_msg(text("群主只能操作自己所在的群"))
+            return True
+        pack = _find_pack(name)
+        if pack is None:
+            self.api.send_msg(text("功能包「" + name + "」不存在，可用：" + "、".join(OWNER_PACKS)))
+            return True
+        if action != "on":
+            self.api.send_msg(text("群主只能开启功能包，关闭请联系超级用户"))
+            return True
+        if pack not in OWNER_PACKS:
+            self.api.send_msg(text(
+                "群主只能开启：" + "、".join(OWNER_PACKS) + "；其余功能包请联系超级用户"))
+            return True
+        plugins = FEATURE_PACKS[pack]["plugins"]
+        _set_pack_config(gid, pack, True)
+        self.api.send_msg(text(
+            f"已开启功能包「{pack}」：{'、'.join(plugins)}"))
+        return True
 
     def _plugin(self, name: str, action: str, target_gid: int):
         if name == "列表":
