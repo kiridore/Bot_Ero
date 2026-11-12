@@ -1270,3 +1270,29 @@ class TestPreparedCardSuffix(IsolationMixin, unittest.TestCase):
         # 1.63 之前的快照没有 rules 字段，按 DND 处理；全是默认值时也不显示问号
         self.assertEqual(self._suffix(level=1), "")
         self.assertEqual(self._suffix(race="精灵", class_name="法师", level=5), "（精灵 法师 Lv.5）")
+
+    def test_legacy_snapshot_uses_live_card(self):
+        # 1.81.1 之前的快照没有 rules/occupation/age：展示时按当前角色卡补，不要求重新准备
+        char_id = store.create_char("111", {"char_name": "桐島 英二", "rules": "coc7th",
+                                            "occupation": "酒保", "age": 27})
+        legacy = {"user_id": "111", "char_id": char_id, "char_name": "桐島 英二",
+                  "prepared_at": "2026-11-01 10:00:00"}
+        shown = TrpgSessionPlugin._display_snapshot(legacy)
+        self.assertEqual(shown["rules"], "coc7th")
+        self.assertEqual(TrpgSessionPlugin._card_suffix(shown), "（酒保 · 27岁）")
+
+    def test_legacy_snapshot_dnd_card(self):
+        char_id = store.create_char("222", {"char_name": "阿铁", "rules": "dnd5e",
+                                            "race": "人类", "class_name": "战士", "level": 3})
+        legacy = {"user_id": "222", "char_id": char_id, "char_name": "阿铁"}
+        shown = TrpgSessionPlugin._display_snapshot(legacy)
+        self.assertEqual(TrpgSessionPlugin._card_suffix(shown), "（人类 战士 Lv.3）")
+
+    def test_legacy_snapshot_without_card(self):
+        legacy = {"user_id": "999", "char_id": 404, "char_name": "已删卡"}
+        shown = TrpgSessionPlugin._display_snapshot(legacy)
+        self.assertEqual(TrpgSessionPlugin._card_suffix(shown), "")
+
+    def test_new_snapshot_not_touched(self):
+        snap = {"user_id": "111", "rules": "coc7th", "occupation": "药剂师", "age": 28}
+        self.assertIs(TrpgSessionPlugin._display_snapshot(snap), snap)

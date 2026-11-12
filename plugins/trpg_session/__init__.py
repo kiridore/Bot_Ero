@@ -513,7 +513,9 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         lines.append(f"已准备 {len(ready)}/{len(ready) + len(pending)}：")
         for uid in sorted(ready, key=lambda u: prepared[u].get("prepared_at", "")):
             snap = prepared[uid]
-            lines.append(f"· {name_of(uid)} → {snap.get('char_name') or '?'}{self._card_suffix(snap)}")
+            lines.append(
+                f"· {name_of(uid)} → {snap.get('char_name') or '?'}"
+                f"{self._card_suffix(self._display_snapshot(snap))}")
         if not ready:
             lines.append("· 暂无")
 
@@ -526,6 +528,30 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         elif member_ids is None:
             segments.append(text("\n（成员名单不可用，未准备者未知）"))
         return segments
+
+    @staticmethod
+    def _display_snapshot(snap: dict) -> dict:
+        """展示用的快照：1.81.1 之前的快照没有 rules/occupation/age，按当前角色卡补上。"""
+        if snap.get("rules"):
+            return snap
+        user_id = snap.get("user_id")
+        char = None
+        if user_id:
+            char_id = snap.get("char_id")
+            char = store.get_char(user_id, char_id) if char_id else None
+            char = char or store.get_current(user_id)
+        if not char:
+            return snap
+        merged = dict(snap)
+        merged.update({
+            "rules": char.get("rules") or "dnd5e",
+            "race": char.get("race", ""),
+            "class_name": char.get("class_name", ""),
+            "level": int(char.get("level") or 1),
+            "occupation": char.get("occupation", ""),
+            "age": int(char.get("age") or 0),
+        })
+        return merged
 
     @staticmethod
     def _card_suffix(snap: dict) -> str:
