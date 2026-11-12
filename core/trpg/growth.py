@@ -7,7 +7,7 @@
 
 import random
 
-from .coc import canonical_skill, finalize, skill_base_map, skill_name_ok, skill_total
+from .coc import canonical_skill, finalize, skill_base_for, skill_name_ok, skill_total
 from .vitals import clamp
 
 SAN_REWARD_SKILL = 90
@@ -30,9 +30,9 @@ def _resolve_key(skills: dict, name: str) -> str | None:
     return None
 
 
-def _base_for_new_skill(canon: str) -> int | None:
-    """卡上没有这一行时补行用的基础值（与 finalize 兜底同一张表）。"""
-    return skill_base_map().get(canon)
+def _base_for_new_skill(canon: str, card: dict) -> int | None:
+    """卡上没有这一行时补行用的基础值（动态技能按属性算，其余查统一表）。"""
+    return skill_base_for(canon, card)
 
 
 def mark(card: dict, name: str) -> bool:
@@ -43,7 +43,7 @@ def mark(card: dict, name: str) -> bool:
         canon = canonical_skill(name)
         if not canon or not skill_name_ok(canon):
             return False
-        base = _base_for_new_skill(canon)
+        base = _base_for_new_skill(canon, card)
         skills[canon] = {"base": base} if base is not None else {}
         key = canon
     skills[key]["check"] = True

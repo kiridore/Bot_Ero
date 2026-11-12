@@ -330,6 +330,35 @@ def skill_note_index() -> dict[str, dict]:
     return index
 
 
+# 由属性派生的基础值（不写死数字，随属性变化）
+DYNAMIC_BASES = {
+    "闪避": {"attr": "dex_score", "divisor": 2, "label": "敏捷÷2"},
+    "母语": {"attr": "edu_score", "divisor": 1, "label": "教育"},
+}
+
+
+def dynamic_skill_base(name: str, data: dict) -> int | None:
+    """闪避 = DEX/2、母语 = EDU；不是动态技能返回 None。"""
+    rule = DYNAMIC_BASES.get(canonical_skill(name))
+    if not rule:
+        return None
+    try:
+        value = int(data.get(rule["attr"]) or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(value // rule["divisor"], 0)
+
+
+def skill_base_for(name: str, data: dict | None = None) -> int:
+    """任意技能的基础值：先看动态规则，再查静态表。"""
+    canon = canonical_skill(name)
+    if data is not None:
+        dynamic = dynamic_skill_base(canon, data)
+        if dynamic is not None:
+            return dynamic
+    return skill_base_map().get(canon, 0)
+
+
 def skill_base_map() -> dict[str, int]:
     """所有已知技能的基础值：标准 39 项 + 附表专攻（技艺:表演…）+ 武器技能（斗殴…）。
 
@@ -341,7 +370,7 @@ def skill_base_map() -> dict[str, int]:
 
     for name, note in SKILL_NOTES.items():
         base = _percent_value(note.get("base"))
-        key = canonical_skill(NOTE_ALIASES.get(name, name))
+        key = canonical_skill(NOTE_ALIASES.get(name, name)).rstrip("：:")
         if base is not None and key not in table:
             table[key] = base
     for name, base in weapon_skill_base().items():
@@ -354,11 +383,12 @@ def default_skill_names() -> list[str]:
     return [canonical_skill(name) for name in SKILL_BASE]
 
 
-def skill_defaults(dex_score: int) -> dict[str, int]:
-    """标准技能的默认基础值；闪避按 DEX/2 派生，不取表里的 0。"""
+def skill_defaults(dex_score: int, edu_score: int = 0) -> dict[str, int]:
+    """标准技能的默认基础值；闪避按 DEX/2、母语按 EDU 派生。"""
     table = skill_base_map()
     defaults = {name: table.get(name, 0) for name in default_skill_names()}
     defaults["闪避"] = max(int(dex_score or 0) // 2, 0)
+    defaults["母语"] = max(int(edu_score or 0), 0)
     return defaults
 
 
@@ -382,9 +412,10 @@ def finalize(data: dict) -> dict:
         if not isinstance(entry, dict) or not skill_name_ok(name):
             continue
         base = entry.get("base")
-        if name == "闪避":
-            # 闪避的基础值由敏捷决定，卡上存的值不作为口径
-            base = max(dex_score // 2, 0)
+        dynamic = dynamic_skill_base(name, data)
+        if dynamic is not None:
+            # 闪避/母语的基础值由属性决定，卡上存的值不作为口径
+            base = dynamic
         elif base is None:
             base = skill_base_map().get(name, 0)
         merged = {
@@ -398,7 +429,7 @@ def finalize(data: dict) -> dict:
 
     # 规则默认值：卡上没有写过的标准技能，按技能表补出基础成功率
     stored = {canonical_skill(name) for name in skills}
-    for name, base in skill_defaults(dex_score).items():
+    for name, base in skill_defaults(dex_score, edu_score).items():
         if name in stored:
             continue
         entry = {"base": base, "growth": 0, "occupation": 0, "interest": 0}

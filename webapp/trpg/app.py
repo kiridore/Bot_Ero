@@ -239,6 +239,10 @@ def api_coc_options():
     return {
         "skill_base": trpg_coc.skill_base_map(),
         "default_skills": trpg_coc.default_skill_names(),
+        "dynamic_bases": {
+            name: {"attr": rule["attr"], "divisor": rule["divisor"], "label": rule["label"]}
+            for name, rule in trpg_coc.DYNAMIC_BASES.items()
+        },
         "skill_categories": list(trpg_coc.SKILL_CATEGORIES),
         "skill_aliases": dict(trpg_coc.SKILL_ALIASES),
         "occupations": [

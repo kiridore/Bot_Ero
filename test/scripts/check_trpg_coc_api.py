@@ -224,6 +224,10 @@ base_map = opts.get("skill_base") or {}
 check("基础值表含三类技能",
       base_map.get("会计") == 5 and base_map.get("科学:化学") == 1 and base_map.get("斗殴") == 25,
       str({k: base_map.get(k) for k in ("会计", "科学:化学", "斗殴")}))
+dyn = opts.get("dynamic_bases") or {}
+check("动态基础值规则随选项下发",
+      dyn.get("闪避", {}).get("divisor") == 2 and dyn.get("母语", {}).get("attr") == "edu_score",
+      str(dyn))
 check("播种名单只含标准技能",
       len(opts.get("default_skills") or []) == 39
       and "科学:化学" not in (opts.get("default_skills") or []),

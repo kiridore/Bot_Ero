@@ -293,7 +293,8 @@ class TestSkillDefaults(unittest.TestCase):
 
     def test_finalize_includes_all_standard_skills(self):
         fin = coc.finalize(_card(skills={}))
-        self.assertEqual(len(fin["skills"]), len(coc.SKILL_BASE))
+        # 39 项标准技能 + 由属性派生的「母语」
+        self.assertEqual(len(fin["skills"]), len(coc.SKILL_BASE) + 1)
         self.assertEqual(fin["skills"]["急救"]["total"], 30)
 
     def test_stored_skill_overrides_default(self):
@@ -488,3 +489,42 @@ class TestSkillBaseConsistency(unittest.TestCase):
 
     def test_dodge_still_derived(self):
         self.assertEqual(coc.skill_defaults(55)["闪避"], 27)
+
+
+class TestDynamicBases(unittest.TestCase):
+    """动态基础值：闪避 = DEX/2、母语 = EDU，随属性变化且不写死。"""
+
+    def test_dynamic_table(self):
+        card = {"rules": "coc7th", "dex_score": 55, "edu_score": 70}
+        self.assertEqual(coc.skill_base_for("闪避", card), 27)
+        self.assertEqual(coc.skill_base_for("母语", card), 70)
+        self.assertEqual(coc.skill_base_for("会计", card), 5)
+
+    def test_finalize_derives_and_ignores_stored(self):
+        card = _card(skills={"闪避": {"base": 0}, "母语": {"base": 5}}, dex_score=80, edu_score=45)
+        fin = coc.finalize(card)
+        self.assertEqual(fin["skills"]["闪避"]["base"], 40)
+        self.assertEqual(fin["skills"]["母语"]["base"], 45)
+
+    def test_growth_mark_uses_dynamic_value(self):
+        from core.trpg import growth
+        card = {"rules": "coc7th", "dex_score": 60, "edu_score": 80, "skills": {}}
+        self.assertTrue(growth.mark(card, "母语"))
+        self.assertEqual(card["skills"]["母语"]["base"], 80)
+
+    def test_skill_defaults_include_mother_tongue(self):
+        defaults = coc.skill_defaults(55, 70)
+        self.assertEqual(defaults["闪避"], 27)
+        self.assertEqual(defaults["母语"], 70)
+
+    def test_trailing_colon_notes_normalized(self):
+        table = coc.skill_base_map()
+        self.assertNotIn("学识：", table)
+        self.assertNotIn("生存：", table)
+        self.assertEqual(table.get("学识"), 1)
+        self.assertEqual(table.get("生存"), 10)
+
+    def test_notes_index_handles_colon_keys(self):
+        index = coc.skill_note_index()
+        self.assertIn("学识：", index)      # 原始键仍在（说明图标按原名查）
+        self.assertEqual(coc.skill_base_for("学识"), 1)

@@ -65,17 +65,33 @@ let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 ch
 let autoAdded = new Set();  // 选职业时自动补进来的技能（换职业时若没填点数会撤掉）
 
 // 规则默认技能：技能表全部标准技能的基础值，闪避按 DEX/2
-function skillDefaults(skillBase, dexScore, names) {
+function skillDefaults(skillBase, dexScore, names, dynamic) {
   const out = {};
   const pick = names && names.length ? names : Object.keys(skillBase || {});
-  pick.forEach((name) => { out[name] = { base: Number((skillBase || {})[name] || 0) }; });
-  out["闪避"] = { base: Math.floor(Number(dexScore || 0) / 2) };
+  pick.forEach((name) => {
+    out[name] = { base: Number((skillBase || {})[name] || 0) };
+  });
+  // 由属性派生的技能（闪避/母语）按当前属性覆盖
+  const rules = dynamic || {};
+  const readAttr = (key) => {
+    if (key === "dex_score") return Number(dexScore || 0);
+    const el = document.querySelector(`[data-attr="${key}"]`);
+    return Number(el ? el.value : 0);
+  };
+  Object.entries(rules).forEach(([name, rule]) => {
+    out[name] = { base: Math.floor(readAttr(rule.attr) / Number(rule.divisor || 1)) };
+  });
   return out;
 }
 
 // 任意技能的基础值（标准技能 / 专攻 / 武器技能）——后端 skill_base_map 是唯一来源
 function skillBaseFor(name) {
   const canon = canonSkill(normalizeSkillName(name) || name);
+  const rule = (options.dynamic_bases || {})[canon];
+  if (rule) {
+    const el = document.querySelector(`[data-attr="${rule.attr}"]`);
+    return Math.floor(Number(el ? el.value : 0) / Number(rule.divisor || 1));
+  }
   const table = options.skill_base || {};
   if (table[canon] != null) return Number(table[canon]);
   const parts = canon.split(":");
@@ -85,7 +101,7 @@ function skillBaseFor(name) {
 
 // 卡上已存的技能覆盖默认值（保留成长/职业/兴趣点）
 function mergeSkillDefaults(card, dexScore) {
-  const merged = skillDefaults(options.skill_base, dexScore, options.default_skills);
+  const merged = skillDefaults(options.skill_base, dexScore, options.default_skills, options.dynamic_bases);
   Object.entries((card && card.skills) || {}).forEach(([name, entry]) => {
     const canon = normalizeSkillName(name) || name;
     merged[canon] = { ...(merged[canon] || {}), ...(entry || {}) };
@@ -350,13 +366,13 @@ function rerenderDerived() {
     const value = Math.min(base + growth + Number(row.querySelector("[data-occ]").value || 0) + Number(row.querySelector("[data-int]").value || 0), 199);
     row.querySelector("[data-total]").textContent = value;
   });
-  // 闪避的基础值由敏捷决定，改敏捷时同步（成长/职业/兴趣点仍单独记）
-  const dodgeRow = [...document.querySelectorAll("[data-skill]")]
-    .find((row) => canonSkill(row.dataset.name) === "闪避");
-  if (dodgeRow) {
-    const dodgeBase = dodgeRow.querySelector("[data-base]");
-    if (dodgeBase) dodgeBase.value = Math.floor(dex / 2);
-  }
+  // 由属性派生的技能（闪避=DEX/2、母语=EDU）基础值随属性刷新
+  Object.keys(options.dynamic_bases || {}).forEach((skillName) => {
+    const row = [...document.querySelectorAll("[data-skill]")]
+      .find((item) => canonSkill(item.dataset.name) === canonSkill(skillName));
+    const baseInput = row && row.querySelector("[data-base]");
+    if (baseInput) baseInput.value = skillBaseFor(skillName);
+  });
   // 资产：档位提示 + 合计
   const assetHint = document.getElementById("assetHint");
   if (assetHint) {
@@ -933,7 +949,7 @@ async function init() {
     } else {
       card = {
         age: 25,
-        skills: skillDefaults(options.skill_base, 0, options.default_skills),
+        skills: skillDefaults(options.skill_base, 0, options.default_skills, options.dynamic_bases),
         weapons: [{ name: "徒手格斗", type: "常规武器", skill: "斗殴", success: 25, damage: "1D3+DB", range: "接触", attacks: "1", ammo: "", malfunction: "", pierce: "×" }],
       };
     }
