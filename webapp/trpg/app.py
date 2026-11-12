@@ -9,12 +9,14 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core import character_store as char_store
+from core import config as core_config
 from core import user_settings as user_settings_mod
 from core.onebot_client import resolve_display_name
 from core.trpg import character as trpg_char
 from core.trpg import levelup as trpg_levelup
 from core.trpg import coc as trpg_coc
 from core.trpg import coc_data
+from core.trpg import party as trpg_party
 from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
 from core.trpg.game_systems import rule_name
@@ -508,6 +510,93 @@ def api_trpg_records(
                 items.append(item)
     items.sort(key=lambda it: it["start_dir"], reverse=True)
     return {"records": items}
+
+
+def _pending_roster(group_id: str) -> dict | None:
+    """准备中的群：pending.json 里有 DM 才算一场「准备中」的团。"""
+    try:
+        data = trpg_party.read_pending(group_id)
+    except ValueError:
+        return None
+    roles = data.get("roles") or {}
+    prepared = data.get("prepared") or {}
+    dm_ids = [u for u, r in roles.items() if r == "dm"]
+    if not dm_ids:
+        return None
+    ob_ids = [u for u, r in roles.items() if r == "ob"]
+    ordered = dm_ids + ob_ids + [
+        u for u in sorted(prepared, key=lambda k: (prepared[k] or {}).get("prepared_at", ""))
+        if u not in dm_ids and u not in ob_ids
+    ]
+    members = []
+    for uid in ordered:
+        snap = prepared.get(uid) or {}
+        members.append({
+            "user_id": str(uid),
+            "nickname": snap.get("nickname") or str(uid),
+            "role": roles.get(uid, ""),
+            "char_id": snap.get("char_id"),
+            "char_name": snap.get("char_name") or "",
+            "prepared": str(uid) in prepared,
+        })
+    rules = data.get("rules") or ""
+    return {
+        "group_id": str(group_id),
+        "rules": rules,
+        "rules_name": rule_name(rules) if rules else "未知规则",
+        "dm": str(dm_ids[0]),
+        "prepared_count": len([u for u in prepared]),
+        "member_count": len(members),
+        "members": members,
+    }
+
+
+@router.get("/api/trpg/parties")
+def api_trpg_parties(user_id: Annotated[str, Depends(get_current_user_id)]):
+    """准备中的群（已有 DM、尚未开录）。"""
+    items = []
+    root = trpg_records.records_root()
+    if root.is_dir():
+        for group_path in root.iterdir():
+            if not group_path.is_dir() or not group_path.name.isdigit():
+                continue
+            item = _pending_roster(group_path.name)
+            if item is None:
+                continue
+            is_super = str(user_id).isdigit() and int(user_id) in core_config.SUPER_USER
+            item["is_dm"] = str(item["dm"]) == str(user_id) or is_super
+            items.append(item)
+    items.sort(key=lambda it: int(it["group_id"]), reverse=True)
+    return {"parties": items}
+
+
+@router.get("/api/trpg/party/{group_id}/card/{user_id}", response_model=CharOut)
+def api_party_card(
+    group_id: str,
+    user_id: str,
+    viewer_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """准备名单里的角色卡：本人、本群 DM 可看；其他人按对方隐私设置。"""
+    roster = _pending_roster(group_id)
+    if roster is None:
+        raise HTTPException(status_code=404, detail="该群没有进行中的开团准备")
+    member = next((m for m in roster["members"] if m["user_id"] == str(user_id)), None)
+    if member is None:
+        raise HTTPException(status_code=404, detail="该用户不在这场准备名单里")
+    is_super = str(viewer_id).isdigit() and int(viewer_id) in core_config.SUPER_USER
+    is_dm = str(viewer_id) == roster["dm"] or is_super
+    if str(viewer_id) != str(user_id) and not is_dm and not user_settings_mod.privacy_public(user_id):
+        raise HTTPException(status_code=403, detail="对方未公开角色卡")
+    char_id = member.get("char_id")
+    try:
+        char = char_store.get_char(str(user_id), int(char_id)) if char_id is not None else None
+    except (TypeError, ValueError):
+        char = None
+    if not char:
+        char = char_store.get_current(str(user_id))
+    if not char:
+        raise HTTPException(status_code=404, detail="该用户没有角色卡")
+    return _char_to_out(char)
 
 
 @router.get("/api/trpg/records/{group_id}/{start_dir}")

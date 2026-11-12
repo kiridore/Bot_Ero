@@ -1,5 +1,7 @@
 // 跑团记录列表：按开始时间倒序，可只看自己参加的记录。
 const listEl = document.getElementById("recordList");
+const partySection = document.getElementById("partySection");
+const partyList = document.getElementById("partyList");
 const mineToggle = document.getElementById("mineOnly");
 
 const STATE_LABEL = { recording: "录制中", ended: "已结束" };
@@ -49,6 +51,63 @@ function recordRow(r) {
     </a>`;
 }
 
+const ROLE_LABEL = { dm: "DM", ob: "观察者" };
+
+function partyMemberRow(party, member) {
+  const role = member.role ? ROLE_LABEL[member.role] || member.role : "";
+  const badge = role ? `<span class="trpg-role role-${escapeHtml(member.role)}">${escapeHtml(role)}</span>` : "";
+  let action;
+  if (member.char_id == null) {
+    action = '<span class="trpg-party-hint">等待准备</span>';
+  } else {
+    const href = `/trpg/char/${encodeURIComponent(member.user_id)}/` +
+      `${encodeURIComponent(member.char_id)}?party=${encodeURIComponent(party.group_id)}`;
+    action = `<a class="btn-sm" href="${href}">查看角色卡</a>`;
+  }
+  return `
+    <div class="trpg-party-member">
+      <span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>
+      <span class="trpg-party-char">${escapeHtml(member.char_name || "未选角色卡")}</span>
+      ${action}
+    </div>`;
+}
+
+function partyCard(party) {
+  const head = `群 ${escapeHtml(party.group_id)} · ${escapeHtml(party.rules_name)} · ` +
+    `DM ${escapeHtml(party.dm)} · 已准备 ${party.prepared_count}/${party.member_count}`;
+  const review = party.is_dm
+    ? '<p class="trpg-party-hint">你是本群 DM，可点开每张角色卡审核</p>'
+    : "";
+  return `
+    <div class="trpg-party">
+      <div class="trpg-row-head"><strong>${escapeHtml(party.group_id)}</strong>
+        <span class="trpg-badge is-recording">准备中</span></div>
+      <p class="trpg-row-meta">${head}</p>
+      ${review}
+      <div class="trpg-party-members">${(party.members || []).map((m) => partyMemberRow(party, m)).join("")}</div>
+    </div>`;
+}
+
+function renderParties(parties) {
+  if (!partySection || !partyList) return;
+  const list = parties || [];
+  partySection.hidden = list.length === 0;
+  partyList.innerHTML = list.map(partyCard).join("");
+}
+
+async function loadParties() {
+  if (!partySection) return;
+  try {
+    const res = await fetch("/api/trpg/parties", { headers: GalleryAuth.headers() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "加载失败");
+    renderParties(data.parties || []);
+  } catch (err) {
+    partySection.hidden = false;
+    partyList.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message || "加载失败")}</p>`;
+  }
+}
+
 function renderList(records) {
   if (!records.length) {
     listEl.innerHTML = '<p class="empty-hint center">还没有跑团记录；群内由 DM 发送 /跑团 记录 开始 即可开始录制</p>';
@@ -71,4 +130,7 @@ async function load() {
 
 mineToggle.addEventListener("change", load);
 GalleryAuth.renderAuth(document.getElementById("authArea"));
-GalleryAuth.refreshMe().finally(load);
+GalleryAuth.refreshMe().finally(() => {
+  loadParties();
+  load();
+});

@@ -336,9 +336,13 @@ async function init() {
   const segs = window.location.pathname.split("/").filter(Boolean);
   const user_id = segs[segs.length - 2];
   const char_id = segs[segs.length - 1];
+  const party = new URLSearchParams(window.location.search).get("party");
+  const cardUrl = party
+    ? `/api/trpg/party/${encodeURIComponent(party)}/card/${encodeURIComponent(user_id)}`
+    : `/api/characters/${user_id}/${char_id}`;
   try {
     const [char, rules] = await Promise.all([
-      apiFetch(`/api/characters/${user_id}/${char_id}`),
+      apiFetch(cardUrl),
       apiFetch("/api/trpg/rules"),
     ]);
     renderView(char, rules);
