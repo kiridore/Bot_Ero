@@ -107,10 +107,15 @@ def base_mov(str_score: int, dex_score: int, siz_score: int) -> int:
 
 
 def occupation_by_name(name: str):
+    from .occupation_details import OCCUPATION_DETAILS
+
     for seq, job, low, high, formula, own in OCCUPATIONS:
         if job == name:
+            extra = OCCUPATION_DETAILS.get(seq) or {}
             return {"seq": seq, "name": job, "credit_min": low, "credit_max": high,
-                    "formula": formula, "own_skills": own}
+                    "formula": formula, "own_skills": own,
+                    "contacts": extra.get("contacts", ""),
+                    "description": extra.get("description", "")}
     return None
 
 

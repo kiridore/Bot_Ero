@@ -579,3 +579,27 @@ class TestInventory(unittest.TestCase):
     def test_validate_includes_inventory(self):
         card = _card(inventory=[{"name": "手电", "status": "乱填"}])
         self.assertTrue(any("不在 装备/携带/背包 之内" in p for p in coc.validate(card)))
+
+
+class TestOccupationDetails(unittest.TestCase):
+    """职业详情：介绍与推荐关系人来自新卡「职业列表」。"""
+
+    def test_details_present(self):
+        occ = coc.occupation_by_name("会计师")
+        self.assertEqual(occ["credit_min"], 30)
+        self.assertIn("生意伙伴", occ["contacts"])
+        self.assertIn("会计师可能在企业工作", occ["description"])
+
+    def test_alias_matched_occupations(self):
+        # 新卡改名：中介调查员 → 事务所侦探、保安
+        occ = coc.occupation_by_name("中介调查员")
+        self.assertTrue(occ["description"] or occ["contacts"], occ)
+
+    def test_unknown_occupation(self):
+        self.assertIsNone(coc.occupation_by_name("不存在的职业"))
+
+    def test_details_coverage(self):
+        from core.trpg.coc_data import OCCUPATIONS
+        from core.trpg.occupation_details import OCCUPATION_DETAILS
+        missing = [name for seq, name, *_ in OCCUPATIONS if seq and seq not in OCCUPATION_DETAILS]
+        self.assertEqual(missing, ["管家、男仆、女仆"], missing)  # 新卡该行本身没有介绍

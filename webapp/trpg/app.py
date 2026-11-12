@@ -20,6 +20,7 @@ from core.trpg import levelup as trpg_levelup
 from core.trpg import asset_data as trpg_asset
 from core.trpg import coc as trpg_coc
 from core.trpg import coc_data
+from core.trpg import occupation_details as trpg_details
 from core.trpg import party as trpg_party
 from core.trpg import records as trpg_records
 from core.trpg import rules as trpg_rules
@@ -249,7 +250,9 @@ def api_coc_options():
         "skill_aliases": dict(trpg_coc.SKILL_ALIASES),
         "occupations": [
             {"seq": seq, "name": name, "credit_min": low, "credit_max": high,
-             "formula": formula, "own_skills": own}
+             "formula": formula, "own_skills": own,
+             "contacts": (trpg_details.OCCUPATION_DETAILS.get(seq) or {}).get("contacts", ""),
+             "description": (trpg_details.OCCUPATION_DETAILS.get(seq) or {}).get("description", "")}
             for seq, name, low, high, formula, own in trpg_coc.OCCUPATIONS
             if seq >= 1  # seq 0 是 xlsx 里的工具说明行，不是职业
         ],

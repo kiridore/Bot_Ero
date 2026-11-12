@@ -33,6 +33,12 @@ function collect(node) {
 const card = {
   rules: "coc7th", char_name: "田宫真莉", display_name: "老张",
   occupation: "药剂师", age: 28, sex: "女", era: "1920s", residence: "东京",
+  occupation_info: { name: "药剂师", credit_min: 30, credit_max: 70, formula: "教育×4",
+                     own_skills: "会计，急救，外语（拉丁文），图书馆，心理学。",
+                     contacts: "制药公司，医院药房。",
+                     description: "药剂师在医院或药房配药。" },
+  occupation_choices: { "0": ["魅惑"] },
+  occupation_spent: 20, occupation_budget: 180, interest_spent: 0, interest_budget: 170,
   credit_rating: 40, luck: 50,
   scores: { 力量: 60, 体质: 55, 体型: 45, 敏捷: 55, 外貌: 60, 智力: 85, 意志: 65, 教育: 45 },
   hp: 10, current_hp: 8, mp: 13, current_mp: 13, san: 65, max_san: 99, current_san: 40,
@@ -65,6 +71,12 @@ check("调查员信息（年龄/性别/时代/住地）", html.includes("28岁")
 check("派生数值完整", ["HP 8/10", "SAN 40/99", "MOV 9", "+1D4", "闪避 27", "信用评级 40"].every((x) => html.includes(x)), html.slice(0, 200));
 check("八项属性 + 幸运全部出现", ["力量", "敏捷", "意志", "体质", "外貌", "教育", "体型", "智力", "幸运"].every((x) => html.includes(x)));
 check("属性值渲染", html.includes(">60<") || html.includes("60"), "");
+check("职业详情（介绍/关系人/本职技能/点数）", (() => {
+  const required = ["药剂师 · 信用评级 30-70 · 技能点 教育×4",
+    "药剂师在医院或药房配药。", "本职技能：会计，急救",
+    "可选池已选：魅惑", "推荐关系人：制药公司，医院药房。", "职业点 20/180"];
+  return required.every((x) => html.includes(x));
+})(), "");
 check("技能表带成功率与成长标记", html.includes("科学:制药") && html.includes("21%") && html.includes("✓"));
 check("武器新字段（类型/使用技能/装弹量/贯穿）", ["短管霰弹枪", "步枪", "步枪/霰弹枪", "2", "×"].every((x) => html.includes(x)));
 check("武器伤害带 DB 标注", html.includes("2D6+DB（DB=+1D4）"), "");

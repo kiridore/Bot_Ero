@@ -252,6 +252,9 @@ check("技能说明随选项下发", len(notes) >= 100 and notes.get("会计", {
       and notes.get("技艺:表演"), str(len(notes)))
 notes_api = client.get("/api/trpg/coc/skill-notes", headers=H).json()
 check("技能说明接口", len(notes_api.get("notes") or {}) == len(notes), str(len(notes_api.get("notes") or {})))
+occ_entry = next((o for o in (opts.get("occupations") or []) if o.get("name") == "会计师"), {})
+check("职业带介绍与关系人", "会计师可能在企业工作" in (occ_entry.get("description") or "")
+      and "生意伙伴" in (occ_entry.get("contacts") or ""), str(occ_entry)[:200])
 check("物品状态随选项下发", list(opts.get("inventory_statuses") or []) == ["装备", "携带", "背包"],
       str(opts.get("inventory_statuses")))
 check("币种与档位随选项下发",

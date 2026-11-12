@@ -128,6 +128,49 @@ function renderCocView(char) {
   ].filter(Boolean).join(" · ");
   if (meta.textContent) charViewMain.appendChild(meta);
 
+  // 职业详情：介绍、推荐关系人、本职技能、信用评级区间与点数用量
+  const occ = char.occupation_info || {};
+  if (occ.name) {
+    cocSection("职业", (sec) => {
+      const head = document.createElement("p");
+      head.className = "muted";
+      head.textContent = `${occ.name} · 信用评级 ${occ.credit_min}-${occ.credit_max} · 技能点 ${occ.formula}`;
+      sec.appendChild(head);
+      if (occ.description) {
+        const desc = document.createElement("p");
+        desc.style.whiteSpace = "pre-wrap";
+        desc.textContent = occ.description;
+        sec.appendChild(desc);
+      }
+      if (occ.own_skills) {
+        const skills = document.createElement("p");
+        skills.className = "muted";
+        skills.textContent = `本职技能：${occ.own_skills}`;
+        sec.appendChild(skills);
+      }
+      const picked = Object.entries(char.occupation_choices || {})
+        .filter(([, list]) => (list || []).length)
+        .map(([, list]) => list.join("、"));
+      if (picked.length) {
+        const own = document.createElement("p");
+        own.className = "muted";
+        own.textContent = `可选池已选：${picked.join("；")}`;
+        sec.appendChild(own);
+      }
+      if (occ.contacts) {
+        const contacts = document.createElement("p");
+        contacts.className = "muted";
+        contacts.textContent = `推荐关系人：${occ.contacts}`;
+        sec.appendChild(contacts);
+      }
+      const points = document.createElement("p");
+      points.className = "muted";
+      points.textContent = `职业点 ${char.occupation_spent || 0}/${char.occupation_budget || 0}` +
+        ` · 兴趣点 ${char.interest_spent || 0}/${char.interest_budget || 0}`;
+      sec.appendChild(points);
+    });
+  }
+
   const vitals = document.createElement("p");
   vitals.className = "muted";
   vitals.textContent = [
