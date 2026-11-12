@@ -19,6 +19,7 @@ let options = null;
 let card = null;
 let me = null;
 let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 choices 顺序对应
+let autoAdded = new Set();  // 选职业时自动补进来的技能（换职业时若没填点数会撤掉）
 
 // 可加职业点的技能名集合：固定项（含 类别:* 通配）+ 已选中的池内技能
 function occAllowedNames(occ, choices) {
@@ -43,6 +44,11 @@ function occAllowedNames(occ, choices) {
 function occAllows(allowed, name) {
   const fixed = canonSkill(name);
   return allowed.exact.has(fixed) || allowed.wild.some((prefix) => fixed.startsWith(prefix));
+}
+
+// 本职技能里的固定项（通配项如「技艺:*」要玩家自己填专攻，不自动补）
+function requiredSkillNames(struct) {
+  return (struct?.required || []).filter((name) => !canonSkill(name).endsWith(":*"));
 }
 
 // 技能名规范化：别名（侦查→侦察）→ 官方名 → 「类别:专攻」；无效返回 null
@@ -176,6 +182,35 @@ function renderOccChoices() {
 }
 
 // 选了池内技能但技能表里还没有 → 自动补一行，保证能填职业点
+// 选了职业后把固定本职技能补进技能表
+function fillRequiredSkills(occ) {
+  const struct = occ ? (options.occupation_skills || {})[String(occ.seq)] : null;
+  const tbody = document.getElementById("skillBody");
+  if (!struct || !tbody) return 0;
+  const existing = new Set([...document.querySelectorAll("[data-skill]")].map((r) => canonSkill(r.dataset.name)));
+  let added = 0;
+  requiredSkillNames(struct).forEach((raw) => {
+    const name = normalizeSkillName(raw);
+    if (!name || existing.has(canonSkill(name))) return;
+    existing.add(canonSkill(name));
+    autoAdded.add(canonSkill(name));
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: options.skill_base[name] || 0 }));
+    added += 1;
+  });
+  return added;
+}
+
+// 换职业时撤掉上一职业自动补的行——只撤没填过成长/职业/兴趣点点的
+function pruneAutoAdded() {
+  document.querySelectorAll("[data-skill]").forEach((row) => {
+    if (!autoAdded.has(canonSkill(row.dataset.name))) return;
+    const untouched = ["[data-growth]", "[data-occ]", "[data-int]"]
+      .every((sel) => Number(row.querySelector(sel).value || 0) === 0);
+    if (untouched) row.remove();
+  });
+  autoAdded = new Set();
+}
+
 function syncChosenSkills() {
   const tbody = document.getElementById("skillBody");
   if (!tbody) return;
@@ -471,13 +506,16 @@ function bind() {
   main.addEventListener("change", rerenderDerived);
   document.getElementById("occupation").addEventListener("change", () => {
     occChoices = {};
+    pruneAutoAdded();
     renderOccChoices();
     const occ = currentOccupation();
     if (occ) {
       const credit = document.getElementById("credit_rating");
       if (credit) credit.value = occ.credit_min;
     }
+    const added = fillRequiredSkills(occ);
     rerenderDerived();
+    if (added) showToast(`已补入本职技能 ${added} 项，可选池请逐项选择`, false);
   });
   const skillInput = document.getElementById("skillName");
   const skillHint = document.getElementById("skillAddHint");

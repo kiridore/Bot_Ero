@@ -27,15 +27,15 @@ const options = {
   skill_categories: ["技艺", "格斗", "射击", "语言", "母语", "驾驶", "科学", "生存", "罕见"],
   skill_aliases: { "侦查": "侦察", "图书馆": "图书馆使用", "外语": "语言" },
   occupation_skills: {
-    "3": {"required": ["会计", "技艺:*"], "choices": [{"count": 2, "from": "*"}]},
+    "3": {"required": ["会计", "技艺:*", "科学:化学"], "choices": [{"count": 2, "from": "*"}]},
   },
 };
 
 const factory = new Function(
   "options",
-  `${src.slice(start, end)}\nreturn { canonSkill, normalizeSkillName, occAllowedNames, occAllows };`,
+  `${src.slice(start, end)}\nreturn { canonSkill, normalizeSkillName, occAllowedNames, occAllows, requiredSkillNames };`,
 );
-const { canonSkill, normalizeSkillName, occAllowedNames, occAllows } = factory(options);
+const { canonSkill, normalizeSkillName, occAllowedNames, occAllows, requiredSkillNames } = factory(options);
 
 check("官方技能名原样通过", normalizeSkillName("侦察") === "侦察");
 check("别名归一", canonSkill("侦查") === "侦察" && normalizeSkillName("侦查") === "侦察");
@@ -59,6 +59,12 @@ const withChoice = occAllowedNames(occ, { "0": ["攀爬", "技艺:伪造"] });
 check("已选池内技能可加点", occAllows(withChoice, "攀爬") && occAllows(withChoice, "技艺:伪造"));
 check("别名技能按规范名匹配", occAllows(occAllowedNames(occ, {}), "侦查") === false
   && occAllows(occAllowedNames({ seq: 3 }, { "0": ["侦察"] }), "侦查"));
+
+// 选职业时自动补入的本职技能：只取固定项，通配项留给玩家填专攻
+const required = requiredSkillNames(options.occupation_skills["3"]);
+check("自动补入跳过通配项", required.includes("会计") && !required.some((n) => n.endsWith(":*")), String(required));
+check("自动补入保留具体专攻", required.includes("科学:化学"));
+check("无职业时为空", requiredSkillNames(null).length === 0);
 
 console.log(fail === 0 ? "\n全部通过" : `\n${fail} 项失败`);
 process.exit(fail === 0 ? 0 : 1);

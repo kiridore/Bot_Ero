@@ -95,6 +95,13 @@ class TestBuilderScript(unittest.TestCase):
         self.assertIn("coc-choice-warn-on", src)
         self.assertIn("多选了", src)
 
+    def test_occupation_fills_required_skills(self):
+        src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        # 选职业后必须把固定本职技能补进技能表，并在换职业时撤掉未使用的自动行
+        self.assertIn("const added = fillRequiredSkills(occ);", src)
+        self.assertIn("pruneAutoAdded();", src)
+        self.assertIn("function fillRequiredSkills(occ)", src)
+
     def test_add_skill_uses_inline_input(self):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertNotIn("prompt(", src)
