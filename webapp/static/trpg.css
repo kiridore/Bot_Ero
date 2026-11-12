@@ -398,6 +398,30 @@
 
 .coc-num { width: 5.5rem; }
 
+/* 年龄调整：体能分配与状态提示 */
+.coc-age {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.coc-age-phy {
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  width: 100%;
+}
+
+.coc-age .coc-num { width: 5rem; }
+
+.coc-age input.is-locked,
+.coc-attrs input.is-locked {
+  background: color-mix(in srgb, var(--ink-soft) 8%, transparent);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+.coc-age #ageHint.is-error { color: color-mix(in srgb, var(--red) 62%, var(--ink-soft)); }
+
 .coc-choices {
   display: flex;
   flex-direction: column;

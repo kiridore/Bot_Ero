@@ -644,6 +644,11 @@ function render() {
     </section>
 
     <section class="coc-block">
+      <h3>年龄调整</h3>
+      <div id="ageAdjust" class="coc-age"></div>
+    </section>
+
+    <section class="coc-block">
       <h3>属性 <button type="button" class="btn-sm" id="rollAll">🎲 全部重掷</button></h3>
       <div class="coc-attr-wrap">
         <div class="coc-grid coc-attrs">
@@ -759,6 +764,7 @@ function render() {
   renderOccChoices();
   renderWeaponLibrary();
   renderInventoryTotals();
+  renderAgeAdjust();
   rerenderDerived();
 }
 
@@ -784,6 +790,7 @@ function bind() {
   });
   main.addEventListener("input", rerenderDerived);
   main.addEventListener("change", rerenderDerived);
+  document.getElementById("age").addEventListener("change", renderAgeAdjust);
   document.getElementById("occupation").addEventListener("change", () => {
     occChoices = {};
     pruneAutoAdded();
@@ -913,6 +920,169 @@ function bind() {
     rerenderDerived();
   });
 }
+// ── 年龄调整 ─────────────────────────────────────
+// 年龄段表由 /api/trpg/coc/options 下发（与 core/trpg/coc.py::AGE_BANDS 单一来源）；
+// 体能合计扣减由玩家自己填，EDU 成长检定在服务端掷。
+const AGE_LOCKED_KEYS = ["str_score", "con_score", "siz_score", "dex_score", "app_score", "edu_score"];
+
+function ageBandFor(age) {
+  const years = Number(age || 0);
+  return (options.age_bands || []).find((band) => years >= band.min && years <= band.max) || null;
+}
+
+function lockAgeAttrs(record) {
+  const band = record ? ageBandFor(record.age) : null;
+  const locked = new Set();
+  if (band) {
+    band.phy.forEach((key) => locked.add({ str: "str_score", con: "con_score", siz: "siz_score", dex: "dex_score" }[key]));
+    if (band.app) locked.add("app_score");
+    if (band.edu_checks || band.edu_fixed) locked.add("edu_score");
+  }
+  AGE_LOCKED_KEYS.forEach((key) => {
+    const input = document.querySelector(`[data-attr="${key}"]`);
+    if (!input) return;
+    input.readOnly = locked.has(key);
+    input.classList.toggle("is-locked", locked.has(key));
+    input.title = locked.has(key) ? "年龄调整已应用，如需修改请先撤销" : "";
+  });
+}
+
+function renderAgeAdjust() {
+  const box = document.getElementById("ageAdjust");
+  if (!box) return;
+  const age = Number(document.getElementById("age").value || 0);
+  const band = ageBandFor(age);
+  const record = card.age_adjust || null;
+  if (!band) {
+    const [low, high] = options.age_range || [15, 99];
+    box.innerHTML = `<p class="coc-note">填写 ${low}-${high} 岁之间的年龄后可做年龄调整。</p>`;
+    lockAgeAttrs(null);
+    return;
+  }
+  if (record && record.kind === "applied") {
+    lockAgeAttrs(record);
+    const phy = (record.phy || {});
+    // 用记录里的年龄段取体能项：年龄改到别的段时仍能正确显示已应用的内容
+    const recBand = (options.age_bands || []).find((item) => item.band === record.band) || band;
+    const phyText = recBand.phy.map((key, i) => `${recBand.phy_labels[i]} ${phy[key] || 0}`).join("、");
+    const edu = record.edu || {};
+    const rolls = (edu.rolls || []).map((r) => `${r.roll}${r.gain ? ` → +${r.gain}` : " → 无增长"}`).join("、");
+    const stale = record.age !== age
+      ? `<p class="coc-warn">年龄已改为 ${age}（应用时为 ${record.age}），请先撤销再重新应用。</p>` : "";
+    box.innerHTML = `
+      <p class="coc-note"><b>已应用</b>（${escapeHtml(record.band)} 岁）：体能 ${phyText || "无"}${record.app ? `；外貌 ${record.app}` : ""}${edu.before !== undefined ? `；教育 ${edu.before} → ${edu.after}` : ""}</p>
+      ${rolls ? `<p class="coc-note">教育成长检定 ×${edu.checks || 0}：${rolls}</p>` : ""}
+      ${stale}
+      <button type="button" class="btn-sm" id="ageUndo">撤销年龄调整</button>`;
+    document.getElementById("ageUndo").addEventListener("click", undoAgeAdjust);
+    return;
+  }
+  lockAgeAttrs(null);
+  const quota = band.phy_quota;
+  const inputs = band.phy.map((key, i) => `
+    <label>${band.phy_labels[i]}<input type="number" data-phy="${key}" class="coc-num" max="0" step="1" value="" placeholder="0" /></label>`).join("");
+  const extras = [];
+  if (band.app) extras.push(`外貌 -${band.app}`);
+  if (band.edu_fixed) extras.push(`教育 ${band.edu_fixed}`);
+  if (band.edu_checks) extras.push(`教育成长检定 ×${band.edu_checks}（服务端掷）`);
+  if (band.luck_best) extras.push("幸运掷两次取高");
+  const skipped = record && record.kind === "skipped"
+    ? '<span class="coc-note">（已选过「不再提示」）</span>' : "";
+  const summary = [
+    quota ? `体能合计 -${quota}（扣在哪几项由你决定，填 0 或负数）` : "",
+    ...extras,
+  ].filter(Boolean).join("；");
+  box.innerHTML = `
+    <p class="coc-note">按 ${escapeHtml(band.band)} 岁：${summary}。${skipped}</p>
+    ${inputs ? `<div class="coc-grid coc-age-phy">${inputs}</div>` : ""}
+    ${band.luck_best ? '<button type="button" class="btn-sm" id="ageLuck">🎲 幸运掷两次取高</button>' : ""}
+    <p class="coc-note" id="ageHint"></p>
+    <button type="button" class="btn-sm primary" id="ageApply">应用年龄调整</button>
+    <button type="button" class="btn-sm" id="ageSkip">不再提示</button>`;
+  const hint = document.getElementById("ageHint");
+  const applyBtn = document.getElementById("ageApply");
+  const update = () => {
+    let spent = 0;
+    let bad = false;
+    box.querySelectorAll("[data-phy]").forEach((el) => {
+      const value = Number(el.value || 0);
+      if (!Number.isInteger(value) || value > 0) bad = true;
+      spent += -value;
+    });
+    const ok = !bad && spent === quota;
+    applyBtn.disabled = !ok;
+    hint.textContent = bad ? "只能填 0 或负数" : `体能合计 ${spent}/${quota}`;
+    hint.classList.toggle("is-error", !ok);
+  };
+  box.querySelectorAll("[data-phy]").forEach((el) => el.addEventListener("input", update));
+  update();
+  applyBtn.addEventListener("click", applyAgeAdjust);
+  document.getElementById("ageSkip").addEventListener("click", () => sendAgeAdjust({ action: "skip" }));
+  const lucky = document.getElementById("ageLuck");
+  if (lucky) {
+    lucky.addEventListener("click", () => {
+      const luck = document.getElementById("luck");
+      luck.value = Math.max(rollDie("3d6"), rollDie("3d6"));
+      rerenderDerived();
+    });
+  }
+}
+
+function afterAgeAdjust(data) {
+  AGE_LOCKED_KEYS.forEach((key) => {
+    const input = document.querySelector(`[data-attr="${key}"]`);
+    if (input && data[key] !== undefined && data[key] !== null) input.value = data[key];
+  });
+  card.age_adjust = data.age_adjust;
+  card.age = data.age;
+  renderAgeAdjust();
+  rerenderDerived();
+}
+
+async function sendAgeAdjust(payload) {
+  if (!CHAR_ID) {
+    showToast("先保存角色卡，再从编辑页应用年龄调整", true);
+    return null;
+  }
+  try {
+    const res = await fetch(`/api/me/characters/${CHAR_ID}/age-adjust`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...GalleryAuth.headers() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "年龄调整失败");
+    afterAgeAdjust(data);
+    showToast(payload.action === "skip" ? "已记录：不再提示年龄调整" : "年龄调整已应用", false);
+    return data;
+  } catch (err) {
+    showToast(err.message || "年龄调整失败", true);
+    return null;
+  }
+}
+
+function applyAgeAdjust() {
+  const phy = {};
+  document.querySelectorAll("[data-phy]").forEach((el) => { phy[el.dataset.phy] = Number(el.value || 0); });
+  sendAgeAdjust({ action: "apply", phy });
+}
+
+async function undoAgeAdjust() {
+  if (!CHAR_ID) return;
+  try {
+    const res = await fetch(`/api/me/characters/${CHAR_ID}/age-adjust`, {
+      method: "DELETE",
+      headers: GalleryAuth.headers(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "撤销失败");
+    afterAgeAdjust(data);
+    showToast("已撤销年龄调整", false);
+  } catch (err) {
+    showToast(err.message || "撤销失败", true);
+  }
+}
+
 function collect() {
   const skills = {};
   document.querySelectorAll("[data-skill]").forEach((row) => {

@@ -110,6 +110,23 @@ function cocSection(title, buildBody) {
   return sec;
 }
 
+const AGE_ATTR_LABELS = { str: "力量", con: "体质", siz: "体型", dex: "敏捷", app: "外貌", edu: "教育" };
+
+// 年龄调整摘要（一行）：只展示实际生效的变动
+function ageAdjustText(char) {
+  const record = char.age_adjust;
+  if (!record || record.kind !== "applied") return "";
+  const parts = Object.entries(record.phy || {})
+    .filter(([, value]) => Number(value))
+    .map(([key, value]) => `${AGE_ATTR_LABELS[key] || key} ${value}`);
+  if (record.app) parts.push(`外貌 ${record.app}`);
+  const edu = record.edu || {};
+  if (edu.before !== undefined && edu.after !== edu.before) {
+    parts.push(`教育 ${edu.before} → ${edu.after}`);
+  }
+  return `年龄调整（${record.band} 岁）：${parts.length ? parts.join("、") : "无属性变动"}`;
+}
+
 function renderCocView(char) {
   charViewMain.innerHTML = "";
   const scores = char.scores || {};
@@ -127,6 +144,14 @@ function renderCocView(char) {
     char.age ? `${char.age}岁` : "", char.sex, char.era, char.residence ? `住地 ${char.residence}` : "",
   ].filter(Boolean).join(" · ");
   if (meta.textContent) charViewMain.appendChild(meta);
+
+  const ageNote = ageAdjustText(char);
+  if (ageNote) {
+    const ageLine = document.createElement("p");
+    ageLine.className = "muted";
+    ageLine.textContent = ageNote;
+    charViewMain.appendChild(ageLine);
+  }
 
   // 职业详情：介绍、推荐关系人、本职技能、信用评级区间与点数用量
   const occ = char.occupation_info || {};

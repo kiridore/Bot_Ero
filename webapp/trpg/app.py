@@ -53,6 +53,8 @@ class CharacterIn(BaseModel):
     current_mp: int | None = None
     current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
+    # 年龄调整记录由 /age-adjust 接口维护；整卡保存时不覆盖
+    age_adjust: dict | None = None
     skills: dict = {}
     weapons: list[dict] = []
     inventory: list[dict] = []
@@ -168,6 +170,7 @@ class CharOut(BaseModel):
     current_mp: int | None = None
     current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
+    age_adjust: dict | None = None
     skills: dict = {}
     weapons: list[dict] = []
     inventory: list[dict] = []
@@ -187,6 +190,11 @@ class CharOut(BaseModel):
     occupation_spent: int = 0
     interest_budget: int = 0
     interest_spent: int = 0
+
+
+class AgeAdjustIn(BaseModel):
+    action: str = "apply"          # apply | skip
+    phy: dict[str, int] = {}
 
 
 class LevelUpIn(BaseModel):
@@ -291,6 +299,8 @@ def api_coc_options():
         "asset_items": [{"key": k, "label": v} for k, v in trpg_asset.ASSET_ITEM_FIELDS],
         "inventory_statuses": list(trpg_coc.INVENTORY_STATUSES),
         "skill_notes": trpg_coc.skill_note_index(),
+        "age_bands": trpg_coc.age_bands_payload(),
+        "age_range": [trpg_coc.AGE_MIN, trpg_coc.AGE_MAX],
     }
 
 
@@ -330,6 +340,8 @@ def api_create_character(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     data = body.model_dump()
+    if data.get("age_adjust") is None:
+        data.pop("age_adjust", None)
     _apply_rules(data)
     _fill_current_values(data)
     try:
@@ -360,6 +372,12 @@ def api_update_character(
     if not existing:
         raise HTTPException(status_code=404, detail="角色不存在")
     data = body.model_dump()
+    # 年龄调整记录只由 /age-adjust 接口维护，整卡保存一律沿用卡上原值
+    if data.get("age_adjust") is None:
+        if existing.get("age_adjust") is None:
+            data.pop("age_adjust", None)
+        else:
+            data["age_adjust"] = existing["age_adjust"]
     _apply_rules(data)
     _keep_current_values(data, existing)
     try:
@@ -367,6 +385,68 @@ def api_update_character(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _char_to_out(char_store.get_char(user_id, char_id))
+
+
+def _age_adjust_save(user_id: str, char_id: int, data: dict) -> CharOut:
+    """写入前校验并同步派生值，失败返回 400。"""
+    problems = trpg_coc.validate(data)
+    if problems:
+        raise HTTPException(status_code=400, detail="；".join(problems))
+    data["hp"] = trpg_coc.finalize(data)["hp"]
+    try:
+        char_store.update_char(user_id, char_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _char_to_out(char_store.get_char(user_id, char_id))
+
+
+@router.post("/api/me/characters/{char_id}/age-adjust", response_model=CharOut)
+def api_age_adjust(
+    char_id: int,
+    body: AgeAdjustIn,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """应用或跳过年龄调整（EDU 成长检定在服务端掷）。"""
+    existing = char_store.get_char(user_id, char_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    if (existing.get("rules") or "dnd5e") != "coc7th":
+        raise HTTPException(status_code=400, detail="年龄调整只适用于 COC 7th 角色卡")
+    data = dict(existing)
+    current = data.get("age_adjust")
+    if isinstance(current, dict) and current.get("kind") == "applied":
+        raise HTTPException(status_code=400, detail="这张卡已经应用过年龄调整，请先撤销再重新应用")
+    try:
+        if body.action == "skip":
+            band = trpg_coc.age_adjustment(data.get("age"))
+            if band is None:
+                raise ValueError(f"请先填写 {trpg_coc.AGE_MIN}-{trpg_coc.AGE_MAX} 之间的年龄")
+            data["age_adjust"] = {"kind": "skipped", "age": int(data["age"]), "band": band["band"]}
+        elif body.action == "apply":
+            data.update(trpg_coc.apply_age_adjust(data, body.phy))
+        else:
+            raise ValueError("action 只能是 apply 或 skip")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _age_adjust_save(user_id, char_id, data)
+
+
+@router.delete("/api/me/characters/{char_id}/age-adjust", response_model=CharOut)
+def api_age_adjust_undo(
+    char_id: int,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """撤销年龄调整：按记录里的调整前数值还原。"""
+    existing = char_store.get_char(user_id, char_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    data = dict(existing)
+    try:
+        data.update(trpg_coc.undo_age_adjust(data))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    data.pop("age_adjust", None)
+    return _age_adjust_save(user_id, char_id, data)
 
 
 @router.post("/api/me/characters/{char_id}/levelup", response_model=CharOut)

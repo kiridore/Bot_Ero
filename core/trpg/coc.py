@@ -1,13 +1,16 @@
 """COC 7th 角色卡：派生值、技能点预算与人物卡文本。
 
-建卡逻辑对齐 docs/COC七版人物卡v1.6.1.xlsx：属性手填/掷骰，年龄只影响 MOV（附表口径），
+建卡逻辑对齐 docs/COC七版人物卡v1.6.1.xlsx：属性手填/掷骰，年龄按守密人核心规则书的建卡调整表
+（体能合计扣减由玩家分配、APP 扣减、EDU 成长检定、MOV 每十年 −1），
 技能 = 基础值 + 成长 + 职业点 + 兴趣点（上限 99），职业点预算按职业公式、兴趣点 = 智力×2，
 信用评级受职业区间约束。伤害加值与体格按 STR+SIZ 查表。
 """
 
 from __future__ import annotations
 
+import random
 import re
+import time
 
 from core.trpg.coc_data import OCCUPATION_SKILLS, OCCUPATIONS, SKILL_BASE, SKILL_CATEGORIES
 
@@ -45,8 +48,31 @@ ATTR_KEYS = {
 # STR+SIZ → (伤害加值, 体格)
 DB_TABLE = ((2, -2, -2), (65, -1, -1), (85, 0, 0), (125, "+1D4", 1), (165, "+1D6", 2))
 
-# 年龄 → MOV 减值（xlsx 附表）
-AGE_MOV_PENALTY = ((40, 1), (50, 2), (60, 3), (70, 4), (80, 5))
+# 年龄调整表（守密人核心规则书 创建调查员流程）。phy 为体能项，phy_quota 为合计扣减额度，
+# 扣在哪几项由玩家分配；edu_checks 为 EDU 成长检定次数，edu_fixed 为固定增减。
+AGE_BANDS = (
+    {"band": "15-19", "min": 15, "max": 19, "phy": ("str", "siz"), "phy_quota": 5,
+     "app": 0, "edu_checks": 0, "edu_fixed": -5, "luck_best": True},
+    {"band": "20-39", "min": 20, "max": 39, "phy": (), "phy_quota": 0,
+     "app": 0, "edu_checks": 1, "edu_fixed": 0, "luck_best": False},
+    {"band": "40-49", "min": 40, "max": 49, "phy": ("str", "con", "dex"), "phy_quota": 5,
+     "app": 5, "edu_checks": 2, "edu_fixed": 0, "luck_best": False},
+    {"band": "50-59", "min": 50, "max": 59, "phy": ("str", "con", "dex"), "phy_quota": 10,
+     "app": 10, "edu_checks": 3, "edu_fixed": 0, "luck_best": False},
+    {"band": "60-69", "min": 60, "max": 69, "phy": ("str", "con", "dex"), "phy_quota": 20,
+     "app": 15, "edu_checks": 4, "edu_fixed": 0, "luck_best": False},
+    {"band": "70-79", "min": 70, "max": 79, "phy": ("str", "con", "dex"), "phy_quota": 40,
+     "app": 20, "edu_checks": 4, "edu_fixed": 0, "luck_best": False},
+    {"band": "80-89", "min": 80, "max": 89, "phy": ("str", "con", "dex"), "phy_quota": 80,
+     "app": 25, "edu_checks": 4, "edu_fixed": 0, "luck_best": False},
+    {"band": "90+", "min": 90, "max": 999, "phy": ("str", "con", "dex"), "phy_quota": 80,
+     "app": 25, "edu_checks": 4, "edu_fixed": 0, "luck_best": False},
+)
+AGE_MIN, AGE_MAX = 15, 99
+AGE_ATTR_FIELDS = {"str": "str_score", "con": "con_score", "siz": "siz_score",
+                   "dex": "dex_score", "app": "app_score", "edu": "edu_score"}
+AGE_ATTR_LABELS = {"str": "力量", "con": "体质", "siz": "体型", "dex": "敏捷",
+                   "app": "外貌", "edu": "教育"}
 
 
 def _clamp_or(value, default: int, upper: int | None = None) -> int:
@@ -86,16 +112,140 @@ def db_build(total: int):
     return f"+{steps + 2}D6", steps + 3
 
 
+def age_band(age):
+    """返回年龄对应的调整表条目；未填（0/空）或超出 15-99 时返回 None。"""
+    try:
+        years = int(age or 0)
+    except (TypeError, ValueError):
+        return None
+    if not (AGE_MIN <= years <= AGE_MAX):
+        return None
+    for band in AGE_BANDS:
+        if band["min"] <= years <= band["max"]:
+            return band
+    return None
+
+
+def age_adjustment(age):
+    """给页面/接口用的年龄调整说明；未填或超出范围返回 None。"""
+    band = age_band(age)
+    if band is None:
+        return None
+    return {
+        "band": band["band"],
+        "phy": list(band["phy"]),
+        "phy_labels": [AGE_ATTR_LABELS[key] for key in band["phy"]],
+        "phy_quota": band["phy_quota"],
+        "app": band["app"],
+        "edu_checks": band["edu_checks"],
+        "edu_fixed": band["edu_fixed"],
+        "luck_best": band["luck_best"],
+        "mov": age_mov_penalty(age),
+    }
+
+
+def age_bands_payload() -> list:
+    """整张年龄表（前端按年龄选段，避免再复制一份）。"""
+    return [dict(band, phy=list(band["phy"]),
+                 phy_labels=[AGE_ATTR_LABELS[key] for key in band["phy"]])
+            for band in AGE_BANDS]
+
+
 def age_mov_penalty(age) -> int:
+    """40 岁起每十年 MOV -1，与人物卡公式 INT(年龄/10)-3 一致（90 岁以上仍继续递减）。"""
     try:
         years = int(age or 0)
     except (TypeError, ValueError):
         years = 0
-    penalty = 0
-    for limit, value in AGE_MOV_PENALTY:
-        if years >= limit:
-            penalty = value
-    return penalty
+    return max(0, years // 10 - 3)
+
+
+def apply_age_adjust(data: dict, phy: dict | None = None, roll=None) -> dict:
+    """按年龄调整属性，返回需要合并进卡片的字段（含 age_adjust）。
+
+    体能合计扣减由玩家分配（phy 传负数），EDU 成长检定在服务端掷（刷新页面不能重掷）。
+    """
+    roll = roll or random.randint
+    band = age_band(data.get("age"))
+    if band is None:
+        raise ValueError(f"请先填写 {AGE_MIN}-{AGE_MAX} 之间的年龄")
+    phy = phy or {}
+    unknown = set(phy) - set(band["phy"])
+    if unknown:
+        raise ValueError(
+            f"{band['band']} 岁的体能调整只能填："
+            + "、".join(AGE_ATTR_LABELS[key] for key in band["phy"]))
+    deltas = {}
+    for key in band["phy"]:
+        try:
+            value = int(phy.get(key, 0))
+        except (TypeError, ValueError):
+            raise ValueError(f"{AGE_ATTR_LABELS[key]}的调整值必须是整数") from None
+        if value > 0:
+            raise ValueError(f"{AGE_ATTR_LABELS[key]}的调整值必须是 0 或负数")
+        deltas[key] = value
+    spent = -sum(deltas.values())
+    if spent != band["phy_quota"]:
+        raise ValueError(f"体能合计应扣 {band['phy_quota']} 点，当前为 {spent} 点")
+
+    changes, before = {}, {}
+    for key, delta in deltas.items():
+        field = AGE_ATTR_FIELDS[key]
+        current = _score(data, field)
+        after = current + delta
+        if after < 1:
+            raise ValueError(f"{AGE_ATTR_LABELS[key]}扣减后为 {after}，属性不能低于 1")
+        before[key] = current
+        changes[field] = after
+    app_before = _score(data, "app_score")
+    app_after = app_before - band["app"]
+    if app_after < 1:
+        raise ValueError(f"外貌扣减后为 {app_after}，属性不能低于 1")
+    before["app"] = app_before
+    changes["app_score"] = app_after
+
+    edu_before = _score(data, "edu_score")
+    edu = edu_before + band["edu_fixed"]
+    if edu < 1:
+        raise ValueError(f"教育扣减后为 {edu}，属性不能低于 1")
+    rolls = []
+    for _ in range(band["edu_checks"]):
+        dice = roll(1, 100)
+        gain = 0
+        if dice > edu:
+            gain = roll(1, 10)
+            edu = min(SKILL_MAX, edu + gain)
+        rolls.append({"roll": dice, "gain": gain})
+    changes["edu_score"] = edu
+
+    changes["age_adjust"] = {
+        "kind": "applied",
+        "age": int(data["age"]),
+        "band": band["band"],
+        "phy": deltas,
+        "app": -band["app"],
+        "edu": {"before": edu_before, "after": edu, "checks": band["edu_checks"], "rolls": rolls},
+        "before": before,
+        "applied_at": int(time.time()),
+    }
+    return changes
+
+
+def undo_age_adjust(data: dict) -> dict:
+    """按 age_adjust.before 还原属性；返回需要合并进卡片的字段。"""
+    record = data.get("age_adjust")
+    if not isinstance(record, dict) or record.get("kind") != "applied":
+        raise ValueError("这张卡没有可撤销的年龄调整")
+    before = record.get("before") or {}
+    restored = {}
+    for key, value in before.items():
+        field = AGE_ATTR_FIELDS.get(key)
+        if field:
+            restored[field] = int(value)
+    edu = record.get("edu") or {}
+    if edu.get("before") is not None:
+        restored["edu_score"] = int(edu["before"])
+    return restored
 
 
 def base_mov(str_score: int, dex_score: int, siz_score: int) -> int:
@@ -729,6 +879,60 @@ def weapon_problems(weapons) -> list[str]:
     return problems
 
 
+def age_adjust_problems(data: dict) -> list[str]:
+    """年龄与年龄调整记录的一致性校验；未处理（无 age_adjust）的卡不参与。"""
+    problems = []
+    raw_age = data.get("age")
+    try:
+        years = int(raw_age or 0)
+    except (TypeError, ValueError):
+        return ["年龄必须是整数"]
+    if years and not (AGE_MIN <= years <= AGE_MAX):
+        return [f"年龄应在 {AGE_MIN}-{AGE_MAX} 之间"]
+    record = data.get("age_adjust")
+    if not record:
+        return problems
+    if not isinstance(record, dict) or record.get("kind") not in ("applied", "skipped"):
+        return ["年龄调整记录格式不正确"]
+    if record.get("kind") == "skipped":
+        return problems
+    band = age_band(years)
+    if band is None:
+        return problems
+    if int(record.get("age") or 0) != years:
+        return [f"年龄已从 {record.get('age')} 改为 {years}，请重新应用或撤销年龄调整"]
+    if record.get("band") != band["band"]:
+        return ["年龄调整记录与年龄段不符，请撤销后重新应用"]
+
+    phy = record.get("phy") or {}
+    if set(phy) != set(band["phy"]):
+        return ["年龄调整记录与年龄段不符，请撤销后重新应用"]
+    try:
+        deltas = {key: int(value) for key, value in phy.items()}
+    except (TypeError, ValueError):
+        return ["年龄调整记录格式不正确"]
+    if any(value > 0 for value in deltas.values()):
+        return ["年龄调整记录格式不正确"]
+    spent = -sum(deltas.values())
+    if spent != band["phy_quota"]:
+        return [f"体能合计应扣 {band['phy_quota']} 点，当前为 {spent} 点"]
+
+    before = record.get("before") or {}
+    for key, delta in deltas.items():
+        field = AGE_ATTR_FIELDS[key]
+        expected = int(before.get(key) or 0) + delta
+        if _score(data, field) != expected:
+            return [f"年龄调整后请勿手工修改{AGE_ATTR_LABELS[key]}，如需修改请先撤销年龄调整"]
+    app_expected = int(before.get("app") or 0) - band["app"]
+    if _score(data, "app_score") != app_expected:
+        return ["年龄调整后请勿手工修改外貌，如需修改请先撤销年龄调整"]
+    edu_record = record.get("edu") or {}
+    edu_after = int(edu_record.get("after") or 0)
+    if _score(data, "edu_score") != edu_after:
+        return ["年龄调整后请勿手工修改教育，如需修改请先撤销年龄调整"]
+    return problems
+
+
 def validate(data: dict) -> list[str]:
     """建卡约束：属性范围、技能点不超预算、信用评级在职业区间内。"""
     problems = []
@@ -765,6 +969,7 @@ def validate(data: dict) -> list[str]:
     problems.extend(weapon_problems(data.get("weapons") or []))
     problems.extend(asset_problems(data.get("assets")))
     problems.extend(inventory_problems(data.get("inventory")))
+    problems.extend(age_adjust_problems(data))
     return problems
 
 
