@@ -543,6 +543,7 @@ def _pending_roster(group_id: str) -> dict | None:
     rules = data.get("rules") or ""
     return {
         "group_id": str(group_id),
+        "group_name": data.get("group_name") or "",
         "rules": rules,
         "rules_name": rule_name(rules) if rules else "未知规则",
         "dm": str(dm_ids[0]),

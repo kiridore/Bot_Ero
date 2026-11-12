@@ -1105,3 +1105,34 @@ class TestSheetSnapshots(IsolationMixin, unittest.TestCase):
         person = self.meta(self.record_dir())["participants"][0]
         self.assertIn("sheet_start", person)
         self.assertNotIn("sheet_end", person)
+
+
+class TestGroupNamePersistence(IsolationMixin, unittest.TestCase):
+    """群名要落盘：网页准备名单与记录卡片都只能读文件，取不到 OneBot。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+        # 群名缓存是模块级字典，用例之间必须清空否则互相污染
+        from plugins import trpg_session as mod
+        mod._group_name_cache.clear()
+        self.addCleanup(mod._group_name_cache.clear)
+
+    def test_card_writes_group_name_into_pending(self):
+        with patch("plugins.trpg_session.resolve_group_name", return_value="夜航团"):
+            _run([_text_seg("/跑团 名单")])
+        from core.trpg import party as party_mod
+        self.assertEqual(party_mod.read_pending(GROUP_ID).get("group_name"), "夜航团")
+
+    def test_stop_backfills_missing_group_name(self):
+        _run([_text_seg(".dm")], user_id=111, nickname="老张")
+        _run([_text_seg("/跑团 记录 强制开始")], user_id=111)
+        self.assertEqual(self.meta(self.record_dir())["group_name"], "")
+        with patch("plugins.trpg_session.resolve_group_name", return_value="夜航团"):
+            _run([_text_seg("/跑团 记录 结束")], user_id=111)
+        self.assertEqual(self.meta(self.record_dir())["group_name"], "夜航团")
+
+    def test_no_name_written_when_unavailable(self):
+        from core.trpg import party as party_mod
+        _run([_text_seg("/跑团 名单")])
+        self.assertEqual(party_mod.read_pending(GROUP_ID).get("group_name"), "")

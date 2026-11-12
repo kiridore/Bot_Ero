@@ -15,7 +15,7 @@ function check(name, ok, extra) {
 }
 
 const party = {
-  group_id: "296470819", rules_name: "COC 7th", dm: "111", dm_name: "守密人",
+  group_id: "296470819", group_name: "夜航团", rules_name: "COC 7th", dm: "111", dm_name: "守密人",
   prepared_count: 1, member_count: 2, is_dm: true,
   members: [
     { user_id: "111", nickname: "守密人", role: "dm", char_id: null, char_name: "", prepared: false },
@@ -23,7 +23,8 @@ const party = {
   ],
 };
 const html = api.partyCard(party);
-check("含群号与规则", html.includes("296470819") && html.includes("COC 7th"));
+check("卡片标题用群名", html.includes("夜航团") && !html.includes("群 296470819"), "");
+check("含规则", html.includes("COC 7th"));
 check("含准备计数", html.includes("已准备 1/2"));
 check("DM 有审核提示", html.includes("你是本群 DM"));
 check("DM 显示昵称", html.includes("DM 守密人"), "");
@@ -32,6 +33,9 @@ check("DM 显示昵称", html.includes("DM 守密人"), "");
 const legacy = api.partyCard({ group_id: "1", rules_name: "DND 5E", dm: "999",
   prepared_count: 0, member_count: 1, is_dm: false, members: [] });
 check("缺少 dm_name 回落 ID", legacy.includes("DM 999"), "");
+const noName = api.partyCard({ group_id: "296470819", rules_name: "DND 5E", dm: "111",
+  prepared_count: 0, member_count: 0, is_dm: false, members: [] });
+check("没有群名时回落群号", noName.includes("群 296470819"), "");
 check("已准备成员可点卡", html.includes("查看角色卡") && html.includes("/trpg/char/222/3?party=296470819"));
 check("未准备成员提示等待", html.includes("等待准备"));
 check("观察者/DM 徽标", html.includes("DM"));

@@ -23,7 +23,8 @@ def pending_path(group_id) -> Path:
 
 
 def default_pending(group_id) -> dict:
-    return {"version": PENDING_VERSION, "group_id": group_id, "roles": {}, "prepared": {}, "rules": DEFAULT_RULE}
+    return {"version": PENDING_VERSION, "group_id": group_id, "group_name": "",
+            "roles": {}, "prepared": {}, "rules": DEFAULT_RULE}
 
 
 def read_pending(group_id) -> dict:
@@ -41,10 +42,24 @@ def read_pending(group_id) -> dict:
         return empty
     if not isinstance(data.get("roles"), dict) or not isinstance(data.get("prepared"), dict):
         return empty
-    # 旧文件没有 rules 字段：补默认规则，不强制重写盘
+    # 旧文件没有 rules / group_name 字段：补默认值，不强制重写盘
     if not isinstance(data.get("rules"), str) or not data["rules"]:
         data["rules"] = DEFAULT_RULE
+    if not isinstance(data.get("group_name"), str):
+        data["group_name"] = ""
     return data
+
+
+def set_group_name(group_id, name: str) -> None:
+    """把群名记进 pending.json：网页准备名单只能读文件，取不到 OneBot。"""
+    name = str(name or "").strip()
+    if not name:
+        return
+    data = read_pending(group_id)
+    if data.get("group_name") == name:
+        return
+    data["group_name"] = name
+    write_pending(group_id, data)
 
 
 def write_pending(group_id, data: dict) -> None:

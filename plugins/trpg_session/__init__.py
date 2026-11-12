@@ -183,6 +183,21 @@ def resume_session(group_id: int, meta: dict, record_path) -> dict:
     return session
 
 
+def _ensure_record_group_name(record_path, group_id) -> None:
+    """记录的 meta 缺群名时补写一次（开录时 OneBot 不可达的情况下兜底）。"""
+    try:
+        meta = records.read_meta(record_path)
+        if not meta or meta.get("group_name"):
+            return
+        name = cached_group_name(group_id)
+        if not name:
+            return
+        meta["group_name"] = name
+        records.rewrite_meta(record_path, meta)
+    except Exception:
+        logger.exception("补写群名失败：%s", record_path)
+
+
 def recover_recordings() -> int:
     """启动时按磁盘状态重建录制：续录、超时终止、群解散终止。返回续录数量。"""
     root = records.records_root()
@@ -224,6 +239,7 @@ def recover_recordings() -> int:
             if now - last_at > RESUME_WINDOW_SECONDS:
                 finalize_quietly(record_path, last_at, "超过 7 天无新消息")
                 continue
+            _ensure_record_group_name(record_path, group_id)
             resume_session(group_id, meta, record_path)
             resumed += 1
     if resumed:
@@ -458,7 +474,13 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             pending = [u for u in member_ids if u not in exempt and u not in prepared]
         ready = [u for u in prepared if member_ids is None or u in member_ids]
 
-        lines = [f"【{self._group_title(group_id)}】开团准备"]
+        name = cached_group_name(group_id)
+        if name:
+            try:
+                party.set_group_name(group_id, name)
+            except OSError:
+                logger.exception("保存群名失败")
+        lines = [f"【{name or f'群 {group_id}'}】开团准备"]
         lines.append(f"DM：{name_of(dm_ids[0])}" if dm_ids else "DM：未设置（一人发送 .dm）")
         lines.append("观察者：" + ("、".join(name_of(u) for u in ob_ids) if ob_ids else "无"))
         lines.append(f"已准备 {len(ready)}/{len(ready) + len(pending)}：")
@@ -794,6 +816,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             self.api.send_msg(text("记录数据缺失，无法结束"))
             return
 
+        _ensure_record_group_name(path, group_id)
         try:
             records.finalize_record(path)
         except Exception:

@@ -73,14 +73,15 @@ function partyMemberRow(party, member) {
 }
 
 function partyCard(party) {
-  const head = `群 ${escapeHtml(party.group_id)} · ${escapeHtml(party.rules_name)} · ` +
+  const partyTitle = party.group_name || `群 ${party.group_id}`;
+  const head = `${escapeHtml(partyTitle)} · ${escapeHtml(party.rules_name)} · ` +
     `DM ${escapeHtml(party.dm_name || party.dm)} · 已准备 ${party.prepared_count}/${party.member_count}`;
   const review = party.is_dm
     ? '<p class="trpg-party-hint">你是本群 DM，可点开每张角色卡审核</p>'
     : "";
   return `
     <div class="trpg-party">
-      <div class="trpg-row-head"><strong>${escapeHtml(party.group_id)}</strong>
+      <div class="trpg-row-head"><strong>${escapeHtml(partyTitle)}</strong>
         <span class="trpg-badge is-recording">准备中</span></div>
       <p class="trpg-row-meta">${head}</p>
       ${review}

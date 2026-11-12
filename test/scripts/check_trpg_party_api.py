@@ -93,6 +93,10 @@ check("已准备计数与人数", first.get("prepared_count") == 1 and first.get
       f"{first.get('prepared_count')}/{first.get('member_count')}")
 check("规则名下发", first.get("rules_name") == "DND 5E" or bool(first.get("rules_name")), str(first.get("rules_name")))
 check("DM 视角标记 is_dm", first.get("is_dm") is True, str(first.get("is_dm")))
+party.set_group_name(GROUP, "夜航团")
+with_name = ((client.get("/api/trpg/parties", headers=auth(DM)).json() or {}).get("parties") or [{}])[0]
+check("群名随准备名单下发", with_name.get("group_name") == "夜航团", str(with_name.get("group_name")))
+
 check("DM 昵称来自 role_names", first.get("dm_name") == "守密人"
       and any(m["user_id"] == DM and m["nickname"] == "守密人" for m in first.get("members") or []),
       str(first.get("dm_name")))
