@@ -129,7 +129,8 @@ class TestWeapons(unittest.TestCase):
     """武器表：保留自由文本，但校验可解析性与基础范围。"""
 
     def _problems(self, weapons):
-        return coc.weapon_problems(weapons)
+        # 「使用技能」现在是必填项；这些用例只针对其它字段，统一补一个合法默认值
+        return coc.weapon_problems([dict({"skill": "斗殴"}, **w) for w in weapons])
 
     def test_sheet_style_weapons_pass(self):
         weapons = [
@@ -182,6 +183,35 @@ class TestWeapons(unittest.TestCase):
     def test_field_length_limits(self):
         self.assertTrue(self._problems([{"name": "枪", "range": "很" * 21}]))
         self.assertTrue(self._problems([{"name": "枪", "ammo": "9" * 11}]))
+
+    def test_skill_required(self):
+        problems = coc.weapon_problems([{"name": "剑", "damage": "1D8"}])
+        self.assertTrue(any("缺少使用技能" in p for p in problems), problems)
+
+    def test_skill_must_exist(self):
+        problems = coc.weapon_problems([{"name": "剑", "skill": "飞天", "damage": "1D8"}])
+        self.assertTrue(any("不在技能表里" in p for p in problems), problems)
+        for ok in ("斗殴", "手枪", "步枪/霰弹枪", "弓", "投掷", "射击:手枪", "格斗:斗殴"):
+            self.assertEqual(coc.weapon_problems([{"name": "剑", "skill": ok, "damage": "1D8"}]), [], ok)
+
+    def test_type_length(self):
+        problems = coc.weapon_problems([{"name": "剑", "skill": "斗殴", "type": "类型" * 6}])
+        self.assertTrue(any("类型过长" in p for p in problems), problems)
+
+    def test_weapon_library_passes_validation(self):
+        from core.trpg.weapon_data import WEAPONS
+        self.assertGreaterEqual(len(WEAPONS), 100)
+        for weapon in WEAPONS:
+            row = {"name": weapon["name"], "skill": weapon["skill"], "type": weapon["type"],
+                   "damage": weapon["damage"], "range": weapon["range"], "attacks": weapon["attacks"],
+                   "ammo": weapon["capacity"], "malfunction": weapon["malfunction"],
+                   "pierce": weapon["pierce"]}
+            self.assertEqual(coc.weapon_problems([row]), [], weapon["name"])
+
+    def test_damage_with_db_annotation(self):
+        self.assertEqual(coc.damage_with_db("1D6+DB", "1D4"), "1D6+DB（当前 DB=1D4）")
+        self.assertEqual(coc.damage_with_db("1D3+半DB", "0"), "1D3+半DB（当前 DB=0）")
+        self.assertEqual(coc.damage_with_db("2D8", "1D4"), "2D8")
 
     def test_validate_includes_weapons(self):
         card = _card(weapons=[{"name": "剑", "damage": "一点八"}])

@@ -278,6 +278,13 @@ function rerenderDerived() {
     const value = Math.min(base + growth + Number(row.querySelector("[data-occ]").value || 0) + Number(row.querySelector("[data-int]").value || 0), 199);
     row.querySelector("[data-total]").textContent = value;
   });
+  // 武器伤害的 DB 标注：伤害原文 + 当前伤害加值
+  document.querySelectorAll("[data-weapon-row]").forEach((row) => {
+    const note = row.querySelector("[data-damage-note]");
+    if (!note) return;
+    const damage = String(row.querySelector('[data-weapon="damage"]')?.value || "");
+    note.textContent = damage.includes("DB") ? `（DB=${db}）` : "";
+  });
   const interestBudget = int * 2;
   const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
   set("out-hp", Math.floor((con + siz) / 10));
@@ -340,16 +347,20 @@ function skillRow(name, entry) {
 
 const WEAPON_FIELDS = [
   ["name", "武器", "text"],
+  ["type", "类型", "text"],
+  ["skill", "使用技能", "text"],
   ["success", "成功率", "number"],
   ["damage", "伤害", "text"],
   ["range", "射程", "text"],
   ["attacks", "次数", "text"],
-  ["ammo", "弹药", "text"],
+  ["ammo", "装弹量", "text"],
   ["malfunction", "故障值", "number"],
   ["pierce", "贯穿", "text"],
 ];
 
 const WEAPON_LIMITS = {
+  type: { maxlength: 10, placeholder: "常规武器" },
+  skill: { maxlength: 20, placeholder: "斗殴 / 手枪" },
   success: { min: 0, max: 99, placeholder: "25" },
   damage: { placeholder: "1D8 / 1D3+DB" },
   range: { maxlength: 20, placeholder: "15m / 接触" },
@@ -358,6 +369,56 @@ const WEAPON_LIMITS = {
   malfunction: { min: 0, max: 100, placeholder: "98" },
   pierce: { maxlength: 10, placeholder: "—" },
 };
+
+// 卡上「时代」与武器库 era 字段的对应：1920s / 现代 / 罕见，空则不限
+function weaponEraMatches(cardEra, weaponEra) {
+  const era = String(cardEra || "");
+  const tags = String(weaponEra || "").split(/[,，]/).map((x) => x.trim()).filter(Boolean);
+  if (!tags.length) return true;
+  if (/1920|1920s/i.test(era)) return tags.includes("1920s");
+  if (/现代|2020|21世纪/i.test(era)) return tags.includes("现代");
+  return true;   // 时代没填或写得笼统 → 不做筛选
+}
+
+function libraryWeapons() {
+  return (options.weapon_library || []).filter((w) =>
+    weaponEraMatches(document.getElementById("era")?.value, w.era));
+}
+
+function renderWeaponLibrary() {
+  const select = document.getElementById("weaponLib");
+  if (!select) return;
+  const list = libraryWeapons();
+  select.innerHTML = '<option value="">从武器库选择…</option>' +
+    list.map((w, i) => {
+      const mark = w.rare ? "（罕见）" : w.outdated ? "（不合时代）" : "";
+      return `<option value="${i}">${escapeHtml(w.name)}${mark} · ${escapeHtml(w.type || "")}</option>`;
+    }).join("");
+}
+
+// 技能表当前值：基础 + 成长 + 职业 + 兴趣（上限 199）
+function currentSkillTotal(name) {
+  const row = [...document.querySelectorAll("[data-skill]")]
+    .find((r) => canonSkill(r.dataset.name) === canonSkill(name));
+  if (!row) return 0;
+  const num = (sel) => Number(row.querySelector(sel).value || 0);
+  return Math.min(num("[data-base]") + num("[data-growth]") + num("[data-occ]") + num("[data-int]"), 199);
+}
+
+function fillWeaponFromLibrary(weapon) {
+  return {
+    name: weapon.name,
+    type: weapon.type || "",
+    skill: weapon.skill || "",
+    success: currentSkillTotal(weapon.skill || ""),
+    damage: weapon.damage || "",
+    range: weapon.range || "",
+    attacks: weapon.attacks || "",
+    ammo: weapon.capacity || "",
+    malfunction: weapon.malfunction || "",
+    pierce: weapon.pierce || "",
+  };
+}
 
 function weaponRow(weapon) {
   const cells = WEAPON_FIELDS.map(([key, , type]) => {
@@ -369,7 +430,8 @@ function weaponRow(weapon) {
       .join(" ");
     return `<td><input type="${type}" data-weapon="${key}" value="${escapeHtml(value)}" class="${cls}" ${attrs} /></td>`;
   }).join("");
-  return `<tr data-weapon-row>${cells}<td><button type="button" class="btn-sm" data-remove-weapon>删</button></td></tr>`;
+  return `<tr data-weapon-row>${cells}<td class="coc-dmg-note" data-damage-note></td>` +
+    `<td><button type="button" class="btn-sm" data-remove-weapon>删</button></td></tr>`;
 }
 
 function render() {
@@ -446,9 +508,13 @@ function render() {
 
     <section class="coc-block">
       <h3>武器 <button type="button" class="btn-sm" id="addWeapon">添加武器</button></h3>
+      <div class="coc-add-skill">
+        <select id="weaponLib"></select>
+        <span class="coc-add-hint" id="weaponLibHint"></span>
+      </div>
       <div class="coc-table-wrap">
         <table class="coc-table">
-          <thead><tr>${WEAPON_FIELDS.map(([, label]) => `<th>${label}</th>`).join("")}<th></th></tr></thead>
+          <thead><tr>${WEAPON_FIELDS.map(([, label]) => `<th>${label}</th>`).join("")}<th>实际伤害</th><th></th></tr></thead>
           <tbody id="weaponBody">${(card.weapons || []).map(weaponRow).join("")}</tbody>
         </table>
       </div>
@@ -476,6 +542,7 @@ function render() {
   `;
   bind();
   renderOccChoices();
+  renderWeaponLibrary();
   rerenderDerived();
 }
 
@@ -559,10 +626,28 @@ function bind() {
   document.getElementById("addSkill").addEventListener("click", () => {
     addSkillFromInput();
   });
+  document.getElementById("weaponLib").addEventListener("change", (event) => {
+    const index = event.target.value;
+    if (index === "") return;
+    const weapon = libraryWeapons()[Number(index)];
+    event.target.value = "";
+    if (!weapon) return;
+    const exists = [...document.querySelectorAll("[data-weapon-row]")]
+      .some((row) => String(row.querySelector('[data-weapon="name"]').value || "").trim() === weapon.name);
+    const hint = document.getElementById("weaponLibHint");
+    if (exists) {
+      if (hint) hint.textContent = `武器表里已有「${weapon.name}」`;
+      return;
+    }
+    if (hint) hint.textContent = "";
+    document.getElementById("weaponBody").insertAdjacentHTML("beforeend", weaponRow(fillWeaponFromLibrary(weapon)));
+    rerenderDerived();
+  });
+  document.getElementById("era").addEventListener("change", renderWeaponLibrary);
   document.getElementById("addWeapon").addEventListener("click", () => {
     document.getElementById("weaponBody").insertAdjacentHTML(
       "beforeend",
-      weaponRow({ name: "", success: 0, damage: "", range: "", attacks: "", ammo: "", malfunction: "", pierce: "" })
+      weaponRow({ name: "", type: "", skill: "", success: 0, damage: "", range: "", attacks: "", ammo: "", malfunction: "", pierce: "" })
     );
   });
   document.getElementById("weaponBody").addEventListener("click", (e) => {
@@ -658,7 +743,7 @@ async function init() {
       card = {
         age: 25,
         skills: { 侦查: { base: 25 }, 聆听: { base: 20 }, 图书馆: { base: 20 }, 闪避: { base: 0 } },
-        weapons: [{ name: "徒手格斗", success: 25, damage: "1D3+DB", range: "—", attacks: "1", ammo: "—", malfunction: "—", pierce: "—" }],
+        weapons: [{ name: "徒手格斗", type: "常规武器", skill: "斗殴", success: 25, damage: "1D3+DB", range: "接触", attacks: "1", ammo: "", malfunction: "", pierce: "×" }],
       };
     }
     render();

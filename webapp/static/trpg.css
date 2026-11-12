@@ -401,6 +401,20 @@
 .coc-add-hint { font-size: 0.8rem; color: var(--ink-soft); }
 .coc-add-hint.is-error { color: color-mix(in srgb, var(--red) 62%, var(--ink-soft)); }
 
+.coc-dmg-note {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.coc-add-skill select {
+  flex: 0 1 22rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
 /* 非本职技能行：只能加兴趣点，职业列禁用 */
 .coc-table tr.is-not-occ td:first-child,
 .coc-table tr.is-not-occ td:nth-child(2),

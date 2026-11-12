@@ -241,6 +241,7 @@ def api_coc_options():
             if seq >= 1  # seq 0 是 xlsx 里的工具说明行，不是职业
         ],
         "occupation_skills": coc_data.OCCUPATION_SKILLS,
+        "weapon_library": coc_data.WEAPONS,
     }
 
 

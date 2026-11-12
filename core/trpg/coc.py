@@ -17,10 +17,13 @@ SKILL_CEILING = 199  # 幕间成长可使技能超过 100%
 # 武器表：文本字段保留原表自由度，但校验可解析性与基础范围
 WEAPON_ROWS_MAX = 50
 WEAPON_NAME_MAX = 30
-WEAPON_TEXT_MAX = {"range": 20, "ammo": 10, "attacks": 12, "pierce": 10}
-WEAPON_FIELD_LABEL = {"range": "射程", "ammo": "弹药", "attacks": "次数", "pierce": "贯穿"}
+WEAPON_TEXT_MAX = {"type": 10, "skill": 20, "range": 20, "ammo": 10, "attacks": 12, "pierce": 10}
+WEAPON_FIELD_LABEL = {"type": "类型", "skill": "使用技能", "range": "射程", "ammo": "装弹量",
+                      "attacks": "次数", "pierce": "贯穿"}
 DICE_TERM_RE = re.compile(r"^(\d{0,2})[dD](\d{1,3})$")
-ATTACKS_RE = re.compile(r"^\d{1,2}(\(\d{1,2}\))?$")
+# 次数：1、1(3)、1/2（每两轮一次）、1 or 2、1(2)or连射、全自动、布置
+ATTACKS_RE = re.compile(r"^\d{1,2}(\s*\(\d{1,2}\))?(\s*[/or]\s*\d{1,2}|\s*or\s*[^\s]{1,6})*$")
+ATTACKS_TEXT_OK = ("全自动", "布置", "一次使用", "N/A")
 DASHES = ("", "—", "-", "–", "－")
 
 
@@ -345,17 +348,18 @@ def finalize(data: dict) -> dict:
     return out
 
 
-def damage_ok(text) -> bool:
-    """伤害列允许：数字、NdM、多项相加（1D10+1D4）、以及 +DB 这类伤害加值。"""
-    raw = str(text or "").strip().replace("＋", "+").replace("－", "-").replace("：", ":")
-    if raw in DASHES:
+# 伤害列里的非骰修饰：DB 变体、状态效果、规则关键词（连同前面的 + / - 一起去掉）
+DAMAGE_MODIFIER_RE = re.compile(r"[+-]?\s*(半DB|DB|燃烧|眩晕|出血|中毒|伤害等级|即死|特殊)")
+
+
+def _damage_segment_ok(segment: str) -> bool:
+    seg = DAMAGE_MODIFIER_RE.sub("", segment.strip()).strip()
+    if not seg or seg in DASHES:
         return True
-    parts = [part.strip() for part in re.split(r"[+-]", raw)]
+    parts = [part.strip() for part in re.split(r"[+-]", seg)]
     if not parts or any(not part for part in parts):
         return False
     for part in parts:
-        if part.upper() == "DB":
-            continue
         if part.isdigit() and 0 <= int(part) <= 999:
             continue
         matched = DICE_TERM_RE.match(part)
@@ -366,6 +370,41 @@ def damage_ok(text) -> bool:
         if not 1 <= count <= 20 or not 2 <= sides <= 1000:
             return False
     return True
+
+
+def weapon_skill_ok(name: str) -> bool:
+    """武器使用技能：技能表里的名字、类别专攻写法，或武器库里出现的武器技能。"""
+    from .weapon_data import WEAPONS
+
+    fixed = canonical_skill(str(name or "").strip())
+    if fixed in SKILL_BASE:
+        return True
+    if fixed in {w["skill"] for w in WEAPONS}:
+        return True
+    for category in set(SKILL_CATEGORIES):
+        if fixed.startswith(category):
+            rest = fixed[len(category):].lstrip(":")
+            return bool(rest) and skill_name_ok(f"{category}:{rest}")
+    return False
+
+
+def damage_with_db(damage: str, db: str) -> str:
+    """伤害列展示：原文 + 当前伤害加值标注，如「1D6+DB（当前 DB=1D4）」。"""
+    text = str(damage or "").strip()
+    if not text or "DB" not in text:
+        return text
+    return f"{text}（当前 DB={db or 0}）"
+
+
+def damage_ok(text) -> bool:
+    """伤害列允许：数字、NdM、多项相加、+DB / +半DB、斜杠分隔的多档伤害（霰弹）与状态修饰。"""
+    raw = str(text or "").strip().replace("＋", "+").replace("－", "-").replace("：", ":")
+    if raw in DASHES:
+        return True
+    # 霰弹枪一类按距离分档：2D6/1D6/1D3；「4D10/5码」这类爆破半径后缀先摘掉
+    raw = re.sub(r"/\s*\d+\s*码$", "", raw)
+    segments = raw.split("/")
+    return all(_damage_segment_ok(seg) for seg in segments)
 
 
 def weapon_problems(weapons) -> list[str]:
@@ -398,6 +437,12 @@ def weapon_problems(weapons) -> list[str]:
             else:
                 if not 0 <= value <= 99:
                     problems.append(f"{label}的成功率应在 0-99（当前 {value}）")
+        skill = str(weapon.get("skill") or "").strip()
+        if not skill:
+            problems.append(f"{label}缺少使用技能（例：斗殴、手枪、射击:步枪）")
+        elif not weapon_skill_ok(skill):
+            problems.append(
+                f"{label}的使用技能「{skill}」不在技能表里（可用：斗殴、手枪、步枪/霰弹枪、弓、投掷…）")
         if not damage_ok(weapon.get("damage")):
             problems.append(f"{label}的伤害「{weapon.get('damage')}」不是合法写法（例：1D8、1D3+DB、1D10+1D4）")
         malfunction = str(weapon.get("malfunction") or "").strip()
@@ -410,7 +455,7 @@ def weapon_problems(weapons) -> list[str]:
                 if not 0 <= value <= 100:
                     problems.append(f"{label}的故障值应在 0-100（当前 {value}）")
         attacks = str(weapon.get("attacks") or "").strip()
-        if attacks not in DASHES and not ATTACKS_RE.match(attacks):
+        if attacks not in DASHES and attacks not in ATTACKS_TEXT_OK and not ATTACKS_RE.match(attacks):
             problems.append(f"{label}的次数应写成 1 或 1(3)（当前「{attacks}」）")
         for field, limit in WEAPON_TEXT_MAX.items():
             value = str(weapon.get(field) or "").strip()
@@ -488,6 +533,25 @@ def format_sheet(data: dict) -> str:
     if notable:
         notable.sort(key=lambda item: item[1]["total"], reverse=True)
         lines.append("技能：" + "、".join(f"{name} {entry['total']}%" for name, entry in notable[:12]))
+    weapons = data.get("weapons") or []
+    if isinstance(weapons, list) and weapons:
+        lines.append("武器：")
+        for weapon in weapons[:6]:
+            if not isinstance(weapon, dict):
+                continue
+            name = str(weapon.get("name") or "").strip()
+            if not name:
+                continue
+            parts = [f"  {name}"]
+            skill = str(weapon.get("skill") or "").strip()
+            if skill:
+                parts.append(f"{skill}")
+            damage = damage_with_db(weapon.get("damage"), fin["db"])
+            if damage:
+                parts.append(damage)
+            if str(weapon.get("range") or "").strip():
+                parts.append(f"射程 {weapon['range']}")
+            lines.append("｜".join(parts))
     background = data.get("background") or {}
     if isinstance(background, dict):
         traits = background.get("traits") or ""

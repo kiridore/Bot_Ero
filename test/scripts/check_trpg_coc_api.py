@@ -81,10 +81,10 @@ CARD = {
     "skills": {"图书馆使用": {"base": 20, "occupation": 20}, "聆听": {"base": 20, "interest": 10},
                "魅惑": {"base": 15, "occupation": 10}},
     "weapons": [
-        {"name": "徒手格斗", "success": 25, "damage": "1D3+DB", "range": "—",
-         "attacks": "1", "ammo": "—", "malfunction": "—", "pierce": "—"},
-        {"name": ".32 自动手枪", "success": 40, "damage": "1D8", "range": "15m",
-         "attacks": "1(3)", "ammo": "8", "malfunction": "98", "pierce": "—"},
+        {"name": "徒手格斗", "type": "常规武器", "skill": "斗殴", "success": 25, "damage": "1D3+DB",
+         "range": "接触", "attacks": "1", "ammo": "", "malfunction": "", "pierce": "×"},
+        {"name": ".32 自动手枪", "type": "手枪", "skill": "手枪", "success": 40, "damage": "1D8",
+         "range": "15m", "attacks": "1(3)", "ammo": "8", "malfunction": "98", "pierce": "√"},
     ],
     "assets": {"cash": "40", "spending_level": "普通", "living_standard": "小康"},
     "social_background": {"traits": "好奇心旺盛"},
@@ -103,6 +103,8 @@ check("技能总数计入", created["skills"]["图书馆使用"]["total"] == 40,
       str(created["skills"].get("图书馆使用")))
 check("武器表保留", len(created.get("weapons") or []) == 2 and created["weapons"][1]["name"] == ".32 自动手枪",
       str(created.get("weapons")))
+check("武器新字段回传", created["weapons"][0].get("skill") == "斗殴"
+      and created["weapons"][1].get("type") == "手枪", str(created["weapons"]))
 check("当前 SAN 缺省等于上限", created["current_san"] == 65, str(created.get("current_san")))
 check("当前 MP 缺省等于上限", created["current_mp"] == 13, str(created.get("current_mp")))
 check("职业点预算", created["occupation_budget"] == 180, str(created.get("occupation_budget")))
@@ -136,7 +138,15 @@ not_own = dict(CARD, skills={"攀爬": {"base": 20, "occupation": 20}})
 r = client.post("/api/me/characters", headers=H, json=not_own)
 check("非本职技能加点 400", r.status_code == 400 and "本职技能" in r.text, r.text[:200])
 
-bad_weapon = dict(CARD, weapons=[{"name": "剑", "success": 25, "damage": "一点八"}])
+bad_skill = dict(CARD, weapons=[{"name": "剑", "skill": "飞天", "damage": "1D8"}])
+r = client.post("/api/me/characters", headers=H, json=bad_skill)
+check("非法使用技能 400", r.status_code == 400 and "不在技能表里" in r.text, r.text[:200])
+
+no_skill = dict(CARD, weapons=[{"name": "剑", "damage": "1D8"}])
+r = client.post("/api/me/characters", headers=H, json=no_skill)
+check("缺少使用技能 400", r.status_code == 400 and "缺少使用技能" in r.text, r.text[:200])
+
+bad_weapon = dict(CARD, weapons=[{"name": "剑", "skill": "斗殴", "success": 25, "damage": "一点八"}])
 r = client.post("/api/me/characters", headers=H, json=bad_weapon)
 check("非法伤害 400", r.status_code == 400 and "不是合法写法" in r.text, r.text[:200])
 
@@ -156,12 +166,22 @@ bad = dict(CARD, occupation="")
 r = client.post("/api/me/characters", headers=H, json=bad)
 check("未选职业 400", r.status_code == 400 and "职业" in r.text, r.text[:160])
 
+opts = client.get("/api/trpg/coc/options", headers=H).json()
+library = opts.get("weapon_library") or []
+check("武器库随选项下发", len(library) >= 100, str(len(library)))
+check("武器库字段齐全",
+      all(k in library[0] for k in ("name", "type", "skill", "damage", "range", "attacks",
+                                    "capacity", "malfunction", "pierce", "era")),
+      str(library[0])[:160])
+check("武器库含时代标记", {w["era"] for w in library} >= {"1920s", "现代"}, str({w["era"] for w in library}))
+
 r = client.get("/api/me/characters", headers=H)
 check("列表含 COC 卡", any(c["rules"] == "coc7th" for c in r.json()["characters"]))
 
 updated = dict(CARD, str_score=85, siz_score=70,
                skills={"图书馆使用": {"base": 20, "occupation": 20}},
-               weapons=[{"name": "短棍", "success": 35, "damage": "1D6+DB"}])
+               weapons=[{"name": "短棍", "type": "常规武器", "skill": "斗殴", "success": 35,
+                         "damage": "1D6+DB", "range": "接触"}])
 r = client.put(f"/api/me/characters/{created['id']}", headers=H, json=updated)
 check("更新 200", r.status_code == 200, r.text[:200])
 check("更新后伤害加值变化", r.json()["db"] == "+1D4", str(r.json().get("db")))
