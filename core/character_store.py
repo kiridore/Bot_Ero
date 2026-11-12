@@ -17,6 +17,8 @@ import threading
 import uuid
 from pathlib import Path
 
+from core.logger import logger
+
 from core.config import TRPG_CHARS_ROOT as CHARS_ROOT  # 根目录来自 config.yaml paths.trpg_chars
 
 _LOCKS: dict[str, threading.Lock] = {}
@@ -64,8 +66,13 @@ def _read_json(path: Path) -> dict:
 def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError as exc:
+        # 典型成因：网页进程建的目录，bot 进程没有写权限（共享 server_data 的两个进程运行用户不同）
+        logger.error("角色卡写入失败 %s: %s", path, exc)
+        raise ValueError(f"角色卡写入失败：{exc.strerror}（目录 {path.parent}）") from exc
 
 
 def _load_meta(user_id) -> dict:

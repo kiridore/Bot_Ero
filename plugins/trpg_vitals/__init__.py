@@ -206,8 +206,8 @@ class TrpgVitalsPlugin(Plugin):
 
         try:
             store.update_char(target, char["id"], data)
-        except ValueError:
-            raise ValueError("角色卡写入失败")
+        except ValueError as exc:
+            raise ValueError(str(exc) or "角色卡写入失败")
         out = f"{nickname}的{vitals.format_change(label, before, after, '' if delta is None else detail)}"
         if delta is None:
             out = f"{nickname}的{label}已回满 → {after}"
@@ -275,8 +275,8 @@ class TrpgVitalsPlugin(Plugin):
         data["san_loss_today"] = accumulated
         try:
             store.update_char(target, char["id"], data)
-        except ValueError:
-            raise ValueError("角色卡写入失败")
+        except ValueError as exc:
+            raise ValueError(str(exc) or "角色卡写入失败")
 
         nickname = self._display_name(target, char)
         lines = [

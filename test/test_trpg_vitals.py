@@ -289,3 +289,18 @@ class TestTargetFormats(VitalsBase):
             with self.assertRaises(ValueError) as ctx:
                 plugin._resolve_target()
         self.assertIn("还没设置当前角色卡", str(ctx.exception))
+
+
+class TestWriteFailureMessage(VitalsBase):
+    """角色卡写入失败（权限等）要把原因带给用户，而不是「指令处理出错」。"""
+
+    rule = "coc7th"
+
+    def test_write_error_surfaces_reason(self):
+        self.install({DM_ID: _coc_card()})
+        # invoke() 会把 store.update_char 桩成 self.update_char，这里直接让它抛写入失败
+        with patch.object(self, "update_char",
+                          side_effect=ValueError("角色卡写入失败：Permission denied（目录 server_data/trpg_chars/100000001）")):
+            out = self.invoke(".hp -1", user_id=DM_ID)
+        self.assertIn("角色卡写入失败", out)
+        self.assertIn("Permission denied", out)

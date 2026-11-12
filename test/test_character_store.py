@@ -112,3 +112,21 @@ class CharacterStoreTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestWriteJsonOSError(unittest.TestCase):
+    """写入失败（如目录无权限）必须变成可读的 ValueError，而不是裸 PermissionError。"""
+
+    def test_permission_error_becomes_value_error(self):
+        from core import character_store as cs
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        target = Path(tempfile.mkdtemp()) / "x" / "1.json"
+        with patch.object(Path, "write_text", side_effect=PermissionError(13, "Permission denied")):
+            with self.assertRaises(ValueError) as ctx:
+                cs._write_json(target, {"a": 1})
+        self.assertIn("角色卡写入失败", str(ctx.exception))
+        self.assertIn("Permission denied", str(ctx.exception))
+        self.assertIn(str(target.parent), str(ctx.exception))
