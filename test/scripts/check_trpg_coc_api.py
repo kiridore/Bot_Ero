@@ -166,6 +166,19 @@ bad = dict(CARD, occupation="")
 r = client.post("/api/me/characters", headers=H, json=bad)
 check("未选职业 400", r.status_code == 400 and "职业" in r.text, r.text[:160])
 
+# 查看页依赖公共卡片接口返回派生值，COC 卡缺这些字段会整页显示 0
+public = client.get(f"/api/characters/{ME}/{created['id']}", headers=H)
+view = public.json()
+check("查看页拿到 COC 派生值",
+      public.status_code == 200 and view.get("rules") == "coc7th"
+      and isinstance(view.get("scores"), dict) and view["scores"].get("力量") == 60
+      and "skills" in view and "weapons" in view,
+      str({k: view.get(k) for k in ("rules", "scores")})[:160])
+check("查看页武器含新字段",
+      (view.get("weapons") or [{}])[0].get("skill") == "斗殴"
+      and (view.get("weapons") or [{}])[0].get("type") == "常规武器",
+      str((view.get("weapons") or [{}])[0])[:160])
+
 opts = client.get("/api/trpg/coc/options", headers=H).json()
 library = opts.get("weapon_library") or []
 check("武器库随选项下发", len(library) >= 100, str(len(library)))

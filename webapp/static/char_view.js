@@ -58,7 +58,158 @@ function fmtMod(v) {
   return `${v >= 0 ? "+" : ""}${v}`;
 }
 
+// COC 7th 角色卡：与建卡页同口径展示（属性 / 派生 / 技能 / 武器 / 资产 / 背景）
+const COC_ATTR_ROWS = [
+  ["力量", "str_score"], ["敏捷", "dex_score"], ["意志", "pow_score"],
+  ["体质", "con_score"], ["外貌", "app_score"], ["教育", "edu_score"],
+  ["体型", "siz_score"], ["智力", "int_score"], ["幸运", "luck"],
+];
+
+const COC_BACKGROUND = [
+  ["description", "个人描述"], ["ideology", "思想与信念"], ["significant_people", "重要之人"],
+  ["meaningful_places", "意义非凡之地"], ["treasured_possessions", "宝贵之物"], ["traits", "特质"],
+  ["scars", "伤口和疤痕"], ["phobias", "恐惧症和狂躁症"],
+];
+
+function damageWithDb(damage, db) {
+  const text = String(damage || "").trim();
+  if (!text || !text.includes("DB")) return text;
+  return `${text}（DB=${db || 0}）`;
+}
+
+function cocSection(title, buildBody) {
+  const sec = document.createElement("section");
+  sec.className = "settings-section";
+  sec.innerHTML = `<div class="section-head"><h2>${title}</h2></div>`;
+  buildBody(sec);
+  charViewMain.appendChild(sec);
+  return sec;
+}
+
+function renderCocView(char) {
+  charViewMain.innerHTML = "";
+  const scores = char.scores || {};
+
+  const head = document.createElement("div");
+  head.className = "section-head";
+  const title = `【${char.char_name || "无名调查员"}】${char.occupation || "无职业"}`;
+  head.innerHTML = `<h2>${escapeHtml(title)}</h2>
+    <span class="muted">${escapeHtml(char.display_name || "")} 的调查员卡</span>`;
+  charViewMain.appendChild(head);
+
+  const meta = document.createElement("p");
+  meta.className = "muted";
+  meta.textContent = [
+    char.age ? `${char.age}岁` : "", char.sex, char.era, char.residence ? `住地 ${char.residence}` : "",
+  ].filter(Boolean).join(" · ");
+  if (meta.textContent) charViewMain.appendChild(meta);
+
+  const vitals = document.createElement("p");
+  vitals.className = "muted";
+  vitals.textContent = [
+    `HP ${char.current_hp}/${char.hp}`, `MP ${char.current_mp}/${char.mp}`,
+    `SAN ${char.current_san}/${char.max_san}`,
+    `MOV ${char.mov}`, `伤害加值 ${char.db}`, `体格 ${char.build}`, `闪避 ${char.dodge}`,
+    `信用评级 ${char.credit_rating}`,
+  ].join(" · ");
+  charViewMain.appendChild(vitals);
+
+  cocSection("属性", (sec) => {
+    const grid = document.createElement("div");
+    grid.className = "coc-grid coc-attrs";
+    for (const [label, key] of COC_ATTR_ROWS) {
+      const value = key === "luck" ? (char.luck || 0) : (scores[label] ?? 0);
+      const cell = document.createElement("p");
+      cell.className = "coc-note-cell";
+      cell.innerHTML = `<strong>${label}</strong> ${value}`;
+      grid.appendChild(cell);
+    }
+    sec.appendChild(grid);
+  });
+
+  const skills = Object.entries(char.skills || {});
+  if (skills.length) {
+    cocSection("技能", (sec) => {
+      const table = document.createElement("table");
+      table.className = "trpg-table";
+      table.innerHTML = "<tr><th>技能</th><th>成长</th><th>职业</th><th>兴趣</th><th>成功率</th></tr>";
+      for (const [name, entry] of skills) {
+        const tr = document.createElement("tr");
+        const check = entry.check ? " ✓" : "";
+        tr.innerHTML = `<th>${escapeHtml(name)}${check}</th>
+          <td>${entry.growth || 0}</td><td>${entry.occupation || 0}</td>
+          <td>${entry.interest || 0}</td><td>${entry.total || 0}%</td>`;
+        table.appendChild(tr);
+      }
+      sec.appendChild(table);
+    });
+  }
+
+  const weapons = char.weapons || [];
+  if (weapons.length) {
+    cocSection("武器", (sec) => {
+      const table = document.createElement("table");
+      table.className = "trpg-table";
+      table.innerHTML = "<tr><th>武器</th><th>类型</th><th>使用技能</th><th>成功率</th>" +
+        "<th>伤害</th><th>射程</th><th>次数</th><th>装弹量</th><th>故障值</th><th>贯穿</th></tr>";
+      for (const weapon of weapons) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<th>${escapeHtml(weapon.name || "")}</th>
+          <td>${escapeHtml(weapon.type || "")}</td>
+          <td>${escapeHtml(weapon.skill || "")}</td>
+          <td>${weapon.success || 0}</td>
+          <td>${escapeHtml(damageWithDb(weapon.damage, char.db))}</td>
+          <td>${escapeHtml(weapon.range || "")}</td>
+          <td>${escapeHtml(weapon.attacks || "")}</td>
+          <td>${escapeHtml(weapon.ammo || "")}</td>
+          <td>${escapeHtml(String(weapon.malfunction || ""))}</td>
+          <td>${escapeHtml(weapon.pierce || "")}</td>`;
+        table.appendChild(tr);
+      }
+      sec.appendChild(table);
+    });
+  }
+
+  const assets = char.assets || {};
+  const assetLines = [
+    ["现金", assets.cash], ["消费水平", assets.spending_level], ["生活水平", assets.living_standard],
+    ["克苏鲁神话", char.cthulhu_mythos],
+  ].filter(([, v]) => v !== undefined && v !== null && String(v) !== "");
+  if (assetLines.length) {
+    cocSection("资产", (sec) => {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = assetLines.map(([k, v]) => `${k}：${v}`).join(" · ");
+      sec.appendChild(p);
+    });
+  }
+
+  const bg = char.social_background || {};
+  const bgLines = COC_BACKGROUND.filter(([key]) => String(bg[key] || "").trim());
+  if (bgLines.length) {
+    cocSection("背景", (sec) => {
+      const box = document.createElement("div");
+      box.style.whiteSpace = "pre-wrap";
+      box.textContent = bgLines.map(([key, label]) => `【${label}】\n${bg[key]}`).join("\n\n");
+      sec.appendChild(box);
+    });
+  }
+
+  if (char.notes) {
+    cocSection("调查员笔记", (sec) => {
+      const p = document.createElement("p");
+      p.style.whiteSpace = "pre-wrap";
+      p.textContent = char.notes;
+      sec.appendChild(p);
+    });
+  }
+}
+
 function renderView(char, rules) {
+  if ((char.rules || "dnd5e") === "coc7th") {
+    renderCocView(char);
+    return;
+  }
   charViewMain.innerHTML = "";
 
   const head = document.createElement("div");
