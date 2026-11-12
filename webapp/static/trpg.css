@@ -510,6 +510,26 @@
   .coc-asset-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.coc-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.3rem;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-style: normal;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.coc-info:hover,
+.coc-info:focus { border-color: var(--accent); color: var(--accent-ink); }
+
 .coc-dmg-note {
   font-size: 0.75rem;
   color: var(--ink-soft);

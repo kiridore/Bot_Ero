@@ -280,6 +280,28 @@ def skill_name_ok(name: str) -> bool:
     return any(name.startswith(cat) for cat in SKILL_CATEGORIES)
 
 
+# 附表里的技能名与角色卡上的规范名不一致的几处
+NOTE_ALIASES = {
+    "取悦": "魅惑",
+    "侦查": "侦察",
+    "导航": "领航",
+    "计算机使用": "计算机使用 Ω",
+    "艺术与手艺": "技艺",
+}
+
+
+def skill_note_index() -> dict[str, dict]:
+    """技能说明索引：以角色卡上的规范名建键，别名与原表名都能查到。"""
+    from .skill_notes import SKILL_NOTES
+
+    index = dict(SKILL_NOTES)
+    for raw, canon in NOTE_ALIASES.items():
+        note = SKILL_NOTES.get(raw)
+        if note and canon not in index:
+            index[canon] = note
+    return index
+
+
 def skill_defaults(dex_score: int) -> dict[str, int]:
     """规则层面每个标准技能的默认基础值；闪避按 DEX/2 派生，不取表里的 0。"""
     defaults = {canonical_skill(name): int(base or 0) for name, base in SKILL_BASE.items()}

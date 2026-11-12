@@ -368,3 +368,30 @@ class TestAssets(unittest.TestCase):
         self.assertIn("资产：", text)
         self.assertIn("日元（JPY）", text)
         self.assertIn("现金 120000", text)
+
+
+class TestSkillNotes(unittest.TestCase):
+    """技能说明：附表 B95:K212 的注释，按角色卡规范名建索引。"""
+
+    def test_index_covers_base_skills(self):
+        index = coc.skill_note_index()
+        from core.trpg.coc_data import SKILL_BASE
+        missing = [name for name in SKILL_BASE if name not in index]
+        self.assertEqual(missing, [], missing)
+
+    def test_alias_names_resolved(self):
+        index = coc.skill_note_index()
+        for canon in ("魅惑", "侦察", "领航", "计算机使用 Ω"):
+            self.assertIn(canon, index, canon)
+            self.assertTrue(index[canon]["note"], canon)
+
+    def test_specialty_notes(self):
+        index = coc.skill_note_index()
+        self.assertIn("技艺:表演", index)
+        self.assertIn("科学:化学", index)
+        self.assertIn("技艺", index)     # 艺术与手艺 → 技艺
+
+    def test_note_shape(self):
+        note = coc.skill_note_index()["会计"]
+        self.assertEqual(note["base"], "5%")
+        self.assertTrue(note["note"].startswith("·"))

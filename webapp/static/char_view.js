@@ -59,6 +59,30 @@ function fmtMod(v) {
 }
 
 // COC 7th 角色卡：与建卡页同口径展示（属性 / 派生 / 技能 / 武器 / 资产 / 背景）
+let cocSkillNotes = null;   // 技能说明缓存（/api/trpg/coc/skill-notes）
+
+async function loadCocSkillNotes() {
+  if (cocSkillNotes) return cocSkillNotes;
+  try {
+    const res = await fetch("/api/trpg/coc/skill-notes", { headers: GalleryAuth.headers() });
+    const data = await res.json().catch(() => ({}));
+    cocSkillNotes = (res.ok && data.notes) || {};
+  } catch (err) {
+    cocSkillNotes = {};
+  }
+  return cocSkillNotes;
+}
+
+function cocSkillNoteTitle(name) {
+  const notes = cocSkillNotes || {};
+  const key = String(name || "");
+  const note = notes[key] || (key.includes(":") ? notes[key.split(":")[0]] : null);
+  if (!note) return "";
+  const meta = [note.base ? `基础值 ${note.base}` : "", note.special && note.special !== "——" ? note.special : ""]
+    .filter(Boolean).join("｜");
+  return [note.note || "", meta].filter(Boolean).join("\n\n");
+}
+
 const COC_ATTR_ROWS = [
   ["力量", "str_score"], ["敏捷", "dex_score"], ["意志", "pow_score"],
   ["体质", "con_score"], ["外貌", "app_score"], ["教育", "edu_score"],
@@ -136,7 +160,11 @@ function renderCocView(char) {
       for (const [name, entry] of skills) {
         const tr = document.createElement("tr");
         const check = entry.check ? " ✓" : "";
-        tr.innerHTML = `<th>${escapeHtml(name)}${check}</th>
+        const note = cocSkillNoteTitle(name);
+        const icon = note
+          ? `<span class="coc-info" role="img" tabindex="0" aria-label="技能说明" title="${escapeHtml(note)}">i</span>`
+          : "";
+        tr.innerHTML = `<th>${escapeHtml(name)}${check}${icon}</th>
           <td>${entry.growth || 0}</td><td>${entry.occupation || 0}</td>
           <td>${entry.interest || 0}</td><td>${entry.total || 0}%</td>`;
         table.appendChild(tr);
@@ -220,8 +248,9 @@ function renderCocView(char) {
   }
 }
 
-function renderView(char, rules) {
+async function renderView(char, rules) {
   if ((char.rules || "dnd5e") === "coc7th") {
+    await loadCocSkillNotes();
     renderCocView(char);
     return;
   }
@@ -360,7 +389,7 @@ async function init() {
       apiFetch(cardUrl),
       apiFetch("/api/trpg/rules"),
     ]);
-    renderView(char, rules);
+    await renderView(char, rules);
   } catch (err) {
     charViewMain.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message)}</p>`;
   }

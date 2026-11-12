@@ -254,7 +254,14 @@ def api_coc_options():
         ],
         "living_levels": [level["name"] for level in trpg_asset.LEVELS],
         "asset_items": [{"key": k, "label": v} for k, v in trpg_asset.ASSET_ITEM_FIELDS],
+        "skill_notes": trpg_coc.skill_note_index(),
     }
+
+
+@router.get("/api/trpg/coc/skill-notes")
+def api_coc_skill_notes():
+    """技能说明（供角色卡查看页按需加载）。"""
+    return {"notes": trpg_coc.skill_note_index()}
 
 
 @router.get("/api/trpg/coc/asset-reference")

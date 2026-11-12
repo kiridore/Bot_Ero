@@ -220,6 +220,11 @@ check("非法生活水平 400", r.status_code == 400 and "不在 6 档" in r.tex
 opts = client.get("/api/trpg/coc/options", headers=H).json()
 library = opts.get("weapon_library") or []
 check("武器库随选项下发", len(library) >= 100, str(len(library)))
+notes = opts.get("skill_notes") or {}
+check("技能说明随选项下发", len(notes) >= 100 and notes.get("会计", {}).get("base") == "5%"
+      and notes.get("技艺:表演"), str(len(notes)))
+notes_api = client.get("/api/trpg/coc/skill-notes", headers=H).json()
+check("技能说明接口", len(notes_api.get("notes") or {}) == len(notes), str(len(notes_api.get("notes") or {})))
 check("币种与档位随选项下发",
       len(opts.get("currencies") or []) == 6 and len(opts.get("living_levels") or []) == 6
       and len(opts.get("asset_items") or []) == 5,

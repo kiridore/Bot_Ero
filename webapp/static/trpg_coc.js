@@ -431,11 +431,39 @@ function rerenderDerived() {
   }
 }
 
+// 技能说明：精确命中 → 去掉「类别:」再试 → 类别本身（技艺 用「艺术与手艺」的说明）
+function skillNote(name) {
+  const notes = options.skill_notes || {};
+  const canon = canonSkill(normalizeSkillName(name) || name);
+  if (notes[canon]) return notes[canon];
+  const parts = canon.split(":");
+  if (parts.length > 1) {
+    const bare = parts.slice(1).join(":");
+    if (notes[bare]) return notes[bare];
+    if (notes[parts[0]]) return notes[parts[0]];
+  }
+  return null;
+}
+
+function skillNoteTitle(note) {
+  const lines = [note.note || ""];
+  const meta = [note.base ? `基础值 ${note.base}` : "", note.special && note.special !== "——" ? note.special : ""]
+    .filter(Boolean).join("｜");
+  if (meta) lines.push("", meta);
+  return lines.join("\n");
+}
+
 function skillRow(name, entry) {
   const base = entry.base != null ? entry.base : (options.skill_base[name] || 0);
   return `
     <tr data-skill data-name="${escapeHtml(name)}">
-      <td>${escapeHtml(name)}</td>
+      <td>${escapeHtml(name)}${(() => {
+        const note = skillNote(name);
+        if (!note) return "";
+        return `<span class="coc-info" role="img" tabindex="0" aria-label="技能说明"
+                      data-note="${escapeHtml(skillNoteTitle(note))}"
+                      title="${escapeHtml(skillNoteTitle(note))}">i</span>`;
+      })()}</td>
       <td><input type="number" data-base value="${base}" min="0" max="99" class="coc-num" /></td>
       <td><input type="number" data-growth value="${entry.growth || 0}" min="0" max="199" class="coc-num" />${entry.check ? " ✓" : ""}</td>
       <td><input type="number" data-occ value="${entry.occupation || 0}" min="0" max="99" class="coc-num" /></td>
