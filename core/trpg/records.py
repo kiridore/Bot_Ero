@@ -127,4 +127,10 @@ def finalize_record(record_path, end_ts=None) -> None:
         return
     moment = datetime.fromtimestamp(end_ts) if end_ts else datetime.now()
     meta["end"] = moment.strftime("%Y-%m-%d %H:%M:%S")
+    from . import snapshots  # 避免模块级循环导入
+
+    try:
+        snapshots.attach_end_snapshots(meta)
+    except Exception:  # 快照失败不能挡住结束流程
+        meta.pop("_snapshot_failed", None)
     rewrite_meta(record_path, meta)

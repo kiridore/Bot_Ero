@@ -152,6 +152,37 @@
   color: var(--gold);
 }
 
+/* 详情页：参团角色卡快照 */
+.trpg-sheets {
+  margin: 0.75rem 0 0.25rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper-card);
+  font-size: 0.82rem;
+}
+
+.trpg-sheets summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.trpg-sheet {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--rule);
+}
+
+.trpg-sheet-line {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+}
+
+.trpg-sheet-delta {
+  margin: 0.2rem 0 0;
+  color: var(--accent-ink);
+}
+
 /* 详情页聊天气泡 */
 .trpg-record-head {
   margin-top: 0.75rem;

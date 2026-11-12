@@ -1018,3 +1018,55 @@ class TestGrowth(IsolationMixin, unittest.TestCase):
         plugin = _run([_text_seg("/跑团 成长"), {"type": "at", "data": {"qq": "111"}}],
                       user_id=222, nickname="玩家B")
         self.assertIn("只有 DM", _sent_text(plugin))
+
+
+class TestSheetSnapshots(IsolationMixin, unittest.TestCase):
+    """记录里的角色卡快照：开录存 sheet_start，结束存 sheet_end。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _card(self, user_id="111", **over):
+        card = {
+            "rules": "dnd5e", "char_name": "艾拉", "race": "人类", "class_name": "战士",
+            "level": 3, "xp": 2700, "hp": 30, "current_hp": 22,
+            "str_score": 15, "dex_score": 14, "con_score": 14,
+            "int_score": 10, "wis_score": 10, "cha_score": 8,
+        }
+        card.update(over)
+        char_id = store.create_char(user_id, card)
+        store.set_current(user_id, char_id)
+        return char_id
+
+    def test_start_snapshot_written(self):
+        self.seed_party()
+        char_id = self._card()
+        party.set_prepared(GROUP_ID, "111", {"user_id": "111", "char_id": char_id, "prepared_at": "2026-11-11 10:00:00"})
+        _run([_text_seg("/跑团 记录 开始")])
+        person = self.meta(self.record_dir())["participants"][0]
+        self.assertEqual(person["char_id"], char_id)
+        self.assertEqual(person["sheet_start"]["level"], 3)
+        self.assertEqual(person["sheet_start"]["hp"], 30)
+
+    def test_end_snapshot_written(self):
+        self.seed_party()
+        char_id = self._card()
+        party.set_prepared(GROUP_ID, "111", {"user_id": "111", "char_id": char_id, "prepared_at": "2026-11-11 10:00:00"})
+        _run([_text_seg("/跑团 记录 开始")])
+        store.update_char("111", char_id, dict(store.get_char("111", char_id), level=4, hp=38))
+        _run([_text_seg("/跑团 记录 结束")])
+        person = self.meta(self.record_dir())["participants"][0]
+        self.assertEqual(person["sheet_start"]["level"], 3)
+        self.assertEqual(person["sheet_end"]["level"], 4)
+
+    def test_deleted_card_keeps_start_snapshot(self):
+        self.seed_party()
+        char_id = self._card()
+        party.set_prepared(GROUP_ID, "111", {"user_id": "111", "char_id": char_id, "prepared_at": "2026-11-11 10:00:00"})
+        _run([_text_seg("/跑团 记录 开始")])
+        store.delete_char("111", char_id)
+        _run([_text_seg("/跑团 记录 结束")])
+        person = self.meta(self.record_dir())["participants"][0]
+        self.assertIn("sheet_start", person)
+        self.assertNotIn("sheet_end", person)

@@ -11,7 +11,7 @@ from core.logger import logger
 from core.onebot_client import fetch_group_list, fetch_group_members, resolve_group_name
 from core.utils import register_plugin, download_image
 from core import character_store as store
-from core.trpg import growth, party, records
+from core.trpg import growth, party, records, snapshots
 from core.trpg.game_systems import DEFAULT_RULE, GAME_SYSTEMS, normalize_rule, rule_name
 import core.context as runtime_context
 
@@ -710,12 +710,16 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         for uid in ordered:
             snap = prepared.get(uid) or {}
             char = store.get_current(uid)
-            participants.append({
+            person = {
                 "user_id": uid,
                 "nickname": names.get(uid) or snap.get("nickname") or uid,
                 "char_name": snap.get("char_name") or (char or {}).get("char_name", ""),
                 "role": roles.get(uid, ""),
-            })
+                "char_id": snap.get("char_id") or (char or {}).get("id"),
+            }
+            if char:
+                person["sheet_start"] = snapshots.sheet_snapshot(char)
+            participants.append(person)
 
         meta = {
             "version": 2,
@@ -897,14 +901,19 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         role = session.get("roles", {}).get(user_id, "")
         ts = self.bot_event.time or int(time.time())
 
+        person = {
+            "nickname": nickname,
+            "user_id": user_id,
+            "char_name": char_name,
+            "role": role,
+        }
+        if char:
+            person["char_id"] = char.get("id")
+            # 中途才开口的参与者：用首次发言时的卡作为 sheet_start
+            person["sheet_start"] = snapshots.sheet_snapshot(char)
         with runtime_context.recording_lock:
             is_new = user_id not in session["participants"]
-            session["participants"][user_id] = {
-                "nickname": nickname,
-                "user_id": user_id,
-                "char_name": char_name,
-                "role": role,
-            }
+            session["participants"][user_id] = person
             # 内存副本供结束时合并转发使用
             session["messages"].append({
                 "type": "user",

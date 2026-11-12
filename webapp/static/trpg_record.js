@@ -5,6 +5,8 @@ const titleEl = document.getElementById("recordTitle");
 const metaEl = document.getElementById("recordMeta");
 const stateEl = document.getElementById("recordState");
 const revealToggle = document.getElementById("revealToggle");
+const sheetBox = document.getElementById("sheetBox");
+const sheetList = document.getElementById("sheetList");
 
 const PATH_PARTS = location.pathname.split("/").filter(Boolean); // trpg / records / <群号> / <目录>
 const GROUP_ID = decodeURIComponent(PATH_PARTS[2] || "");
@@ -123,6 +125,59 @@ function renderHeader(data) {
   stateEl.textContent = STATE_LABEL[recordState] || recordState;
 }
 
+function sheetLine(sheet) {
+  if (!sheet) return "";
+  if (sheet.rules === "coc7th") {
+    return `HP ${sheet.current_hp}/${sheet.hp} · SAN ${sheet.current_san}/${sheet.san}` +
+      ` · MP ${sheet.current_mp}/${sheet.mp} · MOV ${sheet.mov} · DB ${sheet.db}` +
+      ` · 技能 ${Object.keys(sheet.skills || {}).length} 项`;
+  }
+  return `Lv.${sheet.level} · HP ${sheet.current_hp}/${sheet.hp} · AC ${sheet.ac}` +
+    ` · 熟练 +${sheet.prof_bonus} · 被动感知 ${sheet.passive_perception}`;
+}
+
+function sheetDelta(start, end) {
+  if (!start || !end) return "";
+  const parts = [];
+  if (start.level != null && end.level != null && start.level !== end.level) {
+    parts.push(`Lv ${start.level}→${end.level}`);
+  }
+  if (start.hp != null && end.hp != null && start.hp !== end.hp) parts.push(`HP上限 ${start.hp}→${end.hp}`);
+  if (start.current_san != null && end.current_san != null && start.current_san !== end.current_san) {
+    parts.push(`SAN ${start.current_san}→${end.current_san}`);
+  }
+  if (start.current_hp != null && end.current_hp != null && start.current_hp !== end.current_hp) {
+    parts.push(`HP ${start.current_hp}→${end.current_hp}`);
+  }
+  return parts.length ? `本场变化：${parts.join("，")}` : "";
+}
+
+function renderSheets(participants) {
+  if (!sheetBox || !sheetList) return;
+  const rows = (participants || []).filter((p) => p && (p.sheet_start || p.sheet_end));
+  sheetList.innerHTML = "";
+  sheetBox.hidden = rows.length === 0;
+  if (!rows.length) return;
+  for (const person of rows) {
+    const chip = makeEl("span", "trpg-person", person.char_name || person.nickname || person.user_id);
+    if (person.role === "dm" || person.role === "ob") {
+      chip.appendChild(makeEl("span", `trpg-role role-${person.role}`, ROLE_LABEL[person.role] || person.role));
+    }
+    const card = makeEl("div", "trpg-sheet");
+    card.appendChild(chip);
+    const startLine = sheetLine(person.sheet_start);
+    const endLine = sheetLine(person.sheet_end);
+    if (startLine) card.appendChild(makeEl("p", "trpg-sheet-line", `开始：${startLine}`));
+    if (endLine) card.appendChild(makeEl("p", "trpg-sheet-line", `结束：${endLine}`));
+    const delta = sheetDelta(person.sheet_start, person.sheet_end);
+    if (delta) card.appendChild(makeEl("p", "trpg-sheet-delta", delta));
+    if (!endLine && person.sheet_start) {
+      card.appendChild(makeEl("p", "trpg-sheet-line", "结束：角色卡已删除或未记录"));
+    }
+    sheetList.appendChild(card);
+  }
+}
+
 function isAtBottom() {
   const doc = document.documentElement;
   if (!doc || typeof window.scrollY !== "number") return true;
@@ -166,6 +221,7 @@ async function load(reset) {
   }
   cursor = Number(data.total) || 0; // 客户端游标统一取服务端 total，被过滤的暗骰不会让增量错位
   renderHeader(data);
+  renderSheets(data.participants);
   syncPolling();
   hintEl.className = "empty-hint center";
   hintEl.textContent = listEl.children.length ? "" : "还没有消息";
