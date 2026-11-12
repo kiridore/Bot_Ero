@@ -572,7 +572,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             self.api.send_msg(text(notice))
             return
         try:
-            party.set_role(group_id, user_id, role)
+            party.set_role(group_id, user_id, role, nickname=self._get_sender_nickname())
         except OSError:
             logger.exception("保存角色标记失败")
             self.api.send_msg(text("保存角色设置失败，请稍后重试"))

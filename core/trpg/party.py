@@ -56,14 +56,24 @@ def write_pending(group_id, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def set_role(group_id, user_id, role: str) -> dict:
-    """设置用户在本群的角色；role 为 "dm"/"ob"。DM 唯一，设新 DM 会顶掉旧 DM。"""
+def set_role(group_id, user_id, role: str, nickname: str = "") -> dict:
+    """设置用户在本群的角色；role 为 "dm"/"ob"。DM 唯一，设新 DM 会顶掉旧 DM。
+
+    昵称单独存 ``role_names``：DM/观察者不准备，没有准备快照可回落，
+    网页准备名单要显示人话而不是 QQ 号。
+    """
     data = read_pending(group_id)
     uid = str(user_id)
     if role == "dm":
         for other in [k for k, v in data["roles"].items() if v == "dm" and k != uid]:
             data["roles"].pop(other)
+            data.setdefault("role_names", {}).pop(other, None)
     data["roles"][uid] = role
+    names = data.setdefault("role_names", {})
+    if nickname:
+        names[uid] = nickname
+    else:
+        names.pop(uid, None)
     write_pending(group_id, data)
     return data
 
@@ -71,6 +81,7 @@ def set_role(group_id, user_id, role: str) -> dict:
 def clear_role(group_id, user_id) -> dict:
     data = read_pending(group_id)
     data["roles"].pop(str(user_id), None)
+    data.setdefault("role_names", {}).pop(str(user_id), None)
     write_pending(group_id, data)
     return data
 

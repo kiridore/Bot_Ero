@@ -73,7 +73,7 @@ def make_card(user_id: str, name: str) -> int:
 # ── 准备中：DM + 一名已准备玩家 + 一名观察者 ─────────────
 dm_card = make_card(DM, "守密人")
 player_card = make_card(PLAYER, "田宫真莉")
-party.set_role(GROUP, DM, "dm")
+party.set_role(GROUP, DM, "dm", nickname="守密人")
 party.set_role(GROUP, PLAYER, "ob")
 party.set_role(GROUP, "12345699", "ob")
 party.set_prepared(GROUP, PLAYER, {
@@ -93,6 +93,9 @@ check("已准备计数与人数", first.get("prepared_count") == 1 and first.get
       f"{first.get('prepared_count')}/{first.get('member_count')}")
 check("规则名下发", first.get("rules_name") == "DND 5E" or bool(first.get("rules_name")), str(first.get("rules_name")))
 check("DM 视角标记 is_dm", first.get("is_dm") is True, str(first.get("is_dm")))
+check("DM 昵称来自 role_names", first.get("dm_name") == "守密人"
+      and any(m["user_id"] == DM and m["nickname"] == "守密人" for m in first.get("members") or []),
+      str(first.get("dm_name")))
 
 r = client.get("/api/trpg/parties", headers=auth(STRANGER))
 other = (r.json() or {}).get("parties") or []

@@ -693,6 +693,26 @@ class TestStartSeed(IsolationMixin, unittest.TestCase):
         self.assertEqual(meta["participants"][1]["char_name"], "阿铁")
         self.assertFalse(party.pending_path(GROUP_ID).exists())
 
+    def test_dm_nickname_saved_in_pending(self):
+        """DM/观察者不准备、没有快照，昵称要单独存下来供网页名单显示。"""
+        self.patch_members([_member(111, "老张"), _member(222, "小王")])
+        _run([_text_seg(".dm")], user_id=111, nickname="老张")
+        data = party.read_pending(GROUP_ID)
+        self.assertEqual(data["roles"], {"111": "dm"})
+        self.assertEqual(data.get("role_names"), {"111": "老张"})
+
+        _run([_text_seg(".ob")], user_id=222, nickname="小王")
+        data = party.read_pending(GROUP_ID)
+        self.assertEqual(data.get("role_names"), {"111": "老张", "222": "小王"})
+
+    def test_new_dm_replaces_old_nickname(self):
+        self.patch_members([_member(111, "老张"), _member(222, "小王")])
+        _run([_text_seg(".dm")], user_id=111, nickname="老张")
+        _run([_text_seg(".dm")], user_id=222, nickname="小王")
+        data = party.read_pending(GROUP_ID)
+        self.assertEqual(data["roles"], {"222": "dm"})
+        self.assertEqual(data.get("role_names"), {"222": "小王"})
+
     def test_card_excludes_bot_from_pending(self):
         """机器人自己与其它机器人不应出现在「未准备」列表里（也不计入分母）。"""
         from plugins.trpg_session import BOT_QQ

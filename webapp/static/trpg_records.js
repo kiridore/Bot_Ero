@@ -74,7 +74,7 @@ function partyMemberRow(party, member) {
 
 function partyCard(party) {
   const head = `群 ${escapeHtml(party.group_id)} · ${escapeHtml(party.rules_name)} · ` +
-    `DM ${escapeHtml(party.dm)} · 已准备 ${party.prepared_count}/${party.member_count}`;
+    `DM ${escapeHtml(party.dm_name || party.dm)} · 已准备 ${party.prepared_count}/${party.member_count}`;
   const review = party.is_dm
     ? '<p class="trpg-party-hint">你是本群 DM，可点开每张角色卡审核</p>'
     : "";

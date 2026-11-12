@@ -523,6 +523,7 @@ def _pending_roster(group_id: str) -> dict | None:
     dm_ids = [u for u, r in roles.items() if r == "dm"]
     if not dm_ids:
         return None
+    role_names = data.get("role_names") or {}
     ob_ids = [u for u, r in roles.items() if r == "ob"]
     ordered = dm_ids + ob_ids + [
         u for u in sorted(prepared, key=lambda k: (prepared[k] or {}).get("prepared_at", ""))
@@ -533,7 +534,7 @@ def _pending_roster(group_id: str) -> dict | None:
         snap = prepared.get(uid) or {}
         members.append({
             "user_id": str(uid),
-            "nickname": snap.get("nickname") or str(uid),
+            "nickname": snap.get("nickname") or role_names.get(uid) or str(uid),
             "role": roles.get(uid, ""),
             "char_id": snap.get("char_id"),
             "char_name": snap.get("char_name") or "",
@@ -545,6 +546,7 @@ def _pending_roster(group_id: str) -> dict | None:
         "rules": rules,
         "rules_name": rule_name(rules) if rules else "未知规则",
         "dm": str(dm_ids[0]),
+        "dm_name": role_names.get(dm_ids[0]) or str(dm_ids[0]),
         "prepared_count": len([u for u in prepared]),
         "member_count": len(members),
         "members": members,
