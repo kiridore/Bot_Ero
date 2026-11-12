@@ -580,6 +580,61 @@ def damage_ok(text) -> bool:
 
 ASSET_NUMBER_MAX = 10 ** 15
 
+INVENTORY_STATUSES = ("装备", "携带", "背包")
+INVENTORY_ROWS_MAX = 40
+INVENTORY_SLOT_MAX = 20
+
+
+def inventory_problems(items) -> list[str]:
+    """随身物品：状态三态、名称必填不重名、背包格 0-20。"""
+    if items in (None, ""):
+        return []
+    if not isinstance(items, list):
+        return ["随身物品格式错误"]
+    problems = []
+    if len(items) > INVENTORY_ROWS_MAX:
+        problems.append(f"随身物品最多 {INVENTORY_ROWS_MAX} 行（当前 {len(items)}）")
+    seen = set()
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            problems.append(f"物品 #{index} 格式错误")
+            continue
+        name = str(item.get("name") or "").strip()
+        label = f"物品「{name}」" if name else f"物品 #{index}"
+        if not name:
+            problems.append(f"物品 #{index} 缺少名称")
+        else:
+            if len(name) > 30:
+                problems.append(f"{label}名称过长（上限 30 字）")
+            if name.casefold() in seen:
+                problems.append(f"{label}重复添加")
+            seen.add(name.casefold())
+        status = str(item.get("status") or "").strip()
+        if status and status not in INVENTORY_STATUSES:
+            problems.append(f"{label}的状态「{status}」不在 {'/'.join(INVENTORY_STATUSES)} 之内")
+        slots = item.get("slots")
+        if slots not in (None, ""):
+            try:
+                value = int(slots)
+            except (TypeError, ValueError):
+                problems.append(f"{label}的背包格必须是整数")
+            else:
+                if not 0 <= value <= INVENTORY_SLOT_MAX:
+                    problems.append(f"{label}的背包格应在 0-{INVENTORY_SLOT_MAX}（当前 {value}）")
+    return problems
+
+
+def inventory_summary(data: dict) -> tuple[list[dict], int]:
+    """随身物品按状态分组后的条目与总格数。"""
+    items = [i for i in (data.get("inventory") or []) if isinstance(i, dict) and str(i.get("name") or "").strip()]
+    slots = 0
+    for item in items:
+        try:
+            slots += int(item.get("slots") or 0)
+        except (TypeError, ValueError):
+            continue
+    return items, slots
+
 
 def asset_problems(assets) -> list[str]:
     """资产栏校验：币种与生活水平必须是表里的值，其他资产表必须是非负数字。"""
@@ -704,6 +759,7 @@ def validate(data: dict) -> list[str]:
     problems.extend(occupational_point_problems(data))
     problems.extend(weapon_problems(data.get("weapons") or []))
     problems.extend(asset_problems(data.get("assets")))
+    problems.extend(inventory_problems(data.get("inventory")))
     return problems
 
 
@@ -764,6 +820,15 @@ def format_sheet(data: dict) -> str:
             if str(weapon.get("range") or "").strip():
                 parts.append(f"射程 {weapon['range']}")
             lines.append("｜".join(parts))
+    items, slots = inventory_summary(data)
+    if items:
+        names = []
+        for item in items[:6]:
+            status = str(item.get("status") or "").strip()
+            name = str(item.get("name") or "").strip()
+            names.append(f"{name}（{status}）" if status else name)
+        tail = f"… 共 {len(items)} 件 · {slots} 格" if len(items) > 6 else f"共 {len(items)} 件 · {slots} 格"
+        lines.append("装备：" + "、".join(names) + f"\n       {tail}")
     assets = data.get("assets") or {}
     if isinstance(assets, dict) and any(str(assets.get(k) or "").strip()
                                         for k in ("cash", "other_assets", "currency", "living_standard")):

@@ -96,3 +96,16 @@ class TestAttachEndSnapshots(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestInventorySnapshot(unittest.TestCase):
+    def test_inventory_counts_in_snapshot(self):
+        snap = snapshots.sheet_snapshot(_coc_card(inventory=[
+            {"name": "防弹背心", "slots": 2}, {"name": "急救包", "slots": "1"},
+        ]))
+        self.assertEqual(snap["inventory_count"], 2)
+        self.assertEqual(snap["inventory_slots"], 3)
+
+    def test_bad_slots_counted_as_zero(self):
+        snap = snapshots.sheet_snapshot(_coc_card(inventory=[{"name": "x", "slots": "若干"}]))
+        self.assertEqual(snap["inventory_slots"], 0)

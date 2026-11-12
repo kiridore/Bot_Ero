@@ -198,6 +198,35 @@ function renderCocView(char) {
     });
   }
 
+  const inventory = (char.inventory || []).filter((item) => item && String(item.name || "").trim());
+  if (inventory.length) {
+    cocSection("随身物品", (sec) => {
+      const groups = new Map();
+      for (const item of inventory) {
+        const status = item.status || "携带";
+        if (!groups.has(status)) groups.set(status, []);
+        groups.get(status).push(item);
+      }
+      let total = 0;
+      for (const [status, items] of groups) {
+        const line = document.createElement("p");
+        line.className = "muted";
+        const detail = items.map((item) => {
+          const slots = Number(item.slots) || 0;
+          total += slots;
+          const slot = item.slot ? `${item.slot}／` : "";
+          return `${item.name}（${slot}${slots} 格）`;
+        }).join("、");
+        line.textContent = `${status}：${detail}`;
+        sec.appendChild(line);
+      }
+      const sum = document.createElement("p");
+      sum.className = "muted";
+      sum.textContent = `共 ${inventory.length} 件 · ${total} 格`;
+      sec.appendChild(sum);
+    });
+  }
+
   const assets = char.assets || {};
   const assetLines = [
     ["币种", assets.currency], ["生活水平", assets.living_standard], ["现金", assets.cash],

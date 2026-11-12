@@ -580,6 +580,35 @@ function weaponRow(weapon) {
     `<td><button type="button" class="btn-sm" data-remove-weapon>删</button></td></tr>`;
 }
 
+function inventoryRow(item) {
+  const statuses = options.inventory_statuses || ["装备", "携带", "背包"];
+  const status = statuses.map((st) =>
+    `<option value="${escapeHtml(st)}"${st === (item.status || "携带") ? " selected" : ""}>${escapeHtml(st)}</option>`).join("");
+  return `
+    <tr data-item-row>
+      <td><select data-item="status">${status}</select></td>
+      <td><input type="text" data-item="slot" maxlength="10" value="${escapeHtml(item.slot || "")}" placeholder="躯干 / 手 / 背" /></td>
+      <td><input type="text" data-item="name" maxlength="30" value="${escapeHtml(item.name || "")}" placeholder="物品名称" /></td>
+      <td><input type="number" data-item="slots" min="0" max="20" value="${item.slots != null ? escapeHtml(item.slots) : 1}" class="coc-num" /></td>
+      <td><button type="button" class="btn-sm" data-remove-item>删</button></td>
+    </tr>`;
+}
+
+function renderInventoryTotals() {
+  const box = document.getElementById("inventoryTotals");
+  if (!box) return;
+  const groups = new Map();
+  let total = 0;
+  document.querySelectorAll("[data-item-row]").forEach((row) => {
+    const status = row.querySelector('[data-item="status"]').value || "携带";
+    const slots = Number(row.querySelector('[data-item="slots"]').value || 0);
+    total += Number.isFinite(slots) ? slots : 0;
+    groups.set(status, (groups.get(status) || 0) + 1);
+  });
+  const parts = [...groups.entries()].map(([status, count]) => `${status} ${count} 件`);
+  box.textContent = parts.length ? `${parts.join(" · ")} · 合计 ${total} 格` : "";
+}
+
 function render() {
   const bg = card.social_background || {};
   const assets = card.assets || {};
@@ -706,6 +735,17 @@ function render() {
     </section>
 
     <section class="coc-block">
+      <h3>随身物品 <button type="button" class="btn-sm" id="addItem">添加物品</button></h3>
+      <div class="coc-table-wrap">
+        <table class="coc-table">
+          <thead><tr><th>状态</th><th>部位</th><th>物品名称</th><th>背包格</th><th></th></tr></thead>
+          <tbody id="itemBody">${(card.inventory || []).map(inventoryRow).join("")}</tbody>
+        </table>
+      </div>
+      <p class="coc-note" id="inventoryTotals"></p>
+    </section>
+
+    <section class="coc-block">
       <h3>背景</h3>
       <div class="coc-grid coc-bg">
         ${BACKGROUND_FIELDS.map(([key, label]) => `<label>${label}<textarea rows="2" data-bg="${key}">${escapeHtml(bg[key] || "")}</textarea></label>`).join("")}
@@ -718,6 +758,7 @@ function render() {
   bind();
   renderOccChoices();
   renderWeaponLibrary();
+  renderInventoryTotals();
   rerenderDerived();
 }
 
@@ -851,6 +892,17 @@ function bind() {
       weaponRow({ name: "", type: "", skill: "", success: 0, damage: "", range: "", attacks: "", ammo: "", malfunction: "", pierce: "" })
     );
   });
+  document.getElementById("addItem").addEventListener("click", () => {
+    document.getElementById("itemBody").insertAdjacentHTML("beforeend", inventoryRow({}));
+    renderInventoryTotals();
+  });
+  document.getElementById("itemBody").addEventListener("click", (e) => {
+    if (!e.target.matches("[data-remove-item]")) return;
+    e.target.closest("tr").remove();
+    renderInventoryTotals();
+  });
+  document.getElementById("itemBody").addEventListener("input", renderInventoryTotals);
+  document.getElementById("itemBody").addEventListener("change", renderInventoryTotals);
   document.getElementById("weaponBody").addEventListener("click", (e) => {
     if (!e.target.matches("[data-remove-weapon]")) return;
     e.target.closest("tr").remove();
@@ -901,6 +953,12 @@ function collect() {
         .map((el) => [el.dataset.assetItem, el.value.trim()])),
       remaining: document.getElementById("assetRemaining").value.trim(),
     },
+    inventory: [...document.querySelectorAll("[data-item-row]")].map((row) => ({
+      status: row.querySelector('[data-item="status"]').value,
+      slot: row.querySelector('[data-item="slot"]').value.trim(),
+      name: row.querySelector('[data-item="name"]').value.trim(),
+      slots: row.querySelector('[data-item="slots"]').value.trim(),
+    })).filter((item) => item.name),
     weapons: [...document.querySelectorAll("[data-weapon-row]")].map((row) => {
       const weapon = {};
       row.querySelectorAll("[data-weapon]").forEach((el) => {

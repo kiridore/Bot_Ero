@@ -53,6 +53,7 @@ class CharacterIn(BaseModel):
     occupation_choices: dict[str, list[str]] = {}
     skills: dict = {}
     weapons: list[dict] = []
+    inventory: list[dict] = []
     assets: dict = {}
     social_background: dict = {}
     # DND 5E 专属
@@ -166,6 +167,7 @@ class CharOut(BaseModel):
     occupation_choices: dict[str, list[str]] = {}
     skills: dict = {}
     weapons: list[dict] = []
+    inventory: list[dict] = []
     assets: dict = {}
     social_background: dict = {}
     mp: int = 0
@@ -259,6 +261,7 @@ def api_coc_options():
         ],
         "living_levels": [level["name"] for level in trpg_asset.LEVELS],
         "asset_items": [{"key": k, "label": v} for k, v in trpg_asset.ASSET_ITEM_FIELDS],
+        "inventory_statuses": list(trpg_coc.INVENTORY_STATUSES),
         "skill_notes": trpg_coc.skill_note_index(),
     }
 

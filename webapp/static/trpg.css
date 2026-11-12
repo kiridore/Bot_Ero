@@ -496,6 +496,14 @@
   .coc-attrs, .coc-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.coc-table select {
+  width: 100%;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
 .coc-asset-items {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 0.5rem;
@@ -507,7 +515,15 @@
 }
 
 @media (max-width: 640px) {
-  .coc-asset-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coc-table select {
+  width: 100%;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.coc-asset-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .coc-info {

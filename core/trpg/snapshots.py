@@ -11,6 +11,13 @@ from . import coc
 MAX_SKILLS = 80
 
 
+def _slots(item) -> int:
+    try:
+        return int((item or {}).get("slots") or 0)
+    except (TypeError, ValueError, AttributeError):
+        return 0
+
+
 def sheet_snapshot(card: dict) -> dict:
     """按卡片规则压缩出一份角色卡快照。"""
     rules = card.get("rules") or "dnd5e"
@@ -30,6 +37,8 @@ def sheet_snapshot(card: dict) -> dict:
             "san": fin["san"], "max_san": fin["max_san"], "current_san": fin["current_san"],
             "mov": fin["mov"], "db": fin["db"], "build": fin["build"], "dodge": fin["dodge"],
             "skills": skills,
+            "inventory_count": len(card.get("inventory") or []),
+            "inventory_slots": sum(_slots(item) for item in (card.get("inventory") or [])),
         }
     fin = dnd.finalize(card)
     return {

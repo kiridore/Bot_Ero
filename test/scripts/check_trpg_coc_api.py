@@ -217,6 +217,20 @@ bad_level = dict(CARD, assets={"living_standard": "贫穷"})
 r = client.post("/api/me/characters", headers=H, json=bad_level)
 check("非法生活水平 400", r.status_code == 400 and "不在 6 档" in r.text, r.text[:160])
 
+with_items = dict(CARD, inventory=[
+    {"status": "装备", "slot": "躯干", "name": "防弹背心", "slots": 2},
+    {"status": "携带", "name": "短管霰弹枪", "slots": "3"},
+])
+r = client.post("/api/me/characters", headers=H, json=with_items)
+check("随身物品可保存", r.status_code == 200, r.text[:200])
+saved_items = (r.json() or {}).get("inventory") or []
+check("随身物品回传", [i.get("name") for i in saved_items] == ["防弹背心", "短管霰弹枪"]
+      and saved_items[0].get("status") == "装备", str(saved_items)[:200])
+
+bad_item = dict(CARD, inventory=[{"name": "手电", "status": "乱填"}])
+r = client.post("/api/me/characters", headers=H, json=bad_item)
+check("非法物品状态 400", r.status_code == 400 and "不在 装备/携带/背包" in r.text, r.text[:160])
+
 opts = client.get("/api/trpg/coc/options", headers=H).json()
 library = opts.get("weapon_library") or []
 check("武器库随选项下发", len(library) >= 100, str(len(library)))
@@ -238,6 +252,8 @@ check("技能说明随选项下发", len(notes) >= 100 and notes.get("会计", {
       and notes.get("技艺:表演"), str(len(notes)))
 notes_api = client.get("/api/trpg/coc/skill-notes", headers=H).json()
 check("技能说明接口", len(notes_api.get("notes") or {}) == len(notes), str(len(notes_api.get("notes") or {})))
+check("物品状态随选项下发", list(opts.get("inventory_statuses") or []) == ["装备", "携带", "背包"],
+      str(opts.get("inventory_statuses")))
 check("币种与档位随选项下发",
       len(opts.get("currencies") or []) == 6 and len(opts.get("living_levels") or []) == 6
       and len(opts.get("asset_items") or []) == 5,

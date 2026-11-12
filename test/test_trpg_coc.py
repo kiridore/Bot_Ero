@@ -528,3 +528,54 @@ class TestDynamicBases(unittest.TestCase):
         index = coc.skill_note_index()
         self.assertIn("学识：", index)      # 原始键仍在（说明图标按原名查）
         self.assertEqual(coc.skill_base_for("学识"), 1)
+
+
+class TestInventory(unittest.TestCase):
+    """随身物品：三态、名称必填不重名、背包格范围、QQ 摘要。"""
+
+    def test_valid_items(self):
+        items = [{"status": "装备", "slot": "躯干", "name": "防弹背心", "slots": 2},
+                 {"status": "携带", "name": "短管霰弹枪", "slots": "3"}]
+        self.assertEqual(coc.inventory_problems(items), [])
+
+    def test_name_required(self):
+        self.assertTrue(any("缺少名称" in p for p in coc.inventory_problems([{"name": "  "}])))
+
+    def test_duplicate_name(self):
+        problems = coc.inventory_problems([{"name": "手电"}, {"name": " 手电 "}])
+        self.assertTrue(any("重复添加" in p for p in problems), problems)
+
+    def test_status_enum(self):
+        problems = coc.inventory_problems([{"name": "手电", "status": "乱填"}])
+        self.assertTrue(any("不在 装备/携带/背包 之内" in p for p in problems), problems)
+        for status in coc.INVENTORY_STATUSES:
+            self.assertEqual(coc.inventory_problems([{"name": "手电", "status": status}]), [], status)
+
+    def test_slots_range(self):
+        self.assertTrue(any("必须是整数" in p for p in coc.inventory_problems([{"name": "x", "slots": "多"}])))
+        self.assertTrue(any("应在 0-20" in p for p in coc.inventory_problems([{"name": "x", "slots": 99}])))
+        self.assertEqual(coc.inventory_problems([{"name": "x", "slots": 0}]), [])
+
+    def test_row_limit(self):
+        items = [{"name": f"物品{i}"} for i in range(41)]
+        self.assertTrue(any("最多 40 行" in p for p in coc.inventory_problems(items)))
+
+    def test_summary_and_sheet(self):
+        card = _card(inventory=[
+            {"status": "装备", "name": "防弹背心", "slots": 2},
+            {"status": "背包", "name": "急救包", "slots": 1},
+        ])
+        items, slots = coc.inventory_summary(card)
+        self.assertEqual((len(items), slots), (2, 3))
+        text = coc.format_sheet(card)
+        self.assertIn("装备：防弹背心（装备）、急救包（背包）", text)
+        self.assertIn("共 2 件 · 3 格", text)
+
+    def test_sheet_truncates_after_six(self):
+        card = _card(inventory=[{"status": "携带", "name": f"物品{i}", "slots": 1} for i in range(8)])
+        text = coc.format_sheet(card)
+        self.assertIn("… 共 8 件 · 8 格", text)
+
+    def test_validate_includes_inventory(self):
+        card = _card(inventory=[{"name": "手电", "status": "乱填"}])
+        self.assertTrue(any("不在 装备/携带/背包 之内" in p for p in coc.validate(card)))
