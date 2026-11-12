@@ -280,6 +280,13 @@ def skill_name_ok(name: str) -> bool:
     return any(name.startswith(cat) for cat in SKILL_CATEGORIES)
 
 
+def skill_defaults(dex_score: int) -> dict[str, int]:
+    """规则层面每个标准技能的默认基础值；闪避按 DEX/2 派生，不取表里的 0。"""
+    defaults = {canonical_skill(name): int(base or 0) for name, base in SKILL_BASE.items()}
+    defaults["闪避"] = max(int(dex_score or 0) // 2, 0)
+    return defaults
+
+
 def finalize(data: dict) -> dict:
     """按 COC 7th 口径算派生值；返回可直接给网页/机器人用的大字典。"""
     out = dict(data)
@@ -300,7 +307,10 @@ def finalize(data: dict) -> dict:
         if not isinstance(entry, dict) or not skill_name_ok(name):
             continue
         base = entry.get("base")
-        if base is None:
+        if name == "闪避":
+            # 闪避的基础值由敏捷决定，卡上存的值不作为口径
+            base = max(dex_score // 2, 0)
+        elif base is None:
             base = SKILL_BASE.get(name, 0)
         merged = {
             "base": int(base or 0),
@@ -310,6 +320,15 @@ def finalize(data: dict) -> dict:
         }
         merged["total"] = skill_total(merged)
         skills[raw_name] = merged
+
+    # 规则默认值：卡上没有写过的标准技能，按技能表补出基础成功率
+    stored = {canonical_skill(name) for name in skills}
+    for name, base in skill_defaults(dex_score).items():
+        if name in stored:
+            continue
+        entry = {"base": base, "growth": 0, "occupation": 0, "interest": 0}
+        entry["total"] = skill_total(entry)
+        skills[name] = entry
 
     occupation_spent = sum(entry["occupation"] for entry in skills.values())
     interest_spent = sum(entry["interest"] for entry in skills.values())
@@ -472,7 +491,9 @@ def validate(data: dict) -> list[str]:
         if value and not (1 <= value <= 99):
             problems.append(f"{attr}应在 1-99 之间")
     if fin["occupation_info"] is None:
-        problems.append("请选择职业")
+        # 未选职业允许存在：此时没有职业点预算，职业点必须为 0
+        if fin["occupation_spent"] > 0:
+            problems.append("未选择职业时不能分配职业点")
     else:
         if fin["occupation_spent"] > fin["occupation_budget"]:
             problems.append(

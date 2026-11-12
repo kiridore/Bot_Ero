@@ -243,9 +243,16 @@ class TestBudgets(unittest.TestCase):
         problems = coc.validate(_card(credit_rating=99))
         self.assertTrue(any("信用评级应在" in p for p in problems))
 
-    def test_validate_requires_occupation(self):
-        problems = coc.validate(_card(occupation=""))
-        self.assertIn("请选择职业", problems)
+    def test_validate_allows_missing_occupation(self):
+        # 未选职业也能保存：规则上技能仍有基础值
+        card = _card(occupation="", occupation_choices={},
+                     skills={"图书馆使用": {"base": 20}, "聆听": {"base": 20, "interest": 10}})
+        self.assertEqual(coc.validate(card), [])
+
+    def test_validate_rejects_occupation_points_without_occupation(self):
+        card = _card(occupation="", occupation_choices={},
+                     skills={"图书馆使用": {"base": 20, "occupation": 10}})
+        self.assertTrue(any("未选择职业时不能分配职业点" in p for p in coc.validate(card)))
 
     def test_valid_card_has_no_problem(self):
         self.assertEqual(coc.validate(_card()), [])
@@ -257,7 +264,9 @@ class TestSkillLookup(unittest.TestCase):
         self.assertEqual(coc.skill_value(card, "图书馆"), 40)
         self.assertEqual(coc.skill_value(card, "科学:化学"), 6)
         self.assertEqual(coc.skill_value(card, "科学"), 6)
-        self.assertIsNone(coc.skill_value(card, "驾驶"))
+        # 汽车驾驶 不在卡上，但规则默认值 20 应当可用
+        self.assertEqual(coc.skill_value(card, "驾驶"), 20)
+        self.assertIsNone(coc.skill_value(card, "飞天"))
 
     def test_format_sheet(self):
         text = coc.format_sheet(_card())
@@ -270,3 +279,38 @@ class TestSkillLookup(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestSkillDefaults(unittest.TestCase):
+    """规则默认值：卡上没写的标准技能也有基础成功率；闪避按 DEX/2。"""
+
+    def test_skill_defaults_table(self):
+        defaults = coc.skill_defaults(55)
+        self.assertEqual(defaults["会计"], 5)
+        self.assertEqual(defaults["侦察"], 25)
+        self.assertEqual(defaults["急救"], 30)
+        self.assertEqual(defaults["闪避"], 27)   # DEX 55 // 2
+
+    def test_finalize_includes_all_standard_skills(self):
+        fin = coc.finalize(_card(skills={}))
+        self.assertEqual(len(fin["skills"]), len(coc.SKILL_BASE))
+        self.assertEqual(fin["skills"]["急救"]["total"], 30)
+
+    def test_stored_skill_overrides_default(self):
+        fin = coc.finalize(_card(skills={"急救": {"base": 30, "interest": 10}}))
+        self.assertEqual(fin["skills"]["急救"]["total"], 40)
+
+    def test_dodge_uses_dex_not_stored_base(self):
+        fin = coc.finalize(_card(skills={"闪避": {"base": 0}}))
+        self.assertEqual(fin["skills"]["闪避"]["base"], 27)
+        fin = coc.finalize(_card(skills={"闪避": {"base": 5}}, dex_score=80))
+        self.assertEqual(fin["skills"]["闪避"]["base"], 40)
+
+    def test_unknown_skill_still_missing(self):
+        self.assertIsNone(coc.skill_value(_card(), "飞天"))
+
+
+class TestWeaponsAfterDefaults(unittest.TestCase):
+    def test_weapon_skill_base_available(self):
+        # 斗殴不在 39 项标准技能里，武器技能仍按卡上/武器库判断，不因默认值出现
+        self.assertIsNone(coc.skill_value(_card(), "斗殴"))

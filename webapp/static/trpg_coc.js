@@ -47,6 +47,26 @@ let me = null;
 let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 choices 顺序对应
 let autoAdded = new Set();  // 选职业时自动补进来的技能（换职业时若没填点数会撤掉）
 
+// 规则默认技能：技能表全部标准技能的基础值，闪避按 DEX/2
+function skillDefaults(skillBase, dexScore) {
+  const out = {};
+  Object.entries(skillBase || {}).forEach(([name, base]) => {
+    out[name] = { base: Number(base || 0) };
+  });
+  out["闪避"] = { base: Math.floor(Number(dexScore || 0) / 2) };
+  return out;
+}
+
+// 卡上已存的技能覆盖默认值（保留成长/职业/兴趣点）
+function mergeSkillDefaults(card, dexScore) {
+  const merged = skillDefaults(options.skill_base, dexScore);
+  Object.entries((card && card.skills) || {}).forEach(([name, entry]) => {
+    const canon = normalizeSkillName(name) || name;
+    merged[canon] = { ...(merged[canon] || {}), ...(entry || {}) };
+  });
+  return merged;
+}
+
 // 可加职业点的技能名集合：固定项（含 类别:* 通配）+ 已选中的池内技能
 function occAllowedNames(occ, choices) {
   const out = { exact: new Set(), wild: [] };
@@ -304,6 +324,13 @@ function rerenderDerived() {
     const value = Math.min(base + growth + Number(row.querySelector("[data-occ]").value || 0) + Number(row.querySelector("[data-int]").value || 0), 199);
     row.querySelector("[data-total]").textContent = value;
   });
+  // 闪避的基础值由敏捷决定，改敏捷时同步（成长/职业/兴趣点仍单独记）
+  const dodgeRow = [...document.querySelectorAll("[data-skill]")]
+    .find((row) => canonSkill(row.dataset.name) === "闪避");
+  if (dodgeRow) {
+    const dodgeBase = dodgeRow.querySelector("[data-base]");
+    if (dodgeBase) dodgeBase.value = Math.floor(dex / 2);
+  }
   // 武器伤害的 DB 标注：伤害原文 + 当前伤害加值
   document.querySelectorAll("[data-weapon-row]").forEach((row) => {
     const note = row.querySelector("[data-damage-note]");
@@ -776,11 +803,12 @@ async function init() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "读取角色卡失败");
       card = data;
+      card.skills = mergeSkillDefaults(card, card.dex_score);
       occChoices = { ...(card.occupation_choices || {}) };
     } else {
       card = {
         age: 25,
-        skills: { 侦查: { base: 25 }, 聆听: { base: 20 }, 图书馆: { base: 20 }, 闪避: { base: 0 } },
+        skills: skillDefaults(options.skill_base, 0),
         weapons: [{ name: "徒手格斗", type: "常规武器", skill: "斗殴", success: 25, damage: "1D3+DB", range: "接触", attacks: "1", ammo: "", malfunction: "", pierce: "×" }],
       };
     }

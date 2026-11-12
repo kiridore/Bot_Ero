@@ -285,7 +285,7 @@ class TestCocRules(unittest.TestCase):
 
     def test_ra_unknown_skill_reported(self):
         card = {"rules": "coc7th", "skills": {"侦查": {"base": 25}}}
-        plugin = self._plugin(".ra 驾驶")
+        plugin = self._plugin(".ra 飞天")
         with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card):
             plugin.handle()
         self.assertIn("没有技能", _sent_text(plugin))

@@ -163,8 +163,22 @@ r = client.post("/api/me/characters", headers=H, json=bad)
 check("信用评级越界 400", r.status_code == 400 and "信用评级" in r.text, r.text[:160])
 
 bad = dict(CARD, occupation="")
-r = client.post("/api/me/characters", headers=H, json=bad)
-check("未选职业 400", r.status_code == 400 and "职业" in r.text, r.text[:160])
+no_occ = dict(CARD, occupation="", occupation_choices={},
+              skills={"图书馆使用": {"base": 20}, "聆听": {"base": 20, "interest": 10}})
+r = client.post("/api/me/characters", headers=H, json=no_occ)
+check("未选职业可保存", r.status_code == 200, r.text[:160])
+no_occ_id = r.json().get("id")
+
+occ_points_without_occ = dict(no_occ, skills={"图书馆使用": {"base": 20, "occupation": 10}})
+r = client.post("/api/me/characters", headers=H, json=occ_points_without_occ)
+check("无职业不能加职业点", r.status_code == 400 and "不能分配职业点" in r.text, r.text[:160])
+
+defaults_view = client.get(f"/api/characters/{ME}/{no_occ_id}", headers=H).json()
+skills_view = defaults_view.get("skills") or {}
+check("默认技能进接口", skills_view.get("急救", {}).get("total") == 30
+      and skills_view.get("闪避", {}).get("base") == (CARD["dex_score"] // 2)
+      and len(skills_view) >= 39,
+      str({k: v.get("total") for k, v in list(skills_view.items())[:3]}))
 
 # 查看页依赖公共卡片接口返回派生值，COC 卡缺这些字段会整页显示 0
 public = client.get(f"/api/characters/{ME}/{created['id']}", headers=H)
