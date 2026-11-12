@@ -16,7 +16,7 @@ function check(name, ok, extra) {
 
 const party = {
   group_id: "296470819", group_name: "夜航团", rules_name: "COC 7th", dm: "111", dm_name: "守密人",
-  prepared_count: 1, member_count: 2, is_dm: true,
+  prepared_count: 1, member_count: 2, is_dm: true, is_super: false,
   members: [
     { user_id: "111", nickname: "守密人", role: "dm", char_id: null, char_name: "", prepared: false },
     { user_id: "222", nickname: "老张", role: "", char_id: 3, char_name: "田宫真莉", prepared: true },
@@ -28,6 +28,15 @@ check("含规则", html.includes("COC 7th"));
 check("含准备计数", html.includes("已准备 1/2"));
 check("DM 有审核提示", html.includes("你是本群 DM"));
 check("DM 显示昵称", html.includes("DM 守密人"), "");
+check("成员整行可点", html.includes('class="trpg-party-member is-link"') && html.includes("查看角色卡"));
+
+// 超级用户但不是本群 DM：提示改口径，不再冒充 DM
+const superUser = api.partyCard({ ...party, is_dm: false, is_super: true });
+check("超级用户看到专属提示",
+  superUser.includes("你是超级用户") && !superUser.includes("你是本群 DM"), "");
+const strangerView = api.partyCard({ ...party, is_dm: false, is_super: false });
+check("非 DM 非超管无审核提示",
+  !strangerView.includes("审核") && !strangerView.includes("你是本群 DM"), "");
 
 // 旧数据没有 dm_name 时回落 ID
 const legacy = api.partyCard({ group_id: "1", rules_name: "DND 5E", dm: "999",

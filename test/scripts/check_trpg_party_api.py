@@ -92,7 +92,8 @@ check("名单含 DM 与已准备玩家",
 check("已准备计数与人数", first.get("prepared_count") == 1 and first.get("member_count") == 3,
       f"{first.get('prepared_count')}/{first.get('member_count')}")
 check("规则名下发", first.get("rules_name") == "DND 5E" or bool(first.get("rules_name")), str(first.get("rules_name")))
-check("DM 视角标记 is_dm", first.get("is_dm") is True, str(first.get("is_dm")))
+check("DM 视角标记 is_dm", first.get("is_dm") is True and first.get("can_audit") is True,
+      str((first.get("is_dm"), first.get("can_audit"))))
 party.set_group_name(GROUP, "夜航团")
 with_name = ((client.get("/api/trpg/parties", headers=auth(DM)).json() or {}).get("parties") or [{}])[0]
 check("群名随准备名单下发", with_name.get("group_name") == "夜航团", str(with_name.get("group_name")))
@@ -105,6 +106,18 @@ r = client.get("/api/trpg/parties", headers=auth(STRANGER))
 other = (r.json() or {}).get("parties") or []
 check("非 DM 也能看到准备中名单", bool(other) and other[0].get("is_dm") is False,
       str((other[0] if other else {}).get("is_dm")))
+check("非 DM 无审核权限", bool(other) and other[0].get("can_audit") is False,
+      str((other[0] if other else {}).get("can_audit")))
+
+# 超级用户不是本群 DM 时：不能冒充 DM，但有审核权限
+from unittest.mock import patch  # noqa: E402
+with patch("webapp.trpg.app.core_config.SUPER_USER", {int(STRANGER)}):
+    super_view = (((client.get("/api/trpg/parties", headers=auth(STRANGER)).json() or {})
+                   .get("parties")) or [{}])[0]
+check("超级用户 is_dm 为假但可审核",
+      super_view.get("is_dm") is False and super_view.get("is_super") is True
+      and super_view.get("can_audit") is True,
+      str((super_view.get("is_dm"), super_view.get("is_super"), super_view.get("can_audit"))))
 
 # ── 角色卡权限 ────────────────────────────────────
 r = client.get(f"/api/trpg/party/{GROUP}/card/{PLAYER}", headers=auth(DM))

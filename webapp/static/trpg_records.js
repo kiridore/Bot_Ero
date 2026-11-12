@@ -56,29 +56,28 @@ const ROLE_LABEL = { dm: "DM", ob: "观察者" };
 function partyMemberRow(party, member) {
   const role = member.role ? ROLE_LABEL[member.role] || member.role : "";
   const badge = role ? `<span class="trpg-role role-${escapeHtml(member.role)}">${escapeHtml(role)}</span>` : "";
-  let action;
+  const name = `<span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>` +
+    `<span class="trpg-party-char">${escapeHtml(member.char_name || "未选角色卡")}</span>`;
   if (member.char_id == null) {
-    action = '<span class="trpg-party-hint">等待准备</span>';
-  } else {
-    const href = `/trpg/char/${encodeURIComponent(member.user_id)}/` +
-      `${encodeURIComponent(member.char_id)}?party=${encodeURIComponent(party.group_id)}`;
-    action = `<a class="btn-sm" href="${href}">查看角色卡</a>`;
+    return `<div class="trpg-party-member">${name}<span class="trpg-party-hint">等待准备</span></div>`;
   }
-  return `
-    <div class="trpg-party-member">
-      <span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>
-      <span class="trpg-party-char">${escapeHtml(member.char_name || "未选角色卡")}</span>
-      ${action}
-    </div>`;
+  // 整行可点：只做成小按钮时玩家会去点名字，感觉「点不开」
+  const href = `/trpg/char/${encodeURIComponent(member.user_id)}/` +
+    `${encodeURIComponent(member.char_id)}?party=${encodeURIComponent(party.group_id)}`;
+  return `<a class="trpg-party-member is-link" href="${href}">${name}` +
+    `<span class="btn-sm">查看角色卡</span></a>`;
 }
 
 function partyCard(party) {
   const partyTitle = party.group_name || `群 ${party.group_id}`;
   const head = `${escapeHtml(partyTitle)} · ${escapeHtml(party.rules_name)} · ` +
     `DM ${escapeHtml(party.dm_name || party.dm)} · 已准备 ${party.prepared_count}/${party.member_count}`;
-  const review = party.is_dm
-    ? '<p class="trpg-party-hint">你是本群 DM，可点开每张角色卡审核</p>'
-    : "";
+  let review = "";
+  if (party.is_dm) {
+    review = '<p class="trpg-party-hint">你是本群 DM，可点开每张角色卡审核</p>';
+  } else if (party.is_super) {
+    review = '<p class="trpg-party-hint">你是超级用户，可点开每张角色卡审核</p>';
+  }
   return `
     <div class="trpg-party">
       <div class="trpg-row-head"><strong>${escapeHtml(partyTitle)}</strong>

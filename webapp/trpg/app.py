@@ -567,7 +567,10 @@ def api_trpg_parties(user_id: Annotated[str, Depends(get_current_user_id)]):
             if item is None:
                 continue
             is_super = str(user_id).isdigit() and int(user_id) in core_config.SUPER_USER
-            item["is_dm"] = str(item["dm"]) == str(user_id) or is_super
+            item["is_dm"] = str(item["dm"]) == str(user_id)
+            item["is_super"] = is_super
+            # 审核权限：本群 DM 或超级用户（与 /api/trpg/party/.../card 的判定一致）
+            item["can_audit"] = item["is_dm"] or is_super
             items.append(item)
     items.sort(key=lambda it: int(it["group_id"]), reverse=True)
     return {"parties": items}
