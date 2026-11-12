@@ -1,6 +1,3 @@
-from core import cq
-
-
 class Event:
     def __init__(self, raw: dict):
         self.raw = raw
@@ -16,11 +13,7 @@ class Event:
 
     @property
     def message(self):
-        # LLOneBot 可配置消息格式：数组（默认）或字符串（CQ 码）。这里统一成消息段列表。
-        raw = self.raw.get("message")
-        if isinstance(raw, list):
-            return raw
-        return cq.parse(raw)
+        return self.raw.get("message", [])
 
     @property
     def is_group(self):
