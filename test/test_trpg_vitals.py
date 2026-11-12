@@ -18,8 +18,8 @@ from core.trpg import vitals
 import core.context as runtime_context
 
 GROUP_ID = 296470819
-DM_ID = "111"
-PLAYER_ID = "222"
+DM_ID = "100000001"
+PLAYER_ID = "100000002"
 
 
 def _dnd_card(**over):
@@ -235,3 +235,57 @@ class TestSanCheck(VitalsBase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestTargetFormats(VitalsBase):
+    """@ 目标的三种写法都要认，且当前值为 null 时不能崩。"""
+
+    rule = "coc7th"
+
+    def _invoke_with_at(self, text, at_qq=None):
+        ctx = make_group_message(text, user_id=int(DM_ID), nickname="DM")
+        if at_qq:
+            ctx["message"].append({"type": "at", "data": {"qq": str(at_qq)}})
+        plugin = TrpgVitalsPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        patches = [
+            patch("plugins.trpg_vitals.store.get_current", side_effect=self.get_current),
+            patch("plugins.trpg_vitals.store.update_char", side_effect=self.update_char),
+            patch("plugins.trpg_vitals.store.list_chars", side_effect=lambda uid: [self.cards[str(uid)]] if str(uid) in self.cards else []),
+            patch("plugins.trpg_vitals.party.current_rule", return_value="coc7th"),
+            patch("plugins.trpg_vitals.party.read_pending", return_value={"roles": {DM_ID: "dm"}}),
+        ]
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+        plugin.handle()
+        return plugin.api.sent_messages[-1][1][0]["data"]["text"] if plugin.api.sent_messages else ""
+
+    def test_at_segment(self):
+        self.install({DM_ID: _coc_card(), PLAYER_ID: _coc_card(current_hp=6, char_name="田宫")})
+        out = self._invoke_with_at(".hp 满", at_qq=PLAYER_ID)
+        self.assertIn("田宫的HP已回满", out)
+        self.assertEqual(self.cards[PLAYER_ID]["current_hp"], 10)
+
+    def test_at_in_text(self):
+        self.install({DM_ID: _coc_card(), PLAYER_ID: _coc_card(current_hp=6, char_name="田宫")})
+        out = self._invoke_with_at(f".hp 满 @{PLAYER_ID}")
+        self.assertIn("田宫的HP已回满", out)
+
+    def test_at_in_text_without_space(self):
+        self.install({DM_ID: _coc_card(), PLAYER_ID: _coc_card(current_hp=6, char_name="田宫")})
+        out = self._invoke_with_at(f".hp 满@{PLAYER_ID}")
+        self.assertIn("田宫的HP已回满", out)
+
+    def test_null_current_values(self):
+        self.install({DM_ID: _coc_card(current_hp=None, current_mp=None, current_san=None)})
+        self.assertIn("HP 10 → 8", self.invoke(".hp -2", user_id=DM_ID))
+        self.assertIn("MP 13 → 10", self.invoke(".mp -3", user_id=DM_ID))
+        self.assertIn("SAN 65 → 64", self.invoke(".san -1", user_id=DM_ID))
+
+    def test_has_cards_but_no_current(self):
+        plugin = TrpgVitalsPlugin(make_group_message(".hp 满", user_id=int(DM_ID)))
+        with patch("plugins.trpg_vitals.store.get_current", return_value=None),                 patch("plugins.trpg_vitals.store.list_chars", return_value=[{"id": 1}]):
+            with self.assertRaises(ValueError) as ctx:
+                plugin._resolve_target()
+        self.assertIn("还没设置当前角色卡", str(ctx.exception))

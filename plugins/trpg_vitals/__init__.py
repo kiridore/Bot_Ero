@@ -93,13 +93,21 @@ class TrpgVitalsPlugin(Plugin):
 
     # ── 目标与权限 ──────────────────────────────────────
 
+    AT_TEXT_RE = re.compile(r"@(\d{5,12})")
+
     def _at_target(self) -> str | None:
         for seg in self.bot_event.message:
             if seg.get("type") == "at":
                 qq = str(seg.get("data", {}).get("qq", ""))
                 if qq and qq != "all":
                     return qq
-        return None
+        # 有些客户端把 @ 直接拼进文本（"@123456"），这里兜底认一次
+        matched = self.AT_TEXT_RE.search(self._first_text())
+        return matched.group(1) if matched else None
+
+    def _strip_at_text(self, args: list) -> list:
+        """文本形式的 @QQ号 不参与数值解析。"""
+        return [self.AT_TEXT_RE.sub("", arg).strip() for arg in args]
 
     def _is_group_admin(self, group_id) -> bool:
         user_id = str(self.bot_event.user_id or "")
@@ -122,10 +130,14 @@ class TrpgVitalsPlugin(Plugin):
         if target != sender and not self._is_group_admin(self.bot_event.group_id):
             raise ValueError("只有 DM 可以修改他人的数值")
         char = store.get_current(target)
-        if not char:
-            raise ValueError("你还没有角色卡，请到网页端创建" if target == sender
-                             else f"{target} 还没有角色卡")
-        return target, char
+        if char:
+            return target, char
+        if store.list_chars(target):
+            who = "你" if target == sender else target
+            raise ValueError(f"{who}有多张角色卡但还没设置当前角色卡："
+                             f"发送 /跑团 角色 列表 查看，再用 /跑团 角色 切换 <编号> 指定")
+        raise ValueError("你还没有角色卡，请到网页端创建" if target == sender
+                         else f"{target} 还没有角色卡")
 
     def _check_rule(self, char: dict) -> str:
         """卡片规则必须与本团规则一致；返回规则 id。"""
@@ -148,6 +160,7 @@ class TrpgVitalsPlugin(Plugin):
     # ── .hp / .san ────────────────────────────────────
 
     def _handle_amount(self, kind: str, args: list):
+        args = [a for a in self._strip_at_text(args) if a]
         if not args:
             raise ValueError("格式：.hp / .san / .mp <±值|满> [@目标]，例：.hp -5、.san 满")
         target, char = self._resolve_target()
@@ -173,19 +186,20 @@ class TrpgVitalsPlugin(Plugin):
         nickname = self._display_name(target, char)
         if kind == "hp":
             maximum = self._max_hp(data, rule)
-            before = vitals.clamp(data.get("current_hp", maximum), maximum)
+            before = vitals.clamp(self._current(data, "current_hp", maximum), maximum)
             after = maximum if delta is None else vitals.clamp(before + delta, maximum)
             data["current_hp"] = after
             label = "HP"
         elif kind == "san":
             maximum = self._max_san(data)
-            before = vitals.clamp(data.get("current_san", maximum), maximum)
+            fallback = min(int(coc.finalize(data)["san"]), maximum)
+            before = vitals.clamp(self._current(data, "current_san", fallback), maximum)
             after = maximum if delta is None else vitals.clamp(before + delta, maximum)
             data["current_san"] = after
             label = "SAN"
         else:
             maximum = self._max_mp(data)
-            before = vitals.clamp(data.get("current_mp", maximum), maximum)
+            before = vitals.clamp(self._current(data, "current_mp", maximum), maximum)
             after = maximum if delta is None else vitals.clamp(before + delta, maximum)
             data["current_mp"] = after
             label = "MP"
@@ -201,6 +215,12 @@ class TrpgVitalsPlugin(Plugin):
         if note:
             out += f"\n· {note}"
         self._reply(out)
+
+    @staticmethod
+    def _current(data: dict, key: str, maximum: int) -> int:
+        """当前值：可能是 None（未初始化）或旧值，一律按上限兜底。"""
+        value = data.get(key)
+        return maximum if value is None else value
 
     def _max_hp(self, data: dict, rule: str) -> int:
         if rule == "coc7th":
@@ -229,6 +249,7 @@ class TrpgVitalsPlugin(Plugin):
     # ── .sc 理智检定 ──────────────────────────────────
 
     def _handle_san_check(self, args: list):
+        args = [a for a in self._strip_at_text(args) if a]
         if not args or "/" not in args[0]:
             raise ValueError("格式：.sc <成功损失>/<失败损失>，例：.sc 1/1d6")
         target, char = self._resolve_target()
@@ -239,7 +260,7 @@ class TrpgVitalsPlugin(Plugin):
         success_expr, _, fail_expr = args[0].partition("/")
         data = dict(char)
         maximum = self._max_san(data)
-        before = vitals.clamp(data.get("current_san", maximum), maximum)
+        before = vitals.clamp(self._current(data, "current_san", maximum), maximum)
         roll = random.randint(1, 100)
         success = roll <= before
         expr = success_expr if success else fail_expr
