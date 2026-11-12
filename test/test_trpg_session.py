@@ -1178,10 +1178,19 @@ class TestGroupCardNotice(IsolationMixin, unittest.TestCase):
         self.assertFalse(before)
         self.assertFalse(party_mod.pending_path(GROUP_ID).exists())
 
-    def test_ignores_empty_card(self):
+    def test_empty_card_falls_back_to_nickname(self):
+        """取消群名片时通知里 card_new 为空，应现拉昵称而不是留着旧名片。"""
         from core.trpg import party as party_mod
         party_mod.set_role(GROUP_ID, 111, "dm", "老名片")
-        self._run_notice(self._notice(111, ""))
+        with patch("plugins.trpg_session.resolve_group_member_name", return_value="QQ昵称"):
+            self._run_notice(self._notice(111, ""))
+        self.assertEqual(party_mod.read_pending(GROUP_ID)["role_names"]["111"], "QQ昵称")
+
+    def test_empty_card_and_no_nickname_keeps_old(self):
+        from core.trpg import party as party_mod
+        party_mod.set_role(GROUP_ID, 111, "dm", "老名片")
+        with patch("plugins.trpg_session.resolve_group_member_name", return_value=""):
+            self._run_notice(self._notice(111, ""))
         self.assertEqual(party_mod.read_pending(GROUP_ID)["role_names"]["111"], "老名片")
 
     def test_other_notice_not_matched(self):

@@ -96,6 +96,22 @@ def fetch_group_list() -> set[int] | None:
     return groups
 
 
+def resolve_group_member_name(group_id, user_id) -> str:
+    """取某个群的成员显示名（名片优先，其次 QQ 昵称）；取不到返回空串。"""
+    try:
+        gid, uid = int(group_id), int(user_id)
+    except (TypeError, ValueError):
+        return ""
+    info = _call_onebot("get_group_member_info",
+                        {"group_id": gid, "user_id": uid, "no_cache": True}, timeout=3)
+    if not info:
+        return ""
+    card = str(info.get("card") or "").strip()
+    if card:
+        return card
+    return str(info.get("nickname") or "").strip()
+
+
 @lru_cache(maxsize=4096)
 def resolve_display_name(user_id: str) -> str:
     uid = str(user_id)

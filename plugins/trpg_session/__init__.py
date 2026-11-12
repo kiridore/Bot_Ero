@@ -8,7 +8,9 @@ from core.base import TimedHeartbeatPlugin, BOT_QQ, NICKNAME, SUPER_USER
 from core.cq import at, text
 from core.config import WEB_BASE_URL
 from core.logger import logger
-from core.onebot_client import fetch_group_list, fetch_group_members, resolve_group_name
+from core.onebot_client import (
+    fetch_group_list, fetch_group_members, resolve_group_member_name, resolve_group_name,
+)
 from core.utils import register_plugin, download_image
 from core import character_store as store
 from core.trpg import growth, party, records, snapshots
@@ -350,7 +352,10 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         user_id = raw.get("user_id")
         if group_id is None or user_id is None:
             return
-        nickname = raw.get("card_new") or raw.get("card") or ""
+        nickname = str(raw.get("card_new") or raw.get("card") or "").strip()
+        if not nickname:
+            # 取消群名片时通知里只剩空串：现拉一次成员信息拿 QQ 昵称，别留着旧名片
+            nickname = resolve_group_member_name(group_id, user_id)
         if not nickname:
             return
         try:
