@@ -66,7 +66,7 @@ OneBot v11 标准只覆盖基础协议；本工程实际后端是 **LLOneBot**�
         {"type": "text", "data": {"text": "hello"}},
         {"type": "image", "data": {"file": "xxx", "url": "xxx"}}
     ],
-    "raw_message": "hello",
+    "raw_message": "hello",       // CQ 码字符串；message 也可能直接是这种字符串形式
     "sender": {
         "user_id": 1057613133,
         "nickname": "用户名",
@@ -75,6 +75,10 @@ OneBot v11 标准只覆盖基础协议；本工程实际后端是 **LLOneBot**�
     }
 }
 ```
+
+> **消息格式两种**：`message` 可能是上面这种**消息段数组**（LLOneBot 默认），也可能是**字符串格式**——整条消息是一个 CQ 码字符串，如 `。hp 满 [CQ:at,qq=100000002]`。`Event.message` 统一归一化成消息段列表（`core/cq.py::parse`），插件一律按消息段处理，不要假设它是别的东西。
+>
+> 上游：<https://github.com/botuniverse/onebot-11/blob/master/message/string.md>（转义：`&`→`&amp;`、`[`→`&#91;`、`]`→`&#93;`；CQ 参数内额外 `,`→`&#44;`）。
 
 **属性对应 (Event 类):**
 | JSON 字段 | Event 属性 | 类型 |

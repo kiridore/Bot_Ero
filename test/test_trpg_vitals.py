@@ -289,3 +289,30 @@ class TestTargetFormats(VitalsBase):
             with self.assertRaises(ValueError) as ctx:
                 plugin._resolve_target()
         self.assertIn("还没设置当前角色卡", str(ctx.exception))
+
+
+class TestCqStringMessage(VitalsBase):
+    """LLOneBot 若把 message 配成字符串（CQ 码），@ 目标仍要能识别。"""
+
+    rule = "coc7th"
+
+    def test_at_in_cq_string(self):
+        self.install({DM_ID: _coc_card(), PLAYER_ID: _coc_card(current_hp=6, char_name="田宫")})
+        ctx = make_group_message(".hp 满", user_id=int(DM_ID), nickname="DM")
+        ctx["message"] = f".hp 满 [CQ:at,qq={PLAYER_ID}]"   # 字符串格式
+        plugin = TrpgVitalsPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        patches = [
+            patch("plugins.trpg_vitals.store.get_current", side_effect=self.get_current),
+            patch("plugins.trpg_vitals.store.update_char", side_effect=self.update_char),
+            patch("plugins.trpg_vitals.store.list_chars", return_value=[{"id": 1}]),
+            patch("plugins.trpg_vitals.party.current_rule", return_value="coc7th"),
+            patch("plugins.trpg_vitals.party.read_pending", return_value={"roles": {DM_ID: "dm"}}),
+        ]
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+        plugin.handle()
+        out = plugin.api.sent_messages[-1][1][0]["data"]["text"]
+        self.assertIn("田宫的HP已回满", out)
+        self.assertEqual(self.cards[PLAYER_ID]["current_hp"], 10)
