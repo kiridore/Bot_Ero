@@ -12,6 +12,10 @@ const factory = new Function(
   `${src.slice(start, end)}\nreturn { renderCocView, renderView, damageWithDb };`,
 );
 
+// 查看页与建卡页共用 core/web/static/trpg_assets.js
+global.window = {};
+eval(fs.readFileSync("core/web/static/trpg_assets.js", "utf8"));
+
 function makeEl(tag) {
   return {
     tagName: tag, className: "", innerHTML: "", textContent: "", style: {}, dataset: {}, children: [],

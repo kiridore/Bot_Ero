@@ -312,8 +312,8 @@ class TestSkillDefaults(unittest.TestCase):
 
 class TestWeaponsAfterDefaults(unittest.TestCase):
     def test_weapon_skill_base_available(self):
-        # 斗殴不在 39 项标准技能里，武器技能仍按卡上/武器库判断，不因默认值出现
-        self.assertIsNone(coc.skill_value(_card(), "斗殴"))
+        # 斗殴不在 39 项标准技能里，但按武器技能表兜底（1.80.2 起）
+        self.assertEqual(coc.skill_value(_card(), "斗殴"), 25)
 
 
 class TestAssets(unittest.TestCase):
@@ -395,3 +395,63 @@ class TestSkillNotes(unittest.TestCase):
         note = coc.skill_note_index()["会计"]
         self.assertEqual(note["base"], "5%")
         self.assertTrue(note["note"].startswith("·"))
+
+
+class TestWeaponSkills(unittest.TestCase):
+    """武器技能（斗殴/手枪/…）不在 39 项标准技能里，但要有基础值与成长标记。"""
+
+    def test_weapon_skill_base_table(self):
+        table = coc.weapon_skill_base()
+        self.assertEqual(table["斗殴"], 25)
+        self.assertEqual(table["手枪"], 20)
+        self.assertEqual(table["步枪/霰弹枪"], 25)
+        self.assertEqual(table["弓"], 15)
+        self.assertEqual(table["绞具"], 15)
+        self.assertGreaterEqual(len(table), 15)
+
+    def test_skill_value_falls_back_to_weapon_base(self):
+        card = _card(skills={})
+        self.assertEqual(coc.skill_value(card, "斗殴"), 25)
+        self.assertEqual(coc.skill_value(card, "弓术"), 15)   # 附表写作弓术
+        self.assertIsNone(coc.skill_value(card, "飞天"))
+
+    def test_weapon_skill_marks_growth(self):
+        from core.trpg import growth
+        card = _card(skills={})
+        self.assertTrue(growth.mark(card, "斗殴"))
+        self.assertEqual(coc.finalize(card)["skills"]["斗殴"]["total"], 25)
+
+    def test_skill_name_ok_accepts_weapon_skill(self):
+        self.assertTrue(coc.skill_name_ok("斗殴"))
+        self.assertTrue(coc.skill_name_ok("手枪"))
+        self.assertFalse(coc.skill_name_ok("飞天"))
+
+
+class TestGrowthMarkDefaults(unittest.TestCase):
+    """卡上没有的技能行也应能打成长标记（1.79.0 的默认技能兜底带出的缺口）。"""
+
+    def test_marks_unstored_standard_skill(self):
+        from core.trpg import growth
+        card = _card(skills={})
+        self.assertTrue(growth.mark(card, "会计"))
+        self.assertTrue(card["skills"]["会计"]["check"])
+        self.assertEqual(coc.finalize(card)["skills"]["会计"]["total"], 5)
+
+    def test_marks_specialty_with_sheet_base(self):
+        from core.trpg import growth
+        card = _card(skills={})
+        self.assertTrue(growth.mark(card, "科学:化学"))
+        self.assertEqual(card["skills"]["科学:化学"]["base"], 1)
+
+    def test_alias_still_resolves_existing_row(self):
+        from core.trpg import growth
+        card = _card(skills={"侦察": {"base": 25}})
+        self.assertTrue(growth.mark(card, "侦查"))
+        self.assertTrue(card["skills"]["侦察"]["check"])
+        self.assertEqual(len(card["skills"]), 1)
+
+    def test_unknown_skill_rejected(self):
+        from core.trpg import growth
+        card = _card(skills={})
+        self.assertFalse(growth.mark(card, "飞天"))
+        self.assertEqual(card["skills"], {})

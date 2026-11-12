@@ -277,7 +277,35 @@ def skill_name_ok(name: str) -> bool:
         return False
     if name in SKILL_BASE:
         return True
+    # 武器技能（斗殴、手枪、步枪/霰弹枪…）也是合法技能名，只是不在 39 项标准表里
+    if name in weapon_skill_base():
+        return True
     return any(name.startswith(cat) for cat in SKILL_CATEGORIES)
+
+
+# 附表里武器技能的写法与规则书/武器库不一致的一处
+WEAPON_SKILL_ALIASES = {"弓术": "弓"}
+
+
+def _percent_value(text) -> int | None:
+    matched = re.match(r"^\s*(\d+)", str(text or ""))
+    return int(matched.group(1)) if matched else None
+
+
+def weapon_skill_base() -> dict[str, int]:
+    """武器技能的基础成功率（斗殴 25、手枪 20、步枪/霰弹枪 25…），取自武器库与附表。"""
+    from .skill_notes import SKILL_NOTES
+    from .weapon_data import WEAPONS
+
+    table = {}
+    for skill in {w["skill"] for w in WEAPONS}:
+        canon = canonical_skill(skill)
+        note = SKILL_NOTES.get(canon) or SKILL_NOTES.get(
+            next((alias for alias, fixed in WEAPON_SKILL_ALIASES.items() if fixed == canon), ""), None)
+        base = _percent_value((note or {}).get("base"))
+        if base is not None:
+            table[canon] = base
+    return table
 
 
 # 附表里的技能名与角色卡上的规范名不一致的几处
@@ -635,6 +663,10 @@ def skill_value(data: dict, name: str) -> int | None:
     for skill, entry in fin["skills"].items():
         if canonical_skill(skill) == canon or skill.startswith(key):
             return entry["total"]
+    # 武器技能（斗殴/手枪/射击:步枪…）不在 39 项标准技能里，按规则书基础值兜底
+    base = weapon_skill_base().get(WEAPON_SKILL_ALIASES.get(canon, canon))
+    if base is not None:
+        return base
     return None
 
 

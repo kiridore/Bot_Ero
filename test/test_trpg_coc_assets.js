@@ -4,8 +4,13 @@ const fs = require("fs");
 const src = fs.readFileSync("webapp/static/trpg_coc.js", "utf8");
 const start = src.indexOf("const LIVING_LEVELS");
 const end = src.indexOf("const BACKGROUND_FIELDS");
-const factory = new Function(`${src.slice(start, end)}\nreturn { levelForCredit, assetsTotal, LIVING_LEVELS, ASSET_ITEMS };`);
+const factory = new Function(`${src.slice(start, end)}\nreturn { levelForCredit, LIVING_LEVELS, ASSET_ITEMS };`);
 const api = factory();
+
+// 资产合计住在共享文件里（建卡页与查看页共用同一口径）
+global.window = {};
+eval(fs.readFileSync("core/web/static/trpg_assets.js", "utf8"));
+const assets = window.BoteroAssets;
 
 const fails = [];
 function check(name, ok, extra) {
@@ -21,10 +26,12 @@ const cases = [[0, "身无分文"], [1, "拮据"], [9, "拮据"], [10, "标准"]
 check("信用评级分档", cases.every(([cr, lv]) => api.levelForCredit(cr) === lv),
   cases.map(([cr]) => `${cr}:${api.levelForCredit(cr)}`).join(" "));
 
-check("总和=现金+五类", api.assetsTotal("120000", { vehicle: 300000, residence: "0", luxury: "", securities: 0, other: "0" }) === 420000);
-check("现金带符号也能算", api.assetsTotal("¥12,000", {}) === 12000);
-check("非数字按 0", api.assetsTotal("很多", { vehicle: "若干", luxury: 5 }) === 5);
-check("空值安全", api.assetsTotal(undefined, undefined) === 0);
+check("总和=现金+五类", assets.total({ cash: "120000", vehicle: 300000, residence: "0", luxury: "", securities: 0, other: "0" }) === 420000);
+check("现金带符号也能算", assets.total({ cash: "¥12,000" }) === 12000);
+check("非数字按 0", assets.total({ cash: "很多", vehicle: "若干", luxury: 5 }) === 5);
+check("文本金额（先令）按 0", assets.total({ cash: "5先令", vehicle: "2镑10先令" }) === 0);
+check("空值安全", assets.total(undefined) === 0 && assets.total({}) === 0);
+check("五类键固定", assets.ITEM_KEYS.join(",") === "vehicle,residence,luxury,securities,other");
 
 console.log(fails.length ? `\n${fails.length} 项失败` : "\n全部通过");
 process.exit(fails.length ? 1 : 0);

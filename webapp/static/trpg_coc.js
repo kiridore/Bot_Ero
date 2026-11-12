@@ -52,15 +52,6 @@ function levelForCredit(credit) {
   return "富豪";
 }
 
-// 资产总和 = 现金（能转成数字时）+ 其他资产表五类
-function assetsTotal(cash, items) {
-  const toNumber = (v) => {
-    const n = Number(String(v ?? "").replace(/[^\d.-]/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  };
-  return toNumber(cash) + Object.values(items || {}).reduce((sum, v) => sum + toNumber(v), 0);
-}
-
 const BACKGROUND_FIELDS = [
   ["description", "个人描述"], ["ideology", "思想与信念"], ["significant_people", "重要之人"],
   ["meaningful_places", "意义非凡之地"], ["treasured_possessions", "宝贵之物"], ["traits", "特质"],
@@ -371,7 +362,9 @@ function rerenderDerived() {
   if (totalBox) {
     const items = {};
     document.querySelectorAll("[data-asset-item]").forEach((el) => { items[el.dataset.assetItem] = el.value; });
-    totalBox.value = assetsTotal(document.getElementById("cash")?.value, items);
+    totalBox.value = window.BoteroAssets
+      ? window.BoteroAssets.total({ cash: document.getElementById("cash")?.value, ...items })
+      : "";
   }
   // 武器伤害的 DB 标注：伤害原文 + 当前伤害加值
   document.querySelectorAll("[data-weapon-row]").forEach((row) => {

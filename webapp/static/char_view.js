@@ -212,12 +212,7 @@ function renderCocView(char) {
       p.className = "muted";
       p.textContent = assetLines.map(([k, v]) => `${k}：${v}`).join(" · ");
       sec.appendChild(p);
-      const money = ["现金", "交通工具", "住所", "奢侈品", "股票/证券", "其他"];
-      const total = money.reduce((sum, key) => {
-        const raw = assetLines.find(([k]) => k === key);
-        const n = raw ? Number(String(raw[1]).replace(/[^\d.-]/g, "")) : 0;
-        return sum + (Number.isFinite(n) ? n : 0);
-      }, 0);
+      const total = window.BoteroAssets ? window.BoteroAssets.total(assets) : 0;
       if (total) {
         const sum = document.createElement("p");
         sum.className = "muted";
