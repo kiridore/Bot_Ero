@@ -304,6 +304,9 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
     def match(self, message_type) -> bool:
         if self.should_run_on_heartbeat(message_type):
             return True
+        if message_type == "notice":
+            # 群名片变更：实时刷新 DM/观察者昵称（网页准备名单读的是文件名）
+            return self.bot_event.notice_type == "group_card"
         if message_type != "message":
             return False
         msg = self._first_text()
@@ -323,6 +326,9 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             if self.bot_event.post_type == "meta":
                 self._on_heartbeat()
                 return
+            if self.bot_event.post_type == "notice":
+                self._handle_card_change()
+                return
             msg = self._first_text()
             if msg.startswith(".dm"):
                 self._handle_set_role("dm")
@@ -336,6 +342,21 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
                     self._record_user_message()
         except Exception:
             logger.exception("TrpgSession 处理异常")
+
+    def _handle_card_change(self):
+        """群名片变更：把新昵称写回 pending.json 的 role_names（只针对 DM/观察者）。"""
+        raw = self.bot_event.raw
+        group_id = raw.get("group_id")
+        user_id = raw.get("user_id")
+        if group_id is None or user_id is None:
+            return
+        nickname = raw.get("card_new") or raw.get("card") or ""
+        if not nickname:
+            return
+        try:
+            party.update_role_nickname(group_id, user_id, nickname)
+        except OSError:
+            logger.exception("更新群名片昵称失败")
 
     # ── 指令路由 ──────────────────────────────────────────
 

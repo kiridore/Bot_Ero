@@ -1136,3 +1136,55 @@ class TestGroupNamePersistence(IsolationMixin, unittest.TestCase):
         from core.trpg import party as party_mod
         _run([_text_seg("/跑团 名单")])
         self.assertEqual(party_mod.read_pending(GROUP_ID).get("group_name"), "")
+
+
+class TestGroupCardNotice(IsolationMixin, unittest.TestCase):
+    """群名片变更要实时写回 DM/观察者昵称（网页准备名单读文件）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _notice(self, user_id, card_new, group_id=GROUP_ID):
+        return {
+            "post_type": "notice", "notice_type": "group_card",
+            "group_id": group_id, "user_id": user_id,
+            "card_old": "旧名片", "card_new": card_new, "time": 0,
+        }
+
+    def _run_notice(self, raw):
+        plugin = TrpgSessionPlugin(raw)
+        plugin.api = MockApiWrapper(raw)
+        self.assertTrue(plugin.match("notice"))
+        plugin.handle()
+        return plugin
+
+    def test_updates_dm_nickname(self):
+        from core.trpg import party as party_mod
+        party_mod.set_role(GROUP_ID, 111, "dm", "老名片")
+        self._run_notice(self._notice(111, "新名片"))
+        self.assertEqual(party_mod.read_pending(GROUP_ID)["role_names"]["111"], "新名片")
+
+    def test_updates_observer_nickname(self):
+        from core.trpg import party as party_mod
+        party_mod.set_role(GROUP_ID, 333, "ob", "围观")
+        self._run_notice(self._notice(333, "围观群众"))
+        self.assertEqual(party_mod.read_pending(GROUP_ID)["role_names"]["333"], "围观群众")
+
+    def test_ignores_member_without_role(self):
+        from core.trpg import party as party_mod
+        before = party_mod.pending_path(GROUP_ID).exists()
+        self._run_notice(self._notice(444, "路人"))
+        self.assertFalse(before)
+        self.assertFalse(party_mod.pending_path(GROUP_ID).exists())
+
+    def test_ignores_empty_card(self):
+        from core.trpg import party as party_mod
+        party_mod.set_role(GROUP_ID, 111, "dm", "老名片")
+        self._run_notice(self._notice(111, ""))
+        self.assertEqual(party_mod.read_pending(GROUP_ID)["role_names"]["111"], "老名片")
+
+    def test_other_notice_not_matched(self):
+        plugin = TrpgSessionPlugin({"post_type": "notice", "notice_type": "group_recall",
+                                    "group_id": GROUP_ID, "user_id": 111, "time": 0})
+        self.assertFalse(plugin.match("notice"))

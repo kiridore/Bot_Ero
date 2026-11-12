@@ -101,6 +101,23 @@ def clear_role(group_id, user_id) -> dict:
     return data
 
 
+def update_role_nickname(group_id, user_id, nickname: str) -> bool:
+    """群名片变更时刷新 DM/观察者的昵称；该用户没有角色标记则不写盘。"""
+    name = str(nickname or "").strip()
+    uid = str(user_id)
+    if not name or not uid:
+        return False
+    data = read_pending(group_id)
+    if not data["roles"].get(uid):
+        return False
+    names = data.setdefault("role_names", {})
+    if names.get(uid) == name:
+        return False
+    names[uid] = name
+    write_pending(group_id, data)
+    return True
+
+
 def set_prepared(group_id, user_id, snapshot: dict) -> dict:
     data = read_pending(group_id)
     data["prepared"][str(user_id)] = snapshot
