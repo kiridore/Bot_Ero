@@ -513,10 +513,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         lines.append(f"已准备 {len(ready)}/{len(ready) + len(pending)}：")
         for uid in sorted(ready, key=lambda u: prepared[u].get("prepared_at", "")):
             snap = prepared[uid]
-            lines.append(
-                f"· {name_of(uid)} → {snap.get('char_name') or '?'}"
-                f"（{snap.get('race') or '?'} {snap.get('class_name') or '?'} Lv.{snap.get('level') or '?'}）"
-            )
+            lines.append(f"· {name_of(uid)} → {snap.get('char_name') or '?'}{self._card_suffix(snap)}")
         if not ready:
             lines.append("· 暂无")
 
@@ -529,6 +526,21 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         elif member_ids is None:
             segments.append(text("\n（成员名单不可用，未准备者未知）"))
         return segments
+
+    @staticmethod
+    def _card_suffix(snap: dict) -> str:
+        """准备名单里角色卡后面的括号：按规则显示不同字段，缺信息时不显示问号。"""
+        if (snap.get("rules") or "dnd5e") == "coc7th":
+            bits = [snap.get("occupation") or "无职业"]
+            if snap.get("age"):
+                bits.append(f"{snap['age']}岁")
+            return f"（{' · '.join(bits)}）"
+        race = snap.get("race") or ""
+        clazz = snap.get("class_name") or ""
+        level = int(snap.get("level") or 0)
+        if not race and not clazz and level <= 1:
+            return ""
+        return f"（{race or '?'} {clazz or '?'} Lv.{level or '?'}）"
 
     # ── 准备 / 取消准备 ──────────────────────────────────
 
@@ -557,9 +569,13 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             "nickname": self._get_sender_nickname(),
             "char_id": char.get("id"),
             "char_name": char.get("char_name", ""),
+            "rules": card_rule,
             "race": char.get("race", ""),
             "class_name": char.get("class_name", ""),
             "level": int(char.get("level") or 1),
+            # 调查员卡没有种族/职业等级，改记职业与年龄供准备名单展示
+            "occupation": char.get("occupation", ""),
+            "age": int(char.get("age") or 0),
             "prepared_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         try:

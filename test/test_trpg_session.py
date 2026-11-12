@@ -1232,3 +1232,32 @@ class TestMemberNameCache(unittest.TestCase):
 
     def test_bad_ids_return_empty(self):
         self.assertEqual(self.mod.resolve_group_member_name("abc", 2), "")
+
+
+class TestPreparedCardSuffix(IsolationMixin, unittest.TestCase):
+    """准备名单里的角色卡括号：DND 显示种族职业等级，COC 显示职业年龄，缺信息不显示问号。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _suffix(self, **snap):
+        return TrpgSessionPlugin._card_suffix(snap)
+
+    def test_coc_shows_occupation_and_age(self):
+        self.assertEqual(self._suffix(rules="coc7th", occupation="药剂师", age=28), "（药剂师 · 28岁）")
+
+    def test_coc_without_occupation(self):
+        self.assertEqual(self._suffix(rules="coc7th", occupation="", age=0), "（无职业）")
+
+    def test_dnd_shows_race_class_level(self):
+        self.assertEqual(self._suffix(rules="dnd5e", race="人类", class_name="战士", level=3),
+                         "（人类 战士 Lv.3）")
+
+    def test_dnd_empty_fields_omitted(self):
+        self.assertEqual(self._suffix(rules="dnd5e", level=1), "")
+
+    def test_legacy_snapshot_without_rules(self):
+        # 1.63 之前的快照没有 rules 字段，按 DND 处理；全是默认值时也不显示问号
+        self.assertEqual(self._suffix(level=1), "")
+        self.assertEqual(self._suffix(race="精灵", class_name="法师", level=5), "（精灵 法师 Lv.5）")
