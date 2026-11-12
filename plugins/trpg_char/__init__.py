@@ -12,6 +12,13 @@ WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
 COMMAND = "/跑团"
 
 
+def format_card(char_data: dict) -> str:
+    """按角色卡的规则选卡片文本：调查员卡用 COC 口径，其余走 DND。"""
+    if (char_data.get("rules") or "dnd5e") == "coc7th":
+        return coc_sheet.format_sheet(char_data)
+    return char_logic.format_sheet(char_data)
+
+
 @register_plugin
 class TrpgCharPlugin(Plugin):
     name = "trpg_char"
@@ -65,7 +72,7 @@ class TrpgCharPlugin(Plugin):
         if not char_data:
             self.api.send_msg(text("你还没有角色卡，请到网页端创建：\n" + WEB_TRPG_URL))
             return
-        self.api.send_msg(text(char_logic.format_sheet(char_data)))
+        self.api.send_msg(text(format_card(char_data)))
 
     def _handle_list(self):
         user_id = self.bot_event.user_id

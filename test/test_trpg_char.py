@@ -257,3 +257,34 @@ class TestDiceIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestViewByRules(unittest.TestCase):
+    """`/跑团 角色 查看` 必须按卡的规则输出：COC 卡不能显示成 DND 格式。"""
+
+    def _view(self, char_data):
+        from plugins.trpg_char import format_card
+        return format_card(char_data)
+
+    def test_coc_card_uses_coc_format(self):
+        card = {"rules": "coc7th", "char_name": "田宫真莉", "occupation": "药剂师", "age": 28,
+                "str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
+                "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45}
+        text = self._view(card)
+        self.assertIn("HP", text)
+        self.assertIn("伤害加值", text)
+        self.assertIn("药剂师", text)
+        self.assertNotIn("Lv.", text)
+        self.assertNotIn("熟练加值", text)
+
+    def test_dnd_card_unchanged(self):
+        card = {"char_name": "艾伦", "race": "人类", "class_name": "战士", "level": 3,
+                "str_score": 15, "dex_score": 14, "con_score": 14,
+                "int_score": 10, "wis_score": 10, "cha_score": 8}
+        text = self._view(card)
+        self.assertIn("Lv.", text)
+        self.assertNotIn("伤害加值", text)
+
+    def test_missing_rules_treated_as_dnd(self):
+        card = {"char_name": "艾伦", "race": "人类", "class_name": "战士", "level": 1}
+        self.assertIn("Lv.", self._view(card))

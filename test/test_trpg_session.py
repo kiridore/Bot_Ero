@@ -1257,6 +1257,15 @@ class TestPreparedCardSuffix(IsolationMixin, unittest.TestCase):
     def test_dnd_empty_fields_omitted(self):
         self.assertEqual(self._suffix(rules="dnd5e", level=1), "")
 
+    def test_prepare_snapshot_keeps_rules(self):
+        from core.trpg import party as party_mod
+        party_mod.set_prepared(GROUP_ID, "111", {"user_id": "111", "rules": "coc7th",
+                                                 "occupation": "药剂师", "age": 28,
+                                                 "char_name": "桐島 英二",
+                                                 "prepared_at": "2026-11-12 10:00:00"})
+        snap = party_mod.read_pending(GROUP_ID)["prepared"]["111"]
+        self.assertEqual(TrpgSessionPlugin._card_suffix(snap), "（药剂师 · 28岁）")
+
     def test_legacy_snapshot_without_rules(self):
         # 1.63 之前的快照没有 rules 字段，按 DND 处理；全是默认值时也不显示问号
         self.assertEqual(self._suffix(level=1), "")
