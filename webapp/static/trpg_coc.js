@@ -4,10 +4,36 @@ const PATH_PARTS = location.pathname.split("/").filter(Boolean); // trpg / coc /
 const CHAR_ID = PATH_PARTS[2] ? Number(PATH_PARTS[2]) : null;
 
 const ATTRS = [
-  ["str_score", "力量", "3d6"], ["con_score", "体质", "3d6"], ["siz_score", "体型", "2d6+6"],
-  ["dex_score", "敏捷", "3d6"], ["app_score", "外貌", "3d6"], ["int_score", "智力", "2d6+6"],
-  ["pow_score", "意志", "3d6"], ["edu_score", "教育", "2d6+6"],
+  ["str_score", "力量", "3d6"], ["dex_score", "敏捷", "3d6"], ["pow_score", "意志", "3d6"],
+  ["con_score", "体质", "3d6"], ["app_score", "外貌", "3d6"], ["edu_score", "教育", "2d6+6"],
+  ["siz_score", "体型", "2d6+6"], ["int_score", "智力", "2d6+6"], ["luck", "幸运", "3d6"],
 ];
+
+// 「您的角色可能（只是可能！）」——人物卡 AJ3/AJ5/AJ7/AV3/AV5/AV7/BD3/BD5/BD7 的 IF 链，
+// 每项为 [上限, 文案]，取第一个满足 值 <= 上限 的；值为 0 时不显示。
+const ATTR_NOTE_TITLE = "您的角色可能（只是可能！）";
+const ATTR_NOTES = {
+  str_score: [[15, "虚弱，孱弱"], [40, "力量弱小"], [60, "有正常人的力量"], [80, "超乎常人的力量"], [99, "超乎超乎常人的力量"]],
+  con_score: [[20, "常年患病在身"], [40, "体弱多病"], [60, "不会生什么大毛病"], [80, "健硕，浑身湿透也不会感冒"], [99, "身体素质极好，精神抖擞"]],
+  siz_score: [[20, "孩童，身短体瘦"], [40, "乙女身材"], [60, "普遍身高155-175"], [80, "不是高就是胖"], [100, "大号的人"], [149, "听说你正在申请身高世界记录？"], [179, "你可能是一头牛"], [199, "你已经是历史上最重的人类了"], [999, "过分了喂！"]],
+  dex_score: [[20, "很不灵活"], [40, "不是很灵活"], [60, "普通人水平"], [80, "是一位运动健将"], [99, "高速而灵活，可以达成超凡的技艺"]],
+  app_score: [[20, "用脸就能恐惧敌人。。或队友"], [40, "有些难看"], [60, "人群之中谁也不会看你一眼之后就忘不掉你容颜"], [80, "五官端正，仪表堂堂"], [99, "沉鱼落雁，闭月羞花"]],
+  int_score: [[20, "脑子是个好东西，可惜。。。"], [40, "理解知识要耗费比普通人更多的时间"], [60, "有着普通人的灵光一现"], [80, "可以自主进行发明创造"], [99, "天才级水准"]],
+  pow_score: [[20, "尔不过玩物"], [40, "痴愚盲目"], [60, "如常人一般会有一定自制力"], [80, "我心如铁，心坚石穿"], [99, "泰山崩于面而色不变"], [139, "钢铁之心，还能看见鬼"], [999, "你怕是个假人吧"]],
+  edu_score: [[20, "目不识丁"], [40, "小学毕业"], [60, "高中毕业"], [80, "是重点大学的学生，或是普通大学的研究生"], [99, "饱读诗书，满腹经纶"]],
+  luck: [[20, "克夫克妻"], [40, "霉运连连"], [60, "命格平庸"], [80, "在马路边捡到100块"], [99, "被幸运女神所眷顾"]],
+};
+
+// 「您的角色可能」：按属性值落桶；0 或没填时不显示
+function describeAttr(key, value) {
+  const buckets = ATTR_NOTES[key] || [];
+  const score = Number(value || 0);
+  if (!score) return "";
+  for (const [limit, text] of buckets) {
+    if (score <= limit) return text;
+  }
+  return buckets.length ? buckets[buckets.length - 1][1] : "";
+}
 
 const BACKGROUND_FIELDS = [
   ["description", "个人描述"], ["ideology", "思想与信念"], ["significant_people", "重要之人"],
@@ -285,6 +311,11 @@ function rerenderDerived() {
     const damage = String(row.querySelector('[data-weapon="damage"]')?.value || "");
     note.textContent = damage.includes("DB") ? `（DB=${db}）` : "";
   });
+  document.querySelectorAll("[data-attr-note]").forEach((cell) => {
+    const key = cell.dataset.attrNote;
+    const input = document.querySelector(`[data-attr="${key}"]`);
+    cell.textContent = describeAttr(key, input?.value);
+  });
   const interestBudget = int * 2;
   const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
   set("out-hp", Math.floor((con + siz) / 10));
@@ -468,13 +499,23 @@ function render() {
     </section>
 
     <section class="coc-block">
-      <h3>属性 <button type="button" class="btn-sm" id="rollAll">全部重掷</button></h3>
-      <div class="coc-grid coc-attrs">
-        ${ATTRS.map(([key, label, spec]) => `
-          <label>${label}<input type="number" data-attr="${key}" value="${card[key] || 0}" min="0" max="99" class="coc-num" />
-            <button type="button" class="btn-sm" data-roll="${key}" data-spec="${spec}">掷</button></label>`).join("")}
-        <label>幸运<input type="number" id="luck" value="${card.luck || 0}" min="0" max="99" class="coc-num" />
-          <button type="button" class="btn-sm" data-roll="luck" data-spec="3d6">掷</button></label>
+      <h3>属性 <button type="button" class="btn-sm" id="rollAll">🎲 全部重掷</button></h3>
+      <div class="coc-attr-wrap">
+        <div class="coc-grid coc-attrs">
+          ${ATTRS.map(([key, label, spec]) => `
+            <label>${label}<span class="coc-attr-row">
+              <input type="number" data-attr="${key}" id="${key === "luck" ? "luck" : ""}"
+                     value="${card[key] || 0}" min="0" max="99" class="coc-num" />
+              <button type="button" class="btn-sm coc-dice" data-roll="${key}" data-spec="${spec}"
+                      title="重掷${label}" aria-label="重掷${label}">🎲</button>
+            </span></label>`).join("")}
+        </div>
+        <div class="coc-attr-notes">
+          <p class="coc-note">${ATTR_NOTE_TITLE}</p>
+          <div class="coc-grid coc-notes">
+            ${ATTRS.map(([key]) => `<p class="coc-note-cell" data-attr-note="${key}"></p>`).join("")}
+          </div>
+        </div>
       </div>
     </section>
 
@@ -554,9 +595,6 @@ function bind() {
       const el = document.querySelector(`[data-attr="${key}"]`);
       if (el) el.value = rollDie(spec);
     });
-    // 幸运与八项属性同属「属性」区，全部重掷必须一起掷
-    const luck = document.getElementById("luck");
-    if (luck) luck.value = rollDie("3d6");
     rerenderDerived();
   });
   main.querySelectorAll("[data-roll]").forEach((btn) => {

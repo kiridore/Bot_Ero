@@ -401,6 +401,57 @@
 .coc-add-hint { font-size: 0.8rem; color: var(--ink-soft); }
 .coc-add-hint.is-error { color: color-mix(in srgb, var(--red) 62%, var(--ink-soft)); }
 
+/* 属性区：左 3×3 输入，右 3×3「您的角色可能」 */
+.coc-attr-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.coc-attrs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.coc-attr-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.coc-attr-row input { min-width: 0; flex: 1 1 auto; }
+
+.coc-dice {
+  padding: 0.1rem 0.35rem;
+  line-height: 1.2;
+}
+
+.coc-notes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.coc-note-cell {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  min-height: 3.2rem;
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 900px) {
+  .coc-attr-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .coc-attrs, .coc-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .coc-dmg-note {
   font-size: 0.75rem;
   color: var(--ink-soft);
