@@ -693,6 +693,21 @@ class TestStartSeed(IsolationMixin, unittest.TestCase):
         self.assertEqual(meta["participants"][1]["char_name"], "阿铁")
         self.assertFalse(party.pending_path(GROUP_ID).exists())
 
+    def test_card_excludes_bot_from_pending(self):
+        """机器人自己与其它机器人不应出现在「未准备」列表里（也不计入分母）。"""
+        from plugins.trpg_session import BOT_QQ
+        self.seed_party(dm_id="111", members=[
+            _member(111, "DM"), _member(222, "未准备"), _member(BOT_QQ, "小埃同学", is_robot=True),
+            _member(999, "别的机器人", is_robot=True),
+        ])
+        _run([_text_seg(".dm")], user_id=111, nickname="DM")
+        out = _joined(_run([_text_seg("/跑团")]))
+        self.assertIn("开团准备", out)
+        self.assertIn("已准备 0/1", out)
+        self.assertIn("未准备", out)
+        self.assertNotIn(str(BOT_QQ), out)
+        self.assertNotIn("别的机器人", out)
+
     def test_pending_file_corrupt_is_tolerated(self):
         party.pending_path(GROUP_ID).parent.mkdir(parents=True, exist_ok=True)
         party.pending_path(GROUP_ID).write_text("not json", encoding="utf-8")

@@ -432,11 +432,18 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             return
         self.api.send_msg(*self._card_segments(group_id))
 
+    def _human_members(self, group_id):
+        """群成员名单，剔除机器人自己与其它机器人；接口不可用时返回 None。"""
+        members = fetch_group_members(group_id)
+        if members is None:
+            return None
+        return [m for m in members if not m.get("is_robot") and m["user_id"] != str(BOT_QQ)]
+
     def _card_segments(self, group_id) -> list:
         data = party.read_pending(group_id)
         prepared = data["prepared"]
         roles = data["roles"]
-        members = fetch_group_members(group_id)
+        members = self._human_members(group_id)
         member_ids = {m["user_id"] for m in members} if members is not None else None
         names = {m["user_id"]: m["nickname"] for m in members} if members is not None else {}
 
@@ -638,7 +645,6 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         """返回问题列表；空列表表示通过。问题项为 {text, at?}。"""
         if members is None:
             return [{"text": "无法获取群成员列表：OneBot 接口未响应，无法校验成员（可改用 /跑团 记录 强制开始）"}]
-        members = [m for m in members if not m.get("is_robot") and m["user_id"] != str(BOT_QQ)]
         if len(members) > MAX_GATE_MEMBERS:
             return [{"text": f"群成员 {len(members)} 人，超过校验上限 {MAX_GATE_MEMBERS} 人（可改用 /跑团 记录 强制开始）"}]
         member_ids = {m["user_id"] for m in members}
@@ -684,7 +690,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
 
         data = party.read_pending(group_id)
         # 强制开始的场景往往就是成员接口坏了，不要再为取昵称去撞一次 5 秒超时
-        members = None if force else fetch_group_members(group_id)
+        members = None if force else self._human_members(group_id)
         if not force:
             problems = self._check_gate(data, members)
             if problems:
