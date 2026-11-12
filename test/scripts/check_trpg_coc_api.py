@@ -110,6 +110,20 @@ check("当前 MP 缺省等于上限", created["current_mp"] == 13, str(created.g
 check("职业点预算", created["occupation_budget"] == 180, str(created.get("occupation_budget")))
 check("兴趣点预算", created["interest_budget"] == 170, str(created.get("interest_budget")))
 
+# 编辑器保存不会带 current_* 字段：不能把当前值覆盖成 0
+edit = dict(CARD, char_name="田宫真莉（改）")
+r = client.put(f"/api/me/characters/{created['id']}", headers=H, json=edit)
+after_edit = r.json()
+check("编辑不清零当前值", after_edit.get("current_hp") == created["current_hp"]
+      and after_edit.get("current_san") == created["current_san"]
+      and after_edit.get("current_mp") == created["current_mp"],
+      str({k: after_edit.get(k) for k in ("current_hp", "current_san", "current_mp")}))
+keep_zero = dict(CARD, current_hp=0)
+r = client.put(f"/api/me/characters/{created['id']}", headers=H, json=keep_zero)
+check("显式 0 保留", r.json().get("current_hp") == 0, str(r.json().get("current_hp")))
+restore = dict(CARD, current_hp=created["current_hp"])
+client.put(f"/api/me/characters/{created['id']}", headers=H, json=restore)
+
 damaged = dict(CARD, current_san=40, current_hp=6)
 r = client.post("/api/me/characters", headers=H, json=damaged)
 check("当前值原样保存", r.status_code == 200 and r.json()["current_san"] == 40 and r.json()["current_hp"] == 6,

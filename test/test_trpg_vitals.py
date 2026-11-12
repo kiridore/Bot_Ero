@@ -170,6 +170,28 @@ class TestRuleGate(VitalsBase):
         self.assertIn("本团规则是 COC 7th", out)
 
 
+class TestMp(VitalsBase):
+    rule = "coc7th"
+
+    def test_spend_mp(self):
+        self.install({PLAYER_ID: _coc_card()})
+        out = self.invoke(".mp -3", user_id=PLAYER_ID)
+        self.assertIn("MP 13 → 10", out)
+        self.assertEqual(self.cards[PLAYER_ID]["current_mp"], 10)
+
+    def test_restore_mp(self):
+        self.install({PLAYER_ID: _coc_card(current_mp=2)})
+        out = self.invoke(".mp 满", user_id=PLAYER_ID)
+        self.assertIn("已回满", out)
+        self.assertEqual(self.cards[PLAYER_ID]["current_mp"], 13)
+
+    def test_mp_rejected_for_dnd(self):
+        self.rule = "dnd5e"
+        self.install({PLAYER_ID: _dnd_card()})
+        out = self.invoke(".mp -1", user_id=PLAYER_ID)
+        self.assertIn("DND 5E", out)
+
+
 class TestSanCheck(VitalsBase):
     rule = "coc7th"
 

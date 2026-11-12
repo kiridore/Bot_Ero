@@ -2,6 +2,7 @@
 
 - `.hp <±值|满> [@目标]`：两套规则通用，扣/加当前 HP
 - `.san <±值|满> [@目标]`：COC 专属，扣/加当前 SAN
+- `.mp <±值|满> [@目标]`：COC 专属，扣/加当前 MP（施法消耗）
 - `.sc <成功损失>/<失败损失> [@目标]`：COC 理智检定，掷 D100 与当前 SAN 比
 
 改别人的卡需要群内 DM（或超级用户）身份；本次不支持的组合直接拒绝并说明。
@@ -20,7 +21,7 @@ from core.trpg import character as dnd
 from core.trpg import coc, party, vitals
 import core.context as runtime_context
 
-PREFIX_RE = re.compile(r"^\.(?:hp|san|sc)(?:\s|$)", re.IGNORECASE)
+PREFIX_RE = re.compile(r"^\.(?:hp|san|mp|sc)(?:\s|$)", re.IGNORECASE)
 DICE_RE = re.compile(r"^(\d*)d(\d+)([+-]\d+)?$", re.IGNORECASE)
 MAX_DICE = 100
 MAX_SIDES = 1000
@@ -49,7 +50,7 @@ def roll_expression(expr: str):
 @register_plugin
 class TrpgVitalsPlugin(Plugin):
     name = "trpg_vitals"
-    description = "跑团数值：.hp 扣/加血量、.san 理智、.sc 理智检定"
+    description = "跑团数值：.hp 血量、.san 理智、.mp 魔法、.sc 理智检定"
 
     # ── 匹配与分发 ──────────────────────────────────────
 
@@ -80,6 +81,8 @@ class TrpgVitalsPlugin(Plugin):
                 self._handle_amount("hp", parts[1:])
             elif cmd == ".san":
                 self._handle_amount("san", parts[1:])
+            elif cmd == ".mp":
+                self._handle_amount("mp", parts[1:])
             else:
                 self._handle_san_check(parts[1:])
         except ValueError as exc:
@@ -146,11 +149,11 @@ class TrpgVitalsPlugin(Plugin):
 
     def _handle_amount(self, kind: str, args: list):
         if not args:
-            raise ValueError("格式：.hp <±值|满> [@目标] 或 .san <±值|满> [@目标]")
+            raise ValueError("格式：.hp / .san / .mp <±值|满> [@目标]，例：.hp -5、.san 满")
         target, char = self._resolve_target()
         rule = self._check_rule(char)
-        if kind == "san" and rule != "coc7th":
-            raise ValueError("当前角色卡是 DND 5E，没有 SAN 数值（COC 专用指令）")
+        if kind in ("san", "mp") and rule != "coc7th":
+            raise ValueError(f"当前角色卡是 DND 5E，没有 {'SAN' if kind == 'san' else 'MP'} 数值（COC 专用指令）")
 
         raw = args[0]
         if raw in ("满", "滿", "回满"):
@@ -174,12 +177,18 @@ class TrpgVitalsPlugin(Plugin):
             after = maximum if delta is None else vitals.clamp(before + delta, maximum)
             data["current_hp"] = after
             label = "HP"
-        else:
+        elif kind == "san":
             maximum = self._max_san(data)
             before = vitals.clamp(data.get("current_san", maximum), maximum)
             after = maximum if delta is None else vitals.clamp(before + delta, maximum)
             data["current_san"] = after
             label = "SAN"
+        else:
+            maximum = self._max_mp(data)
+            before = vitals.clamp(data.get("current_mp", maximum), maximum)
+            after = maximum if delta is None else vitals.clamp(before + delta, maximum)
+            data["current_mp"] = after
+            label = "MP"
 
         try:
             store.update_char(target, char["id"], data)
@@ -197,6 +206,9 @@ class TrpgVitalsPlugin(Plugin):
         if rule == "coc7th":
             return int(coc.finalize(data)["hp"])
         return int(dnd.finalize(data)["hp"])
+
+    def _max_mp(self, data: dict) -> int:
+        return int(coc.finalize(data)["mp"])
 
     def _max_san(self, data: dict) -> int:
         return int(coc.finalize(data)["max_san"])

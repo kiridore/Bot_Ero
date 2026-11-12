@@ -49,8 +49,9 @@ class CharacterIn(BaseModel):
     cthulhu_mythos: int = 0
     san_loss_day: str = ""
     san_loss_today: int = 0
-    current_mp: int = 0
-    current_san: int = 0
+    # 当前值留空（None）表示「按上限初始化 / 编辑时保持原值」，0 是合法值
+    current_mp: int | None = None
+    current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
     skills: dict = {}
     weapons: list[dict] = []
@@ -79,7 +80,7 @@ class CharacterIn(BaseModel):
     saving_profs: list[str] = []
     hp: int = 0
     ac: int = 0
-    current_hp: int = 0
+    current_hp: int | None = None
     temp_hp: int = 0
     speed: int = 30
     death_saves_success: int = 0
@@ -163,8 +164,9 @@ class CharOut(BaseModel):
     cthulhu_mythos: int = 0
     san_loss_day: str = ""
     san_loss_today: int = 0
-    current_mp: int = 0
-    current_san: int = 0
+    # 当前值留空（None）表示「按上限初始化 / 编辑时保持原值」，0 是合法值
+    current_mp: int | None = None
+    current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
     skills: dict = {}
     weapons: list[dict] = []
@@ -216,6 +218,29 @@ def _char_to_out(data: dict) -> CharOut:
         payload["can_level_up"] = state["can_level_up"]
         payload["xp_to_next"] = state["xp_to_next"]
     return CharOut(**{k: v for k, v in payload.items() if k in CharOut.model_fields})
+
+
+CURRENT_VALUE_CAPS = (("current_hp", "hp"), ("current_mp", "mp"), ("current_san", "san"))
+
+
+def _fill_current_values(data: dict) -> None:
+    """新建：当前值为 None 时按上限初始化（0 是合法值，不当成缺省）。"""
+    if data.get("rules") == "coc7th":
+        fin = trpg_coc.finalize(data)
+        caps = fin
+    else:
+        fin = trpg_char.finalize(data)
+        caps = {"hp": fin.get("hp", 0)}
+    for key, cap in CURRENT_VALUE_CAPS:
+        if data.get(key) is None:
+            data[key] = caps.get(cap, 0)
+
+
+def _keep_current_values(data: dict, existing: dict) -> None:
+    """编辑：请求里没带当前值（None）就沿用卡上原值。"""
+    for key, _ in CURRENT_VALUE_CAPS:
+        if data.get(key) is None:
+            data[key] = existing.get(key, 0)
 
 
 def _apply_rules(data: dict) -> None:
@@ -306,12 +331,7 @@ def api_create_character(
 ):
     data = body.model_dump()
     _apply_rules(data)
-    if data.get("rules") == "coc7th":
-        # 新建 COC 卡：当前值未填时按上限初始化，避免存成 0
-        fin = trpg_coc.finalize(data)
-        for key, cap in (("current_hp", "hp"), ("current_mp", "mp"), ("current_san", "san")):
-            if not data.get(key):
-                data[key] = fin[cap]
+    _fill_current_values(data)
     try:
         char_id = char_store.create_char(user_id, data)
     except ValueError as exc:
@@ -336,10 +356,12 @@ def api_update_character(
     body: CharacterIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
-    if not char_store.get_char(user_id, char_id):
+    existing = char_store.get_char(user_id, char_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="角色不存在")
     data = body.model_dump()
     _apply_rules(data)
+    _keep_current_values(data, existing)
     try:
         char_store.update_char(user_id, char_id, data)
     except ValueError as exc:
