@@ -407,6 +407,52 @@ def weapon_skill_ok(name: str) -> bool:
     return False
 
 
+def level_for_credit(credit) -> str:
+    """信用评级 → 生活水平档位（0 / 1-9 / 10-49 / 50-89 / 90-98 / 99）。"""
+    from .asset_data import LEVELS
+
+    try:
+        value = int(credit)
+    except (TypeError, ValueError):
+        return ""
+    for level in LEVELS:
+        if level["min"] <= value <= level["max"]:
+            return level["name"]
+    return ""
+
+
+def _asset_value(formula, credit: int):
+    mode, value = formula
+    if mode == "x":
+        return int(round(credit * value))
+    if mode == "flat":
+        return value
+    return value  # text：原样给前端展示
+
+
+def asset_reference(currency: str, credit, level: str = "") -> dict | None:
+    """按币种 + 信用评级（或指定档位）查现金 / 其他资产 / 消费水平参考值。"""
+    from .asset_data import CURRENCIES
+
+    table = next((c for c in CURRENCIES if c["code"] == currency), None)
+    if table is None:
+        return None
+    try:
+        score = int(credit)
+    except (TypeError, ValueError):
+        score = 0
+    name = level if level in table["rows"] else level_for_credit(score)
+    row = table["rows"].get(name)
+    if row is None:
+        return None
+    return {
+        "level": name,
+        "cash": _asset_value(row["cash"], score),
+        "other": _asset_value(row["other"], score),
+        "spending": _asset_value(row["spending"], score),
+    }
+
+
 def damage_with_db(damage: str, db: str) -> str:
     """伤害列展示：原文 + 当前伤害加值标注，如「1D6+DB（当前 DB=1D4）」。"""
     text = str(damage or "").strip()
@@ -424,6 +470,40 @@ def damage_ok(text) -> bool:
     raw = re.sub(r"/\s*\d+\s*码$", "", raw)
     segments = raw.split("/")
     return all(_damage_segment_ok(seg) for seg in segments)
+
+
+ASSET_NUMBER_MAX = 10 ** 15
+
+
+def asset_problems(assets) -> list[str]:
+    """资产栏校验：币种与生活水平必须是表里的值，其他资产表必须是非负数字。"""
+    from .asset_data import ASSET_ITEM_FIELDS, CURRENCIES, LEVELS
+
+    if assets in (None, ""):
+        return []
+    if not isinstance(assets, dict):
+        return ["资产栏格式错误"]
+    problems = []
+    codes = {c["code"] for c in CURRENCIES}
+    currency = str(assets.get("currency") or "").strip()
+    if currency and currency not in codes:
+        problems.append(f"未知币种「{currency}」（可用：{'、'.join(sorted(codes))}）")
+    levels = {level["name"] for level in LEVELS}
+    level = str(assets.get("living_standard") or "").strip()
+    if level and level not in levels:
+        problems.append(f"生活水平「{level}」不在 6 档之内（{'、'.join(l['name'] for l in LEVELS)}）")
+    for key, label in ASSET_ITEM_FIELDS:
+        raw = assets.get(key)
+        if raw in (None, ""):
+            continue
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            problems.append(f"其他资产「{label}」必须是整数")
+            continue
+        if not 0 <= value <= ASSET_NUMBER_MAX:
+            problems.append(f"其他资产「{label}」应在 0-{ASSET_NUMBER_MAX} 之间")
+    return problems
 
 
 def weapon_problems(weapons) -> list[str]:
@@ -517,6 +597,7 @@ def validate(data: dict) -> list[str]:
     problems.extend(occupation_choice_problems(data))
     problems.extend(occupational_point_problems(data))
     problems.extend(weapon_problems(data.get("weapons") or []))
+    problems.extend(asset_problems(data.get("assets")))
     return problems
 
 
@@ -573,6 +654,23 @@ def format_sheet(data: dict) -> str:
             if str(weapon.get("range") or "").strip():
                 parts.append(f"射程 {weapon['range']}")
             lines.append("｜".join(parts))
+    assets = data.get("assets") or {}
+    if isinstance(assets, dict) and any(str(assets.get(k) or "").strip()
+                                        for k in ("cash", "other_assets", "currency", "living_standard")):
+        from .asset_data import CURRENCIES
+
+        parts = []
+        currency = next((c["label"] for c in CURRENCIES if c["code"] == assets.get("currency")), "")
+        if currency:
+            parts.append(currency)
+        if assets.get("living_standard"):
+            parts.append(f"生活水平 {assets['living_standard']}")
+        if str(assets.get("cash") or "").strip():
+            parts.append(f"现金 {assets['cash']}")
+        if str(assets.get("other_assets") or "").strip():
+            parts.append(f"其他资产 {assets['other_assets']}")
+        if parts:
+            lines.append("资产：" + " · ".join(parts))
     background = data.get("background") or {}
     if isinstance(background, dict):
         traits = background.get("traits") or ""

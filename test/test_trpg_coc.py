@@ -314,3 +314,57 @@ class TestWeaponsAfterDefaults(unittest.TestCase):
     def test_weapon_skill_base_available(self):
         # 斗殴不在 39 项标准技能里，武器技能仍按卡上/武器库判断，不因默认值出现
         self.assertIsNone(coc.skill_value(_card(), "斗殴"))
+
+
+class TestAssets(unittest.TestCase):
+    """资产栏：6 档生活水平、币种、按 CR 查参考值、其他资产表校验。"""
+
+    def test_level_for_credit(self):
+        for credit, level in ((0, "身无分文"), (1, "拮据"), (9, "拮据"), (10, "标准"),
+                              (49, "标准"), (50, "小康"), (89, "小康"), (90, "富裕"),
+                              (98, "富裕"), (99, "富豪")):
+            self.assertEqual(coc.level_for_credit(credit), level, credit)
+
+    def test_reference_jpy(self):
+        data = coc.asset_reference("JPY", 30)
+        self.assertEqual(data["level"], "标准")
+        self.assertEqual(data["cash"], 120000)     # CR 30 × 4000
+        self.assertEqual(data["other"], 4500000)   # CR 30 × 15万
+        self.assertEqual(data["spending"], 25000)
+
+    def test_reference_flat_bracket(self):
+        data = coc.asset_reference("JPY", 99)
+        self.assertEqual(data["cash"], 30000000)
+        self.assertEqual(data["other"], 30000000000)
+
+    def test_reference_text_bracket(self):
+        data = coc.asset_reference("GBP", 10)
+        self.assertEqual(data["cash"], 100)
+        self.assertEqual(data["spending"], "2镑10先令")
+
+    def test_reference_unknown_currency(self):
+        self.assertIsNone(coc.asset_reference("XXX", 30))
+
+    def test_reference_explicit_level(self):
+        data = coc.asset_reference("CNY", 30, level="富裕")
+        self.assertEqual(data["level"], "富裕")
+        self.assertEqual(data["cash"], 90000)      # CR 30 × 3000
+
+    def test_asset_problems(self):
+        self.assertEqual(coc.asset_problems({"currency": "JPY", "living_standard": "标准", "vehicle": 5}), [])
+        self.assertTrue(any("未知币种" in p for p in coc.asset_problems({"currency": "XXX"})))
+        self.assertTrue(any("不在 6 档" in p for p in coc.asset_problems({"living_standard": "贫穷"})))
+        self.assertTrue(any("必须是整数" in p for p in coc.asset_problems({"vehicle": "很多"})))
+        self.assertTrue(any("应在 0-" in p for p in coc.asset_problems({"vehicle": -1})))
+
+    def test_validate_includes_assets(self):
+        card = _card(assets={"currency": "XXX"})
+        self.assertTrue(any("未知币种" in p for p in coc.validate(card)))
+
+    def test_sheet_shows_assets(self):
+        card = _card(assets={"currency": "JPY", "living_standard": "标准",
+                             "cash": "120000", "other_assets": "都市公寓"})
+        text = coc.format_sheet(card)
+        self.assertIn("资产：", text)
+        self.assertIn("日元（JPY）", text)
+        self.assertIn("现金 120000", text)

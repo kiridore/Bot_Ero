@@ -172,15 +172,30 @@ function renderCocView(char) {
 
   const assets = char.assets || {};
   const assetLines = [
-    ["现金", assets.cash], ["消费水平", assets.spending_level], ["生活水平", assets.living_standard],
+    ["币种", assets.currency], ["生活水平", assets.living_standard], ["现金", assets.cash],
+    ["消费水平", assets.spending_level], ["其他资产", assets.other_assets],
+    ["交通工具", assets.vehicle], ["住所", assets.residence], ["奢侈品", assets.luxury],
+    ["股票/证券", assets.securities], ["其他", assets.other], ["剩余资产值", assets.remaining],
     ["克苏鲁神话", char.cthulhu_mythos],
-  ].filter(([, v]) => v !== undefined && v !== null && String(v) !== "");
+  ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
   if (assetLines.length) {
     cocSection("资产", (sec) => {
       const p = document.createElement("p");
       p.className = "muted";
       p.textContent = assetLines.map(([k, v]) => `${k}：${v}`).join(" · ");
       sec.appendChild(p);
+      const money = ["现金", "交通工具", "住所", "奢侈品", "股票/证券", "其他"];
+      const total = money.reduce((sum, key) => {
+        const raw = assetLines.find(([k]) => k === key);
+        const n = raw ? Number(String(raw[1]).replace(/[^\d.-]/g, "")) : 0;
+        return sum + (Number.isFinite(n) ? n : 0);
+      }, 0);
+      if (total) {
+        const sum = document.createElement("p");
+        sum.className = "muted";
+        sum.textContent = `资产总和：${total}`;
+        sec.appendChild(sum);
+      }
     });
   }
 

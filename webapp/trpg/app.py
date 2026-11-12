@@ -17,6 +17,7 @@ from core.onebot_client import (
 )
 from core.trpg import character as trpg_char
 from core.trpg import levelup as trpg_levelup
+from core.trpg import asset_data as trpg_asset
 from core.trpg import coc as trpg_coc
 from core.trpg import coc_data
 from core.trpg import party as trpg_party
@@ -247,7 +248,26 @@ def api_coc_options():
         ],
         "occupation_skills": coc_data.OCCUPATION_SKILLS,
         "weapon_library": coc_data.WEAPONS,
+        "currencies": [
+            {"code": c["code"], "label": c["label"], "era": c["era"]}
+            for c in trpg_asset.CURRENCIES
+        ],
+        "living_levels": [level["name"] for level in trpg_asset.LEVELS],
+        "asset_items": [{"key": k, "label": v} for k, v in trpg_asset.ASSET_ITEM_FIELDS],
     }
+
+
+@router.get("/api/trpg/coc/asset-reference")
+def api_coc_asset_reference(
+    currency: str,
+    credit: int = 0,
+    level: str = "",
+):
+    """按币种 + 信用评级查资产参考值（现金 / 其他资产 / 消费水平）。"""
+    data = trpg_coc.asset_reference(currency, credit, level)
+    if data is None:
+        raise HTTPException(status_code=400, detail="未知币种或信用评级")
+    return data
 
 
 @router.get("/api/me/characters")

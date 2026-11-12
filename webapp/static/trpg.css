@@ -496,6 +496,20 @@
   .coc-attrs, .coc-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.coc-asset-items {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 0.5rem;
+}
+
+.coc-asset-items input[readonly] {
+  background: var(--paper);
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  .coc-asset-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .coc-dmg-note {
   font-size: 0.75rem;
   color: var(--ink-soft);

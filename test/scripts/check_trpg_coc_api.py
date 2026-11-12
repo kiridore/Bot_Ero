@@ -193,9 +193,37 @@ check("查看页武器含新字段",
       and (view.get("weapons") or [{}])[0].get("type") == "常规武器",
       str((view.get("weapons") or [{}])[0])[:160])
 
+ref = client.get("/api/trpg/coc/asset-reference?currency=JPY&credit=30", headers=H).json()
+check("资产参考值查询", ref.get("level") == "标准" and ref.get("cash") == 120000
+      and ref.get("other") == 4500000, str(ref))
+bad_ref = client.get("/api/trpg/coc/asset-reference?currency=XXX&credit=30", headers=H)
+check("未知币种 400", bad_ref.status_code == 400, str(bad_ref.status_code))
+
+with_assets = dict(CARD, assets={"currency": "JPY", "living_standard": "标准", "cash": "120000",
+                                "spending_level": "25000", "other_assets": "都市公寓",
+                                "vehicle": "300000", "residence": "0", "luxury": "0",
+                                "securities": "0", "other": "0", "remaining": "420000"})
+r = client.post("/api/me/characters", headers=H, json=with_assets)
+check("资产栏可保存", r.status_code == 200, r.text[:200])
+saved_assets = (r.json() or {}).get("assets") or {}
+check("资产新字段回传", saved_assets.get("currency") == "JPY"
+      and saved_assets.get("vehicle") == "300000"
+      and saved_assets.get("other_assets") == "都市公寓", str(saved_assets)[:200])
+
+bad_assets = dict(CARD, assets={"currency": "XXX"})
+r = client.post("/api/me/characters", headers=H, json=bad_assets)
+check("未知币种 400", r.status_code == 400 and "未知币种" in r.text, r.text[:160])
+bad_level = dict(CARD, assets={"living_standard": "贫穷"})
+r = client.post("/api/me/characters", headers=H, json=bad_level)
+check("非法生活水平 400", r.status_code == 400 and "不在 6 档" in r.text, r.text[:160])
+
 opts = client.get("/api/trpg/coc/options", headers=H).json()
 library = opts.get("weapon_library") or []
 check("武器库随选项下发", len(library) >= 100, str(len(library)))
+check("币种与档位随选项下发",
+      len(opts.get("currencies") or []) == 6 and len(opts.get("living_levels") or []) == 6
+      and len(opts.get("asset_items") or []) == 5,
+      str((len(opts.get("currencies") or []), len(opts.get("living_levels") or []))))
 check("武器库字段齐全",
       all(k in library[0] for k in ("name", "type", "skill", "damage", "range", "attacks",
                                     "capacity", "malfunction", "pierce", "era")),

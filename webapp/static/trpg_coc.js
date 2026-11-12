@@ -35,6 +35,32 @@ function describeAttr(key, value) {
   return buckets.length ? buckets[buckets.length - 1][1] : "";
 }
 
+const LIVING_LEVELS = ["身无分文", "拮据", "标准", "小康", "富裕", "富豪"];
+const ASSET_ITEMS = [
+  ["vehicle", "交通工具"], ["residence", "住所"], ["luxury", "奢侈品"],
+  ["securities", "股票/证券等"], ["other", "其他"],
+];
+
+// 信用评级 → 生活水平档位（0 / 1-9 / 10-49 / 50-89 / 90-98 / 99）
+function levelForCredit(credit) {
+  const score = Number(credit || 0);
+  if (score <= 0) return "身无分文";
+  if (score <= 9) return "拮据";
+  if (score <= 49) return "标准";
+  if (score <= 89) return "小康";
+  if (score <= 98) return "富裕";
+  return "富豪";
+}
+
+// 资产总和 = 现金（能转成数字时）+ 其他资产表五类
+function assetsTotal(cash, items) {
+  const toNumber = (v) => {
+    const n = Number(String(v ?? "").replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+  return toNumber(cash) + Object.values(items || {}).reduce((sum, v) => sum + toNumber(v), 0);
+}
+
 const BACKGROUND_FIELDS = [
   ["description", "个人描述"], ["ideology", "思想与信念"], ["significant_people", "重要之人"],
   ["meaningful_places", "意义非凡之地"], ["treasured_possessions", "宝贵之物"], ["traits", "特质"],
@@ -331,6 +357,22 @@ function rerenderDerived() {
     const dodgeBase = dodgeRow.querySelector("[data-base]");
     if (dodgeBase) dodgeBase.value = Math.floor(dex / 2);
   }
+  // 资产：档位提示 + 合计
+  const assetHint = document.getElementById("assetHint");
+  if (assetHint) {
+    const credit = Number(document.getElementById("credit_rating")?.value || 0);
+    const level = levelForCredit(credit);
+    const chosen = document.getElementById("living_standard")?.value || "";
+    assetHint.textContent = chosen && chosen !== level
+      ? `信用评级 ${credit} 通常对应「${level}」，当前选的是「${chosen}」`
+      : `信用评级 ${credit} 对应「${level}」`;
+  }
+  const totalBox = document.getElementById("assetTotal");
+  if (totalBox) {
+    const items = {};
+    document.querySelectorAll("[data-asset-item]").forEach((el) => { items[el.dataset.assetItem] = el.value; });
+    totalBox.value = assetsTotal(document.getElementById("cash")?.value, items);
+  }
   // 武器伤害的 DB 标注：伤害原文 + 当前伤害加值
   document.querySelectorAll("[data-weapon-row]").forEach((row) => {
     const note = row.querySelector("[data-damage-note]");
@@ -494,6 +536,7 @@ function weaponRow(weapon) {
 
 function render() {
   const bg = card.social_background || {};
+  const assets = card.assets || {};
   main.innerHTML = `
     <div class="section-head">
       <h2>${CHAR_ID ? "编辑调查员卡" : "新建 COC 7th 调查员卡"}</h2>
@@ -589,12 +632,30 @@ function render() {
     </section>
 
     <section class="coc-block">
-      <h3>资产</h3>
+      <h3>资产 <button type="button" class="btn-sm" id="fillAssets">按规则填入</button></h3>
       <div class="coc-grid">
         <label>信用评级<input id="credit_rating" type="number" min="0" max="99" value="${card.credit_rating || 0}" class="coc-num" /></label>
-        <label>现金<input id="cash" value="${escapeHtml((card.assets || {}).cash || "")}" /></label>
-        <label>消费水平<input id="spending_level" value="${escapeHtml((card.assets || {}).spending_level || "")}" /></label>
-        <label>生活水平<input id="living_standard" value="${escapeHtml((card.assets || {}).living_standard || "")}" /></label>
+        <label>生活水平
+          <select id="living_standard">
+            <option value="">未选择</option>
+            ${LIVING_LEVELS.map((lv) => `<option value="${lv}"${lv === (assets.living_standard || "") ? " selected" : ""}>${lv}</option>`).join("")}
+          </select>
+        </label>
+        <label>币种
+          <select id="currency">
+            <option value="">未选择</option>
+            ${(options.currencies || []).map((c) => `<option value="${escapeHtml(c.code)}"${c.code === (assets.currency || "JPY") ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("")}
+          </select>
+        </label>
+        <label>现金<input id="cash" value="${escapeHtml(assets.cash || "")}" /></label>
+        <label>消费水平<input id="spending_level" value="${escapeHtml(assets.spending_level || "")}" /></label>
+        <label class="coc-wide">其他资产<input id="other_assets" value="${escapeHtml(assets.other_assets || "")}" placeholder="交通工具、房产、收藏品等" /></label>
+      </div>
+      <p class="coc-note" id="assetHint"></p>
+      <div class="coc-grid coc-asset-items">
+        ${ASSET_ITEMS.map(([key, label]) => `<label>${label}<input type="number" min="0" data-asset-item="${key}" value="${assets[key] != null ? escapeHtml(assets[key]) : ""}" class="coc-num" /></label>`).join("")}
+        <label>资产总和<input id="assetTotal" value="" readonly class="coc-num" /></label>
+        <label>剩余资产值<input id="assetRemaining" type="number" min="0" value="${assets.remaining != null ? escapeHtml(assets.remaining) : ""}" class="coc-num" /></label>
       </div>
     </section>
 
@@ -709,6 +770,35 @@ function bind() {
     rerenderDerived();
   });
   document.getElementById("era").addEventListener("change", renderWeaponLibrary);
+  document.getElementById("fillAssets").addEventListener("click", async () => {
+    const currency = document.getElementById("currency").value;
+    const credit = document.getElementById("credit_rating").value;
+    if (!currency) {
+      showToast("先选择币种", true);
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ currency, credit });
+      const res = await fetch(`/api/trpg/coc/asset-reference?${params}`, { headers: GalleryAuth.headers() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "查询失败");
+      document.getElementById("living_standard").value = data.level || "";
+      if (data.cash !== null && data.cash !== undefined) document.getElementById("cash").value = data.cash;
+      if (data.spending !== null && data.spending !== undefined) {
+        document.getElementById("spending_level").value = data.spending;
+      }
+      rerenderDerived();
+      showToast(`已按「${data.level}」填入参考值`, false);
+    } catch (err) {
+      showToast(err.message || "查询失败", true);
+    }
+  });
+  document.getElementById("credit_rating").addEventListener("change", () => {
+    // 档位跟随信用评级（可手动改）
+    const level = document.getElementById("living_standard");
+    if (level) level.value = levelForCredit(document.getElementById("credit_rating").value);
+    rerenderDerived();
+  });
   document.getElementById("addWeapon").addEventListener("click", () => {
     document.getElementById("weaponBody").insertAdjacentHTML(
       "beforeend",
@@ -758,7 +848,12 @@ function collect() {
     assets: {
       cash: document.getElementById("cash").value.trim(),
       spending_level: document.getElementById("spending_level").value.trim(),
-      living_standard: document.getElementById("living_standard").value.trim(),
+      living_standard: document.getElementById("living_standard").value,
+      currency: document.getElementById("currency").value,
+      other_assets: document.getElementById("other_assets").value.trim(),
+      ...Object.fromEntries([...document.querySelectorAll("[data-asset-item]")]
+        .map((el) => [el.dataset.assetItem, el.value.trim()])),
+      remaining: document.getElementById("assetRemaining").value.trim(),
     },
     weapons: [...document.querySelectorAll("[data-weapon-row]")].map((row) => {
       const weapon = {};

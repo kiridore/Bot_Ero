@@ -37,7 +37,8 @@ const card = {
   weapons: [{ name: "短管霰弹枪", type: "步枪", skill: "步枪/霰弹枪", success: 30,
               damage: "2D6+DB", range: "10/20/50", attacks: "1 or 2", ammo: "2",
               malfunction: "100", pierce: "×" }],
-  assets: { cash: "40", spending_level: "普通", living_standard: "小康" },
+  assets: { currency: "JPY", cash: "120000", spending_level: "25000", living_standard: "小康",
+            other_assets: "都市公寓", vehicle: "300000", residence: "0" },
   social_background: { traits: "冷静" },
   notes: "记一笔",
 };
@@ -59,7 +60,8 @@ check("属性值渲染", html.includes(">60<") || html.includes("60"), "");
 check("技能表带成功率与成长标记", html.includes("科学:制药") && html.includes("21%") && html.includes("✓"));
 check("武器新字段（类型/使用技能/装弹量/贯穿）", ["短管霰弹枪", "步枪", "步枪/霰弹枪", "2", "×"].every((x) => html.includes(x)));
 check("武器伤害带 DB 标注", html.includes("2D6+DB（DB=+1D4）"), "");
-check("资产与背景", html.includes("现金：40") && html.includes("冷静"));
+check("资产与背景", html.includes("现金：120000") && html.includes("币种：JPY")
+  && html.includes("其他资产：都市公寓") && html.includes("资产总和：420000") && html.includes("冷静"), "");
 check("笔记", html.includes("记一笔"));
 
 // DND 卡仍走原渲染分支（不应命中 COC 渲染）
