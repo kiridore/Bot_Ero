@@ -417,7 +417,6 @@
 }
 
 .trpg-msg.is-bot {
-  align-self: center;
   max-width: 86%;
 }
 
@@ -446,8 +445,6 @@
 
 .trpg-msg.is-self .trpg-msg-body { align-items: flex-end; }
 
-.trpg-msg.is-bot .trpg-msg-body { align-items: center; }
-
 .trpg-msg-name {
   display: flex;
   align-items: center;
@@ -466,8 +463,6 @@
 }
 
 .trpg-msg.is-self .trpg-msg-body { align-items: flex-end; }
-
-.trpg-msg.is-bot .trpg-msg-body { align-items: center; }
 
 .trpg-msg-name {
   justify-content: flex-end;
@@ -499,9 +494,17 @@
   background: var(--paper);
   border-style: dashed;
   font-size: 0.82rem;
-  text-align: center;
   color: var(--ink-soft);
 }
+
+/* 骰子结果对齐方式：由容器类决定（默认居中），可在记录页右下角按钮切换 */
+.trpg-thread.dice-left .trpg-msg.is-bot { align-self: flex-start; }
+.trpg-thread.dice-center .trpg-msg.is-bot { align-self: center; }
+.trpg-thread.dice-right .trpg-msg.is-bot { align-self: flex-end; }
+
+.trpg-thread.dice-left .trpg-msg.is-bot .trpg-msg-body { align-items: flex-start; text-align: left; }
+.trpg-thread.dice-center .trpg-msg.is-bot .trpg-msg-body { align-items: center; text-align: center; }
+.trpg-thread.dice-right .trpg-msg.is-bot .trpg-msg-body { align-items: flex-end; text-align: right; }
 
 .trpg-msg.is-secret .trpg-bubble {
   border-style: dashed;

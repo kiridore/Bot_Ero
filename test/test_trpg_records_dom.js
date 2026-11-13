@@ -31,7 +31,7 @@ function newEl(tag) {
     classList: {
       _set: new Set(),
       add(c) { this._set.add(c); },
-      remove(c) { this._set.delete(c); },
+      remove(...cs) { for (const c of cs) this._set.delete(c); },
       contains(c) { return this._set.has(c); },
       toggle(c, on) { if (on) this._set.add(c); else this._set.delete(c); },
     },
@@ -108,7 +108,7 @@ const scrollCalls = [];
 global.window.scrollTo = (opts) => { scrollCalls.push(opts); };
 
 ["messageList", "threadHint", "recordTitle", "recordMeta", "recordState", "revealToggle",
- "oocToggle", "sheetBox", "sheetList", "fabTop", "fabSecret", "fabOoc", "authArea"]
+ "oocToggle", "sheetBox", "sheetList", "fabTop", "fabSecret", "fabOoc", "fabDice", "authArea"]
   .forEach((id) => {
     els[id] = newEl("div");
     els[id].id = id;
@@ -413,7 +413,35 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("气泡容器改为列弹性布局", /\.trpg-msg-body \{[^}]*flex-direction:\s*column/.test(css)
     && /align-items:\s*flex-start/.test(bodyRule), bodyRule.slice(0, 120));
   check("自己的气泡右对齐", /\.trpg-msg\.is-self \.trpg-msg-body \{[^}]*flex-end/.test(css));
-  check("机器人气泡居中", /\.trpg-msg\.is-bot \.trpg-msg-body \{[^}]*center/.test(css));
+  // —— 骰子结果对齐：左 / 中 / 右，默认居中 ——
+  check("三种对齐都有样式规则",
+    /\.dice-left \.trpg-msg\.is-bot \{[^}]*flex-start/.test(css)
+    && /\.dice-center \.trpg-msg\.is-bot \{[^}]*center/.test(css)
+    && /\.dice-right \.trpg-msg\.is-bot \{[^}]*flex-end/.test(css));
+  check("气泡文字对齐随容器类变化",
+    /\.dice-left \.trpg-msg\.is-bot \.trpg-msg-body \{[^}]*text-align:\s*left/.test(css)
+    && /\.dice-right \.trpg-msg\.is-bot \.trpg-msg-body \{[^}]*text-align:\s*right/.test(css));
+  check("默认居中", msgList.classList.contains("dice-center"), String([...msgList.classList._set]));
+  check("默认按钮图标为居中", els.fabDice.innerHTML.includes('data-icon="align-center"'), els.fabDice.innerHTML);
+  check("按钮标签写明当前对齐",
+    String(els.fabDice.getAttribute("aria-label")).includes("居中"), els.fabDice.getAttribute("aria-label"));
+  els.fabDice.handlers.click();
+  check("点一下右对齐", msgList.classList.contains("dice-right")
+    && !msgList.classList.contains("dice-center")
+    && els.fabDice.innerHTML.includes('data-icon="align-right"'), String([...msgList.classList._set]));
+  check("右对齐写入 localStorage", localStorage.getItem("botero_trpg_dice_align") === "right");
+  els.fabDice.handlers.click();
+  check("再点回到左对齐", msgList.classList.contains("dice-left")
+    && els.fabDice.innerHTML.includes('data-icon="align-left"'), String([...msgList.classList._set]));
+  els.fabDice.handlers.click();
+  check("第三次点回居中", msgList.classList.contains("dice-center")
+    && localStorage.getItem("botero_trpg_dice_align") === "center");
+  check("非法存档回落居中", (() => {
+    applyDiceAlign("diagonal");
+    return msgList.classList.contains("dice-center")
+      && localStorage.getItem("botero_trpg_dice_align") === "center";
+  })());
+  check("页面有对齐按钮", recordHtml.includes('id="fabDice"'));
   check("气泡最大宽度不超过容器", /\.trpg-bubble \{[^}]*max-width:\s*100%/.test(css));
 
   els.fabTop.handlers.click();

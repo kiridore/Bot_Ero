@@ -9,6 +9,7 @@ const oocToggle = document.getElementById("oocToggle");
 const fabTop = document.getElementById("fabTop");
 const fabSecret = document.getElementById("fabSecret");
 const fabOoc = document.getElementById("fabOoc");
+const fabDice = document.getElementById("fabDice");
 const sheetBox = document.getElementById("sheetBox");
 const sheetList = document.getElementById("sheetList");
 
@@ -21,6 +22,10 @@ const STATE_LABEL = { recording: "录制中", paused: "已暂停", ended: "已�
 const ROLE_LABEL = { dm: "DM", ob: "观察者" };
 const POLL_MS = 5000;
 const HIDE_OOC_KEY = "botero_trpg_hide_ooc";
+const DICE_ALIGN_KEY = "botero_trpg_dice_align";
+const DICE_ALIGNS = ["left", "center", "right"];   // 点一下就往后切一格
+const DICE_ALIGN_TEXT = { left: "左对齐", center: "居中", right: "右对齐" };
+const DICE_ALIGN_ICON = { left: "align-left", center: "align-center", right: "align-right" };
 // 整条消息都用全角/半角括号包起来 → 视为场外发言（OOC）
 const OOC_RE = /^[（(][\s\S]*[）)]$/;
 
@@ -34,6 +39,7 @@ let personByQQ = {};      // QQ → 参与者（含 char_id 与起止角色卡�
 let pollTimer = null;
 let secretHidden = true;     // 暗骰默认隐藏
 let oocHidden = false;       // 场外发言默认显示
+let diceAlign = "center";    // 骰子结果对齐方式，默认居中
 const TOP_FAB_THRESHOLD = 300;   // 向下滚过这么多像素才显示「回到顶部」
 
 function makeEl(tag, className, text) {
@@ -444,6 +450,29 @@ function syncTopFab() {
   fabTop.tabIndex = hidden ? -1 : 0;
 }
 
+// 骰子结果（机器人消息）对齐：左 / 中 / 右，存在浏览器里
+function applyDiceAlign(align) {
+  diceAlign = DICE_ALIGNS.indexOf(align) >= 0 ? align : "center";
+  listEl.classList.remove("dice-left", "dice-center", "dice-right");
+  listEl.classList.add(`dice-${diceAlign}`);
+  if (fabDice) {
+    if (typeof GalleryIcons !== "undefined") fabDice.innerHTML = GalleryIcons.svgHTML(DICE_ALIGN_ICON[diceAlign]);
+    const label = `骰子结果：${DICE_ALIGN_TEXT[diceAlign]}（点击切换）`;
+    fabDice.title = label;
+    fabDice.setAttribute("aria-label", label);
+  }
+  try {
+    localStorage.setItem(DICE_ALIGN_KEY, diceAlign);
+  } catch (err) {
+    /* 隐私模式下存不了，仅本次生效 */
+  }
+}
+
+function cycleDiceAlign() {
+  const next = DICE_ALIGNS[(DICE_ALIGNS.indexOf(diceAlign) + 1) % DICE_ALIGNS.length];
+  applyDiceAlign(next);
+}
+
 function mountFabs() {
   const icons = typeof GalleryIcons !== "undefined" ? GalleryIcons : null;
   const paint = (btn, icon, label) => {
@@ -467,6 +496,7 @@ function mountFabs() {
   }
   if (fabSecret) fabSecret.addEventListener("click", () => setSecretHidden(!secretHidden));
   if (fabOoc) fabOoc.addEventListener("click", () => setOocHidden(!oocHidden));
+  if (fabDice) fabDice.addEventListener("click", cycleDiceAlign);
 }
 
 revealToggle.addEventListener("change", () => setSecretHidden(!revealToggle.checked));
@@ -482,6 +512,15 @@ if (oocToggle) {
 mountFabs();
 setSecretHidden(!revealToggle.checked, false);
 if (oocToggle) setOocHidden(oocToggle.checked);
+(() => {
+  let saved = "center";
+  try {
+    saved = localStorage.getItem(DICE_ALIGN_KEY) || "center";
+  } catch (err) {
+    saved = "center";
+  }
+  applyDiceAlign(saved);
+})();
 
 (async function init() {
   if (!GROUP_ID || !START_DIR) {

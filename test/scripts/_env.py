@@ -1,8 +1,20 @@
 """测试用 config.yaml 生成器：conftest 与 check_*.py 共用。
 
+另外把 127.0.0.1/localhost 加进 no_proxy：部署机若设了进程级 HTTP(S)_PROXY，
+脚本里对本地自环的 urlopen 会被代理劫持，表现为「服务器起不来」的假失败。
+
+
 返回写入的配置文件路径。section_overrides 按节深合并覆盖默认值，例如：
     write_config(_tmp, paths={"db": _db}, timeline={"token": "test-timeline-token"})
 """
+
+
+import os as _os
+
+for _key in ("no_proxy", "NO_PROXY"):
+    _hosts = _os.environ.get(_key, "")
+    if "127.0.0.1" not in _hosts:
+        _os.environ[_key] = ",".join(x for x in (_hosts, "127.0.0.1,localhost") if x)
 
 
 def _merge(base: dict, over: dict) -> dict:
