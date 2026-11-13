@@ -108,6 +108,11 @@
   white-space: nowrap;
 }
 
+.trpg-badge.is-paused {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+
 .trpg-badge.is-recording {
   background: var(--accent-soft);
   color: var(--accent-ink);

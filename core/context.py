@@ -46,6 +46,11 @@ game_lock = Lock()
 def is_group_recording(group_id: int) -> bool:
     return group_id in recording_sessions
 
+def is_recording_active(group_id: int) -> bool:
+    """录制进行中且未暂停（暂停期间不写用户消息，也不写机器人回复）。"""
+    session = recording_sessions.get(group_id)
+    return bool(session) and not session.get("paused")
+
 def get_recording_session(group_id: int) -> dict | None:
     return recording_sessions.get(group_id)
 
@@ -61,7 +66,7 @@ def record_bot_message(group_id: int, nickname: str, text: str, secret: bool = F
     try:
         with recording_lock:
             session = recording_sessions.get(group_id)
-            if not session:
+            if not session or session.get("paused"):
                 return
             bot_id = str(_config.BOT_QQ)
             entry = {

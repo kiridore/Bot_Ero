@@ -14,7 +14,7 @@ const GROUP_ID = decodeURIComponent(PATH_PARTS[2] || "");
 const START_DIR = decodeURIComponent(PATH_PARTS[3] || "");
 const API_URL = `/api/trpg/records/${GROUP_ID}/${START_DIR}`;
 
-const STATE_LABEL = { recording: "录制中", ended: "已结束" };
+const STATE_LABEL = { recording: "录制中", paused: "已暂停", ended: "已结束" };
 const ROLE_LABEL = { dm: "DM", ob: "观察者" };
 const POLL_MS = 5000;
 const HIDE_OOC_KEY = "botero_trpg_hide_ooc";
@@ -283,7 +283,8 @@ function scrollToBottom() {
 }
 
 function syncPolling() {
-  if (recordState !== "recording") {
+  // 暂停时也轮询：恢复录制后徽标要能自己变回来
+  if (recordState !== "recording" && recordState !== "paused") {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;
     return;

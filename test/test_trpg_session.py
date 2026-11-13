@@ -140,6 +140,121 @@ class IsolationMixin:
         return json.loads((path / "meta.json").read_text(encoding="utf-8"))
 
 
+# ── 暂停 / 续录 ──────────────────────────────────────
+
+class TestPause(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+        party.set_role(GROUP_ID, "111", "dm")
+
+    def _start(self):
+        _run([_text_seg("/跑团 记录 强制开始")])
+        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
+
+    def _pause(self):
+        return _run([_text_seg("/跑团 记录 暂停")])
+
+    def _resume(self):
+        return _run([_text_seg("/跑团 记录 开始")])
+
+    def test_pause_marks_session_and_meta(self):
+        self._start()
+        out = _joined(self._pause())
+        self.assertIn("录制已暂停", out)
+        session = runtime_context.get_recording_session(GROUP_ID)
+        self.assertTrue(session["paused"])
+        meta = self.meta(self.record_dir())
+        self.assertTrue(meta["paused"])
+        self.assertIsInstance(meta["paused_at"], int)
+        texts = [entry["segments"][0].get("text", "") for entry in self.messages(self.record_dir())]
+        self.assertTrue(any("暂停" in t for t in texts), str(texts))
+
+    def test_pause_requires_dm(self):
+        self._start()
+        plugin = _run([_text_seg("/跑团 记录 暂停")], user_id=222, nickname="玩家B")
+        self.assertIn("只有 DM", _joined(plugin))
+        self.assertFalse(runtime_context.get_recording_session(GROUP_ID).get("paused"))
+
+    def test_pause_without_recording(self):
+        plugin = self._pause()
+        self.assertIn("当前没有进行中的记录", _joined(plugin))
+
+    def test_pause_twice(self):
+        self._start()
+        self._pause()
+        plugin = self._pause()
+        self.assertIn("已经处于暂停状态", _joined(plugin))
+
+    def test_messages_not_recorded_while_paused(self):
+        self._start()
+        self._pause()
+        before = len(self.messages(self.record_dir()))
+        _run([_text_seg("这段不该进记录")])                      # 用户消息
+        for plugin_cls in ctx.plugin_execution_order([TrpgDicePlugin], GROUP_ID):
+            plugin = plugin_cls(_group_event([_text_seg(".r 1d6")]))
+            plugin.api = MockApiWrapper(_group_event([_text_seg(".r 1d6")]))
+            plugin.handle()
+        self.assertEqual(len(self.messages(self.record_dir())), before)
+
+    def test_resume_skips_gate(self):
+        # 准备状态已在开录时清空：续录不能因为「未准备」再拦一次
+        self._start()
+        self._pause()
+        plugin = self._resume()
+        self.assertIn("已继续录制", _joined(plugin))
+        session = runtime_context.get_recording_session(GROUP_ID)
+        self.assertFalse(session.get("paused"))
+        self.assertFalse(self.meta(self.record_dir()).get("paused"))
+        texts = [entry["segments"][0].get("text", "") for entry in self.messages(self.record_dir())]
+        self.assertTrue(any("恢复" in t for t in texts), str(texts))
+
+    def test_resume_then_records_again(self):
+        self._start()
+        self._pause()
+        self._resume()
+        before = len(self.messages(self.record_dir()))
+        _run([_text_seg("继续聊")])
+        self.assertEqual(len(self.messages(self.record_dir())), before + 1)
+
+    def test_start_while_recording(self):
+        self._start()
+        plugin = self._resume()
+        self.assertIn("当前已在录制中", _joined(plugin))
+
+    def test_stop_clears_pause(self):
+        self._start()
+        self._pause()
+        _run([_text_seg("/跑团 记录 结束")])
+        meta = self.meta(self.record_dir())
+        self.assertFalse(meta.get("paused"))
+        self.assertIsNotNone(meta.get("end"))
+
+    def test_restart_keeps_paused(self):
+        self._start()
+        self._pause()
+        path = self.record_dir()
+        runtime_context.recording_sessions.clear()
+        with patch("plugins.trpg_session.fetch_group_list", return_value={GROUP_ID}),              patch("plugins.trpg_session.cached_group_name", return_value="测试团"):
+            resumed = recover_recordings()
+        self.assertEqual(resumed, 1)
+        session = runtime_context.get_recording_session(GROUP_ID)
+        self.assertTrue(session.get("paused"))
+        texts = [entry["segments"][0].get("text", "") for entry in self.messages(path)]
+        self.assertFalse(any("中断" in t for t in texts), str(texts))
+
+    def test_paused_banner_text(self):
+        self._start()
+        self._pause()
+        runtime_context.recording_sessions[GROUP_ID]["resume_banner"] = True
+        plugin = TrpgSessionPlugin(_group_event([_text_seg("x")]))
+        plugin.api = MockApiWrapper(_group_event([_text_seg("x")]))
+        plugin._send_resume_banners()
+        sent = plugin.api.sent_messages[-1][1][0]["data"]["text"]
+        self.assertIn("暂停状态", sent)
+        self.assertIn("/跑团 记录 开始", sent)
+
+
 # ── 插件执行顺序与入档次序 ────────────────────────────
 
 TrpgDicePlugin = TrpgPlugin

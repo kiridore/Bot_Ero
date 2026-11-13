@@ -4,7 +4,7 @@ const partySection = document.getElementById("partySection");
 const partyList = document.getElementById("partyList");
 const mineToggle = document.getElementById("mineOnly");
 
-const STATE_LABEL = { recording: "录制中", ended: "已结束" };
+const STATE_LABEL = { recording: "录制中", paused: "已暂停", ended: "已结束" };
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -29,7 +29,8 @@ function myIdentity(r) {
 
 function timeRange(r) {
   const start = r.start || "";
-  return r.end ? `${start} — ${r.end}` : `${start} — 进行中`;
+  if (r.end) return `${start} — ${r.end}`;
+  return `${start} — ${r.state === "paused" ? "已暂停" : "进行中"}`;
 }
 
 function recordRow(r) {

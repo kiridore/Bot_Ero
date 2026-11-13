@@ -158,9 +158,15 @@ def resume_session(group_id: int, meta: dict, record_path) -> dict:
         "dir": Path(record_path),
         "img_count": max_image_index(record_path),
         "resume_banner": True,
+        "paused": bool(meta.get("paused")),
+        "paused_at": meta.get("paused_at"),
     }
     with runtime_context.recording_lock:
         runtime_context.recording_sessions[group_id] = session
+
+    if session["paused"]:
+        # 暂停中重启：不写「中断/恢复」消息，公告改成提示暂停
+        return session
 
     interrupted_at = records.last_message_time(record_path)
     if interrupted_at:
@@ -394,6 +400,8 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             self._handle_start(force=False)
         elif sub == "强制开始":
             self._handle_start(force=True)
+        elif sub == "暂停":
+            self._handle_pause()
         elif sub == "结束":
             self._handle_stop()
         elif sub.startswith("#"):
@@ -420,9 +428,15 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             if not session.get("resume_banner"):
                 continue
             start_text = session["start"].strftime("%Y-%m-%d %H:%M")
+            if session.get("paused"):
+                message = text(
+                    f"{start_text} 开始的跑团录制处于暂停状态，"
+                    f"发送 /跑团 记录 开始 可继续（无需重新准备）")
+            else:
+                message = text(f"已恢复 {start_text} 开始的跑团录制，如需结束请由 DM 发送 /跑团 记录 结束")
             ret = self.api.call_api("send_group_msg", {
                 "group_id": group_id,
-                "message": [text(f"已恢复 {start_text} 开始的跑团录制，如需结束请由 DM 发送 /跑团 记录 结束")],
+                "message": [message],
             })
             if isinstance(ret, dict) and ret.get("status") == "ok":
                 session["resume_banner"] = False
@@ -772,11 +786,16 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         if group_id is None:
             self.api.send_msg(text("跑团记录只能在群聊中使用"))
             return
-        if runtime_context.is_group_recording(group_id):
-            self.api.send_msg(text("当前已在录制中"))
-            return
         if not force and not self._is_dm_or_admin(group_id):
             self.api.send_msg(text("只有 DM 才能开始录制：请先由一人发送 .dm"))
+            return
+
+        if runtime_context.is_group_recording(group_id):
+            session = runtime_context.get_recording_session(group_id) or {}
+            if session.get("paused"):
+                self._resume_recording(group_id, session)
+            else:
+                self.api.send_msg(text("当前已在录制中"))
             return
 
         data = party.read_pending(group_id)
@@ -855,6 +874,68 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             except Exception:
                 logger.exception("写入群名失败")
 
+    # ── 暂停 / 续录 ─────────────────────────────────────
+
+    def _handle_pause(self):
+        group_id = self.bot_event.group_id
+        if group_id is None:
+            self.api.send_msg(text("跑团记录只能在群聊中使用"))
+            return
+        session = runtime_context.get_recording_session(group_id)
+        if not session:
+            self.api.send_msg(text("当前没有进行中的记录"))
+            return
+        if not self._is_dm_or_admin(group_id):
+            self.api.send_msg(text("只有 DM 才能暂停录制"))
+            return
+        if session.get("paused"):
+            self.api.send_msg(text("录制已经处于暂停状态，发送 /跑团 记录 开始 可以继续"))
+            return
+
+        now = datetime.now()
+        # 暂停标记先入档，再切暂停状态（record_bot_message 在暂停后会被跳过）
+        runtime_context.record_bot_message(group_id, NICKNAME, f"录制于 {now.strftime('%H:%M')} 暂停")
+        with runtime_context.recording_lock:
+            session["paused"] = True
+            session["paused_at"] = int(now.timestamp())
+        path = session.get("dir")
+        if path is not None:
+            self._write_pause_meta(path, True, int(now.timestamp()))
+        self.api.send_msg(text(
+            "录制已暂停：期间的对话不会写入记录。\n"
+            "发送 /跑团 记录 开始 继续录制（无需重新准备）。"))
+
+    def _resume_recording(self, group_id: int, session: dict):
+        now = datetime.now()
+        paused_at = session.get("paused_at")
+        with runtime_context.recording_lock:
+            session["paused"] = False
+            session.pop("paused_at", None)
+        path = session.get("dir")
+        if path is not None:
+            self._write_pause_meta(path, False, None)
+        gap = ""
+        if paused_at:
+            minutes = max(0, int((now.timestamp() - paused_at) // 60))
+            gap = f"（暂停 {minutes} 分钟）" if minutes else ""
+        runtime_context.record_bot_message(
+            group_id, NICKNAME, f"录制于 {now.strftime('%H:%M')} 恢复{gap}")
+        start_dir = records.start_dir_name(session["start"])
+        self.api.send_msg(text(
+            f"已继续录制{gap}——\n查看：{PUBLIC_RECORDS_URL}/{group_id}/{start_dir}"))
+
+    @staticmethod
+    def _write_pause_meta(path, paused: bool, paused_at) -> None:
+        meta = records.read_meta(path)
+        if meta is None:
+            return
+        meta["paused"] = bool(paused)
+        meta["paused_at"] = paused_at
+        try:
+            records.rewrite_meta(path, meta)
+        except Exception:
+            logger.exception("写入暂停状态失败：%s", path)
+
     # ── 结束录制 ──────────────────────────────────────────
 
     def _handle_stop(self):
@@ -886,6 +967,8 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             return
 
         _ensure_record_group_name(path, group_id)
+        if session.get("paused"):
+            self._write_pause_meta(path, False, None)
         try:
             records.finalize_record(path)
         except Exception:
@@ -989,7 +1072,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             return
 
         session = runtime_context.get_recording_session(group_id)
-        if not session:
+        if not session or session.get("paused"):
             return
 
         user_id = str(self.bot_event.user_id) if self.bot_event.user_id else "0"

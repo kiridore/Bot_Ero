@@ -65,6 +65,11 @@ eval(fs.readFileSync("webapp/static/trpg_records.js", "utf8"));
   check("已结束显示起止时间", html.includes("2026-11-10 20:00:00 — 2026-11-10 23:10:00"));
   check("录制中显示进行中", html.includes("2026-11-12 21:00:00 — 进行中"));
   check("状态徽标", html.includes(">已结束<") && html.includes(">录制中<"));
+  check("暂停状态徽标", stateBadge({ state: "paused" }).includes("已暂停"),
+    stateBadge({ state: "paused" }));
+  check("暂停记录时间行写明已暂停",
+    timeRange({ start: "2026-11-12 09:00:00", state: "paused" }).includes("已暂停"),
+    timeRange({ start: "2026-11-12 09:00:00", state: "paused" }));
   check("玩家数只算玩家", html.includes("3 人") && html.includes("2 人"));
   check("我的身份 DM", html.includes("我的身份：DM"));
   check("我的身份带角色卡名", html.includes("我的身份：艾拉（玩家）"));

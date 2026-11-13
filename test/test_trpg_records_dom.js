@@ -288,6 +288,12 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
     && recordHtml.includes("隐藏场外发言"));
   const css = fs.readFileSync("webapp/static/trpg.css", "utf8");
   check("CSS 按容器类隐藏场外", css.includes(".trpg-thread.hide-ooc .trpg-msg.is-ooc"));
+  renderHeader({ group_name: "暂停团", start: "2026-11-12 09:00:00", state: "paused",
+    rules_name: "DND 5E", total: 1 });
+  check("暂停时状态徽标显示已暂停", els.recordState.textContent === "已暂停",
+    els.recordState.textContent);
+  check("暂停时时间行仍可用", els.recordMeta.textContent.includes("1 条消息"));
+  check("已暂停徽标有样式", css.includes(".trpg-badge.is-paused"));
 
   // —— 角色卡详情入口（头像 + 参团角色卡条目）——
   check("悬停概要含职业与关键数值",

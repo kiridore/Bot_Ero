@@ -569,7 +569,9 @@ def _participants_with_identity(meta: dict) -> list:
 
 
 def _record_state(record_path: Path, meta: dict) -> str:
-    return "recording" if meta.get("end") is None else "ended"
+    if meta.get("end") is not None:
+        return "ended"
+    return "paused" if meta.get("paused") else "recording"
 
 
 _RESOLVE_WORKERS = 16  # 昵称/头像并发解析（与时间线一致，OneBot HTTP 局域网）
