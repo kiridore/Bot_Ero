@@ -58,7 +58,9 @@ function partyMemberRow(party, member) {
   const role = member.role ? ROLE_LABEL[member.role] || member.role : "";
   const badge = role ? `<span class="trpg-role role-${escapeHtml(member.role)}">${escapeHtml(role)}</span>` : "";
   const name = `<span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>` +
-    `<span class="trpg-party-char">${escapeHtml(member.char_name || "未选角色卡")}</span>`;
+    // DM 与观察者以群身份在场，不挂角色卡名
+    ((member.role === "dm" || member.role === "ob") ? ""
+      : `<span class="trpg-party-char">${escapeHtml(member.char_name || "未选角色卡")}</span>`);
   if (member.char_id == null) {
     return `<div class="trpg-party-member">${name}<span class="trpg-party-hint">等待准备</span></div>`;
   }

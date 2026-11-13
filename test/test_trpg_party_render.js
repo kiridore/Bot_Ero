@@ -54,7 +54,7 @@ const observer = { group_id: "1", rules_name: "DND 5E", dm: "111", prepared_coun
 const html2 = api.partyCard(observer);
 check("非 DM 无审核提示", !html2.includes("你是本群 DM"));
 check("观察者徽标", html2.includes("观察者"));
-check("空角色名显示未选", html2.includes("未选角色卡"));
+check("观察者不显示「未选角色卡」（以群身份在场）", !html2.includes("未选角色卡") && html2.includes("围观"));
 
 console.log(fails.length ? `\n${fails.length} 项失败` : "\n全部通过");
 process.exit(fails.length ? 1 : 0);

@@ -75,6 +75,19 @@ eval(fs.readFileSync("webapp/static/trpg_records.js", "utf8"));
   check("非 DM 不显示清除按钮", !partyCard(partyOther).includes("data-clear-party"));
   check("清除按钮文案", partyCard(partyDm).includes("清除这条准备"));
 
+  // DM 与观察者不挂角色卡名，玩家仍显示
+  const partyMembers = { ...partyDm, members: [
+    { user_id: "1", nickname: "守密人", role: "dm", char_name: "不该出现的角色名", char_id: 9 },
+    { user_id: "2", nickname: "旁观者", role: "ob", char_name: "也不该出现", char_id: 10 },
+    { user_id: "3", nickname: "玩家A", role: "", char_name: "艾拉", char_id: 11 },
+  ] };
+  const partyHtml = partyCard(partyMembers);
+  check("DM 行不显示角色卡名", !partyHtml.includes("不该出现的角色名"), partyHtml);
+  check("观察者行不显示角色卡名", !partyHtml.includes("也不该出现"), partyHtml);
+  check("玩家行仍显示角色卡名", partyHtml.includes("艾拉"), partyHtml);
+  check("DM/观察者仍显示群昵称",
+    partyHtml.includes("守密人") && partyHtml.includes("旁观者"), partyHtml);
+
   check("暂停记录时间行写明已暂停",
     timeRange({ start: "2026-11-12 09:00:00", state: "paused" }).includes("已暂停"),
     timeRange({ start: "2026-11-12 09:00:00", state: "paused" }));

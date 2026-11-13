@@ -72,11 +72,25 @@ function isSelf(m) {
   return Boolean(me) && String(m.user_id) === String(me.user_id);
 }
 
+// DM 与观察者不挂角色卡名：他们是以群身份在场，显示群昵称
+function isStaffRole(role) {
+  return role === "dm" || role === "ob";
+}
+
 function displayName(m) {
   const qq = String(m.user_id || "");
   const who = nickByQQ[qq] || m.nickname || qq;
+  if (isStaffRole(m.role)) return who;
   if (m.char_name) return `${m.char_name}（${who}）`;
   return who;
+}
+
+// 参团角色卡与悬停概要里的名字口径（与气泡一致）
+function personName(person) {
+  const qq = String(person.user_id || "");
+  const who = person.display_name || person.nickname || nickByQQ[qq] || qq;
+  if (isStaffRole(person.role)) return who;
+  return person.char_name || who;
 }
 
 function rebuildNickMap(participants) {
@@ -100,7 +114,7 @@ function charUrl(person) {
 // 悬停概要：角色名 + 职业/种族职业等级 + 关键数值（取开录快照，没有就用结束快照）
 function cardSummary(person) {
   const sheet = person.sheet_start || person.sheet_end || null;
-  const head = person.char_name || person.nickname || String(person.user_id || "");
+  const head = personName(person);
   if (!sheet) return `${head}（本场没有角色卡快照）`;
   if (sheet.rules === "coc7th") {
     const bits = [head];
@@ -252,7 +266,7 @@ function renderSheets(participants) {
   sheetBox.hidden = rows.length === 0;
   if (!rows.length) return;
   for (const person of rows) {
-    const chip = makeEl("span", "trpg-person", person.char_name || person.nickname || person.user_id);
+    const chip = makeEl("span", "trpg-person", personName(person));
     if (person.role === "dm" || person.role === "ob") {
       chip.appendChild(makeEl("span", `trpg-role role-${person.role}`, ROLE_LABEL[person.role] || person.role));
     }

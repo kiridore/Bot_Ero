@@ -212,7 +212,7 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
     !otherNode.className.includes("is-self")
     && Boolean(findFirst(otherNode, (n) => n.className === "trpg-avatar")));
   const selfHead = childrenWithClass(selfNode, "trpg-msg-body")[0].children[0];
-  check("名字行显示角色名（实时名称）", selfHead.children[0].textContent === "艾拉（老张（实时））",
+  check("DM 名字行只显示群昵称（不挂角色卡名）", selfHead.children[0].textContent === "老张（实时）",
     selfHead.children[0].textContent);
   check("DM 徽标", childrenWithClass(selfHead, "role-dm")[0].textContent === "DM");
   const otherHead = childrenWithClass(otherNode, "trpg-msg-body")[0].children[0];
@@ -331,6 +331,38 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("角色卡条目带「查看角色卡」提示",
     sheetCards[0].children.some((c) => c.className === "trpg-sheet-link"));
   check("角色卡条目带悬停概要", String(sheetCards[0].title).includes("HP"));
+  check("DM 的角色卡条目用群昵称", (() => {
+    const chip = findFirst(sheetCards[0], (n) => n.className === "trpg-person");
+    return chip && chip.textContent === "老张（实时）";
+  })(), (() => {
+    const chip = findFirst(sheetCards[0], (n) => n.className === "trpg-person");
+    return chip && chip.textContent;
+  })());
+  check("观察者的名字只显示昵称", (() => {
+    const node = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
+      char_name: "上枝景子", role: "ob", segments: [{ type: "text", text: "旁白" }] });
+    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
+    return head.children[0].textContent === "小王";
+  })(), (() => {
+    const node = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
+      char_name: "上枝景子", role: "ob", segments: [{ type: "text", text: "旁白" }] });
+    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
+    return head.children[0].textContent;
+  })());
+  check("玩家仍然显示角色名（昵称）", (() => {
+    const node = renderMessage({ sender_type: "user", user_id: "888", nickname: "阿铁",
+      char_name: "青山 小夜", role: "", segments: [{ type: "text", text: "我推门" }] });
+    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
+    return head.children[0].textContent === "青山 小夜（阿铁）";
+  })(), (() => {
+    const node = renderMessage({ sender_type: "user", user_id: "888", nickname: "阿铁",
+      char_name: "青山 小夜", role: "", segments: [{ type: "text", text: "我推门" }] });
+    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
+    return head.children[0].textContent;
+  })());
+  check("观察者概要也用群昵称", cardSummary({ user_id: OTHER, nickname: "小王", display_name: "小王",
+    role: "ob", char_name: "上枝景子" }).startsWith("小王"), cardSummary({ user_id: OTHER,
+      nickname: "小王", display_name: "小王", role: "ob", char_name: "上枝景子" }));
 
   els.oocToggle.checked = true;
   els.oocToggle.handlers.change();
