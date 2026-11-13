@@ -709,9 +709,14 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
             self.api.send_msg(text("幕间成长是 COC 7th 功能，当前角色卡不是 COC 调查员卡"))
             return
         group_id = self.bot_event.group_id
-        if group_id is not None and (party.current_rule(group_id) != "coc7th"):
-            self.api.send_msg(text(f"本团规则是 {rule_name(party.current_rule(group_id))}，幕间成长需要 COC 7th"))
-            return
+        # 幕间成长是卡片级操作：不在录制中也应能结算（开录会清空 pending.json，
+        # 结束后 current_rule 会回落默认规则，不能因此把成长锁死），只在录制中按本团规则拦
+        session = runtime_context.get_recording_session(group_id) if group_id is not None else None
+        if session:
+            rule = session.get("rules") or party.DEFAULT_RULE
+            if rule != "coc7th":
+                self.api.send_msg(text(f"本团规则是 {rule_name(rule)}，幕间成长需要 COC 7th"))
+                return
         pending = growth.checked_skills(char)
         if not pending:
             self.api.send_msg(text("没有已标记的技能：先用 .ra <技能名> 检定成功，才能获得成长标记"))

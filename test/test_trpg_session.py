@@ -1219,6 +1219,31 @@ class TestGrowth(IsolationMixin, unittest.TestCase):
         self.assertEqual(card["skills"]["侦察"]["growth"], 4)
         self.assertFalse(card["skills"]["侦察"]["check"])
 
+    def test_settles_after_recording_ended(self):
+        # 开录会清空 pending.json，结束后 current_rule 回落 DND：成长不能被这层拦住
+        self.seed_party()
+        party.set_rule(GROUP_ID, "coc7th")
+        self._seed_card()
+        _run([_text_seg("/跑团 记录 强制开始")])
+        _run([_text_seg("/跑团 记录 结束")])
+        self.assertFalse(runtime_context.is_group_recording(GROUP_ID))
+        self.assertEqual(party.current_rule(GROUP_ID), "dnd5e")
+        with patch("core.trpg.growth.random.randint", side_effect=[90, 4]):
+            plugin = _run([_text_seg("/跑团 成长")])
+        out = _sent_text(plugin)
+        self.assertIn("幕间成长", out)
+        self.assertNotIn("需要 COC 7th", out)
+        self.assertEqual(store.get_current("111")["skills"]["侦察"]["growth"], 4)
+
+    def test_refused_under_dnd_recording(self):
+        self.seed_party()
+        party.set_rule(GROUP_ID, "dnd5e")
+        self._seed_card()
+        _run([_text_seg("/跑团 记录 强制开始")])
+        plugin = _run([_text_seg("/跑团 成长")])
+        self.assertIn("幕间成长需要 COC 7th", _sent_text(plugin))
+        self.assertTrue(store.get_current("111")["skills"]["侦察"]["check"])
+
     def test_no_marks_message(self):
         self.seed_party()
         party.set_rule(GROUP_ID, "coc7th")
@@ -1232,11 +1257,14 @@ class TestGrowth(IsolationMixin, unittest.TestCase):
         plugin = _run([_text_seg("/跑团 成长")])
         self.assertIn("不是 COC 调查员卡", _sent_text(plugin))
 
-    def test_group_rule_mismatch_refused(self):
+    def test_no_recording_follows_card_rule(self):
+        # 不在录制中时以卡片规则为准：群规则未设置（回默认 DND）不影响 COC 卡结算
         self.seed_party()
         self._seed_card()
-        plugin = _run([_text_seg("/跑团 成长")])
-        self.assertIn("本团规则是 DND 5E", _sent_text(plugin))
+        with patch("core.trpg.growth.random.randint", side_effect=[90, 2]):
+            plugin = _run([_text_seg("/跑团 成长")])
+        self.assertIn("幕间成长", _sent_text(plugin))
+        self.assertEqual(store.get_current("111")["skills"]["侦察"]["growth"], 2)
 
     def test_non_dm_cannot_target_other(self):
         self.patch_members([
