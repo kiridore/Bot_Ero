@@ -195,7 +195,36 @@ function applyOocFilter(hidden) {
   else listEl.classList.remove("hide-ooc");
 }
 
+// 观战席：观察者不在舞台上，用一条灰色细线表示，不占气泡、不占头像位
+function renderObserver(m) {
+  const classes = ["trpg-msg", "trpg-ob"];
+  if (isSelf(m)) classes.push("is-self");
+  if (m.secret) classes.push("is-secret");
+  if (isOoc(m)) classes.push("is-ooc");
+  const node = makeEl("div", classes.join(" "));
+
+  const mark = makeEl("span", "trpg-ob-mark");
+  if (typeof GalleryIcons !== "undefined") mark.innerHTML = GalleryIcons.svgHTML("eye");
+  node.appendChild(mark);
+  node.appendChild(makeEl("span", "trpg-ob-who", displayName(m)));
+  if (m.secret) node.appendChild(makeEl("span", "trpg-ob-tag", "暗骰"));
+  node.appendChild(makeEl("time", "trpg-ob-time", formatTime(m.time)));
+
+  const body = makeEl("span", "trpg-ob-text");
+  for (const seg of m.segments || []) {
+    const part = renderSegment(seg);
+    // 观战席里的图片缩小，但仍可点开灯箱看原图
+    if (seg.type === "image" && part.className === "trpg-img") {
+      part.className = "trpg-img trpg-ob-img";
+    }
+    body.appendChild(part);
+  }
+  node.appendChild(body);
+  return node;
+}
+
 function renderMessage(m) {
+  if (m.role === "ob" && m.sender_type !== "bot") return renderObserver(m);
   const isBot = m.sender_type === "bot";
   const classes = ["trpg-msg"];
   if (isBot) classes.push("is-bot");

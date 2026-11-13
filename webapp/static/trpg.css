@@ -300,6 +300,61 @@
   .trpg-fab-btn { width: 2.35rem; height: 2.35rem; }
 }
 
+/* 观战席：观察者的发言不占气泡，只是一条灰色细线，表示不在舞台上 */
+.trpg-msg.trpg-ob {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-width: 92%;
+  padding-left: 1.75rem;   /* 缩进：明确不在舞台正中 */
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  opacity: 0.88;
+}
+
+.trpg-msg.trpg-ob.is-self {
+  align-self: flex-end;
+  padding-left: 0;
+  padding-right: 1.75rem;
+  text-align: right;
+}
+
+.trpg-ob-mark {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.trpg-ob-mark svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.trpg-ob-who { font-weight: 600; }
+
+.trpg-ob-time {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.trpg-ob-tag {
+  padding: 0 0.3rem;
+  border: 1px dashed color-mix(in srgb, var(--gold) 55%, transparent);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 0.66rem;
+}
+
+.trpg-ob-text { flex: 1 1 60%; min-width: 0; }
+
+.trpg-img.trpg-ob-img {
+  max-width: 8rem;
+  max-height: 6rem;
+  vertical-align: middle;
+}
+
 /* 角色卡外链：头像与参团角色卡条目 */
 .trpg-card-link {
   display: block;

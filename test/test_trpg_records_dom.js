@@ -5,6 +5,7 @@ const fs = require("fs");
 
 const ME = "12345601";
 const OTHER = "12345602";
+const PLAYER = "12345603";
 
 // 桩工厂不能叫 makeEl：eval 页面脚本时其函数声明落进本模块作用域，同名会互相递归
 function newEl(tag) {
@@ -148,6 +149,11 @@ const participants = [
     char_name: "艾拉", role: "dm", char_id: 11,
     sheet_start: { rules: "dnd5e", level: 3, hp: 30, current_hp: 22, ac: 16, prof_bonus: 2,
       passive_perception: 13, race: "人类", class_name: "战士" } },
+  { user_id: PLAYER, nickname: "吃人", display_name: "吃人", avatar_url: "", char_name: "青山 小夜",
+    role: "", char_id: 13,
+    sheet_start: { rules: "coc7th", occupation: "罪犯-窃贼", age: 24, hp: 10, current_hp: 10,
+      san: 55, current_san: 55, mp: 12, current_mp: 12, max_san: 95, mov: 8, db: "0",
+      build: 0, dodge: 27, skills: { 侦察: 45 } } },
   { user_id: OTHER, nickname: "小王", display_name: "小王", avatar_url: "", char_name: "上枝景子",
     role: "ob", char_id: 12,
     sheet_start: { rules: "coc7th", occupation: "酒保", age: 27, hp: 11, current_hp: 9,
@@ -157,12 +163,12 @@ const participants = [
 const allMessages = [
   { time: 1762776000, sender_type: "user", user_id: ME, nickname: "老张", char_name: "艾拉",
     role: "dm", segments: [{ type: "text", text: "我推开酒馆的门" }] },
-  { time: 1762776010, sender_type: "user", user_id: OTHER, nickname: "小王", char_name: "",
-    role: "ob", segments: [{ type: "text", text: "我跟着进去" }] },
+  { time: 1762776010, sender_type: "user", user_id: PLAYER, nickname: "吃人", char_name: "青山 小夜",
+    role: "", segments: [{ type: "text", text: "我跟着进去" }] },
   { time: 1762776031, sender_type: "bot", user_id: "3915014383", nickname: "小埃", char_name: "",
     role: "", segments: [{ type: "text", text: "老张的感知检定: D20=13=13" }] },
   { time: 1762776050, sender_type: "user", user_id: OTHER, nickname: "小王", char_name: "",
-    role: "", segments: [{ type: "image", local: "imgs/img_0001.jpg",
+    role: "ob", segments: [{ type: "image", local: "imgs/img_0001.jpg",
       url: "/trpg/media/800001/2026-11-10_20-00-00/img_0001.jpg" }] },
   { time: 1762776040, sender_type: "bot", user_id: "3915014383", nickname: "小埃", char_name: "",
     role: "", secret: true, segments: [{ type: "text", text: "暗骰：老张的D20=7=7" }] },
@@ -216,8 +222,9 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
     selfHead.children[0].textContent);
   check("DM 徽标", childrenWithClass(selfHead, "role-dm")[0].textContent === "DM");
   const otherHead = childrenWithClass(otherNode, "trpg-msg-body")[0].children[0];
-  check("观察者徽标", childrenWithClass(otherHead, "role-ob")[0].textContent === "观察者");
-  check("无角色卡时名字只显示昵称", otherHead.children[0].textContent === "小王", otherHead.children[0].textContent);
+  check("玩家名字行显示角色名（昵称）", otherHead.children[0].textContent === "青山 小夜（吃人）",
+    otherHead.children[0].textContent);
+  check("图片消息来自观察者、走观战席", imageNode.className.includes("trpg-ob"), imageNode.className);
   check("有头像的参与者用 QQ 头像图片", (() => {
     rebuildNickMap([{ user_id: "777", nickname: "旧名", display_name: "路人",
       avatar_url: "https://q1.qlogo.cn/g?b=qq&nk=777" }]);
@@ -240,8 +247,10 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
 
   // 图片段 + lightbox 点击
   const imgEl = findFirst(imageNode, (n) => n.tagName === "IMG");
-  check("图片段渲染为 img.trpg-img", imgEl && imgEl.className === "trpg-img"
-    && imgEl.src === "/trpg/media/800001/2026-11-10_20-00-00/img_0001.jpg", imgEl && imgEl.src);
+  check("观战席图片保留 trpg-img 并缩小", imgEl
+    && String(imgEl.className).split(/\s+/).includes("trpg-img")
+    && String(imgEl.className).split(/\s+/).includes("trpg-ob-img")
+    && imgEl.src === "/trpg/media/800001/2026-11-10_20-00-00/img_0001.jpg", imgEl && imgEl.className);
   for (const handler of docClickHandlers) {
     handler({ target: imgEl, preventDefault() {} });
   }
@@ -301,8 +310,8 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
 
   // —— 角色卡详情入口（头像 + 参团角色卡条目）——
   check("悬停概要含职业与关键数值",
-    cardSummary(participants[1]).includes("酒保") && cardSummary(participants[1]).includes("SAN 60/65"),
-    cardSummary(participants[1]));
+    cardSummary(participants[2]).includes("酒保") && cardSummary(participants[2]).includes("SAN 60/65"),
+    cardSummary(participants[2]));
   check("DND 概要含等级与 AC",
     cardSummary(participants[0]).includes("Lv.3") && cardSummary(participants[0]).includes("AC 16"),
     cardSummary(participants[0]));
@@ -320,11 +329,12 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   const otherAvatarLink = findFirst(otherNode, (n) => n.className === "trpg-card-link");
   check("他人头像为角色卡链接",
     otherAvatarLink && otherAvatarLink.tagName === "A"
-      && otherAvatarLink.href === `/trpg/char/${OTHER}/12`,
+      && otherAvatarLink.href === `/trpg/char/${PLAYER}/13`,
     otherAvatarLink && otherAvatarLink.href);
-  check("头像链接带悬停概要", otherAvatarLink && String(otherAvatarLink.title).includes("酒保"));
+  check("头像链接带悬停概要", otherAvatarLink && String(otherAvatarLink.title).includes("罪犯-窃贼"),
+    otherAvatarLink && otherAvatarLink.title);
   const sheetCards = els.sheetList.children;
-  check("参团角色卡条目已展开", sheetCards.length === 2 && els.sheetBox.hidden === false,
+  check("参团角色卡条目已展开", sheetCards.length === 3 && els.sheetBox.hidden === false,
     String(sheetCards.length));
   check("角色卡条目本身是链接",
     sheetCards.every((c) => c.tagName === "A" && /^\/trpg\/char\//.test(c.href)), String(sheetCards[0] && sheetCards[0].href));
@@ -341,13 +351,13 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("观察者的名字只显示昵称", (() => {
     const node = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
       char_name: "上枝景子", role: "ob", segments: [{ type: "text", text: "旁白" }] });
-    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
-    return head.children[0].textContent === "小王";
+    const who = findFirst(node, (n) => n.className === "trpg-ob-who");
+    return who && who.textContent === "小王";
   })(), (() => {
     const node = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
       char_name: "上枝景子", role: "ob", segments: [{ type: "text", text: "旁白" }] });
-    const head = childrenWithClass(node, "trpg-msg-body")[0].children[0];
-    return head.children[0].textContent;
+    const who = findFirst(node, (n) => n.className === "trpg-ob-who");
+    return who && who.textContent;
   })());
   check("玩家仍然显示角色名（昵称）", (() => {
     const node = renderMessage({ sender_type: "user", user_id: "888", nickname: "阿铁",
@@ -446,6 +456,34 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   els.fabOoc.handlers.click();
   check("再点按钮显示场外", els.fabOoc.getAttribute("aria-pressed") === "false"
     && !msgList.classList.contains("hide-ooc") && els.oocToggle.checked === false);
+
+  // —— 观战席（观察者细条） ——
+  const obNode = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
+    char_name: "上枝景子", role: "ob", segments: [{ type: "text", text: "我从窗外看着他们" }] });
+  check("观察者走观战席细条", obNode.className.includes("trpg-ob"), obNode.className);
+  check("观战席没有气泡和头像",
+    !findFirst(obNode, (n) => n.className === "trpg-bubble")
+    && !findFirst(obNode, (n) => n.className === "trpg-avatar"));
+  check("观战席有眼睛标记", Boolean(findFirst(obNode, (n) => n.className === "trpg-ob-mark")));
+  check("观战席名字用群昵称",
+    findFirst(obNode, (n) => n.className === "trpg-ob-who").textContent === "小王");
+  check("观战席仍显示时间", Boolean(findFirst(obNode, (n) => n.className === "trpg-ob-time")));
+  check("观战席文本完整",
+    findFirst(obNode, (n) => n.className === "trpg-text").textContent === "我从窗外看着他们");
+  check("DM 仍是正常气泡",
+    Boolean(findFirst(selfNode, (n) => n.className === "trpg-bubble")));
+  check("观战席暗骰带标记", (() => {
+    const node = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
+      role: "ob", secret: true, segments: [{ type: "text", text: "暗骰：d100" }] });
+    return Boolean(findFirst(node, (n) => n.className === "trpg-ob-tag"));
+  })());
+  check("观战席场外发言仍受隐藏开关控制", (() => {
+    const node = renderMessage({ sender_type: "user", user_id: OTHER, nickname: "小王",
+      role: "ob", segments: [{ type: "text", text: "（我先去倒水）" }] });
+    return node.className.includes("is-ooc");
+  })());
+  check("观战席样式存在",
+    css.includes(".trpg-msg.trpg-ob") && css.includes(".trpg-img.trpg-ob-img"));
 
   process.exit(fail ? 1 : 0);
 })();
