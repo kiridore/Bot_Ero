@@ -992,6 +992,38 @@ def skill_value(data: dict, name: str) -> int | None:
     return None
 
 
+# 属性检定用的名字表：中文全称、英文缩写（大小写不敏感）与常用别名
+ATTRIBUTE_ALIASES = {
+    "力量": "str_score", "STR": "str_score",
+    "体质": "con_score", "CON": "con_score",
+    "体型": "siz_score", "SIZ": "siz_score",
+    "敏捷": "dex_score", "DEX": "dex_score",
+    "外貌": "app_score", "APP": "app_score",
+    "智力": "int_score", "INT": "int_score",
+    "意志": "pow_score", "POW": "pow_score",
+    "教育": "edu_score", "EDU": "edu_score",
+    "幸运": "luck", "LUCK": "luck",
+    "信用评级": "credit_rating", "信用": "credit_rating",
+}
+ATTRIBUTE_LABELS = {
+    "str_score": "力量", "con_score": "体质", "siz_score": "体型", "dex_score": "敏捷",
+    "app_score": "外貌", "int_score": "智力", "pow_score": "意志", "edu_score": "教育",
+    "luck": "幸运", "credit_rating": "信用评级",
+}
+
+
+def attribute_value(data: dict, name: str):
+    """属性名 → (显示名, 数值)；不是属性时返回 None。供骰子 `.ra 力量` 使用。"""
+    key = ATTRIBUTE_ALIASES.get((name or "").strip().upper())         or ATTRIBUTE_ALIASES.get((name or "").strip())
+    if not key:
+        return None
+    if key in ("luck", "credit_rating"):
+        value = int(data.get(key) or 0)
+    else:
+        value = _score(data, key)
+    return ATTRIBUTE_LABELS[key], value
+
+
 def format_sheet(data: dict) -> str:
     """机器人 `/跑团 角色 查看` 的精简文本：属性 + 派生 + 非基础技能 + 背景摘要。"""
     fin = finalize(data)

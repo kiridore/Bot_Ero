@@ -603,3 +603,32 @@ class TestOccupationDetails(unittest.TestCase):
         from core.trpg.occupation_details import OCCUPATION_DETAILS
         missing = [name for seq, name, *_ in OCCUPATIONS if seq and seq not in OCCUPATION_DETAILS]
         self.assertEqual(missing, ["管家、男仆、女仆"], missing)  # 新卡该行本身没有介绍
+
+
+class TestAttributeValue(unittest.TestCase):
+    """属性名 → 检定目标值：中文全称、英文缩写（大小写不敏感）、幸运与信用评级。"""
+
+    CARD = {"str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
+            "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
+            "luck": 50, "credit_rating": 40}
+
+    def test_chinese_names(self):
+        cases = {"力量": 60, "体质": 55, "体型": 45, "敏捷": 55, "外貌": 60,
+                 "智力": 85, "意志": 65, "教育": 45}
+        for name, value in cases.items():
+            label, got = coc.attribute_value(self.CARD, name)
+            self.assertEqual((label, got), (name, value), name)
+
+    def test_english_abbreviations(self):
+        cases = {"STR": 60, "con": 55, "Siz": 45, "DEX": 55, "APP": 60, "int": 85, "POW": 65, "edu": 45}
+        for name, value in cases.items():
+            self.assertEqual(coc.attribute_value(self.CARD, name)[1], value, name)
+
+    def test_luck_and_credit(self):
+        self.assertEqual(coc.attribute_value(self.CARD, "幸运"), ("幸运", 50))
+        self.assertEqual(coc.attribute_value(self.CARD, "信用评级"), ("信用评级", 40))
+        self.assertEqual(coc.attribute_value(self.CARD, "信用"), ("信用评级", 40))
+
+    def test_unknown(self):
+        for name in ("飞天", "", "   ", "运气", "Strength"):
+            self.assertIsNone(coc.attribute_value(self.CARD, name), name)

@@ -273,6 +273,62 @@ class TestCocRules(unittest.TestCase):
         self.assertTrue(card["skills"]["侦查"]["check"])
         self.assertEqual(saved.call_count, 1)
 
+    def _coc_card(self, **over):
+        card = {"rules": "coc7th", "id": 3, "user_id": "10000",
+                "str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
+                "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
+                "luck": 50, "credit_rating": 40, "skills": {"侦察": {"base": 25}}}
+        card.update(over)
+        return card
+
+    def test_ra_attribute_name(self):
+        card = self._coc_card()
+        plugin = self._plugin(".ra 力量")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card),                 patch("plugins.trpg_dice.store.update_char") as saved,                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+            plugin.handle()
+        self.assertIn("[力量=60]", _sent_text(plugin))
+        self.assertNotIn("已标记技能成长", _sent_text(plugin))
+        self.assertEqual(saved.call_count, 0)      # 属性没有成长标记
+
+    def test_ra_attribute_abbreviations(self):
+        for name in ("STR", "str", "Str"):
+            card = self._coc_card()
+            plugin = self._plugin(f".ra {name}")
+            with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                     patch("plugins.trpg_dice.store.get_current", return_value=card),                     patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+                plugin.handle()
+            self.assertIn("[力量=60]", _sent_text(plugin), name)
+
+    def test_ra_luck_and_credit(self):
+        for name, expect in (("幸运", "[幸运=50]"), ("信用评级", "[信用评级=40]"), ("信用", "[信用评级=40]")):
+            card = self._coc_card()
+            plugin = self._plugin(f".ra {name}")
+            with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                     patch("plugins.trpg_dice.store.get_current", return_value=card),                     patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+                plugin.handle()
+            self.assertIn(expect, _sent_text(plugin), name)
+
+    def test_ra_unknown_attribute_or_skill(self):
+        card = self._coc_card()
+        plugin = self._plugin(".ra 飞天")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card):
+            plugin.handle()
+        self.assertIn("没有技能或属性", _sent_text(plugin))
+
+    def test_ra_zero_attribute_reported(self):
+        card = self._coc_card(credit_rating=0)
+        plugin = self._plugin(".ra 信用评级")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card):
+            plugin.handle()
+        self.assertIn("无法检定", _sent_text(plugin))
+
+    def test_r_attribute_on_coc_card_points_to_ra(self):
+        card = self._coc_card()
+        plugin = self._plugin(".r 力量")
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card):
+            plugin.handle()
+        out = _sent_text(plugin)
+        self.assertIn(".ra", out)
+        self.assertNotIn("=25=", out)          # 不能再吐出 DND 加值
+
     def test_ra_failure_does_not_mark(self):
         card = {"rules": "coc7th", "id": 3, "user_id": "10000",
                 "skills": {"侦查": {"base": 25, "occupation": 20}}}

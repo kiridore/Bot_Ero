@@ -114,25 +114,35 @@ class TrpgPlugin(Plugin):
         handler(arg, nickname)
 
     def _handle_coc_check(self, arg: str, nickname: str):
-        """.ra <技能值> — COC 7th 技能检定"""
+        """.ra <技能值|技能名|属性名> — COC 7th 百分骰检定"""
         if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
             return
         text_arg = arg.strip()
         char = None
+        label = "技能"
+        is_skill = True
         if text_arg.isdigit():
             value = int(text_arg)
         else:
-            # 技能名从当前 COC 角色卡取最终成功率
+            # 技能名/属性名从当前 COC 角色卡取值
             user_id = self.bot_event.user_id
             char = store.get_current(user_id) if user_id is not None else None
             if not char or (char.get("rules") or "dnd5e") != "coc7th":
-                raise ValueError("格式：.ra <技能值或技能名> — 例：.ra 70 / .ra 侦查（需要 COC 角色卡）")
+                raise ValueError("格式：.ra <技能值/技能名/属性名> — 例：.ra 70 / .ra 侦查 / .ra 力量（需要 COC 角色卡）")
             value = coc_sheet.skill_value(char, text_arg)
-            if value is None:
-                raise ValueError(f"角色卡里没有技能「{text_arg}」")
+            if value:
+                pass                      # 技能成功率 > 0 才算命中
+            else:
+                found = coc_sheet.attribute_value(char, text_arg)
+                if found is None:
+                    raise ValueError(f"角色卡里没有技能或属性「{text_arg}」")
+                label, value = found
+                is_skill = False          # 属性没有成长标记
+                if value <= 0:
+                    raise ValueError(f"「{label}」的数值是 {value}，无法检定（目标值需要 1 以上）")
         roll, grade = coc_check(value)
-        text_out = f"{nickname}的COC检定 D100={roll} [技能={value}] → {grade}"
-        if char is not None and grade not in ("失败", "大失败"):
+        text_out = f"{nickname}的COC检定 D100={roll} [{label}={value}] → {grade}"
+        if is_skill and char is not None and grade not in ("失败", "大失败"):
             # 成功使用技能 → 打成长标记（数值检定不涉及角色卡）
             if growth.mark(char, text_arg):
                 text_out += "\n· 已标记技能成长"
@@ -221,6 +231,9 @@ class TrpgPlugin(Plugin):
             from plugins.trpg_char import WEB_TRPG_URL
             self._send_with_record("你还没有角色卡，请到网页端创建：\n" + WEB_TRPG_URL)
             return None, None
+        if (char.get("rules") or "dnd5e") == "coc7th":
+            # COC 的属性/技能是百分骰目标值，按 DND 加值替换会给出误导的数
+            raise ValueError("COC 的属性与技能请用 .ra <属性名/技能名> 做检定，例如 .ra 力量")
 
         values = resolve_expression_values(char)
         resolved = expr
