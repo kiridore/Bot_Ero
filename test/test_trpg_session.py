@@ -140,6 +140,51 @@ class IsolationMixin:
         return json.loads((path / "meta.json").read_text(encoding="utf-8"))
 
 
+# ── 准备中残留清理（群解散但没开录）──────────────────
+
+class TestPendingCleanup(IsolationMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _heartbeat(self, groups):
+        plugin = TrpgSessionPlugin(_group_event([_text_seg("x")]))
+        plugin.api = MockApiWrapper(_group_event([_text_seg("x")]))
+        with patch("plugins.trpg_session.fetch_group_list", return_value=groups):
+            plugin._on_heartbeat()
+        return plugin
+
+    def test_dissolved_group_drops_pending(self):
+        party.set_role(GROUP_ID, "111", "dm")
+        self.assertTrue(party.pending_path(GROUP_ID).is_file())
+        self._heartbeat({999})
+        self.assertFalse(party.pending_path(GROUP_ID).is_file())
+
+    def test_living_group_keeps_pending(self):
+        party.set_role(GROUP_ID, "111", "dm")
+        self._heartbeat({GROUP_ID})
+        self.assertTrue(party.pending_path(GROUP_ID).is_file())
+
+    def test_group_list_failure_keeps_pending(self):
+        party.set_role(GROUP_ID, "111", "dm")
+        self._heartbeat(None)
+        self.assertTrue(party.pending_path(GROUP_ID).is_file())
+
+    def test_no_pending_no_recording_skips_query(self):
+        with patch("plugins.trpg_session.fetch_group_list") as fetch:
+            plugin = TrpgSessionPlugin(_group_event([_text_seg("x")]))
+            plugin.api = MockApiWrapper(_group_event([_text_seg("x")]))
+            plugin._on_heartbeat()
+        fetch.assert_not_called()
+
+    def test_recording_and_pending_both_handled(self):
+        party.set_role(GROUP_ID, "111", "dm")
+        _run([_text_seg("/跑团 记录 强制开始")])
+        self.assertTrue(runtime_context.is_group_recording(GROUP_ID))
+        self._heartbeat({999})
+        self.assertFalse(party.pending_path(GROUP_ID).is_file())
+
+
 # ── 暂停 / 续录 ──────────────────────────────────────
 
 class TestPause(IsolationMixin, unittest.TestCase):

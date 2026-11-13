@@ -79,14 +79,39 @@ function partyCard(party) {
   } else if (party.is_super) {
     review = '<p class="trpg-party-hint">你是超级用户，可点开每张角色卡审核</p>';
   }
+  const clear = party.can_audit
+    ? `<button type="button" class="btn-sm" data-clear-party="${escapeHtml(party.group_id)}">清除这条准备</button>`
+    : "";
   return `
     <div class="trpg-party">
       <div class="trpg-row-head"><strong>${escapeHtml(partyTitle)}</strong>
-        <span class="trpg-badge is-recording">准备中</span></div>
+        <span class="trpg-badge is-recording">准备中</span>${clear}</div>
       <p class="trpg-row-meta">${head}</p>
       ${review}
       <div class="trpg-party-members">${(party.members || []).map((m) => partyMemberRow(party, m)).join("")}</div>
     </div>`;
+}
+
+async function clearParty(groupId, button) {
+  const ask = typeof window.confirm === "function"
+    ? window.confirm("清除这条准备中的记录？群解散或放弃开团后可以这样清理。")
+    : true;
+  if (!ask) return;
+  button.disabled = true;
+  try {
+    const res = await fetch(`/api/trpg/party/${encodeURIComponent(groupId)}`, {
+      method: "DELETE",
+      headers: GalleryAuth.headers(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "清除失败");
+    const card = button.closest(".trpg-party");
+    if (card) card.remove();
+    if (partyList && !partyList.children.length && partySection) partySection.hidden = true;
+  } catch (err) {
+    button.disabled = false;
+    window.alert(err.message || "清除失败");
+  }
 }
 
 function renderParties(parties) {
@@ -127,6 +152,15 @@ async function load() {
   } catch (err) {
     listEl.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message || "加载失败")}</p>`;
   }
+}
+
+if (partyList) {
+  partyList.addEventListener("click", (event) => {
+    const btn = event.target && event.target.closest
+      ? event.target.closest("[data-clear-party]") : null;
+    if (!btn) return;
+    clearParty(btn.dataset.clearParty, btn);
+  });
 }
 
 mineToggle.addEventListener("change", load);

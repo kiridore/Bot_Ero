@@ -255,6 +255,28 @@ def recover_recordings() -> int:
     return resumed
 
 
+def _preparing_group_ids() -> list[int]:
+    """有 pending.json 的群（准备中，尚未开录）。"""
+    root = records.records_root()
+    if not root.is_dir():
+        return []
+    ids = []
+    for group_path in root.iterdir():
+        if not group_path.is_dir() or not group_path.name.isdigit():
+            continue
+        if (group_path / party.PENDING_NAME).is_file():
+            ids.append(int(group_path.name))
+    return ids
+
+
+def _drop_pending(group_id: int) -> None:
+    try:
+        party.clear_all(group_id)
+        logger.info("群 %s 已解散，清除准备中的跑团记录", group_id)
+    except Exception:
+        logger.exception("清除准备状态失败：群 %s", group_id)
+
+
 def _auto_finish(group_id: int, reason: str) -> None:
     """运行期自动终止（群已解散）：弹出会话并归档。"""
     session = runtime_context.get_recording_session(group_id)
@@ -414,7 +436,8 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
     def _on_heartbeat(self):
         self._send_resume_banners()
         active = list(runtime_context.recording_sessions)
-        if not active:
+        preparing = _preparing_group_ids()
+        if not active and not preparing:
             return
         groups = fetch_group_list()
         if groups is None:
@@ -422,6 +445,10 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         for group_id in active:
             if group_id not in groups:
                 _auto_finish(group_id, "群已解散")
+        # 只准备了没开录、群就散了：清掉 pending.json，否则网页一直挂着一条「准备中」
+        for group_id in preparing:
+            if group_id not in groups:
+                _drop_pending(group_id)
 
     def _send_resume_banners(self):
         for group_id, session in list(runtime_context.recording_sessions.items()):

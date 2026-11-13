@@ -756,6 +756,31 @@ def api_trpg_parties(user_id: Annotated[str, Depends(get_current_user_id)]):
     return {"parties": items}
 
 
+@router.delete("/api/trpg/party/{group_id}")
+def api_delete_party(
+    group_id: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """清除一条「准备中」的团（群解散或放弃开团后残留的 pending.json）。"""
+    if not str(group_id).isdigit():
+        raise HTTPException(status_code=400, detail="群号不合法")
+    try:
+        data = trpg_party.read_pending(group_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="群号不合法") from None
+    dm_ids = [u for u, r in (data.get("roles") or {}).items() if r == "dm"]
+    if not dm_ids:
+        raise HTTPException(status_code=404, detail="没有准备中的团")
+    is_super = str(user_id).isdigit() and int(user_id) in core_config.SUPER_USER
+    if not is_super and str(user_id) not in [str(u) for u in dm_ids]:
+        raise HTTPException(status_code=403, detail="只有本群 DM 或超级用户能清除")
+    try:
+        trpg_party.clear_all(group_id)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"删除失败：{exc.strerror}") from exc
+    return {"ok": True}
+
+
 @router.get("/api/trpg/party/{group_id}/card/{user_id}", response_model=CharOut)
 def api_party_card(
     group_id: str,

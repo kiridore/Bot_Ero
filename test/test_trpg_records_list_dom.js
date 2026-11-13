@@ -67,6 +67,14 @@ eval(fs.readFileSync("webapp/static/trpg_records.js", "utf8"));
   check("状态徽标", html.includes(">已结束<") && html.includes(">录制中<"));
   check("暂停状态徽标", stateBadge({ state: "paused" }).includes("已暂停"),
     stateBadge({ state: "paused" }));
+  // 准备中的团：DM/超管才能看到清除按钮
+  const partyDm = { group_id: "296470819", group_name: "夜航团", dm: "1", dm_name: "守密人",
+    rules_name: "COC 7th", prepared_count: 2, member_count: 3, members: [], can_audit: true };
+  const partyOther = { ...partyDm, can_audit: false };
+  check("DM 可见清除按钮", partyCard(partyDm).includes('data-clear-party="296470819"'));
+  check("非 DM 不显示清除按钮", !partyCard(partyOther).includes("data-clear-party"));
+  check("清除按钮文案", partyCard(partyDm).includes("清除这条准备"));
+
   check("暂停记录时间行写明已暂停",
     timeRange({ start: "2026-11-12 09:00:00", state: "paused" }).includes("已暂停"),
     timeRange({ start: "2026-11-12 09:00:00", state: "paused" }));
