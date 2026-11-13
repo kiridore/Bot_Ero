@@ -380,6 +380,19 @@
   font-size: 0.85rem;
 }
 
+/* 气泡按内容收缩：body 用列 flex，气泡不跟随名字行的宽度拉伸 */
+.trpg-msg-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.trpg-msg.is-self .trpg-msg-body { align-items: flex-end; }
+
+.trpg-msg.is-bot .trpg-msg-body { align-items: center; }
+
 .trpg-msg-name {
   display: flex;
   align-items: center;
@@ -388,7 +401,20 @@
   color: var(--ink-soft);
 }
 
-.trpg-msg.is-self .trpg-msg-name {
+.trpg-msg.is-self /* 气泡按内容收缩：body 用列 flex，气泡不跟随名字行的宽度拉伸 */
+.trpg-msg-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.trpg-msg.is-self .trpg-msg-body { align-items: flex-end; }
+
+.trpg-msg.is-bot .trpg-msg-body { align-items: center; }
+
+.trpg-msg-name {
   justify-content: flex-end;
 }
 
@@ -398,6 +424,7 @@
 }
 
 .trpg-bubble {
+  max-width: 100%;
   margin-top: 0.2rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--rule);

@@ -365,6 +365,14 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
     && els.fabTop.tabIndex === 0);
   check("CSS 有隐藏态样式", css.includes(".trpg-fab-btn.is-hidden"));
 
+  // —— 气泡宽度按内容收缩（纯样式，只能断言规则存在；观感需浏览器确认）——
+  const bodyRule = (css.match(/\.trpg-msg-body \{[^}]*\}/) || [""])[0];
+  check("气泡容器改为列弹性布局", /\.trpg-msg-body \{[^}]*flex-direction:\s*column/.test(css)
+    && /align-items:\s*flex-start/.test(bodyRule), bodyRule.slice(0, 120));
+  check("自己的气泡右对齐", /\.trpg-msg\.is-self \.trpg-msg-body \{[^}]*flex-end/.test(css));
+  check("机器人气泡居中", /\.trpg-msg\.is-bot \.trpg-msg-body \{[^}]*center/.test(css));
+  check("气泡最大宽度不超过容器", /\.trpg-bubble \{[^}]*max-width:\s*100%/.test(css));
+
   els.fabTop.handlers.click();
   check("回到顶部滚动到 0", (() => {
     const last = scrollCalls[scrollCalls.length - 1];
