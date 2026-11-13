@@ -1,10 +1,11 @@
-// 跑团记录详情：聊天气泡 + 录制中每 5 秒增量轮询 + 暗骰开关。
+// 跑团记录详情：聊天气泡 + 录制中每 5 秒增量轮询 + 暗骰开关 + 场外发言开关。
 const listEl = document.getElementById("messageList");
 const hintEl = document.getElementById("threadHint");
 const titleEl = document.getElementById("recordTitle");
 const metaEl = document.getElementById("recordMeta");
 const stateEl = document.getElementById("recordState");
 const revealToggle = document.getElementById("revealToggle");
+const oocToggle = document.getElementById("oocToggle");
 const sheetBox = document.getElementById("sheetBox");
 const sheetList = document.getElementById("sheetList");
 
@@ -16,6 +17,9 @@ const API_URL = `/api/trpg/records/${GROUP_ID}/${START_DIR}`;
 const STATE_LABEL = { recording: "录制中", ended: "已结束" };
 const ROLE_LABEL = { dm: "DM", ob: "观察者" };
 const POLL_MS = 5000;
+const HIDE_OOC_KEY = "botero_trpg_hide_ooc";
+// 整条消息都用全角/半角括号包起来 → 视为场外发言（OOC）
+const OOC_RE = /^[（(][\s\S]*[）)]$/;
 
 let me = null;
 let cursor = 0;          // 已消费到 messages.jsonl 第几条（含被过滤的暗骰，口径由服务端 total 给出）
@@ -114,12 +118,27 @@ function renderSegment(seg) {
   return makeEl("span", "trpg-other", "[暂不支持的附件]");
 }
 
+function isOoc(m) {
+  // 只认纯文本消息：带图片、@ 之类的消息即使文字被括号包着也不算场外
+  const segments = m.segments || [];
+  if (!segments.length) return false;
+  if (segments.some((seg) => seg.type !== "text")) return false;
+  const joined = segments.map((seg) => seg.text || "").join("").trim();
+  return joined.length > 2 && OOC_RE.test(joined);
+}
+
+function applyOocFilter(hidden) {
+  if (hidden) listEl.classList.add("hide-ooc");
+  else listEl.classList.remove("hide-ooc");
+}
+
 function renderMessage(m) {
   const isBot = m.sender_type === "bot";
   const classes = ["trpg-msg"];
   if (isBot) classes.push("is-bot");
   else if (isSelf(m)) classes.push("is-self");
   if (m.secret) classes.push("is-secret");
+  if (isOoc(m)) classes.push("is-ooc");
   const node = makeEl("div", classes.join(" "));
 
   if (!isBot && !isSelf(m)) {
@@ -255,6 +274,24 @@ async function load(reset) {
 revealToggle.addEventListener("change", () => {
   load(true).catch((err) => showError(err.message || "加载失败"));
 });
+
+// 场外发言只在客户端隐藏，切换不需要重新拉取
+if (oocToggle) {
+  try {
+    oocToggle.checked = localStorage.getItem(HIDE_OOC_KEY) === "1";
+  } catch (err) {
+    oocToggle.checked = false;
+  }
+  applyOocFilter(oocToggle.checked);
+  oocToggle.addEventListener("change", () => {
+    applyOocFilter(oocToggle.checked);
+    try {
+      localStorage.setItem(HIDE_OOC_KEY, oocToggle.checked ? "1" : "0");
+    } catch (err) {
+      /* 隐私模式下存不了，仅本次生效 */
+    }
+  });
+}
 
 (async function init() {
   if (!GROUP_ID || !START_DIR) {

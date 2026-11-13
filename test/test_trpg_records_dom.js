@@ -26,7 +26,13 @@ function newEl(tag) {
       );
       return hit ? this : null;
     },
-    classList: { add() {}, remove() {}, contains() { return false; } },
+    classList: {
+      _set: new Set(),
+      add(c) { this._set.add(c); },
+      remove(c) { this._set.delete(c); },
+      contains(c) { return this._set.has(c); },
+      toggle(c, on) { if (on) this._set.add(c); else this._set.delete(c); },
+    },
   };
   Object.defineProperty(el, "src", {
     get() { return el.attributes.src || ""; },
@@ -96,7 +102,8 @@ global.localStorage = (() => {
 })();
 global.requestAnimationFrame = (fn) => fn();
 
-["messageList", "threadHint", "recordTitle", "recordMeta", "recordState", "revealToggle", "authArea"]
+["messageList", "threadHint", "recordTitle", "recordMeta", "recordState", "revealToggle",
+ "oocToggle", "authArea"]
   .forEach((id) => {
     els[id] = newEl("div");
     els[id].id = id;
@@ -251,6 +258,38 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   await settle();
   check("关闭开关后暗骰重新隐藏", msgList.children.length === 4
     && !msgList.children.some((n) => n.className.includes("is-secret")));
+
+  // —— 场外发言（整条消息被括号包住）——
+  const ooc = (text, extra = []) => isOoc({ segments: [{ type: "text", text }, ...extra] });
+  check("全角括号包裹算场外", ooc("（我去倒杯水）"));
+  check("半角括号包裹算场外", ooc("(等一下，我查下规则)"));
+  check("括号前后有空格也算场外", ooc("  （笑）  "));
+  check("括号只在开头不算场外", !ooc("（笑）他推门进来"));
+  check("括号只在结尾不算场外", !ooc("他推门进来（笑）"));
+  check("空括号不算场外", !ooc("（）"));
+  check("带图片的消息不算场外", !ooc("（看图）", [{ type: "image", url: "/x.jpg" }]));
+  check("普通发言不算场外", !ooc("我推开酒馆的门"));
+
+  check("场外消息渲染带 is-ooc", renderMessage({ sender_type: "user", user_id: OTHER,
+    nickname: "小王", char_name: "", segments: [{ type: "text", text: "（场外）" }] })
+    .className.includes("is-ooc"));
+  check("普通消息不带 is-ooc", !renderMessage({ sender_type: "user", user_id: OTHER,
+    nickname: "小王", char_name: "", segments: [{ type: "text", text: "我推门" }] })
+    .className.includes("is-ooc"));
+
+  check("头部有隐藏场外开关", recordHtml.includes('id="oocToggle"')
+    && recordHtml.includes("隐藏场外发言"));
+  const css = fs.readFileSync("webapp/static/trpg.css", "utf8");
+  check("CSS 按容器类隐藏场外", css.includes(".trpg-thread.hide-ooc .trpg-msg.is-ooc"));
+
+  els.oocToggle.checked = true;
+  els.oocToggle.handlers.change();
+  check("勾选后容器加 hide-ooc", msgList.classList.contains("hide-ooc"));
+  check("勾选状态写入 localStorage", localStorage.getItem("botero_trpg_hide_ooc") === "1");
+  els.oocToggle.checked = false;
+  els.oocToggle.handlers.change();
+  check("取消勾选移除 hide-ooc", !msgList.classList.contains("hide-ooc"));
+  check("取消勾选写入 0", localStorage.getItem("botero_trpg_hide_ooc") === "0");
 
   process.exit(fail ? 1 : 0);
 })();

@@ -237,6 +237,18 @@
   font-size: 1.1rem;
 }
 
+/* 场外发言（整条消息被括号包住）可由头部开关隐藏 */
+.trpg-thread.hide-ooc .trpg-msg.is-ooc {
+  display: none;
+}
+
+.trpg-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
 .trpg-thread {
   display: flex;
   flex-direction: column;
