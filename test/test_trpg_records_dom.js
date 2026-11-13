@@ -101,9 +101,12 @@ global.localStorage = (() => {
   };
 })();
 global.requestAnimationFrame = (fn) => fn();
+global.GalleryIcons = { svgHTML: (name) => `<svg data-icon="${name}"></svg>` };
+const scrollCalls = [];
+global.window.scrollTo = (opts) => { scrollCalls.push(opts); };
 
 ["messageList", "threadHint", "recordTitle", "recordMeta", "recordState", "revealToggle",
- "oocToggle", "sheetBox", "sheetList", "authArea"]
+ "oocToggle", "sheetBox", "sheetList", "fabTop", "fabSecret", "fabOoc", "authArea"]
   .forEach((id) => {
     els[id] = newEl("div");
     els[id].id = id;
@@ -336,6 +339,48 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   els.oocToggle.handlers.change();
   check("取消勾选移除 hide-ooc", !msgList.classList.contains("hide-ooc"));
   check("取消勾选写入 0", localStorage.getItem("botero_trpg_hide_ooc") === "0");
+
+  // —— 底部悬浮按钮 ——
+  check("页面有三个悬浮按钮", ["fabTop", "fabSecret", "fabOoc"].every((id) => recordHtml.includes(`id="${id}"`)),
+    String(["fabTop", "fabSecret", "fabOoc"].map((id) => recordHtml.includes(`id="${id}"`))));
+  check("悬浮按钮加载图标库", recordHtml.includes("/shared/icons.js"));
+  check("回到顶部用向上箭头图标", els.fabTop.innerHTML.includes('data-icon="arrow-up"'), els.fabTop.innerHTML);
+  check("隐藏暗骰用眼睛图标", els.fabSecret.innerHTML.includes('data-icon="eye-off"'), els.fabSecret.innerHTML);
+  check("隐藏场外发言用气泡图标", els.fabOoc.innerHTML.includes('data-icon="message-off"'), els.fabOoc.innerHTML);
+  check("按钮带可读标签",
+    els.fabTop.getAttribute("aria-label") === "回到顶部"
+      && els.fabSecret.getAttribute("aria-label") === "隐藏暗骰"
+      && els.fabOoc.getAttribute("aria-label") === "隐藏场外发言");
+
+  check("暗骰默认隐藏时按钮按下", els.fabSecret.getAttribute("aria-pressed") === "true"
+    && els.revealToggle.checked === false);
+  check("场外开关默认未按下", els.fabOoc.getAttribute("aria-pressed") === "false");
+  check("CSS 有悬浮按钮样式", css.includes(".trpg-fab") && css.includes(".trpg-fab-btn.is-active"));
+
+  els.fabTop.handlers.click();
+  check("回到顶部滚动到 0", (() => {
+    const last = scrollCalls[scrollCalls.length - 1];
+    return last && last.top === 0;
+  })(), JSON.stringify(scrollCalls[scrollCalls.length - 1]));
+
+  els.fabSecret.handlers.click();
+  await settle();
+  check("点按钮显示暗骰", els.revealToggle.checked === true
+    && els.fabSecret.getAttribute("aria-pressed") === "false"
+    && msgList.children.length === 5, String(msgList.children.length));
+  els.fabSecret.handlers.click();
+  await settle();
+  check("再点按钮隐藏暗骰", els.revealToggle.checked === false
+    && els.fabSecret.getAttribute("aria-pressed") === "true"
+    && msgList.children.length === 4, String(msgList.children.length));
+
+  els.fabOoc.handlers.click();
+  check("点按钮隐藏场外", els.fabOoc.getAttribute("aria-pressed") === "true"
+    && msgList.classList.contains("hide-ooc") && els.oocToggle.checked === true);
+  check("按钮状态写入 localStorage", localStorage.getItem("botero_trpg_hide_ooc") === "1");
+  els.fabOoc.handlers.click();
+  check("再点按钮显示场外", els.fabOoc.getAttribute("aria-pressed") === "false"
+    && !msgList.classList.contains("hide-ooc") && els.oocToggle.checked === false);
 
   process.exit(fail ? 1 : 0);
 })();

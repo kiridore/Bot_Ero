@@ -6,6 +6,9 @@ const metaEl = document.getElementById("recordMeta");
 const stateEl = document.getElementById("recordState");
 const revealToggle = document.getElementById("revealToggle");
 const oocToggle = document.getElementById("oocToggle");
+const fabTop = document.getElementById("fabTop");
+const fabSecret = document.getElementById("fabSecret");
+const fabOoc = document.getElementById("fabOoc");
 const sheetBox = document.getElementById("sheetBox");
 const sheetList = document.getElementById("sheetList");
 
@@ -29,6 +32,8 @@ let nickByQQ = {};        // QQ → 显示名（优先实时解析，回落消�
 let avatarByQQ = {};      // QQ → 头像地址（与论坛/时间线同一取法）
 let personByQQ = {};      // QQ → 参与者（含 char_id 与起止角色卡快照）
 let pollTimer = null;
+let secretHidden = true;     // 暗骰默认隐藏
+let oocHidden = false;       // 场外发言默认显示
 
 function makeEl(tag, className, text) {
   const node = document.createElement(tag);
@@ -322,27 +327,67 @@ async function load(reset) {
   if (stick) scrollToBottom();
 }
 
-revealToggle.addEventListener("change", () => {
-  load(true).catch((err) => showError(err.message || "加载失败"));
-});
+// 头部勾选框与底部悬浮按钮共用同一份状态
+function setFabState(btn, pressed) {
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", pressed ? "true" : "false");
+  if (pressed) btn.classList.add("is-active");
+  else btn.classList.remove("is-active");
+}
 
-// 场外发言只在客户端隐藏，切换不需要重新拉取
+function setSecretHidden(hidden, reload = true) {
+  secretHidden = hidden;
+  revealToggle.checked = !hidden;
+  setFabState(fabSecret, hidden);
+  if (reload) load(true).catch((err) => showError(err.message || "加载失败"));
+}
+
+function setOocHidden(hidden) {
+  oocHidden = hidden;
+  if (oocToggle) oocToggle.checked = hidden;
+  applyOocFilter(hidden);
+  setFabState(fabOoc, hidden);
+  try {
+    localStorage.setItem(HIDE_OOC_KEY, hidden ? "1" : "0");
+  } catch (err) {
+    /* 隐私模式下存不了，仅本次生效 */
+  }
+}
+
+function mountFabs() {
+  const icons = typeof GalleryIcons !== "undefined" ? GalleryIcons : null;
+  const paint = (btn, icon, label) => {
+    if (!btn) return;
+    if (icons) btn.innerHTML = icons.svgHTML(icon);
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  };
+  paint(fabTop, "arrow-up", "回到顶部");
+  paint(fabSecret, "eye-off", "隐藏暗骰");
+  paint(fabOoc, "message-off", "隐藏场外发言");
+
+  if (fabTop) {
+    fabTop.addEventListener("click", () => {
+      if (typeof window.scrollTo === "function") window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+  if (fabSecret) fabSecret.addEventListener("click", () => setSecretHidden(!secretHidden));
+  if (fabOoc) fabOoc.addEventListener("click", () => setOocHidden(!oocHidden));
+}
+
+revealToggle.addEventListener("change", () => setSecretHidden(!revealToggle.checked));
 if (oocToggle) {
   try {
     oocToggle.checked = localStorage.getItem(HIDE_OOC_KEY) === "1";
   } catch (err) {
     oocToggle.checked = false;
   }
-  applyOocFilter(oocToggle.checked);
-  oocToggle.addEventListener("change", () => {
-    applyOocFilter(oocToggle.checked);
-    try {
-      localStorage.setItem(HIDE_OOC_KEY, oocToggle.checked ? "1" : "0");
-    } catch (err) {
-      /* 隐私模式下存不了，仅本次生效 */
-    }
-  });
+  oocToggle.addEventListener("change", () => setOocHidden(oocToggle.checked));
 }
+
+mountFabs();
+setSecretHidden(!revealToggle.checked, false);
+if (oocToggle) setOocHidden(oocToggle.checked);
 
 (async function init() {
   if (!GROUP_ID || !START_DIR) {
