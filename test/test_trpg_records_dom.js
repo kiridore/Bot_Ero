@@ -357,6 +357,14 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("场外开关默认未按下", els.fabOoc.getAttribute("aria-pressed") === "false");
   check("CSS 有悬浮按钮样式", css.includes(".trpg-fab") && css.includes(".trpg-fab-btn.is-active"));
 
+  check("顶部时回到顶部按钮隐藏", els.fabTop.classList.contains("is-hidden")
+    && els.fabTop.tabIndex === -1);
+  global.window.scrollY = 600;
+  syncTopFab();
+  check("下滚后回到顶部按钮出现", !els.fabTop.classList.contains("is-hidden")
+    && els.fabTop.tabIndex === 0);
+  check("CSS 有隐藏态样式", css.includes(".trpg-fab-btn.is-hidden"));
+
   els.fabTop.handlers.click();
   check("回到顶部滚动到 0", (() => {
     const last = scrollCalls[scrollCalls.length - 1];

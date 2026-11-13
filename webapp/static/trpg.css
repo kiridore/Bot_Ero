@@ -282,6 +282,13 @@
 
 .trpg-fab-btn:active { transform: scale(0.94); }
 
+/* 「回到顶部」滚过阈值前隐藏：保留占位，避免其它按钮跳动 */
+.trpg-fab-btn.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .trpg-fab-btn.is-active {
   color: var(--accent-ink);
   border-color: var(--accent);

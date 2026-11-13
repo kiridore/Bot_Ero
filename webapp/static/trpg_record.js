@@ -34,6 +34,7 @@ let personByQQ = {};      // QQ → 参与者（含 char_id 与起止角色卡�
 let pollTimer = null;
 let secretHidden = true;     // 暗骰默认隐藏
 let oocHidden = false;       // 场外发言默认显示
+const TOP_FAB_THRESHOLD = 300;   // 向下滚过这么多像素才显示「回到顶部」
 
 function makeEl(tag, className, text) {
   const node = document.createElement(tag);
@@ -354,6 +355,16 @@ function setOocHidden(hidden) {
   }
 }
 
+// 「回到顶部」只在往下翻了一段之后出现，避免占着位置却没意义
+function syncTopFab() {
+  if (!fabTop) return;
+  const y = typeof window.scrollY === "number" ? window.scrollY : 0;
+  const hidden = y < TOP_FAB_THRESHOLD;
+  if (hidden) fabTop.classList.add("is-hidden");
+  else fabTop.classList.remove("is-hidden");
+  fabTop.tabIndex = hidden ? -1 : 0;
+}
+
 function mountFabs() {
   const icons = typeof GalleryIcons !== "undefined" ? GalleryIcons : null;
   const paint = (btn, icon, label) => {
@@ -370,6 +381,10 @@ function mountFabs() {
     fabTop.addEventListener("click", () => {
       if (typeof window.scrollTo === "function") window.scrollTo({ top: 0, behavior: "smooth" });
     });
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("scroll", syncTopFab, { passive: true });
+    }
+    syncTopFab();
   }
   if (fabSecret) fabSecret.addEventListener("click", () => setSecretHidden(!secretHidden));
   if (fabOoc) fabOoc.addEventListener("click", () => setOocHidden(!oocHidden));
