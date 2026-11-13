@@ -27,6 +27,7 @@ let recordState = "";
 let lastSeen = 0;        // 已渲染消息里的最大时间戳，用于判定残留录制
 let nickByQQ = {};        // QQ → 显示名（优先实时解析，回落消息里的昵称）
 let avatarByQQ = {};      // QQ → 头像地址（与论坛/时间线同一取法）
+let personByQQ = {};      // QQ → 参与者（含 char_id 与起止角色卡快照）
 let pollTimer = null;
 
 function makeEl(tag, className, text) {
@@ -75,16 +76,58 @@ function displayName(m) {
 function rebuildNickMap(participants) {
   nickByQQ = {};
   avatarByQQ = {};
+  personByQQ = {};
   for (const p of participants || []) {
     if (!p || p.user_id == null) continue;
     const qq = String(p.user_id);
     nickByQQ[qq] = p.display_name || p.nickname || qq;
     avatarByQQ[qq] = p.avatar_url || "";
+    personByQQ[qq] = p;
   }
 }
 
-// 头像：有 QQ 头像就用图片，取不到（或没参与名单）回落到名字首字
+function charUrl(person) {
+  if (!person || !person.char_id) return "";
+  return `/trpg/char/${encodeURIComponent(person.user_id)}/${person.char_id}`;
+}
+
+// 悬停概要：角色名 + 职业/种族职业等级 + 关键数值（取开录快照，没有就用结束快照）
+function cardSummary(person) {
+  const sheet = person.sheet_start || person.sheet_end || null;
+  const head = person.char_name || person.nickname || String(person.user_id || "");
+  if (!sheet) return `${head}（本场没有角色卡快照）`;
+  if (sheet.rules === "coc7th") {
+    const bits = [head];
+    if (sheet.occupation) bits.push(sheet.occupation);
+    if (sheet.age) bits.push(`${sheet.age}岁`);
+    bits.push(`HP ${sheet.current_hp}/${sheet.hp}`,
+      `SAN ${sheet.current_san}/${sheet.san}`,
+      `MP ${sheet.current_mp}/${sheet.mp}`);
+    return bits.join(" · ");
+  }
+  const who = [head, sheet.race, sheet.class_name].filter(Boolean).join(" ");
+  const bits = [sheet.level != null ? `${who} Lv.${sheet.level}` : who];
+  bits.push(`HP ${sheet.current_hp}/${sheet.hp}`, `AC ${sheet.ac}`);
+  return bits.join(" · ");
+}
+
+// 没有角色卡的成员（机器人、未建档）不做外链
+function linkToCard(node, person) {
+  const url = charUrl(person);
+  if (!url) return node;
+  const link = makeEl("a", "trpg-card-link");
+  link.href = url;
+  link.title = cardSummary(person);
+  link.appendChild(node);
+  return link;
+}
+
+// 头像：有 QQ 头像就用图片，取不到（或没参与名单）回落到名字首字；有角色卡时点进详情
 function renderAvatar(m) {
+  return linkToCard(buildAvatar(m), personByQQ[String(m.user_id || "")]);
+}
+
+function buildAvatar(m) {
   const qq = String(m.user_id || "");
   const url = avatarByQQ[qq] || "";
   const fallback = (m.char_name || nickByQQ[qq] || m.nickname || "?").slice(0, 1);
@@ -197,7 +240,8 @@ function sheetDelta(start, end) {
 
 function renderSheets(participants) {
   if (!sheetBox || !sheetList) return;
-  const rows = (participants || []).filter((p) => p && (p.sheet_start || p.sheet_end));
+  // 有角色卡（char_id）或有快照的参与者都列出来，机器人等无卡成员不列
+  const rows = (participants || []).filter((p) => p && (p.char_id || p.sheet_start || p.sheet_end));
   sheetList.innerHTML = "";
   sheetBox.hidden = rows.length === 0;
   if (!rows.length) return;
@@ -206,12 +250,18 @@ function renderSheets(participants) {
     if (person.role === "dm" || person.role === "ob") {
       chip.appendChild(makeEl("span", `trpg-role role-${person.role}`, ROLE_LABEL[person.role] || person.role));
     }
-    const card = makeEl("div", "trpg-sheet");
+    const url = charUrl(person);
+    const card = makeEl(url ? "a" : "div", url ? "trpg-sheet is-link" : "trpg-sheet");
+    if (url) {
+      card.href = url;
+      card.title = cardSummary(person);
+    }
     card.appendChild(chip);
     const startLine = sheetLine(person.sheet_start);
     const endLine = sheetLine(person.sheet_end);
     if (startLine) card.appendChild(makeEl("p", "trpg-sheet-line", `开始：${startLine}`));
     if (endLine) card.appendChild(makeEl("p", "trpg-sheet-line", `结束：${endLine}`));
+    if (url) card.appendChild(makeEl("span", "trpg-sheet-link", "查看角色卡 →"));
     const delta = sheetDelta(person.sheet_start, person.sheet_end);
     if (delta) card.appendChild(makeEl("p", "trpg-sheet-delta", delta));
     if (!endLine && person.sheet_start) {

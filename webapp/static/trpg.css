@@ -237,6 +237,35 @@
   font-size: 1.1rem;
 }
 
+/* 角色卡外链：头像与参团角色卡条目 */
+.trpg-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.trpg-card-link:hover .trpg-avatar,
+.trpg-card-link:focus-visible .trpg-avatar {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.trpg-sheet.is-link {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.trpg-sheet.is-link:hover,
+.trpg-sheet.is-link:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.trpg-sheet-link {
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
 /* 场外发言（整条消息被括号包住）可由头部开关隐藏 */
 .trpg-thread.hide-ooc .trpg-msg.is-ooc {
   display: none;

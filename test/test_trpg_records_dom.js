@@ -103,7 +103,7 @@ global.localStorage = (() => {
 global.requestAnimationFrame = (fn) => fn();
 
 ["messageList", "threadHint", "recordTitle", "recordMeta", "recordState", "revealToggle",
- "oocToggle", "authArea"]
+ "oocToggle", "sheetBox", "sheetList", "authArea"]
   .forEach((id) => {
     els[id] = newEl("div");
     els[id].id = id;
@@ -141,8 +141,14 @@ for (const [name, html, active] of [
 // ── 详情页数据 stub ────────────────────────────────────
 const participants = [
   { user_id: ME, nickname: "老张", display_name: "老张（实时）", avatar_url: "https://q1.qlogo.cn/g?b=qq&nk=1",
-    char_name: "艾拉", role: "dm" },
-  { user_id: OTHER, nickname: "小王", display_name: "小王", avatar_url: "", char_name: "", role: "ob" },
+    char_name: "艾拉", role: "dm", char_id: 11,
+    sheet_start: { rules: "dnd5e", level: 3, hp: 30, current_hp: 22, ac: 16, prof_bonus: 2,
+      passive_perception: 13, race: "人类", class_name: "战士" } },
+  { user_id: OTHER, nickname: "小王", display_name: "小王", avatar_url: "", char_name: "上枝景子",
+    role: "ob", char_id: 12,
+    sheet_start: { rules: "coc7th", occupation: "酒保", age: 27, hp: 11, current_hp: 9,
+      san: 65, current_san: 60, mp: 13, current_mp: 13, max_san: 95, mov: 8, db: "0",
+      build: 0, dodge: 27, skills: { 侦察: 45 } } },
 ];
 const allMessages = [
   { time: 1762776000, sender_type: "user", user_id: ME, nickname: "老张", char_name: "艾拉",
@@ -199,7 +205,8 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("自己的消息带 is-self 且无头像",
     selfNode.className.includes("is-self") && !childrenWithClass(selfNode, "trpg-avatar").length);
   check("他人消息不带 is-self 且带头像",
-    !otherNode.className.includes("is-self") && childrenWithClass(otherNode, "trpg-avatar").length === 1);
+    !otherNode.className.includes("is-self")
+    && Boolean(findFirst(otherNode, (n) => n.className === "trpg-avatar")));
   const selfHead = childrenWithClass(selfNode, "trpg-msg-body")[0].children[0];
   check("名字行显示角色名（实时名称）", selfHead.children[0].textContent === "艾拉（老张（实时））",
     selfHead.children[0].textContent);
@@ -281,6 +288,39 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
     && recordHtml.includes("隐藏场外发言"));
   const css = fs.readFileSync("webapp/static/trpg.css", "utf8");
   check("CSS 按容器类隐藏场外", css.includes(".trpg-thread.hide-ooc .trpg-msg.is-ooc"));
+
+  // —— 角色卡详情入口（头像 + 参团角色卡条目）——
+  check("悬停概要含职业与关键数值",
+    cardSummary(participants[1]).includes("酒保") && cardSummary(participants[1]).includes("SAN 60/65"),
+    cardSummary(participants[1]));
+  check("DND 概要含等级与 AC",
+    cardSummary(participants[0]).includes("Lv.3") && cardSummary(participants[0]).includes("AC 16"),
+    cardSummary(participants[0]));
+  check("无快照时概要说明", cardSummary({ user_id: "1", char_name: "阿铁" }).includes("没有角色卡快照"));
+  check("角色卡地址按 user_id/char_id 拼", charUrl({ user_id: "777", char_id: 9 }) === "/trpg/char/777/9",
+    charUrl({ user_id: "777", char_id: 9 }));
+  check("无 char_id 时没有地址", charUrl({ user_id: "777" }) === "");
+  check("无 char_id 的节点不被包链接",
+    (() => {
+      const node = newEl ? globalThis.document.createElement("div") : null;
+      const out = linkToCard(node, { user_id: "777" });
+      return out === node;
+    })());
+
+  const otherAvatarLink = findFirst(otherNode, (n) => n.className === "trpg-card-link");
+  check("他人头像为角色卡链接",
+    otherAvatarLink && otherAvatarLink.tagName === "A"
+      && otherAvatarLink.href === `/trpg/char/${OTHER}/12`,
+    otherAvatarLink && otherAvatarLink.href);
+  check("头像链接带悬停概要", otherAvatarLink && String(otherAvatarLink.title).includes("酒保"));
+  const sheetCards = els.sheetList.children;
+  check("参团角色卡条目已展开", sheetCards.length === 2 && els.sheetBox.hidden === false,
+    String(sheetCards.length));
+  check("角色卡条目本身是链接",
+    sheetCards.every((c) => c.tagName === "A" && /^\/trpg\/char\//.test(c.href)), String(sheetCards[0] && sheetCards[0].href));
+  check("角色卡条目带「查看角色卡」提示",
+    sheetCards[0].children.some((c) => c.className === "trpg-sheet-link"));
+  check("角色卡条目带悬停概要", String(sheetCards[0].title).includes("HP"));
 
   els.oocToggle.checked = true;
   els.oocToggle.handlers.change();
