@@ -23,8 +23,10 @@ from core.config import BOT_QQ, NICKNAME, WEB_BASE_URL
 from core.trpg import party, records
 from plugins.trpg_dice import TrpgPlugin
 from plugins.trpg_session import TrpgSessionPlugin, recover_recordings
+from plugins.trpg_vitals import TrpgVitalsPlugin
 from test.helper import MockApiWrapper, make_private_message
 import core.context as runtime_context
+from core import context as ctx
 
 GROUP_ID = 296470819
 BOT_ID = str(BOT_QQ)
@@ -136,6 +138,84 @@ class IsolationMixin:
 
     def meta(self, path: Path) -> dict:
         return json.loads((path / "meta.json").read_text(encoding="utf-8"))
+
+
+# ── 插件执行顺序与入档次序 ────────────────────────────
+
+TrpgDicePlugin = TrpgPlugin
+
+
+class _Other:
+    pass
+
+
+class TestPluginExecutionOrder(IsolationMixin, unittest.TestCase):
+    """录制中 trpg_session 必须最先跑：用户消息要先于机器人回复入档。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def test_keeps_registry_order_without_recording(self):
+        registry = [object, TrpgSessionPlugin, int]
+        self.assertEqual(ctx.plugin_execution_order(registry, GROUP_ID), registry)
+
+    def test_session_first_while_recording(self):
+        runtime_context.recording_sessions[GROUP_ID] = {"start": None, "messages": [], "participants": {}}
+        registry = [TrpgDicePlugin, TrpgSessionPlugin, _Other]
+        ordered = ctx.plugin_execution_order(registry, GROUP_ID)
+        self.assertEqual(ordered[0], TrpgSessionPlugin)
+        self.assertEqual([c for c in ordered if c is not TrpgSessionPlugin], [TrpgDicePlugin, _Other])
+        self.assertEqual(registry, [TrpgDicePlugin, TrpgSessionPlugin, _Other])  # 不改原列表
+
+    def test_session_first_for_private_without_recording(self):
+        self.assertEqual(ctx.plugin_execution_order([TrpgDicePlugin, TrpgSessionPlugin], None),
+                         [TrpgDicePlugin, TrpgSessionPlugin])
+
+
+class TestRecordOrder(IsolationMixin, unittest.TestCase):
+    """`.r` / `.hp` 这类指令：用户消息必须在机器人回复之前写进 messages.jsonl。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _start_recording(self):
+        with patch("plugins.trpg_session.cached_group_name", return_value="测试团"):
+            _run([_text_seg("/跑团 记录 强制开始")])
+        session = runtime_context.get_recording_session(GROUP_ID)
+        self.assertIsNotNone(session)
+        return session["dir"]
+
+    def _run_in_order(self, registry, text):
+        for plugin_cls in ctx.plugin_execution_order(registry, GROUP_ID):
+            plugin = plugin_cls(_group_event([_text_seg(text)]))
+            plugin.api = MockApiWrapper(_group_event([_text_seg(text)]))
+            if not plugin.match("message"):
+                continue
+            plugin.handle()
+
+    def test_dice_reply_after_user_message(self):
+        path = self._start_recording()
+        self._run_in_order([TrpgDicePlugin, TrpgSessionPlugin], ".r 1d6")
+        entries = self.messages(path)
+        senders = [entry["sender_type"] for entry in entries]
+        self.assertEqual(senders, ["user", "bot"], str(entries))
+        self.assertEqual(entries[0]["segments"][0]["text"], ".r 1d6")
+        self.assertIn("1d6", entries[1]["segments"][0]["text"])
+
+    def test_vitals_reply_after_user_message(self):
+        path = self._start_recording()
+        card_id = store.create_char("111", {"rules": "dnd5e", "char_name": "艾拉", "level": 3,
+                                            "hp": 30, "current_hp": 30, "str_score": 15,
+                                            "dex_score": 14, "con_score": 14, "int_score": 10,
+                                            "wis_score": 10, "cha_score": 8})
+        store.set_current("111", card_id)
+        self._run_in_order([TrpgVitalsPlugin, TrpgSessionPlugin], ".hp -5")
+        entries = self.messages(path)
+        self.assertEqual([entry["sender_type"] for entry in entries], ["user", "bot"])
+        self.assertEqual(entries[0]["segments"][0]["text"], ".hp -5")
+        self.assertIn("HP", entries[1]["segments"][0]["text"])
 
 
 # ── 指令匹配 ──────────────────────────────────────────

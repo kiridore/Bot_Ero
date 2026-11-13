@@ -89,6 +89,18 @@ def record_bot_message(group_id: int, nickname: str, text: str, secret: bool = F
 def plugin_key(plugin_cls: type["Plugin"]) -> str:
     return plugin_cls.__module__.split(".", 1)[1]
 
+
+def plugin_execution_order(registry, group_id) -> list:
+    """插件执行顺序；录制中将 trpg_session 排到最前。
+
+    录制时用户消息必须先于其它插件（骰子/数值）的机器人回复入档，否则记录里
+    会出现「骰子结果在 .r 指令之前」。非录制状态保持注册表原序。
+    """
+    plugins = list(registry)
+    if group_id is not None and is_group_recording(group_id):
+        plugins.sort(key=lambda cls: 0 if plugin_key(cls) == "trpg_session" else 1)
+    return plugins
+
 def is_plugin_enabled(plugin_cls: type["Plugin"], group_id: int | None) -> bool:
     key = plugin_key(plugin_cls)
     if key in SYSTEM_PLUGINS:

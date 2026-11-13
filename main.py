@@ -31,7 +31,8 @@ def resolve_event_type(context: dict) -> str:
 
 def plugin_pool(context: dict, event_type: str):
     group_id = context.get("group_id")
-    for plugin_cls in runtime_context.plugin_registry:
+    for plugin_cls in runtime_context.plugin_execution_order(
+            runtime_context.plugin_registry, group_id):
         if event_type != "meta" and not runtime_context.is_plugin_enabled(plugin_cls, group_id):
             continue
         # 录制期间跳过非跑团功能包插件
