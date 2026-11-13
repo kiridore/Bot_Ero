@@ -55,19 +55,22 @@ function recordRow(r) {
 const ROLE_LABEL = { dm: "DM", ob: "观察者" };
 
 function partyMemberRow(party, member) {
+  const staff = member.role === "dm" || member.role === "ob";
   const role = member.role ? ROLE_LABEL[member.role] || member.role : "";
   const badge = role ? `<span class="trpg-role role-${escapeHtml(member.role)}">${escapeHtml(role)}</span>` : "";
-  const name = `<span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>` +
-    // DM 与观察者以群身份在场，不挂角色卡名
-    ((member.role === "dm" || member.role === "ob") ? ""
-      : `<span class="trpg-party-char">${escapeHtml(member.char_name || "未选角色卡")}</span>`);
+  // DM 与观察者以群身份在场，不挂角色卡名；玩家没设卡时给一句提示
+  const charLine = staff ? ""
+    : `<span class="trpg-party-char">${escapeHtml(member.char_name || "未设置角色卡")}</span>`;
+  const name = `<span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>` + charLine;
+  const notReady = member.prepared ? "" : '<span class="trpg-party-pending">未准备</span>';
   if (member.char_id == null) {
-    return `<div class="trpg-party-member">${name}<span class="trpg-party-hint">等待准备</span></div>`;
+    return `<div class="trpg-party-member">${name}${notReady}` +
+      `<span class="trpg-party-hint">等待准备</span></div>`;
   }
-  // 整行可点：只做成小按钮时玩家会去点名字，感觉「点不开」
+  // 只要设了当前角色卡就能点开，准备与否不影响（没准备的人也能查看）
   const href = `/trpg/char/${encodeURIComponent(member.user_id)}/` +
     `${encodeURIComponent(member.char_id)}?party=${encodeURIComponent(party.group_id)}`;
-  return `<a class="trpg-party-member is-link" href="${href}">${name}` +
+  return `<a class="trpg-party-member is-link" href="${href}">${name}${notReady}` +
     `<span class="btn-sm">查看角色卡</span></a>`;
 }
 

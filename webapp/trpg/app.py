@@ -1,6 +1,7 @@
 """跑团子应用：DND 车卡、角色查看与跑团记录浏览。"""
 
 import random
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Annotated
@@ -13,7 +14,7 @@ from core import character_store as char_store
 from core import config as core_config
 from core import user_settings as user_settings_mod
 from core.onebot_client import (
-    resolve_avatar_url, resolve_display_name, resolve_group_member_name,
+    fetch_group_members, resolve_avatar_url, resolve_display_name, resolve_group_member_name,
 )
 from core.trpg import character as trpg_char
 from core.trpg import levelup as trpg_levelup
@@ -689,36 +690,85 @@ def api_trpg_records(
     return {"records": items}
 
 
+# 群成员名单缓存：成功 60s、失败 30s（OneBot 不可达时不至于每次打开页面都等超时）
+_GROUP_MEMBERS_TTL = 60
+_GROUP_MEMBERS_FAIL_TTL = 30
+_GROUP_MEMBERS_CACHE: dict[str, tuple[float, list | None]] = {}
+
+
+def _group_members(group_id: str) -> list | None:
+    now = time.time()
+    hit = _GROUP_MEMBERS_CACHE.get(str(group_id))
+    if hit and hit[0] > now:
+        return hit[1]
+    try:
+        members = fetch_group_members(group_id, timeout=2)
+    except Exception:
+        members = None
+    ttl = _GROUP_MEMBERS_TTL if members is not None else _GROUP_MEMBERS_FAIL_TTL
+    _GROUP_MEMBERS_CACHE[str(group_id)] = (now + ttl, members)
+    return members
+
+
 def _pending_roster(group_id: str) -> dict | None:
-    """准备中的群：pending.json 里有 DM 才算一场「准备中」的团。"""
+    """准备中的群：pending.json 里有 DM 才算一场「准备中」的团。
+
+    名单 = 群里所有真人成员（OneBot 拿不到时退回 pending.json 里出现的人），
+    每人带上自己的「当前角色卡」（没准备也带），前端据此决定能否点开看卡。
+    """
     try:
         data = trpg_party.read_pending(group_id)
     except ValueError:
         return None
     roles = data.get("roles") or {}
     prepared = data.get("prepared") or {}
-    dm_ids = [u for u, r in roles.items() if r == "dm"]
+    dm_ids = [str(u) for u, r in roles.items() if r == "dm"]
     if not dm_ids:
         return None
     role_names = data.get("role_names") or {}
-    ob_ids = [u for u, r in roles.items() if r == "ob"]
-    ordered = dm_ids + ob_ids + [
-        u for u in sorted(prepared, key=lambda k: (prepared[k] or {}).get("prepared_at", ""))
-        if u not in dm_ids and u not in ob_ids
-    ]
+    ob_ids = [str(u) for u, r in roles.items() if r == "ob"]
+
+    group_members = _group_members(str(group_id))
+    humans = [m for m in (group_members or []) if not m.get("is_robot")]
+    live_names = {str(m["user_id"]): m["nickname"] for m in humans}
+
+    prepared_order = sorted(prepared, key=lambda k: (prepared[k] or {}).get("prepared_at", ""))
+    ordered = dm_ids + [u for u in ob_ids if u not in dm_ids] +         [str(u) for u in prepared_order if str(u) not in dm_ids and str(u) not in ob_ids]
+    if humans:
+        # 群里所有人都要出现在卡片里，包括从没准备、也没设卡的人
+        rest = [m["user_id"] for m in humans if str(m["user_id"]) not in set(ordered)]
+        rest.sort(key=lambda uid: live_names.get(str(uid)) or str(uid))
+        ordered += [str(u) for u in rest]
+
     members = []
+    seen = set()
     for uid in ordered:
+        uid = str(uid)
+        if uid in seen:
+            continue
+        seen.add(uid)
         snap = prepared.get(uid) or {}
+        char_id = snap.get("char_id")
+        char_name = snap.get("char_name") or ""
+        if char_id is None:
+            # 没准备但设了当前角色卡：一样能点开看（DM 仍可审私密卡）
+            card = char_store.get_current(uid)
+            if card:
+                char_id = card.get("id")
+                char_name = card.get("char_name") or ""
         members.append({
-            "user_id": str(uid),
-            "nickname": snap.get("nickname") or role_names.get(uid) or str(uid),
+            "user_id": uid,
+            "nickname": live_names.get(uid) or snap.get("nickname") or role_names.get(uid) or uid,
             "role": roles.get(uid, ""),
-            "char_id": snap.get("char_id"),
-            "char_name": snap.get("char_name") or "",
-            "prepared": str(uid) in prepared,
+            "char_id": char_id,
+            "char_name": char_name,
+            "prepared": uid in {str(u) for u in prepared},
         })
+
     rules = data.get("rules") or ""
-    dm_id = str(dm_ids[0])
+    dm_id = dm_ids[0]
+    prepared_ids = {str(u) for u in prepared}
+    member_ids = {m["user_id"] for m in members}
     # 实时取 DM 名片（带 TTL 缓存）；OneBot 不可用时回落 .dm 时刻的快照，再回落 QQ 号
     live_name = resolve_group_member_name(group_id, dm_id) or ""
     return {
@@ -728,7 +778,7 @@ def _pending_roster(group_id: str) -> dict | None:
         "rules_name": rule_name(rules) if rules else "未知规则",
         "dm": dm_id,
         "dm_name": live_name or role_names.get(dm_id) or dm_id,
-        "prepared_count": len([u for u in prepared]),
+        "prepared_count": len(prepared_ids & member_ids) if humans else len(prepared_ids),
         "member_count": len(members),
         "members": members,
     }

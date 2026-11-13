@@ -152,6 +152,48 @@ check("名单外的人 404", r.status_code == 404, r.text[:160])
 r = client.get("/api/trpg/party/999999999/card/" + PLAYER, headers=auth(DM))
 check("没有准备的群 404", r.status_code == 404, r.text[:160])
 
+# ── 群里所有人都在卡片里（含没准备但有当前卡的人）────
+from unittest.mock import patch as _patch_members  # noqa: E402
+
+stranger_card = make_card(STRANGER, "路人卡")
+group_roster = [
+    {"user_id": DM, "nickname": "守密人", "is_robot": False},
+    {"user_id": PLAYER, "nickname": "老张", "is_robot": False},
+    {"user_id": STRANGER, "nickname": "路人", "is_robot": False},
+    {"user_id": "3915014383", "nickname": "小埃", "is_robot": True},
+]
+with _patch_members("webapp.trpg.app.fetch_group_members", return_value=group_roster),      _patch_members("webapp.trpg.app._GROUP_MEMBERS_CACHE", {}):
+    r = client.get("/api/trpg/parties", headers=auth(DM))
+    roster = ((r.json() or {}).get("parties") or [{}])[0]
+    member_ids = {m["user_id"] for m in roster.get("members") or []}
+    check("群成员全部进名单", {DM, PLAYER, STRANGER} <= member_ids, str(sorted(member_ids)))
+    check("已标记的观察者仍保留", "12345699" in member_ids, str(sorted(member_ids)))
+    check("机器人不进名单", all(m["user_id"] != "3915014383" for m in roster.get("members") or []))
+    check("名单人数含未准备者", roster.get("member_count") == len(member_ids),
+          str(roster.get("member_count")))
+    check("已准备计数只算名单内的人", roster.get("prepared_count") == 1, str(roster.get("prepared_count")))
+    stranger_row = next((m for m in roster.get("members") or [] if m["user_id"] == STRANGER), {})
+    check("没准备但设了当前卡也有 char_id", stranger_row.get("char_id") == stranger_card,
+          str(stranger_row))
+    check("没准备的人 prepared 为假", stranger_row.get("prepared") is False, str(stranger_row.get("prepared")))
+    prepared_row = next((m for m in roster.get("members") or [] if m["user_id"] == PLAYER), {})
+    check("已准备的人 prepared 为真", prepared_row.get("prepared") is True)
+    check("昵称取群名片", prepared_row.get("nickname") == "老张" == [m["nickname"] for m in group_roster if m["user_id"] == PLAYER][0],
+          str(prepared_row.get("nickname")))
+
+    r = client.get(f"/api/trpg/party/{GROUP}/card/{STRANGER}", headers=auth(DM))
+    check("DM 可看未准备成员的卡", r.status_code == 200 and r.json().get("char_name") == "路人卡", r.text[:160])
+    r = client.get(f"/api/trpg/party/{GROUP}/card/{STRANGER}", headers=auth(STRANGER))
+    check("未准备者本人也能看自己的卡", r.status_code == 200, r.text[:160])
+
+# 群成员接口不可用：退回 pending.json 里出现过的人，页面不能空
+with _patch_members("webapp.trpg.app.fetch_group_members", return_value=None),      _patch_members("webapp.trpg.app._GROUP_MEMBERS_CACHE", {}):
+    r = client.get("/api/trpg/parties", headers=auth(DM))
+    fallback_roster = ((r.json() or {}).get("parties") or [{}])[0]
+    check("成员接口不可用时退回准备名单",
+          {m["user_id"] for m in fallback_roster.get("members") or []} >= {DM, PLAYER},
+          str([m["user_id"] for m in fallback_roster.get("members") or []]))
+
 # ── 没有 DM 的群不出现在列表 ──────────────────────
 party.set_role(GROUP, DM, "ob")  # 撤掉 DM（设成观察者）
 r = client.get("/api/trpg/parties", headers=auth(DM))

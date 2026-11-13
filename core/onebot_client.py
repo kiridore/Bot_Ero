@@ -59,16 +59,17 @@ def resolve_group_name(group_id) -> str:
     return str(data.get("group_name") or "")
 
 
-def fetch_group_members(group_id) -> list[dict] | None:
+def fetch_group_members(group_id, timeout: float = 5) -> list[dict] | None:
     """群成员名单：返回 [{user_id, nickname, is_robot}]；接口不可用返回 None。
 
     None 与「群里没人」区分，调用方据此拒绝开团而不是把群当空群。
+    timeout 给 webapp 这类页面路径用更短的值，避免 OneBot 不可达时拖住请求。
     """
     try:
         gid = int(group_id)
     except (TypeError, ValueError):
         return None
-    data = _call_onebot("get_group_member_list", {"group_id": gid, "no_cache": False}, timeout=5)
+    data = _call_onebot("get_group_member_list", {"group_id": gid, "no_cache": False}, timeout=timeout)
     if not isinstance(data, list):
         return None
     members = []
