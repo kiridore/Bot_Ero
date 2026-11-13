@@ -144,3 +144,47 @@ class TestSettle(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestNoGrowthSkills(unittest.TestCase):
+    """规则 5.11：克苏鲁神话与信用评级永远不会获得成长标记，也不参与 90% 理智奖励。"""
+
+    def _card(self, **over):
+        card = {"rules": "coc7th", "edu_score": 70, "dex_score": 50, "cthulhu_mythos": 0,
+                "skills": {"信用评级": {"base": 0, "occupation": 95}, "侦察": {"base": 25}}}
+        card.update(over)
+        return card
+
+    def test_mark_refused(self):
+        card = self._card()
+        self.assertFalse(growth.mark(card, "信用评级"))
+        self.assertFalse(growth.mark(card, "克苏鲁神话"))
+        self.assertFalse(card["skills"]["信用评级"].get("check"))
+        self.assertTrue(growth.mark(card, "侦察"))
+
+    def test_settle_skips_them(self):
+        card = self._card()
+        card["skills"]["信用评级"]["check"] = True     # 模拟旧数据带了勾
+        card["skills"]["克苏鲁神话"] = {"base": 0, "check": True}
+        with patch("core.trpg.growth.random.randint", return_value=99):
+            details, _ = growth.settle(card)
+        self.assertEqual([item[0] for item in details], [])
+        self.assertFalse(card["skills"]["信用评级"].get("check"))
+        self.assertFalse(card["skills"]["克苏鲁神话"].get("check"))
+        self.assertEqual(int(card["skills"]["信用评级"].get("growth") or 0), 0)
+
+    def test_high_credit_does_not_grant_san(self):
+        card = self._card()
+        card["skills"]["侦察"]["check"] = True
+        # 侦察 25 → 掷 99 增长 5 点到 30，天花板仍远低于 90；信用评级 95 不该触发奖励
+        with patch("core.trpg.growth.random.randint", side_effect=[99, 5]):
+            _, san_change = growth.settle(card)
+        self.assertEqual(san_change, 0)
+        self.assertNotIn("current_san", card)
+
+    def test_real_mastery_grants_san(self):
+        card = self._card(skills={"侦察": {"base": 25, "growth": 70, "check": True}})
+        with patch("core.trpg.growth.random.randint", side_effect=[99, 5, 3, 4]):
+            _, san_change = growth.settle(card)
+        self.assertEqual(san_change, 7)      # 2D6 = 3+4
+        self.assertGreaterEqual(int(card["current_san"]), 0)

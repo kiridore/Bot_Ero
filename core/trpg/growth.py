@@ -12,6 +12,8 @@ from .vitals import clamp
 
 SAN_REWARD_SKILL = 90
 FUMBLE_SAFE_ROLL = 95
+# 规则 5.11：克苏鲁神话与信用评级永远不会获得成长标记（角色卡上也没有方框）
+NO_GROWTH_SKILLS = frozenset({"克苏鲁神话", "信用评级"})
 
 
 def improves(roll: int, value: int) -> bool:
@@ -35,8 +37,15 @@ def _base_for_new_skill(canon: str, card: dict) -> int | None:
     return skill_base_for(canon, card)
 
 
+def can_grow(name: str) -> bool:
+    """该技能是否可以打成长标记（克苏鲁神话与信用评级没有成长方框）。"""
+    return canonical_skill(name) not in NO_GROWTH_SKILLS
+
+
 def mark(card: dict, name: str) -> bool:
     """给技能打成长标记；卡上没有该技能时按规则补一行（未知技能返回 False）。"""
+    if not can_grow(name):
+        return False
     skills = card.setdefault("skills", {})
     key = _resolve_key(skills, name)
     if key is None:
@@ -62,6 +71,8 @@ def settle(card: dict):
     skills = card.setdefault("skills", {})
     details = []
     for name in checked_skills(card):
+        if not can_grow(name):
+            continue          # 旧数据里可能带勾，不参与成长检定（下方统一清空）
         entry = skills[name]
         before = skill_total(entry)
         roll = random.randint(1, 100)
@@ -73,7 +84,8 @@ def settle(card: dict):
         entry["check"] = False
 
     san_change = 0
-    if any(entry["total"] >= SAN_REWARD_SKILL for entry in finalize(card)["skills"].values()):
+    if any(entry["total"] >= SAN_REWARD_SKILL and can_grow(name)
+           for name, entry in finalize(card)["skills"].items()):
         san_change = sum(random.randint(1, 6) for _ in range(2))
         if san_change:
             fin = finalize(card)
