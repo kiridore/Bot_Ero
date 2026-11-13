@@ -58,19 +58,21 @@ function partyMemberRow(party, member) {
   const staff = member.role === "dm" || member.role === "ob";
   const role = member.role ? ROLE_LABEL[member.role] || member.role : "";
   const badge = role ? `<span class="trpg-role role-${escapeHtml(member.role)}">${escapeHtml(role)}</span>` : "";
-  // DM 与观察者以群身份在场，不挂角色卡名；玩家没设卡时给一句提示
-  const charLine = staff ? ""
-    : `<span class="trpg-party-char">${escapeHtml(member.char_name || "未设置角色卡")}</span>`;
-  const name = `<span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>` + charLine;
-  const notReady = member.prepared ? "" : '<span class="trpg-party-pending">未准备</span>';
-  if (member.char_id == null) {
-    return `<div class="trpg-party-member">${name}${notReady}` +
-      `<span class="trpg-party-hint">等待准备</span></div>`;
+  const name = `<span class="trpg-party-name">${escapeHtml(member.nickname)}${badge}</span>`;
+  if (staff) {
+    // DM 与观察者以群身份在场：不显示角色卡，也不需要准备
+    return `<div class="trpg-party-member">${name}</div>`;
   }
-  // 只要设了当前角色卡就能点开，准备与否不影响（没准备的人也能查看）
+  const charLine = `<span class="trpg-party-char">${escapeHtml(member.char_name || "未设置角色卡")}</span>`;
+  if (member.char_id == null) {
+    // 还没建卡的人：只说明状态，不提示「等待准备」
+    return `<div class="trpg-party-member">${name}${charLine}</div>`;
+  }
+  // 只要设了当前角色卡就能点开，准备与否不影响查看
   const href = `/trpg/char/${encodeURIComponent(member.user_id)}/` +
     `${encodeURIComponent(member.char_id)}?party=${encodeURIComponent(party.group_id)}`;
-  return `<a class="trpg-party-member is-link" href="${href}">${name}${notReady}` +
+  const notReady = member.prepared ? "" : '<span class="trpg-party-pending">未准备</span>';
+  return `<a class="trpg-party-member is-link" href="${href}">${name}${charLine}${notReady}` +
     `<span class="btn-sm">查看角色卡</span></a>`;
 }
 

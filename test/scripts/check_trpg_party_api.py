@@ -74,7 +74,6 @@ def make_card(user_id: str, name: str) -> int:
 dm_card = make_card(DM, "守密人")
 player_card = make_card(PLAYER, "田宫真莉")
 party.set_role(GROUP, DM, "dm", nickname="守密人")
-party.set_role(GROUP, PLAYER, "ob")
 party.set_role(GROUP, "12345699", "ob")
 party.set_prepared(GROUP, PLAYER, {
     "user_id": PLAYER, "nickname": "老张", "char_id": player_card,
@@ -176,6 +175,10 @@ with _patch_members("webapp.trpg.app.fetch_group_members", return_value=group_ro
     check("没准备但设了当前卡也有 char_id", stranger_row.get("char_id") == stranger_card,
           str(stranger_row))
     check("没准备的人 prepared 为假", stranger_row.get("prepared") is False, str(stranger_row.get("prepared")))
+    dm_row = next((m for m in roster.get("members") or [] if m["user_id"] == DM), {})
+    ob_row = next((m for m in roster.get("members") or [] if m["user_id"] == "12345699"), {})
+    check("DM 不下发角色卡", dm_row.get("char_id") is None and dm_row.get("char_name") == "", str(dm_row))
+    check("观察者不下发角色卡", ob_row.get("char_id") is None and ob_row.get("char_name") == "", str(ob_row))
     prepared_row = next((m for m in roster.get("members") or [] if m["user_id"] == PLAYER), {})
     check("已准备的人 prepared 为真", prepared_row.get("prepared") is True)
     check("昵称取群名片", prepared_row.get("nickname") == "老张" == [m["nickname"] for m in group_roster if m["user_id"] == PLAYER][0],
@@ -185,6 +188,8 @@ with _patch_members("webapp.trpg.app.fetch_group_members", return_value=group_ro
     check("DM 可看未准备成员的卡", r.status_code == 200 and r.json().get("char_name") == "路人卡", r.text[:160])
     r = client.get(f"/api/trpg/party/{GROUP}/card/{STRANGER}", headers=auth(STRANGER))
     check("未准备者本人也能看自己的卡", r.status_code == 200, r.text[:160])
+    r = client.get(f"/api/trpg/party/{GROUP}/card/{DM}", headers=auth(DM))
+    check("DM 自己也不走准备卡片看卡", r.status_code == 404, r.text[:160])
 
 # 群成员接口不可用：退回 pending.json 里出现过的人，页面不能空
 with _patch_members("webapp.trpg.app.fetch_group_members", return_value=None),      _patch_members("webapp.trpg.app._GROUP_MEMBERS_CACHE", {}):

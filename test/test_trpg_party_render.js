@@ -46,7 +46,23 @@ const noName = api.partyCard({ group_id: "296470819", rules_name: "DND 5E", dm: 
   prepared_count: 0, member_count: 0, is_dm: false, members: [] });
 check("没有群名时回落群号", noName.includes("群 296470819"), "");
 check("已准备成员可点卡", html.includes("查看角色卡") && html.includes("/trpg/char/222/3?party=296470819"));
-check("未准备成员提示等待", html.includes("等待准备"));
+check("没卡的人不显示「等待准备」", !html.includes("等待准备"));
+check("没卡的人显示未设置角色卡", (() => {
+  const noCard = api.partyCard({ ...party, members: [
+    { user_id: "333", nickname: "还没建卡", role: "", char_id: null, char_name: "", prepared: false },
+  ] });
+  return noCard.includes("未设置角色卡") && !noCard.includes("等待准备")
+    && !noCard.includes("class=\"trpg-party-member is-link\"");
+})());
+check("DM 与观察者不显示角色卡", (() => {
+  const staff = api.partyCard({ ...party, members: [
+    { user_id: "111", nickname: "守密人", role: "dm", char_id: 7, char_name: "不该出现", prepared: false },
+    { user_id: "444", nickname: "围观", role: "ob", char_id: 8, char_name: "也不该出现", prepared: false },
+  ] });
+  return !staff.includes("不该出现") && !staff.includes("也不该出现")
+    && !staff.includes("trpg-party-member is-link")
+    && !staff.includes("未设置角色卡") && !staff.includes("等待准备");
+})());
 check("观察者/DM 徽标", html.includes("DM"));
 
 const observer = { group_id: "1", rules_name: "DND 5E", dm: "111", prepared_count: 0, member_count: 1, is_dm: false,
@@ -54,7 +70,8 @@ const observer = { group_id: "1", rules_name: "DND 5E", dm: "111", prepared_coun
 const html2 = api.partyCard(observer);
 check("非 DM 无审核提示", !html2.includes("你是本群 DM"));
 check("观察者徽标", html2.includes("观察者"));
-check("观察者不显示「未选角色卡」（以群身份在场）", !html2.includes("未选角色卡") && html2.includes("围观"));
+check("观察者不显示「未设置角色卡」（以群身份在场）",
+  !html2.includes("未设置角色卡") && html2.includes("围观"));
 
 console.log(fails.length ? `\n${fails.length} 项失败` : "\n全部通过");
 process.exit(fails.length ? 1 : 0);

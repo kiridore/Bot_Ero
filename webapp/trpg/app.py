@@ -748,18 +748,23 @@ def _pending_roster(group_id: str) -> dict | None:
             continue
         seen.add(uid)
         snap = prepared.get(uid) or {}
-        char_id = snap.get("char_id")
-        char_name = snap.get("char_name") or ""
-        if char_id is None:
-            # 没准备但设了当前角色卡：一样能点开看（DM 仍可审私密卡）
-            card = char_store.get_current(uid)
-            if card:
-                char_id = card.get("id")
-                char_name = card.get("char_name") or ""
+        role = roles.get(uid, "")
+        if role in ("dm", "ob"):
+            # DM 与观察者以群身份在场，不挂角色卡，也不对外提供查看入口
+            char_id, char_name = None, ""
+        else:
+            char_id = snap.get("char_id")
+            char_name = snap.get("char_name") or ""
+            if char_id is None:
+                # 没准备但设了当前角色卡：一样能点开看（DM 仍可审私密卡）
+                card = char_store.get_current(uid)
+                if card:
+                    char_id = card.get("id")
+                    char_name = card.get("char_name") or ""
         members.append({
             "user_id": uid,
             "nickname": live_names.get(uid) or snap.get("nickname") or role_names.get(uid) or uid,
-            "role": roles.get(uid, ""),
+            "role": role,
             "char_id": char_id,
             "char_name": char_name,
             "prepared": uid in {str(u) for u in prepared},
@@ -844,6 +849,9 @@ def api_party_card(
     member = next((m for m in roster["members"] if m["user_id"] == str(user_id)), None)
     if member is None:
         raise HTTPException(status_code=404, detail="该用户不在这场准备名单里")
+    if member.get("role") in ("dm", "ob"):
+        # DM 与观察者以群身份在场，准备卡片不提供角色卡入口（用普通角色卡页查看）
+        raise HTTPException(status_code=404, detail="DM 与观察者不在准备卡片里查看角色卡")
     is_super = str(viewer_id).isdigit() and int(viewer_id) in core_config.SUPER_USER
     is_dm = str(viewer_id) == roster["dm"] or is_super
     if str(viewer_id) != str(user_id) and not is_dm and not user_settings_mod.privacy_public(user_id):

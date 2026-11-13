@@ -100,8 +100,18 @@ eval(fs.readFileSync("webapp/static/trpg_records.js", "utf8"));
     mixedHtml);
   check("没准备但有卡也算链接", mixedHtml.includes('/trpg/char/4/14?party=296470819'), mixedHtml);
   check("没准备的人带未准备标记", mixedHtml.includes("trpg-party-pending"), mixedHtml);
-  check("没卡的人不可点开", mixedHtml.includes("等待准备")
-    && !mixedHtml.includes('/trpg/char/5/'), mixedHtml);
+  check("没卡的人不可点开", mixedHtml.includes("未设置角色卡")
+    && !mixedHtml.includes("等待准备") && !mixedHtml.includes('/trpg/char/5/'), mixedHtml);
+  check("DM/观察者行不显示角色卡也不可点", (() => {
+    const staff = { ...partyDm, members: [
+      { user_id: "1", nickname: "守密人", role: "dm", char_name: "", char_id: 9, prepared: false },
+      { user_id: "2", nickname: "旁观者", role: "ob", char_name: "", char_id: 10, prepared: false },
+    ] };
+    const staffHtml = partyCard(staff);
+    return !staffHtml.includes("/trpg/char/") && !staffHtml.includes("查看角色卡")
+      && !staffHtml.includes("未设置角色卡") && !staffHtml.includes("等待准备")
+      && !staffHtml.includes("未准备");
+  })());
 
   check("暂停记录时间行写明已暂停",
     timeRange({ start: "2026-11-12 09:00:00", state: "paused" }).includes("已暂停"),
