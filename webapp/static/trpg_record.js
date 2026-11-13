@@ -277,6 +277,31 @@ function renderSheets(participants) {
   }
 }
 
+function currentScrollY() {
+  return typeof window.scrollY === "number" ? window.scrollY : 0;
+}
+
+// 记录当前视口里第一条消息及其相对视口顶部的位置，刷新后按它还原滚动
+function topVisibleAnchor() {
+  const nodes = listEl.children || [];
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (typeof node.getBoundingClientRect !== "function") return null;
+    const rect = node.getBoundingClientRect();
+    if (rect.top >= 0) return { index, offset: rect.top };
+  }
+  return null;
+}
+
+function restoreAnchor(anchor) {
+  if (!anchor) return;
+  const node = (listEl.children || [])[anchor.index];
+  if (!node || typeof node.getBoundingClientRect !== "function") return;
+  if (typeof window.scrollTo !== "function") return;
+  const top = node.getBoundingClientRect().top + currentScrollY() - anchor.offset;
+  window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+}
+
 function isAtBottom() {
   const doc = document.documentElement;
   if (!doc || typeof window.scrollY !== "number") return true;
@@ -302,7 +327,12 @@ function syncPolling() {
   }, POLL_MS);
 }
 
-async function load(reset) {
+async function load(reset, options) {
+  // keepPosition：切换暗骰这类「同一批消息重排」时留在原处，别把读者甩到最底部
+  const keepPosition = Boolean(options && options.keepPosition);
+  const atBottom = isAtBottom();
+  const keep = keepPosition && !atBottom;
+  const anchor = keep ? topVisibleAnchor() : null;
   const params = new URLSearchParams();
   params.set("from", reset ? "0" : String(cursor));
   if (revealToggle.checked) params.set("reveal", "1");
@@ -313,7 +343,7 @@ async function load(reset) {
     listEl.innerHTML = "";
     lastSeen = 0;
   }
-  const stick = reset || isAtBottom();
+  const stick = atBottom || (reset && !keep);
   rebuildNickMap(data.participants);
   for (const m of data.messages || []) {
     listEl.appendChild(renderMessage(m));
@@ -325,7 +355,13 @@ async function load(reset) {
   syncPolling();
   hintEl.className = "empty-hint center";
   hintEl.textContent = listEl.children.length ? "" : "还没有消息";
-  if (stick) scrollToBottom();
+  if (keep) {
+    // 等浏览器完成布局再按锚点还原（新增/移除的暗骰会改变上方高度）
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => restoreAnchor(anchor));
+    else restoreAnchor(anchor);
+  } else if (stick) {
+    scrollToBottom();
+  }
 }
 
 // 头部勾选框与底部悬浮按钮共用同一份状态
@@ -340,7 +376,7 @@ function setSecretHidden(hidden, reload = true) {
   secretHidden = hidden;
   revealToggle.checked = !hidden;
   setFabState(fabSecret, hidden);
-  if (reload) load(true).catch((err) => showError(err.message || "加载失败"));
+  if (reload) load(true, { keepPosition: true }).catch((err) => showError(err.message || "加载失败"));
 }
 
 function setOocHidden(hidden) {

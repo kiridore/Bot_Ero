@@ -18,6 +18,7 @@ function newEl(tag) {
     addEventListener(type, fn) { this.handlers[type] = fn; },
     appendChild(c) { this.children.push(c); return c; },
     append(...cs) { this.children.push(...cs); },
+    getBoundingClientRect() { return { top: 0 }; },
     closest(sel) {
       const hit = String(sel).split(",").map((s) => s.trim()).some(
         (part) => part.startsWith("img.")
@@ -381,6 +382,10 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
 
   els.fabSecret.handlers.click();
   await settle();
+  check("切换暗骰时按锚点还原位置（不跳到底部）", (() => {
+    const last = scrollCalls[scrollCalls.length - 1];
+    return last && last.behavior === "auto" && last.top === 600;
+  })(), JSON.stringify(scrollCalls[scrollCalls.length - 1]));
   check("点按钮显示暗骰", els.revealToggle.checked === true
     && els.fabSecret.getAttribute("aria-pressed") === "false"
     && msgList.children.length === 5, String(msgList.children.length));
@@ -394,6 +399,18 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("点按钮隐藏场外", els.fabOoc.getAttribute("aria-pressed") === "true"
     && msgList.classList.contains("hide-ooc") && els.oocToggle.checked === true);
   check("按钮状态写入 localStorage", localStorage.getItem("botero_trpg_hide_ooc") === "1");
+  // 已经在底部时，切换暗骰仍跟随到底部（不强行留在原处）
+  global.window.innerHeight = 800;
+  global.window.scrollY = 500;   // 1200 - 500 - 800 < 80 → 视为在底部
+  els.fabSecret.handlers.click();
+  await settle();
+  check("在底部时切换暗骰跟随到底部", (() => {
+    const last = scrollCalls[scrollCalls.length - 1];
+    return last && last.behavior === "smooth" && last.top === 1200;
+  })(), JSON.stringify(scrollCalls[scrollCalls.length - 1]));
+  els.fabSecret.handlers.click();
+  await settle();
+
   els.fabOoc.handlers.click();
   check("再点按钮显示场外", els.fabOoc.getAttribute("aria-pressed") === "false"
     && !msgList.classList.contains("hide-ooc") && els.oocToggle.checked === false);
