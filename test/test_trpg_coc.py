@@ -714,3 +714,51 @@ class TestCreditSkillUi(unittest.TestCase):
         self.assertIn("function syncCreditAssets", self.src)
         self.assertIn("main.addEventListener(\"input\", syncCreditAssets)", self.src)
         self.assertIn("credit_rating: creditFromSkillRow()", self.src)
+
+
+class TestWeaponSpecialtyBase(unittest.TestCase):
+    """附表：格斗/射击各专攻的基础成功率不同，「类别:专攻」写法也要取到同一个值。"""
+
+    EXPECTED = {
+        "手枪": 20, "射击:手枪": 20,
+        "步枪/霰弹枪": 25, "射击:步枪/霰弹枪": 25, "射击:步枪": 25, "射击:霰弹枪": 25,
+        "冲锋枪": 15, "射击:冲锋枪": 15,
+        "弓": 15, "弓术": 15, "射击:弓": 15, "射击:弓术": 15,
+        "喷射器": 10, "射击:喷射器": 10,
+        "机枪": 10, "射击:机枪": 10,
+        "重武器": 10, "射击:重武器": 10,
+        "斗殴": 25, "格斗:斗殴": 25,
+        "剑": 20, "格斗:剑": 20,
+        "矛": 20, "格斗:矛": 20,
+        "鞭子": 5, "格斗:鞭子": 5,
+        "电锯": 10, "格斗:链锯": 10, "格斗:电锯": 10,
+        "绞具": 15, "格斗:绞具": 15,
+        "链枷": 10, "格斗:链枷": 10,
+        "斧": 15, "格斗:斧": 15,
+    }
+
+    def test_all_specialties(self):
+        for name, expect in self.EXPECTED.items():
+            self.assertEqual(coc.skill_base_for(name), expect, name)
+
+    def test_name_accepted(self):
+        for name in self.EXPECTED:
+            self.assertTrue(coc.skill_name_ok(name), name)
+
+    def test_options_payload_has_prefixed(self):
+        mapping = coc.skill_base_map()
+        self.assertEqual(mapping.get("射击:手枪"), 20)
+        self.assertEqual(mapping.get("射击:重武器"), 10)
+        self.assertEqual(mapping.get("格斗:剑"), 20)
+
+    def test_finalize_fills_base(self):
+        card = {"rules": "coc7th", "occupation": "",
+                "skills": {"射击:步枪/霰弹枪": {}, "格斗:剑": {}, "射击:弓术": {}}}
+        skills = coc.finalize(card)["skills"]
+        self.assertEqual(skills["射击:步枪/霰弹枪"]["base"], 25)
+        self.assertEqual(skills["格斗:剑"]["base"], 20)
+        self.assertEqual(skills["射击:弓术"]["base"], 15)
+
+    def test_unknown_specialty_zero(self):
+        self.assertEqual(coc.skill_base_for("射击:飞天"), 0)
+        self.assertIsNone(coc.weapon_specialty_base("射击:飞天"))

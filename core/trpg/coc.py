@@ -435,13 +435,40 @@ def skill_name_ok(name: str) -> bool:
     if name in SKILL_BASE:
         return True
     # 武器技能（斗殴、手枪、步枪/霰弹枪…）也是合法技能名，只是不在 39 项标准表里
-    if name in weapon_skill_base():
+    if name in weapon_skill_base() or weapon_specialty_base(name) is not None:
         return True
     return any(name.startswith(cat) for cat in SKILL_CATEGORIES)
 
 
-# 附表里武器技能的写法与规则书/武器库不一致的一处
+# 附表里武器技能的写法与规则书/武器库不一致的几处
 WEAPON_SKILL_ALIASES = {"弓术": "弓"}
+
+# COC7空白卡CY26.3「附表」C11:E13：格斗与射击各专攻的基础成功率
+FIGHTING_SKILL_BASE = {"斗殴": 25, "鞭子": 5, "电锯": 10, "斧": 15, "剑": 20,
+                       "绞具": 15, "链枷": 10, "矛": 20}
+FIREARM_SKILL_BASE = {"手枪": 20, "步枪/霰弹枪": 25, "冲锋枪": 15, "弓": 15,
+                      "喷射器": 10, "机枪": 10, "重武器": 10}
+# 卡上/职业表里的别名：附表写弓术、职业表写步枪/霰弹枪、有的写链锯
+WEAPON_SPECIALTY_ALIASES = {
+    "弓术": "弓",
+    "步枪": "步枪/霰弹枪",
+    "霰弹枪": "步枪/霰弹枪",
+    "链锯": "电锯",
+}
+
+
+def weapon_specialty(name: str) -> str:
+    """把「射击:手枪」「格斗：剑」拆成专攻名，并归一常见别名。"""
+    text = str(name or "").strip().replace("：", ":")
+    if ":" in text:
+        text = text.split(":", 1)[1].strip()
+    return WEAPON_SPECIALTY_ALIASES.get(text, text)
+
+
+def weapon_specialty_base(name: str) -> int | None:
+    """格斗/射击专攻的基础成功率（含「类别:专攻」写法）；不是武器技能返回 None。"""
+    table = {**FIGHTING_SKILL_BASE, **FIREARM_SKILL_BASE}
+    return table.get(weapon_specialty(name))
 
 
 def _percent_value(text) -> int | None:
@@ -454,14 +481,14 @@ def weapon_skill_base() -> dict[str, int]:
     from .skill_notes import SKILL_NOTES
     from .weapon_data import WEAPONS
 
-    table = {}
+    table = {**FIGHTING_SKILL_BASE, **FIREARM_SKILL_BASE}
     for skill in {w["skill"] for w in WEAPONS}:
         canon = canonical_skill(skill)
         note = SKILL_NOTES.get(canon) or SKILL_NOTES.get(
             next((alias for alias, fixed in WEAPON_SKILL_ALIASES.items() if fixed == canon), ""), None)
         base = _percent_value((note or {}).get("base"))
         if base is not None:
-            table[canon] = base
+            table.setdefault(canon, base)
     return table
 
 
@@ -513,7 +540,10 @@ def skill_base_for(name: str, data: dict | None = None) -> int:
         dynamic = dynamic_skill_base(canon, data)
         if dynamic is not None:
             return dynamic
-    return skill_base_map().get(canon, 0)
+    found = skill_base_map().get(canon)
+    if found is not None:
+        return found
+    return weapon_specialty_base(canon) or 0
 
 
 def skill_base_map() -> dict[str, int]:
@@ -532,6 +562,10 @@ def skill_base_map() -> dict[str, int]:
             table[key] = base
     for name, base in weapon_skill_base().items():
         table.setdefault(name, base)
+    for category, bases in (("格斗", FIGHTING_SKILL_BASE), ("射击", FIREARM_SKILL_BASE)):
+        for speciality, base in bases.items():
+            table.setdefault(speciality, base)
+            table[f"{category}:{speciality}"] = base
     return table
 
 
@@ -574,7 +608,9 @@ def finalize(data: dict) -> dict:
             # 闪避/母语的基础值由属性决定，卡上存的值不作为口径
             base = dynamic
         elif base is None:
-            base = skill_base_map().get(name, 0)
+            base = skill_base_map().get(name)
+            if base is None:
+                base = weapon_specialty_base(name) or 0
         merged = {
             "base": int(base or 0),
             "growth": int(entry.get("growth") or 0),
