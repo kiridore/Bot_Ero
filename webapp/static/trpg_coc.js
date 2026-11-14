@@ -394,11 +394,7 @@ function rerenderDerived() {
   const assetHint = document.getElementById("assetHint");
   if (assetHint) {
     const credit = creditFromSkillRow();
-    const level = levelForCredit(credit);
-    const chosen = document.getElementById("living_standard")?.value || "";
-    assetHint.textContent = chosen && chosen !== level
-      ? `信用评级 ${credit} 通常对应「${level}」，当前选的是「${chosen}」`
-      : `信用评级 ${credit} 对应「${level}」`;
+    assetHint.textContent = `信用评级 ${credit} 对应「${levelForCredit(credit)}」`;
   }
   const totalBox = document.getElementById("assetTotal");
   if (totalBox) {
@@ -561,9 +557,9 @@ function syncCreditAssets() {
     if (typeof field.textContent === "string" && field.tagName === "OUTPUT") field.textContent = value;
     else field.value = value;   // 兼容旧页面/测试桩
   }
-  // 生活水平跟着信用评级走，但玩家自己选过就不覆盖
+  // 生活水平完全由信用评级推算，玩家不能选
   const level = document.getElementById("living_standard");
-  if (level && !level.value) level.value = levelForCredit(value);
+  if (level) level.textContent = levelForCredit(value);
   const row = creditRowEl();
   const total = row && row.querySelector("[data-total]");
   if (total) total.textContent = value;
@@ -821,10 +817,7 @@ function render() {
           <output id="credit_rating" class="coc-readonly" title="由技能表的信用评级决定（职业点补到下限后可用兴趣点）">${creditFromSkillRow()}</output>
         </label>
         <label>生活水平
-          <select id="living_standard">
-            <option value="">未选择</option>
-            ${LIVING_LEVELS.map((lv) => `<option value="${lv}"${lv === (assets.living_standard || "") ? " selected" : ""}>${lv}</option>`).join("")}
-          </select>
+          <output id="living_standard" class="coc-readonly" title="由信用评级推算，见规则书资产表">${levelForCredit(creditFromSkillRow())}</output>
         </label>
         <label>币种
           <select id="currency">
@@ -1000,7 +993,6 @@ function bind() {
       const res = await fetch(`/api/trpg/coc/asset-reference?${params}`, { headers: GalleryAuth.headers() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "查询失败");
-      document.getElementById("living_standard").value = data.level || "";
       if (data.cash !== null && data.cash !== undefined) document.getElementById("cash").value = data.cash;
       if (data.spending !== null && data.spending !== undefined) {
         document.getElementById("spending_level").value = data.spending;
@@ -1245,7 +1237,7 @@ function collect() {
     assets: {
       cash: document.getElementById("cash").value.trim(),
       spending_level: document.getElementById("spending_level").value.trim(),
-      living_standard: document.getElementById("living_standard").value,
+      living_standard: levelForCredit(creditFromSkillRow()),
       currency: document.getElementById("currency").value,
       other_assets: document.getElementById("other_assets").value.trim(),
       ...Object.fromEntries([...document.querySelectorAll("[data-asset-item]")]

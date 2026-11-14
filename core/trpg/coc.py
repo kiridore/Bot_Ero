@@ -1122,6 +1122,18 @@ def normalize_credit_rating(data: dict) -> bool:
     if data.get("credit_rating") != total:
         data["credit_rating"] = total
         changed = True
+    # 生活水平由信用评级推算（规则书资产表），不接受手工选择；
+    # 但明显不在 6 档里的值留给 asset_problems 报错，不静默改掉
+    assets = data.get("assets")
+    if isinstance(assets, dict):
+        from .asset_data import LEVELS
+
+        names = {item["name"] for item in LEVELS}
+        current = str(assets.get("living_standard") or "").strip()
+        level = level_for_credit(total)
+        if level and (not current or current in names) and current != level:
+            assets["living_standard"] = level
+            changed = True
     return changed
 
 

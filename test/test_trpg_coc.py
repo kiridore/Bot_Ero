@@ -711,6 +711,43 @@ class TestCreditSkillSource(unittest.TestCase):
         self.assertEqual(coc.occupational_point_problems(card), [])
 
 
+class TestLivingStandardDerived(unittest.TestCase):
+    """生活水平由信用评级推算，玩家不选；非法值仍由 asset_problems 报错。"""
+
+    def _card(self, **over):
+        card = {"rules": "coc7th", "char_name": "哈维", "occupation": "药剂师",
+                "str_score": 50, "con_score": 55, "siz_score": 65, "dex_score": 50,
+                "app_score": 60, "int_score": 60, "pow_score": 55, "edu_score": 70,
+                "skills": {}, "assets": {}}
+        card.update(over)
+        return card
+
+    def test_follows_credit(self):
+        for points, level in ((35, "标准"), (40, "标准"), (50, "小康"), (60, "小康")):
+            card = self._card(skills={"信用评级": {"occupation": 35,
+                                                  "interest": max(points - 35, 0)}},
+                              assets={"living_standard": "富豪"})
+            self.assertEqual(coc.validate(card), [])
+            self.assertEqual(card["assets"]["living_standard"], level, f"信用 {points}")
+
+    def test_zero_credit(self):
+        card = self._card(occupation="", skills={}, assets={"living_standard": "标准"})
+        self.assertEqual(coc.validate(card), [])
+        self.assertEqual(card["assets"]["living_standard"], "身无分文")
+
+    def test_unknown_level_still_rejected(self):
+        card = self._card(skills={"信用评级": {"occupation": 40}},
+                          assets={"living_standard": "贫穷"})
+        self.assertTrue(any("不在 6 档" in p for p in coc.validate(card)), coc.validate(card))
+        self.assertEqual(card["assets"]["living_standard"], "贫穷")   # 不被静默改掉
+
+    def test_page_is_output(self):
+        src = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertIn('<output id="living_standard"', src)
+        self.assertNotIn('<select id="living_standard"', src)
+        self.assertIn("living_standard: levelForCredit(creditFromSkillRow())", src)
+
+
 class TestCreditSkillUi(unittest.TestCase):
     """建卡页：信用评级在技能表里加点，资产区只读同步。"""
 
