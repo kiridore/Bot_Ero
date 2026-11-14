@@ -632,3 +632,69 @@ class TestAttributeValue(unittest.TestCase):
     def test_unknown(self):
         for name in ("飞天", "", "   ", "运气", "Strength"):
             self.assertIsNone(coc.attribute_value(self.CARD, name), name)
+
+
+class TestCreditSkillMirror(unittest.TestCase):
+    """信用评级唯一来源是资产区；技能表那行只是镜像。"""
+
+    def _card(self, **over):
+        card = {"rules": "coc7th", "char_name": "哈维", "occupation": "药剂师",
+                "str_score": 50, "con_score": 55, "siz_score": 65, "dex_score": 50,
+                "app_score": 60, "int_score": 60, "pow_score": 55, "edu_score": 70,
+                "credit_rating": 45, "skills": {}}
+        card.update(over)
+        return card
+
+    def test_finalize_uses_asset_value(self):
+        card = self._card(skills={"信用评级": {"interest": 20}})
+        fin = coc.finalize(card)
+        self.assertEqual(fin["skills"]["信用评级"]["total"], 45)
+        self.assertEqual(fin["skills"]["信用评级"]["interest"], 0)
+
+    def test_skill_value_matches_asset(self):
+        card = self._card(skills={"信用评级": {"occupation": 30}})
+        self.assertEqual(coc.skill_value(card, "信用评级"), 45)
+        self.assertEqual(coc.skill_value(card, "信用"), 45)
+
+    def test_missing_row_still_available(self):
+        card = self._card(skills={})
+        self.assertEqual(coc.skill_value(card, "信用评级"), 45)
+
+    def test_validate_migrates_leftover_points(self):
+        card = self._card(credit_rating=0, skills={"信用评级": {"interest": 40}})
+        self.assertEqual(coc.validate(card), [])
+        self.assertEqual(card["credit_rating"], 40)
+        self.assertEqual(card["skills"]["信用评级"]["interest"], 0)
+
+    def test_validate_keeps_asset_value(self):
+        card = self._card(credit_rating=45, skills={"信用评级": {"interest": 30}})
+        self.assertEqual(coc.validate(card), [])
+        self.assertEqual(card["credit_rating"], 45)   # 不覆盖玩家填的资产值
+
+    def test_credit_clamped(self):
+        card = self._card(credit_rating=140)
+        self.assertEqual(coc.finalize(card)["skills"]["信用评级"]["total"], 99)
+
+    def test_zero_credit_is_zero(self):
+        card = self._card(credit_rating=0)
+        self.assertEqual(coc.skill_value(card, "信用评级"), 0)
+
+
+class TestCreditSkillUi(unittest.TestCase):
+    """建卡页：技能表的信用评级只做镜像，四列不可编辑，不提交任何点数。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+
+    def test_row_is_locked(self):
+        self.assertIn("function isCreditSkill", self.src)
+        self.assertIn("disabled title=", self.src)
+        self.assertIn("在资产区填写", self.src)
+
+    def test_collect_writes_zero(self):
+        self.assertIn("if (isCreditSkill(name)) {", self.src)
+        self.assertIn("skills[name] = { base: 0, growth: 0, occupation: 0, interest: 0 };", self.src)
+
+    def test_asset_change_syncs_row(self):
+        self.assertIn('document.getElementById("credit_rating").addEventListener("input", syncCreditRow)', self.src)

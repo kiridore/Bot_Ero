@@ -130,7 +130,13 @@ class TrpgPlugin(Plugin):
             if not char or (char.get("rules") or "dnd5e") != "coc7th":
                 raise ValueError("格式：.ra <技能值/技能名/属性名> — 例：.ra 70 / .ra 侦查 / .ra 力量（需要 COC 角色卡）")
             value = coc_sheet.skill_value(char, text_arg)
-            if value:
+            attr = coc_sheet.attribute_value(char, text_arg)
+            is_credit = bool(attr and attr[0] == coc_sheet.CREDIT_SKILL)
+            if value and is_credit:
+                # 信用评级的值来自资产区，按「信用评级」标注，也不打成长标记
+                label = coc_sheet.CREDIT_SKILL
+                is_skill = False
+            elif value:
                 pass                      # 技能成功率 > 0 才算命中
             else:
                 found = coc_sheet.attribute_value(char, text_arg)

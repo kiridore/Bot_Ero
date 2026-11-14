@@ -295,5 +295,40 @@ check("更新后 HP 变化", r.json()["hp"] == 12, str(r.json().get("hp")))
 check("更新后武器表替换", [w["name"] for w in r.json().get("weapons") or []] == ["短棍"],
       str(r.json().get("weapons")))
 
+# —— 信用评级唯一来源：资产区（技能行只做镜像）——
+BASE_CARD = {
+    "rules": "coc7th", "char_name": "镜像检定", "occupation": "药剂师",
+    "str_score": 50, "con_score": 55, "siz_score": 65, "dex_score": 50,
+    "app_score": 60, "int_score": 60, "pow_score": 55, "edu_score": 70,
+    "credit_rating": 45,
+}
+r = client.post("/api/me/characters", headers=H, json=dict(BASE_CARD))
+check("信用评级卡创建 200", r.status_code == 200, r.text[:200])
+credit_card = r.json() if r.status_code == 200 else {}
+cid = credit_card.get("id")
+check("资产区信用评级回传 45", credit_card.get("credit_rating") == 45,
+      str(credit_card.get("credit_rating")))
+rows = credit_card.get("skills") or {}
+check("技能表信用评级镜像资产区", (rows.get("信用评级") or {}).get("total") == 45,
+      str(rows.get("信用评级")))
+
+r = client.put(f"/api/me/characters/{cid}", headers=H, json={
+    **BASE_CARD, "credit_rating": 0,
+    "skills": {"信用评级": {"base": 0, "interest": 40}},
+})
+check("技能行点数并入资产区", r.status_code == 200 and r.json().get("credit_rating") == 40,
+      r.text[:200])
+r = client.put(f"/api/me/characters/{cid}", headers=H, json={
+    **BASE_CARD, "credit_rating": 45,
+    "skills": {"信用评级": {"base": 0, "interest": 40}},
+})
+check("资产区已有值不被技能行覆盖", r.status_code == 200 and r.json().get("credit_rating") == 45,
+      r.text[:200])
+rows = r.json().get("skills") or {}
+check("技能行点数被清零",
+      not (rows.get("信用评级") or {}).get("interest")
+      and not (rows.get("信用评级") or {}).get("occupation"),
+      str(rows.get("信用评级")))
+
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)

@@ -471,8 +471,31 @@ function skillNoteTitle(note) {
   return lines.join("\n");
 }
 
+function currentCredit() {
+  const el = document.getElementById("credit_rating");
+  return Number(el ? el.value || 0 : 0);
+}
+
+// 信用评级唯一来源是资产区：技能表这一行只做镜像，四列都不可编辑
+function isCreditSkill(name) {
+  return canonSkill(name) === "信用评级";
+}
+
+function syncCreditRow() {
+  const row = [...document.querySelectorAll("[data-skill]")]
+    .find((r) => isCreditSkill(r.dataset.name));
+  if (!row) return;
+  const value = String(currentCredit());
+  const baseInput = row.querySelector("[data-base]");
+  if (baseInput) baseInput.value = value;
+  const total = row.querySelector("[data-total]");
+  if (total) total.textContent = value;
+}
+
 function skillRow(name, entry) {
-  const base = entry.base != null ? entry.base : skillBaseFor(name);
+  const credit = isCreditSkill(name);
+  const base = credit ? currentCredit() : (entry.base != null ? entry.base : skillBaseFor(name));
+  const lock = credit ? "disabled title=\"在资产区填写\"" : "";
   return `
     <tr data-skill data-name="${escapeHtml(name)}">
       <td>${escapeHtml(name)}${(() => {
@@ -482,11 +505,11 @@ function skillRow(name, entry) {
                       data-note="${escapeHtml(skillNoteTitle(note))}"
                       title="${escapeHtml(skillNoteTitle(note))}">i</span>`;
       })()}</td>
-      <td><input type="number" data-base value="${base}" min="0" max="99" class="coc-num" /></td>
-      <td><input type="number" data-growth value="${entry.growth || 0}" min="0" max="199" class="coc-num" />${entry.check ? " ✓" : ""}</td>
-      <td><input type="number" data-occ value="${entry.occupation || 0}" min="0" max="99" class="coc-num" /></td>
-      <td><input type="number" data-int value="${entry.interest || 0}" min="0" max="99" class="coc-num" /></td>
-      <td data-total class="coc-total">0</td>
+      <td><input type="number" data-base value="${base}" min="0" max="99" class="coc-num" ${lock} /></td>
+      <td><input type="number" data-growth value="${credit ? 0 : (entry.growth || 0)}" min="0" max="199" class="coc-num" ${lock} />${!credit && entry.check ? " ✓" : ""}</td>
+      <td><input type="number" data-occ value="${credit ? 0 : (entry.occupation || 0)}" min="0" max="99" class="coc-num" ${lock} /></td>
+      <td><input type="number" data-int value="${credit ? 0 : (entry.interest || 0)}" min="0" max="99" class="coc-num" ${lock} /></td>
+      <td data-total class="coc-total">${credit ? base : 0}</td>
       <td><button type="button" class="btn-sm" data-remove>删</button></td>
     </tr>`;
 }
@@ -887,6 +910,7 @@ function bind() {
       showToast(err.message || "查询失败", true);
     }
   });
+  document.getElementById("credit_rating").addEventListener("input", syncCreditRow);
   document.getElementById("credit_rating").addEventListener("change", () => {
     // 档位跟随信用评级（可手动改）
     const level = document.getElementById("living_standard");
@@ -1087,6 +1111,10 @@ function collect() {
   const skills = {};
   document.querySelectorAll("[data-skill]").forEach((row) => {
     const name = row.dataset.name;
+    if (isCreditSkill(name)) {
+      skills[name] = { base: 0, growth: 0, occupation: 0, interest: 0 };
+      return;
+    }
     skills[name] = {
       base: Number(row.querySelector("[data-base]").value || 0),
       growth: Number(row.querySelector("[data-growth]").value || 0),

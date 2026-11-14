@@ -591,6 +591,11 @@ def finalize(data: dict) -> dict:
         entry["total"] = skill_total(entry)
         skills[name] = entry
 
+    # 信用评级唯一来源是资产区：技能表那行只做展示，不受卡上残留点数影响
+    credit = credit_value(data)
+    skills[CREDIT_SKILL] = {"base": credit, "growth": 0, "occupation": 0,
+                            "interest": 0, "total": credit}
+
     occupation_spent = sum(entry["occupation"] for entry in skills.values())
     interest_spent = sum(entry["interest"] for entry in skills.values())
 
@@ -935,6 +940,7 @@ def age_adjust_problems(data: dict) -> list[str]:
 
 def validate(data: dict) -> list[str]:
     """建卡约束：属性范围、技能点不超预算、信用评级在职业区间内。"""
+    normalize_credit_rating(data)
     problems = []
     fin = finalize(data)
     for attr, value in fin["scores"].items():
@@ -971,6 +977,50 @@ def validate(data: dict) -> list[str]:
     problems.extend(inventory_problems(data.get("inventory")))
     problems.extend(age_adjust_problems(data))
     return problems
+
+
+CREDIT_SKILL = "信用评级"
+
+
+def normalize_credit_rating(data: dict) -> bool:
+    """信用评级以资产区 `credit_rating` 为唯一来源。
+
+    技能表里那行只是展示用：把历史残留的成长/职业/兴趣点并入 `credit_rating`
+    （仅当资产区还是 0 时，避免覆盖玩家填的值），然后把三列清零。
+    """
+    skills = data.get("skills")
+    if not isinstance(skills, dict):
+        return False
+    row = next((entry for name, entry in skills.items()
+                if canonical_skill(name) == CREDIT_SKILL and isinstance(entry, dict)), None)
+    if row is None:
+        return False
+    try:
+        extra = sum(int(row.get(key) or 0) for key in ("growth", "occupation", "interest"))
+    except (TypeError, ValueError):
+        extra = 0
+    changed = False
+    if extra:
+        try:
+            credit = int(data.get("credit_rating") or 0)
+        except (TypeError, ValueError):
+            credit = 0
+        if credit <= 0:
+            data["credit_rating"] = min(extra, SKILL_CEILING)
+        for key in ("growth", "occupation", "interest"):
+            if row.get(key):
+                row[key] = 0
+                changed = True
+    return changed
+
+
+def credit_value(data: dict) -> int:
+    """卡上的信用评级（资产区那一格），钳在 0-99。"""
+    try:
+        value = int(data.get("credit_rating") or 0)
+    except (TypeError, ValueError):
+        value = 0
+    return max(0, min(value, 99))
 
 
 def skill_value(data: dict, name: str) -> int | None:
