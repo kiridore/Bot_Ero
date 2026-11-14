@@ -14,6 +14,7 @@ function slice(from, to) {
 }
 const baseBlock = slice("function skillBaseFor", "function poolHint");
 const creditBlock = slice("function isCreditSkill", "function skillRow");
+const occBlock = slice("function occAllowedNames", "function poolHint");
 
 let fail = 0;
 function check(name, ok, extra) {
@@ -54,7 +55,7 @@ function harness() {
   const ctx = vm.createContext(sandbox);
   vm.runInContext(`${baseBlock}\n${creditBlock}`, ctx);
   const run = (code) => vm.runInContext(code, ctx);
-  return { rows, row: rows[0], field, card, state, run };
+  return { rows, row: rows[0], field, card, state, run, ctx };
 }
 
 // 1. 选职业补下限（职业点列）
@@ -67,6 +68,38 @@ function harness() {
   check("资产区同步为下限", h.field.value === "35", String(h.field.value));
   check("合计列同步", h.row._cells["[data-total]"].textContent === "35",
     String(h.row._cells["[data-total]"].textContent));
+}
+
+// 1b. 先填了兴趣点再选职业：合计不变，下限那部分换成职业点
+{
+  const h = harness();
+  h.state.occ = { name: "药剂师", credit_min: 35, credit_max: 75 };
+  h.row._cells["[data-int]"].value = "20";
+  h.run("fillCreditFloor(currentOccupation());");
+  check("先填兴趣点：下限挪进职业点", h.row._cells["[data-occ]"].value === 35,
+    String(h.row._cells["[data-occ]"].value));
+  check("先填兴趣点：合计仍按玩家填的 35（下限托底）", h.field.value === "35", String(h.field.value));
+}
+{
+  const h = harness();
+  h.state.occ = { name: "药剂师", credit_min: 35, credit_max: 75 };
+  h.row._cells["[data-int]"].value = "50";
+  h.run("fillCreditFloor(currentOccupation());");
+  check("先填兴趣点超过下限：只移下限那部分",
+    h.row._cells["[data-occ]"].value === 35 && h.row._cells["[data-int]"].value === 15,
+    `${h.row._cells["[data-occ]"].value}/${h.row._cells["[data-int]"].value}`);
+}
+
+// 1c. 信用评级永远算本职技能（职业点可编辑），与服务端一致
+{
+  const h = harness();
+  const allowed = vm.runInContext("occAllows({ exact: new Set(), wild: [] }, '信用评级');", h.ctx);
+  check("信用评级允许加职业点", allowed === true, String(allowed));
+  const other = vm.runInContext("occAllows({ exact: new Set(), wild: [] }, '攀爬');", h.ctx);
+  check("其他非本职技能仍被拦", other === false, String(other));
+  const struct = vm.runInContext(
+    "occAllowedNames({ seq: '3' }, {}).exact.size", h.ctx);
+  check("occAllowedNames 不因信用评级改动而变", struct === 0, String(struct));
 }
 
 // 2. 已有加点不覆盖

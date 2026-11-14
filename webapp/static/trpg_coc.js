@@ -131,6 +131,8 @@ function occAllowedNames(occ, choices) {
 
 function occAllows(allowed, name) {
   const fixed = canonSkill(name);
+  // 信用评级对所有职业都算本职技能：职业规定上限下限，先用职业点补到下限
+  if (fixed === "信用评级") return true;
   return allowed.exact.has(fixed) || allowed.wild.some((prefix) => fixed.startsWith(prefix));
 }
 
@@ -458,7 +460,11 @@ function rerenderDerived() {
   const occWarn = document.getElementById("occ-warn");
   if (occWarn) {
     const over = [];
-    if (occSpent > occBudget) over.push(`职业点超出 ${occSpent}/${occBudget}`);
+    if (occSpent > 0 && occBudget === 0) {
+      over.push("职业点上限是 0：先把属性（教育等）填出来，职业点才有地方扣");
+    } else if (occSpent > occBudget) {
+      over.push(`职业点超出 ${occSpent}/${occBudget}`);
+    }
     if (intSpent > interestBudget) over.push(`兴趣点超出 ${intSpent}/${interestBudget}`);
     occWarn.textContent = over.join("；");
   }
@@ -510,13 +516,24 @@ function ensureCreditRow() {
   return creditRowEl();
 }
 
-// 选了职业就把信用评级补到下限（职业点列）；已经有加点的不动
+// 选了职业就把信用评级补到下限：下限的部分记职业点，已经填过的合计尽量保住。
+// 已经自己分配过职业点的不动（那是玩家的选择）。
 function fillCreditFloor(occ) {
   if (!occ) return false;
   const row = ensureCreditRow();
   if (!row) return false;
-  if (creditFromSkillRow() > 0) return false;
-  row.querySelector("[data-occ]").value = Number(occ.credit_min || 0);
+  const occInput = row.querySelector("[data-occ]");
+  const intInput = row.querySelector("[data-int]");
+  const spentOcc = Number(occInput.value || 0);
+  const spentInt = Number(intInput.value || 0);
+  if (spentOcc > 0) return false;
+  const floor = Number(occ.credit_min || 0);
+  if (!floor) return false;
+  // 兴趣点先填了的人：合计不变，只是把下限那部分换成职业点
+  const total = Math.max(spentOcc + spentInt, floor);
+  const occupationPart = Math.min(total, floor);
+  occInput.value = occupationPart;
+  intInput.value = Math.max(total - occupationPart, 0);
   syncCreditAssets();
   return true;
 }
