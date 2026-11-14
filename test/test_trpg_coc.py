@@ -804,4 +804,7 @@ class TestOccupationSearch(unittest.TestCase):
         self.assertIn("不在列表里", self.src)
 
     def test_switch_only_on_real_change(self):
-        self.assertIn("if (occ.name === lastOccupation) return;", self.src)
+        self.assertIn("if (occ.name === lastOccupation) {", self.src)
+        # 信用评级补下限要在早退之前，否则「选中同一个职业」不会补
+        self.assertLess(self.src.index("fillCreditFloor(occ)"),
+                        self.src.index("if (occ.name === lastOccupation)"))

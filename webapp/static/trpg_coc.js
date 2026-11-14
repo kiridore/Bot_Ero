@@ -502,6 +502,41 @@ function creditFromSkillRow() {
   return Math.min(num("[data-occ]") + num("[data-int]"), 99);
 }
 
+function ensureCreditRow() {
+  if (creditRowEl()) return creditRowEl();
+  const tbody = document.getElementById("skillBody");
+  if (!tbody || typeof skillRow !== "function") return null;
+  tbody.insertAdjacentHTML("beforeend", skillRow("信用评级", {}));
+  return creditRowEl();
+}
+
+// 选了职业就把信用评级补到下限（职业点列）；已经有加点的不动
+function fillCreditFloor(occ) {
+  if (!occ) return false;
+  const row = ensureCreditRow();
+  if (!row) return false;
+  if (creditFromSkillRow() > 0) return false;
+  row.querySelector("[data-occ]").value = Number(occ.credit_min || 0);
+  syncCreditAssets();
+  return true;
+}
+
+// 旧卡：信用评级只存在资产区字段 → 按「下限用职业点、其余兴趣点」铺进技能行
+function seedCreditFromAsset() {
+  if (creditFromSkillRow() > 0) return false;
+  const legacy = Number((card && card.credit_rating) || 0);
+  if (legacy <= 0) return false;
+  const row = ensureCreditRow();
+  if (!row) return false;
+  const occ = currentOccupation();
+  const floor = occ ? Number(occ.credit_min || 0) : 0;
+  const occupationPart = Math.min(legacy, floor);
+  row.querySelector("[data-occ]").value = occupationPart;
+  row.querySelector("[data-int]").value = Math.max(legacy - occupationPart, 0);
+  syncCreditAssets();
+  return true;
+}
+
 function syncCreditAssets() {
   const value = String(creditFromSkillRow());
   const field = document.getElementById("credit_rating");
@@ -850,18 +885,16 @@ function bind() {
       rerenderDerived();
       return;
     }
-    if (occ.name === lastOccupation) return;
+    // 信用评级补下限：与「职业是否变化」无关，没加点就补（旧卡/重复选择都覆盖）
+    const creditFilled = fillCreditFloor(occ);
+    if (occ.name === lastOccupation) {
+      if (creditFilled) rerenderDerived();
+      return;
+    }
     lastOccupation = occ.name;
     occChoices = {};
     pruneAutoAdded();
     renderOccChoices();
-    if (isCreditSkill("信用评级")) {
-      const row = creditRowEl();
-      if (row && creditFromSkillRow() === 0) {
-        row.querySelector("[data-occ]").value = occ.credit_min;
-        syncCreditAssets();
-      }
-    }
     const added = fillRequiredSkills(occ);
     rerenderDerived();
     if (added) showToast(`已补入本职技能 ${added} 项，可选池请逐项选择`, false);
@@ -1267,6 +1300,9 @@ async function init() {
       };
     }
     render();
+    // 旧卡的信用评级只存在资产区字段：铺进技能行后再同步一次（不写库，保存时由服务端归一化）
+    seedCreditFromAsset();
+    fillCreditFloor(currentOccupation());
   } catch (err) {
     main.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message || "加载失败")}</p>`;
   }
