@@ -634,67 +634,83 @@ class TestAttributeValue(unittest.TestCase):
             self.assertIsNone(coc.attribute_value(self.CARD, name), name)
 
 
-class TestCreditSkillMirror(unittest.TestCase):
-    """信用评级唯一来源是资产区；技能表那行只是镜像。"""
+class TestCreditSkillSource(unittest.TestCase):
+    """信用评级以技能行为源：职业点补到下限，之后可用兴趣点；资产区只同步。"""
 
     def _card(self, **over):
         card = {"rules": "coc7th", "char_name": "哈维", "occupation": "药剂师",
                 "str_score": 50, "con_score": 55, "siz_score": 65, "dex_score": 50,
                 "app_score": 60, "int_score": 60, "pow_score": 55, "edu_score": 70,
-                "credit_rating": 45, "skills": {}}
+                "credit_rating": 0, "skills": {}}
         card.update(over)
         return card
 
-    def test_finalize_uses_asset_value(self):
-        card = self._card(skills={"信用评级": {"interest": 20}})
-        fin = coc.finalize(card)
-        self.assertEqual(fin["skills"]["信用评级"]["total"], 45)
-        self.assertEqual(fin["skills"]["信用评级"]["interest"], 0)
-
-    def test_skill_value_matches_asset(self):
-        card = self._card(skills={"信用评级": {"occupation": 30}})
-        self.assertEqual(coc.skill_value(card, "信用评级"), 45)
-        self.assertEqual(coc.skill_value(card, "信用"), 45)
-
-    def test_missing_row_still_available(self):
-        card = self._card(skills={})
-        self.assertEqual(coc.skill_value(card, "信用评级"), 45)
-
-    def test_validate_migrates_leftover_points(self):
-        card = self._card(credit_rating=0, skills={"信用评级": {"interest": 40}})
+    def test_occupation_points_count(self):
+        card = self._card(skills={"信用评级": {"occupation": 40}})
         self.assertEqual(coc.validate(card), [])
         self.assertEqual(card["credit_rating"], 40)
-        self.assertEqual(card["skills"]["信用评级"]["interest"], 0)
+        self.assertEqual(coc.skill_value(card, "信用评级"), 40)
+        self.assertEqual(coc.finalize(card)["skills"]["信用评级"]["total"], 40)
 
-    def test_validate_keeps_asset_value(self):
-        card = self._card(credit_rating=45, skills={"信用评级": {"interest": 30}})
+    def test_interest_after_floor(self):
+        card = self._card(skills={"信用评级": {"occupation": 35, "interest": 10}})
         self.assertEqual(coc.validate(card), [])
-        self.assertEqual(card["credit_rating"], 45)   # 不覆盖玩家填的资产值
+        self.assertEqual(coc.skill_value(card, "信用评级"), 45)
 
-    def test_credit_clamped(self):
-        card = self._card(credit_rating=140)
-        self.assertEqual(coc.finalize(card)["skills"]["信用评级"]["total"], 99)
+    def test_interest_before_floor_refused(self):
+        card = self._card(skills={"信用评级": {"interest": 40}})
+        self.assertTrue(any("只能用职业点" in p for p in coc.validate(card)), coc.validate(card))
+        card2 = self._card(skills={"信用评级": {"occupation": 30, "interest": 5}})
+        self.assertTrue(any("只能用职业点" in p for p in coc.validate(card2)), coc.validate(card2))
 
-    def test_zero_credit_is_zero(self):
-        card = self._card(credit_rating=0)
-        self.assertEqual(coc.skill_value(card, "信用评级"), 0)
+    def test_range_enforced(self):
+        low = self._card(skills={"信用评级": {"occupation": 20}})
+        self.assertTrue(any("信用评级应在" in p for p in coc.validate(low)), coc.validate(low))
+        high = self._card(skills={"信用评级": {"occupation": 35, "interest": 50}})
+        self.assertTrue(any("信用评级应在" in p for p in coc.validate(high)), coc.validate(high))
+
+    def test_legacy_asset_value_migrates(self):
+        card = self._card(credit_rating=45)
+        self.assertEqual(coc.validate(card), [])
+        self.assertEqual(card["skills"]["信用评级"]["occupation"], 35)   # 下限用职业点
+        self.assertEqual(card["skills"]["信用评级"]["interest"], 10)     # 其余记兴趣点
+        self.assertEqual(card["credit_rating"], 45)
+
+    def test_base_and_growth_ignored(self):
+        card = self._card(skills={"信用评级": {"base": 30, "growth": 5, "occupation": 35}})
+        self.assertEqual(coc.validate(card), [])
+        self.assertEqual(card["skills"]["信用评级"]["base"], 0)
+        self.assertEqual(card["skills"]["信用评级"]["growth"], 0)
+        self.assertEqual(card["skills"]["信用评级"]["occupation"], 40)   # 成长并入职业点
+        self.assertEqual(card["credit_rating"], 40)
+
+    def test_no_occupation(self):
+        card = self._card(occupation="", skills={"信用评级": {"interest": 20}})
+        self.assertEqual(coc.validate(card), [])   # 无职业没有区间约束
+        self.assertEqual(card["credit_rating"], 20)
+
+    def test_occupation_points_allowed_for_credit(self):
+        card = self._card(skills={"信用评级": {"occupation": 40}})
+        self.assertEqual(coc.occupational_point_problems(card), [])
 
 
 class TestCreditSkillUi(unittest.TestCase):
-    """建卡页：技能表的信用评级只做镜像，四列不可编辑，不提交任何点数。"""
+    """建卡页：信用评级在技能表里加点，资产区只读同步。"""
 
     @classmethod
     def setUpClass(cls):
         cls.src = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
 
-    def test_row_is_locked(self):
+    def test_skill_row_editable(self):
         self.assertIn("function isCreditSkill", self.src)
-        self.assertIn("disabled title=", self.src)
-        self.assertIn("在资产区填写", self.src)
+        self.assertIn("先用职业点补到职业下限", self.src)
+        self.assertIn("到达下限之后才能用兴趣点加点", self.src)
 
-    def test_collect_writes_zero(self):
-        self.assertIn("if (isCreditSkill(name)) {", self.src)
-        self.assertIn("skills[name] = { base: 0, growth: 0, occupation: 0, interest: 0 };", self.src)
+    def test_asset_field_readonly(self):
+        self.assertIn('id="credit_rating"', self.src)
+        self.assertIn('readonly title="由技能表的信用评级决定', self.src)
 
-    def test_asset_change_syncs_row(self):
-        self.assertIn('document.getElementById("credit_rating").addEventListener("input", syncCreditRow)', self.src)
+    def test_sync(self):
+        self.assertIn("function syncCreditAssets", self.src)
+        self.assertIn("main.addEventListener(\"input\", syncCreditAssets)", self.src)
+        self.assertIn("credit_rating: creditFromSkillRow()", self.src)

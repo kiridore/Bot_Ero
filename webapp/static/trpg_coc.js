@@ -471,31 +471,37 @@ function skillNoteTitle(note) {
   return lines.join("\n");
 }
 
-function currentCredit() {
-  const el = document.getElementById("credit_rating");
-  return Number(el ? el.value || 0 : 0);
-}
-
-// 信用评级唯一来源是资产区：技能表这一行只做镜像，四列都不可编辑
 function isCreditSkill(name) {
   return canonSkill(name) === "信用评级";
 }
 
-function syncCreditRow() {
-  const row = [...document.querySelectorAll("[data-skill]")]
-    .find((r) => isCreditSkill(r.dataset.name));
-  if (!row) return;
-  const value = String(currentCredit());
-  const baseInput = row.querySelector("[data-base]");
-  if (baseInput) baseInput.value = value;
-  const total = row.querySelector("[data-total]");
+function creditRowEl() {
+  return [...document.querySelectorAll("[data-skill]")].find((r) => isCreditSkill(r.dataset.name));
+}
+
+// 信用评级由技能行的职业点 + 兴趣点决定；资产区那一格只做同步显示
+function creditFromSkillRow() {
+  const row = creditRowEl();
+  if (!row) return 0;
+  const num = (sel) => Number(row.querySelector(sel).value || 0);
+  return Math.min(num("[data-occ]") + num("[data-int]"), 99);
+}
+
+function syncCreditAssets() {
+  const value = String(creditFromSkillRow());
+  const field = document.getElementById("credit_rating");
+  if (field) field.value = value;
+  const level = document.getElementById("life_level");
+  if (level && level.dataset.auto !== "0") level.value = levelForCredit(value);
+  const row = creditRowEl();
+  const total = row && row.querySelector("[data-total]");
   if (total) total.textContent = value;
 }
 
 function skillRow(name, entry) {
   const credit = isCreditSkill(name);
-  const base = credit ? currentCredit() : (entry.base != null ? entry.base : skillBaseFor(name));
-  const lock = credit ? "disabled title=\"在资产区填写\"" : "";
+  const base = credit ? 0 : (entry.base != null ? entry.base : skillBaseFor(name));
+  const fixed = credit ? "disabled" : "";
   return `
     <tr data-skill data-name="${escapeHtml(name)}">
       <td>${escapeHtml(name)}${(() => {
@@ -505,11 +511,15 @@ function skillRow(name, entry) {
                       data-note="${escapeHtml(skillNoteTitle(note))}"
                       title="${escapeHtml(skillNoteTitle(note))}">i</span>`;
       })()}</td>
-      <td><input type="number" data-base value="${base}" min="0" max="99" class="coc-num" ${lock} /></td>
-      <td><input type="number" data-growth value="${credit ? 0 : (entry.growth || 0)}" min="0" max="199" class="coc-num" ${lock} />${!credit && entry.check ? " ✓" : ""}</td>
-      <td><input type="number" data-occ value="${credit ? 0 : (entry.occupation || 0)}" min="0" max="99" class="coc-num" ${lock} /></td>
-      <td><input type="number" data-int value="${credit ? 0 : (entry.interest || 0)}" min="0" max="99" class="coc-num" ${lock} /></td>
-      <td data-total class="coc-total">${credit ? base : 0}</td>
+      <td><input type="number" data-base value="${base}" min="0" max="99" class="coc-num" ${fixed}
+                 ${credit ? "title=\"信用评级没有基础值\"" : ""} /></td>
+      <td><input type="number" data-growth value="${credit ? 0 : (entry.growth || 0)}" min="0" max="199" class="coc-num" ${fixed}
+                 ${credit ? "title=\"信用评级不能获得成长标记\"" : ""} />${!credit && entry.check ? " ✓" : ""}</td>
+      <td><input type="number" data-occ value="${credit ? (entry.occupation || 0) : (entry.occupation || 0)}" min="0" max="99" class="coc-num"
+                 ${credit ? "title=\"先用职业点补到职业下限\"" : ""} /></td>
+      <td><input type="number" data-int value="${credit ? (entry.interest || 0) : (entry.interest || 0)}" min="0" max="99" class="coc-num"
+                 ${credit ? "title=\"到达下限之后才能用兴趣点加点\"" : ""} /></td>
+      <td data-total class="coc-total">${credit ? Math.min((entry.occupation || 0) + (entry.interest || 0), 99) : 0}</td>
       <td><button type="button" class="btn-sm" data-remove>删</button></td>
     </tr>`;
 }
@@ -737,7 +747,7 @@ function render() {
     <section class="coc-block">
       <h3>资产 <button type="button" class="btn-sm" id="fillAssets">按规则填入</button></h3>
       <div class="coc-grid">
-        <label>信用评级<input id="credit_rating" type="number" min="0" max="99" value="${card.credit_rating || 0}" class="coc-num" /></label>
+        <label>信用评级<input id="credit_rating" type="number" min="0" max="99" value="${creditFromSkillRow()}" class="coc-num" readonly title="由技能表的信用评级决定（职业点补到下限后可用兴趣点）" /></label>
         <label>生活水平
           <select id="living_standard">
             <option value="">未选择</option>
@@ -788,6 +798,7 @@ function render() {
   renderWeaponLibrary();
   renderInventoryTotals();
   renderAgeAdjust();
+  syncCreditAssets();   // 资产区的信用评级跟随技能行（整页刚渲染完才拿得到技能行）
   rerenderDerived();
 }
 
@@ -819,9 +830,12 @@ function bind() {
     pruneAutoAdded();
     renderOccChoices();
     const occ = currentOccupation();
-    if (occ) {
-      const credit = document.getElementById("credit_rating");
-      if (credit) credit.value = occ.credit_min;
+    if (occ && isCreditSkill("信用评级")) {
+      const row = creditRowEl();
+      if (row && creditFromSkillRow() === 0) {
+        row.querySelector("[data-occ]").value = occ.credit_min;
+        syncCreditAssets();
+      }
     }
     const added = fillRequiredSkills(occ);
     rerenderDerived();
@@ -910,7 +924,8 @@ function bind() {
       showToast(err.message || "查询失败", true);
     }
   });
-  document.getElementById("credit_rating").addEventListener("input", syncCreditRow);
+  main.addEventListener("input", syncCreditAssets);
+  main.addEventListener("change", syncCreditAssets);
   document.getElementById("credit_rating").addEventListener("change", () => {
     // 档位跟随信用评级（可手动改）
     const level = document.getElementById("living_standard");
@@ -1112,7 +1127,12 @@ function collect() {
   document.querySelectorAll("[data-skill]").forEach((row) => {
     const name = row.dataset.name;
     if (isCreditSkill(name)) {
-      skills[name] = { base: 0, growth: 0, occupation: 0, interest: 0 };
+      skills[name] = {
+        base: 0,
+        growth: 0,
+        occupation: Number(row.querySelector("[data-occ]").value || 0),
+        interest: Number(row.querySelector("[data-int]").value || 0),
+      };
       return;
     }
     skills[name] = {
@@ -1135,7 +1155,7 @@ function collect() {
     birthplace: document.getElementById("birthplace").value.trim(),
     era: document.getElementById("era").value.trim(),
     luck: Number(document.getElementById("luck").value || 0),
-    credit_rating: Number(document.getElementById("credit_rating").value || 0),
+    credit_rating: creditFromSkillRow(),
     cthulhu_mythos: Number(document.getElementById("cthulhu_mythos").value || 0),
     str_score: attr("str_score"), con_score: attr("con_score"), siz_score: attr("siz_score"),
     dex_score: attr("dex_score"), app_score: attr("app_score"), int_score: attr("int_score"),

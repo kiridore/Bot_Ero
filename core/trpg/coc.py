@@ -379,6 +379,8 @@ def occupational_point_problems(data: dict) -> list[str]:
         if points <= 0:
             continue
         name = canonical_skill(raw_name)
+        if name == CREDIT_SKILL:
+            continue                  # 信用评级对所有职业都算本职技能（补到下限）
         if name in required or any(name.startswith(prefix) for prefix in wildcards):
             continue
         if name in chosen:
@@ -591,10 +593,16 @@ def finalize(data: dict) -> dict:
         entry["total"] = skill_total(entry)
         skills[name] = entry
 
-    # 信用评级唯一来源是资产区：技能表那行只做展示，不受卡上残留点数影响
-    credit = credit_value(data)
-    skills[CREDIT_SKILL] = {"base": credit, "growth": 0, "occupation": 0,
-                            "interest": 0, "total": credit}
+    # 信用评级：职业点补到下限，之后可用兴趣点；基础值与成长不参与
+    credit_row = credit_entry(data) or {}
+    credit_points = {
+        "base": 0,
+        "growth": 0,
+        "occupation": int(credit_row.get("occupation") or 0),
+        "interest": int(credit_row.get("interest") or 0),
+    }
+    credit_points["total"] = min(credit_points["occupation"] + credit_points["interest"], 99)
+    skills[CREDIT_SKILL] = credit_points
 
     occupation_spent = sum(entry["occupation"] for entry in skills.values())
     interest_spent = sum(entry["interest"] for entry in skills.values())
@@ -623,6 +631,7 @@ def finalize(data: dict) -> dict:
         "db": str(db),
         "build": build,
         "dodge": dex_score // 2,
+        "credit_rating": credit_value(data),
         "skills": skills,
         "occupation_info": occupation,
         "occupation_budget": points_budget(occupation["formula"], data) if occupation else 0,
@@ -954,17 +963,7 @@ def validate(data: dict) -> list[str]:
         if fin["occupation_spent"] > fin["occupation_budget"]:
             problems.append(
                 f"职业点超出预算（{fin['occupation_spent']}/{fin['occupation_budget']}）")
-        info = fin["occupation_info"]
-        credit = data.get("credit_rating")
-        if credit is not None and str(credit) != "":
-            try:
-                credit_value = int(credit)
-            except (TypeError, ValueError):
-                problems.append("信用评级必须是整数")
-            else:
-                if not (info["credit_min"] <= credit_value <= info["credit_max"]):
-                    problems.append(
-                        f"信用评级应在 {info['credit_min']}-{info['credit_max']} 之间")
+        problems.extend(credit_problems(data))
     if fin["interest_spent"] > fin["interest_budget"]:
         problems.append(f"兴趣点超出预算（{fin['interest_spent']}/{fin['interest_budget']}）")
     for name, entry in fin["skills"].items():
@@ -982,45 +981,95 @@ def validate(data: dict) -> list[str]:
 CREDIT_SKILL = "信用评级"
 
 
-def normalize_credit_rating(data: dict) -> bool:
-    """信用评级以资产区 `credit_rating` 为唯一来源。
-
-    技能表里那行只是展示用：把历史残留的成长/职业/兴趣点并入 `credit_rating`
-    （仅当资产区还是 0 时，避免覆盖玩家填的值），然后把三列清零。
-    """
+def credit_entry(data: dict) -> dict | None:
+    """卡上的信用评级技能行（只读查找）。"""
     skills = data.get("skills")
     if not isinstance(skills, dict):
-        return False
-    row = next((entry for name, entry in skills.items()
-                if canonical_skill(name) == CREDIT_SKILL and isinstance(entry, dict)), None)
-    if row is None:
-        return False
-    try:
-        extra = sum(int(row.get(key) or 0) for key in ("growth", "occupation", "interest"))
-    except (TypeError, ValueError):
-        extra = 0
-    changed = False
-    if extra:
-        try:
-            credit = int(data.get("credit_rating") or 0)
-        except (TypeError, ValueError):
-            credit = 0
-        if credit <= 0:
-            data["credit_rating"] = min(extra, SKILL_CEILING)
-        for key in ("growth", "occupation", "interest"):
-            if row.get(key):
-                row[key] = 0
-                changed = True
-    return changed
+        return None
+    for name, entry in skills.items():
+        if canonical_skill(name) == CREDIT_SKILL and isinstance(entry, dict):
+            return entry
+    return None
 
 
 def credit_value(data: dict) -> int:
-    """卡上的信用评级（资产区那一格），钳在 0-99。"""
+    """信用评级 = 技能行里的职业点 + 兴趣点（基础值恒为 0），钳在 0-99。"""
+    entry = credit_entry(data) or {}
     try:
-        value = int(data.get("credit_rating") or 0)
+        total = int(entry.get("occupation") or 0) + int(entry.get("interest") or 0)
     except (TypeError, ValueError):
-        value = 0
-    return max(0, min(value, 99))
+        total = 0
+    return max(0, min(total, 99))
+
+
+def normalize_credit_rating(data: dict) -> bool:
+    """信用评级由技能行决定：先迁走资产区的历史值，再把 credit_rating 同步成技能合计。
+
+    迁移规则：技能行合计为 0 而资产区有值时，下限以内算职业点、其余记兴趣点
+    （没有职业时全部记兴趣点）。资产参考表与生活水平仍读 `credit_rating`，
+    因此这里每次保存都把它写成技能的合计值。
+    """
+    skills = data.get("skills")
+    if not isinstance(skills, dict):
+        skills = data["skills"] = {}
+    key = next((name for name in skills if canonical_skill(name) == CREDIT_SKILL), CREDIT_SKILL)
+    row = skills.get(key)
+    if not isinstance(row, dict):
+        row = {}
+        skills[key] = row
+
+    changed = False
+    if row.get("base"):
+        row["base"] = 0            # 信用评级没有基础成功率
+        changed = True
+    if row.get("growth"):
+        # 规则禁止给它打成长标记；历史数据里的成长并入职业点，不丢点数
+        row["occupation"] = int(row.get("occupation") or 0) + int(row["growth"] or 0)
+        row["growth"] = 0
+        changed = True
+
+    try:
+        spent = int(row.get("occupation") or 0) + int(row.get("interest") or 0)
+    except (TypeError, ValueError):
+        spent = 0
+    if spent == 0:
+        try:
+            legacy = int(data.get("credit_rating") or 0)
+        except (TypeError, ValueError):
+            legacy = 0
+        if legacy > 0:
+            info = occupation_by_name((data.get("occupation") or "").strip())
+            occupation_part = min(legacy, info["credit_min"]) if info else 0
+            row["occupation"] = occupation_part
+            row["interest"] = max(legacy - occupation_part, 0)
+            changed = True
+
+    total = credit_value(data)
+    if data.get("credit_rating") != total:
+        data["credit_rating"] = total
+        changed = True
+    return changed
+
+
+def credit_problems(data: dict) -> list[str]:
+    """信用评级校验：落在职业区间内；未到下限时只能用职业点加点。"""
+    info = occupation_by_name((data.get("occupation") or "").strip())
+    if not info:
+        return []
+    entry = credit_entry(data) or {}
+    try:
+        occupation_points = int(entry.get("occupation") or 0)
+        interest_points = int(entry.get("interest") or 0)
+    except (TypeError, ValueError):
+        occupation_points = interest_points = 0
+    total = occupation_points + interest_points
+    low, high = info["credit_min"], info["credit_max"]
+    if not (low <= total <= high):
+        return [f"信用评级应在 {low}-{high} 之间（当前 {total}）"]
+    if interest_points > 0 and occupation_points < low:
+        return [f"信用评级未到职业下限 {low} 时只能用职业点加点"
+                f"（现在职业点 {occupation_points}、兴趣点 {interest_points}）"]
+    return []
 
 
 def skill_value(data: dict, name: str) -> int | None:

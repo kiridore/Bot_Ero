@@ -298,13 +298,15 @@ class TestCocRules(unittest.TestCase):
                 plugin.handle()
             self.assertIn("[力量=60]", _sent_text(plugin), name)
 
-    def test_ra_credit_uses_asset_value(self):
-        # 技能行残留兴趣点不能盖过资产区的信用评级
-        card = self._coc_card(skills={"信用评级": {"interest": 20}, "侦察": {"base": 25}})
+    def test_ra_credit_uses_skill_points(self):
+        # 信用评级由技能行的职业点 + 兴趣点决定，资产区字段只是镜像
+        card = self._coc_card(credit_rating=0,
+                              skills={"信用评级": {"occupation": 40}, "侦察": {"base": 25}})
         plugin = self._plugin(".ra 信用评级")
         with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"),                 patch("plugins.trpg_dice.store.get_current", return_value=card),                 patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
             plugin.handle()
-        self.assertIn("[信用评级=40]", _sent_text(plugin))   # 资产区 40，不是技能行的 20
+        self.assertIn("[信用评级=40]", _sent_text(plugin))
+        self.assertNotIn("已标记技能成长", _sent_text(plugin))
 
     def test_ra_luck_and_credit(self):
         for name, expect in (("幸运", "[幸运=50]"), ("信用评级", "[信用评级=40]"), ("信用", "[信用评级=40]")):
