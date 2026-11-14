@@ -801,3 +801,15 @@
 .coc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 .coc-table th, .coc-table td { padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--rule); text-align: left; }
 .coc-total { font-weight: 700; }
+
+/* 只读派生值（如资产区的信用评级）：看起来是结果，不是输入框 */
+.coc-readonly {
+  display: inline-block;
+  min-width: 4rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink-soft) 10%, transparent);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}

@@ -35,13 +35,13 @@ function makeRow(name) {
 
 function harness() {
   const rows = [makeRow("信用评级")];
-  const field = { value: "0", dataset: {} };
-  const level = { value: "", dataset: { auto: "1" } };
+  const field = { value: "0", textContent: "0", tagName: "OUTPUT", dataset: {} };
+  const level = { value: "", dataset: {} };
   const card = { credit_rating: 0 };
   const state = { occ: null };
   const document = {
     getElementById: (id) => (id === "credit_rating" ? field
-      : id === "life_level" ? level
+      : id === "living_standard" ? level
         : id === "skillBody" ? { insertAdjacentHTML() {} } : null),
     querySelectorAll: (sel) => (sel === "[data-skill]" ? rows : []),
   };
@@ -65,7 +65,7 @@ function harness() {
   h.run("fillCreditFloor(currentOccupation());");
   check("选职业把信用评级补到下限", h.row._cells["[data-occ]"].value === 35,
     String(h.row._cells["[data-occ]"].value));
-  check("资产区同步为下限", h.field.value === "35", String(h.field.value));
+  check("资产区同步为下限", h.field.textContent === "35", String(h.field.textContent));
   check("合计列同步", h.row._cells["[data-total]"].textContent === "35",
     String(h.row._cells["[data-total]"].textContent));
 }
@@ -78,7 +78,7 @@ function harness() {
   h.run("fillCreditFloor(currentOccupation());");
   check("先填兴趣点：下限挪进职业点", h.row._cells["[data-occ]"].value === 35,
     String(h.row._cells["[data-occ]"].value));
-  check("先填兴趣点：合计仍按玩家填的 35（下限托底）", h.field.value === "35", String(h.field.value));
+  check("先填兴趣点：合计仍按玩家填的 35（下限托底）", h.field.textContent === "35", String(h.field.textContent));
 }
 {
   const h = harness();
@@ -123,7 +123,7 @@ function harness() {
     String(h.row._cells["[data-occ]"].value));
   check("旧卡迁移：超出部分记兴趣点", h.row._cells["[data-int]"].value === 10,
     String(h.row._cells["[data-int]"].value));
-  check("旧卡迁移后资产区仍是 45", h.field.value === "45", String(h.field.value));
+  check("旧卡迁移后资产区仍是 45", h.field.textContent === "45", String(h.field.textContent));
 }
 
 // 4. 没有职业时旧值全记兴趣点（职业点不该无职业乱加）
@@ -151,6 +151,8 @@ function harness() {
 check("职业变更先补下限",
   /const creditFilled = fillCreditFloor\(occ\);[\s\S]{0,120}occ\.name === lastOccupation/.test(src));
 check("职业没变但补了下限会刷新派生", /if \(creditFilled\) rerenderDerived\(\);/.test(src));
+check("资产区不是输入框（只读展示）", !/<input id="credit_rating"/.test(src)
+  && /<output id="credit_rating"/.test(src));
 check("加载完成后迁移旧值并补下限",
   /render\(\);[\s\S]{0,200}seedCreditFromAsset\(\);\s*fillCreditFloor\(currentOccupation\(\)\);/.test(src));
 

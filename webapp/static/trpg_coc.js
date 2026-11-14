@@ -393,7 +393,7 @@ function rerenderDerived() {
   // 资产：档位提示 + 合计
   const assetHint = document.getElementById("assetHint");
   if (assetHint) {
-    const credit = Number(document.getElementById("credit_rating")?.value || 0);
+    const credit = creditFromSkillRow();
     const level = levelForCredit(credit);
     const chosen = document.getElementById("living_standard")?.value || "";
     assetHint.textContent = chosen && chosen !== level
@@ -557,9 +557,13 @@ function seedCreditFromAsset() {
 function syncCreditAssets() {
   const value = String(creditFromSkillRow());
   const field = document.getElementById("credit_rating");
-  if (field) field.value = value;
-  const level = document.getElementById("life_level");
-  if (level && level.dataset.auto !== "0") level.value = levelForCredit(value);
+  if (field) {
+    if (typeof field.textContent === "string" && field.tagName === "OUTPUT") field.textContent = value;
+    else field.value = value;   // 兼容旧页面/测试桩
+  }
+  // 生活水平跟着信用评级走，但玩家自己选过就不覆盖
+  const level = document.getElementById("living_standard");
+  if (level && !level.value) level.value = levelForCredit(value);
   const row = creditRowEl();
   const total = row && row.querySelector("[data-total]");
   if (total) total.textContent = value;
@@ -813,7 +817,9 @@ function render() {
     <section class="coc-block">
       <h3>资产 <button type="button" class="btn-sm" id="fillAssets">按规则填入</button></h3>
       <div class="coc-grid">
-        <label>信用评级<input id="credit_rating" type="number" min="0" max="99" value="${creditFromSkillRow()}" class="coc-num" readonly title="由技能表的信用评级决定（职业点补到下限后可用兴趣点）" /></label>
+        <label>信用评级
+          <output id="credit_rating" class="coc-readonly" title="由技能表的信用评级决定（职业点补到下限后可用兴趣点）">${creditFromSkillRow()}</output>
+        </label>
         <label>生活水平
           <select id="living_standard">
             <option value="">未选择</option>
@@ -984,7 +990,7 @@ function bind() {
   document.getElementById("era").addEventListener("change", renderWeaponLibrary);
   document.getElementById("fillAssets").addEventListener("click", async () => {
     const currency = document.getElementById("currency").value;
-    const credit = document.getElementById("credit_rating").value;
+    const credit = creditFromSkillRow();
     if (!currency) {
       showToast("先选择币种", true);
       return;
@@ -1007,12 +1013,6 @@ function bind() {
   });
   main.addEventListener("input", syncCreditAssets);
   main.addEventListener("change", syncCreditAssets);
-  document.getElementById("credit_rating").addEventListener("change", () => {
-    // 档位跟随信用评级（可手动改）
-    const level = document.getElementById("living_standard");
-    if (level) level.value = levelForCredit(document.getElementById("credit_rating").value);
-    rerenderDerived();
-  });
   document.getElementById("addWeapon").addEventListener("click", () => {
     document.getElementById("weaponBody").insertAdjacentHTML(
       "beforeend",

@@ -724,8 +724,11 @@ class TestCreditSkillUi(unittest.TestCase):
         self.assertIn("到达下限之后才能用兴趣点加点", self.src)
 
     def test_asset_field_readonly(self):
-        self.assertIn('id="credit_rating"', self.src)
-        self.assertIn('readonly title="由技能表的信用评级决定', self.src)
+        # 资产区不是输入框：只渲染 <output>，值来自技能行
+        self.assertIn('<output id="credit_rating"', self.src)
+        self.assertNotIn('<input id="credit_rating"', self.src)
+        self.assertIn('title="由技能表的信用评级决定', self.src)
+        self.assertIn("const credit = creditFromSkillRow();", self.src)
 
     def test_sync(self):
         self.assertIn("function syncCreditAssets", self.src)
