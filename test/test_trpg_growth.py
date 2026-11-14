@@ -82,10 +82,10 @@ class TestMark(unittest.TestCase):
         self.assertTrue(growth.mark(card, "侦查"))
         self.assertEqual(growth.checked_skills(card), ["侦察"])
 
-    def test_unknown_skill_not_marked(self):
+    def test_custom_skill_marked(self):
         card = _coc_card()
-        self.assertFalse(growth.mark(card, "御剑术"))
-        self.assertEqual(growth.checked_skills(card), [])
+        self.assertTrue(growth.mark(card, "御剑术"))     # 自定义技能（基础值 0）也能打勾
+        self.assertEqual(growth.checked_skills(card), ["御剑术"])
 
 
 class TestSettle(unittest.TestCase):

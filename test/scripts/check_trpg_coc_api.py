@@ -334,5 +334,18 @@ check("旧卡资产值迁进技能行", r.status_code == 200
       and (migrated_rows.get("信用评级") or {}).get("interest") == 10, r.text[:200])
 check("迁移后资产区仍是 45", migrated.get("credit_rating") == 45, str(migrated.get("credit_rating")))
 
+# —— 自定义技能：不再限定官方表，基础值手填 ——
+r = client.post("/api/me/characters", headers=H, json={
+    **BASE_CARD, "skills": {"信用评级": {"occupation": 40}, "侦察": {"base": 25}, "飞天": {"base": 35}},
+})
+check("自定义技能可保存 200", r.status_code == 200, r.text[:200])
+custom = r.json() if r.status_code == 200 else {}
+custom_rows = custom.get("skills") or {}
+check("自定义技能保留", (custom_rows.get("飞天") or {}).get("total") == 35, str(custom_rows.get("飞天")))
+check("官方技能基础值不变", (custom_rows.get("侦察") or {}).get("total") == 25, str(custom_rows.get("侦察")))
+r = client.post("/api/me/characters", headers=H, json={
+    **BASE_CARD, "skills": {"信用评级": {"occupation": 40}, "很" * 31: {"base": 10}},
+})
+check("超长技能名 400", r.status_code == 400 and "技能名" in r.text, r.text[:160])
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)

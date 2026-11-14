@@ -16,6 +16,8 @@ from core.trpg.coc_data import OCCUPATION_SKILLS, OCCUPATIONS, SKILL_BASE, SKILL
 
 SKILL_MAX = 99
 SKILL_CEILING = 199  # 幕间成长可使技能超过 100%
+SKILL_NAME_MAX = 30  # 自定义技能名上限
+_SKILL_NAME_BAD_CHARS = ("\n", "\r", "\t")
 
 # 武器表：文本字段保留原表自由度，但校验可解析性与基础范围
 WEAPON_ROWS_MAX = 50
@@ -335,7 +337,7 @@ def occupation_choice_problems(data: dict) -> list[str]:
                 f"{occ['name']}的可选池 #{pool_index + 1} 最多选 {pool['count']} 项（已选 {len(names)}）")
         for name in names:
             fixed = canonical_skill(name)
-            if not skill_name_ok(fixed):
+            if not is_known_skill(fixed):
                 problems.append(f"可选技能「{name}」不在技能表内")
             elif not _pool_accepts(pool, fixed):
                 problems.append(f"「{name}」不在{occ['name']}的可选池 #{pool_index + 1} 中")
@@ -428,16 +430,48 @@ def canonical_skill(name: str) -> str:
     return SKILL_ALIASES.get(key, key)
 
 
-def skill_name_ok(name: str) -> bool:
-    name = canonical_skill(name)
-    if not name:
+def is_known_skill(name: str) -> bool:
+    """是否是规则表里有的技能（官方项 / 类别:专攻 / 武器专攻）。职业可选池用它校验。"""
+    text = canonical_skill(str(name or "")).strip()
+    if not text:
         return False
-    if name in SKILL_BASE:
+    if text in known_skill_names() or weapon_specialty_base(text) is not None:
         return True
-    # 武器技能（斗殴、手枪、步枪/霰弹枪…）也是合法技能名，只是不在 39 项标准表里
-    if name in weapon_skill_base() or weapon_specialty_base(name) is not None:
-        return True
-    return any(name.startswith(cat) for cat in SKILL_CATEGORIES)
+    if ":" in text:
+        category, _, speciality = text.partition(":")
+        return category.strip() in SKILL_CATEGORIES and bool(speciality.strip())
+    return False
+
+
+def known_skill_names() -> frozenset:
+    """规则表里出现的技能名集合（构建一次后缓存）。"""
+    return _known_skill_names()
+
+
+def _known_skill_names_cached() -> frozenset:
+    names = set(skill_base_map())
+    names.update(FIGHTING_SKILL_BASE)
+    names.update(FIREARM_SKILL_BASE)
+    return frozenset(names)
+
+
+def _known_skill_names() -> frozenset:
+    global _KNOWN_SKILLS
+    if _KNOWN_SKILLS is None:
+        _KNOWN_SKILLS = _known_skill_names_cached()
+    return _KNOWN_SKILLS
+
+
+_KNOWN_SKILLS = None
+
+
+def skill_name_ok(name: str) -> bool:
+    """技能名合法即可：官方技能、类别:专攻，以及玩家自定义的技能（基础值手填）。"""
+    text = canonical_skill(str(name or "")).strip()
+    if not text or len(text) > SKILL_NAME_MAX:
+        return False
+    return not any(ch in text for ch in _SKILL_NAME_BAD_CHARS)
+
 
 
 # 附表里武器技能的写法与规则书/武器库不一致的几处
@@ -1005,6 +1039,10 @@ def validate(data: dict) -> list[str]:
     for name, entry in fin["skills"].items():
         if entry["total"] < 0 or entry["total"] > SKILL_CEILING:
             problems.append(f"技能「{name}」成功率应在 0-{SKILL_CEILING} 之间")
+    for raw_name in (data.get("skills") or {}):
+        if not skill_name_ok(raw_name):
+            problems.append(
+                f"技能名「{str(raw_name)[:20]}」不合法（最多 {SKILL_NAME_MAX} 字，不能含换行）")
     problems.extend(occupation_choice_problems(data))
     problems.extend(occupational_point_problems(data))
     problems.extend(weapon_problems(data.get("weapons") or []))

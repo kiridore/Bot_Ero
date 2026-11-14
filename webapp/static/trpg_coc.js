@@ -146,13 +146,21 @@ function canonSkill(name) {
 }
 
 function normalizeSkillName(name) {
-  const canon = canonSkill(name);
+  // 技能名不再限定官方表：认识的做别名/类别归一，不认识的当自定义技能
+  const canon = canonSkill(name).replace(/\s+/g, " ").trim();
+  if (!canon) return "";
   if (canon in (options.skill_base || {})) return canon;
   const cats = options.skill_categories || [];
   const cat = cats.find((c) => canon.startsWith(c));
-  if (!cat) return null;
+  if (!cat) return canon;
   const rest = canon.slice(cat.length).replace(/^[:：\s]+/, "").trim();
-  return rest ? `${cat}:${rest}` : null;
+  return rest ? `${cat}:${rest}` : cat;
+}
+
+// 有官方基础值的技能自动填，自定义技能从 0 开始（可手填）
+function skillBaseOrZero(name) {
+  const base = skillBaseFor(name);
+  return Number.isFinite(base) ? base : 0;
 }
 
 function escapeHtml(s) {
@@ -715,10 +723,7 @@ function render() {
     <section class="coc-block">
       <h3>技能</h3>
       <div class="coc-add-skill">
-        <input type="text" id="skillName" list="skillOptions" placeholder="输入或选择技能名，如 侦察 / 技艺:烹饪" />
-        <datalist id="skillOptions">
-          ${Object.keys(options.skill_base || {}).map((n) => `<option value="${escapeHtml(n)}"></option>`).join("")}
-        </datalist>
+        <input type="text" id="skillName" placeholder="输入技能名，如 侦察 / 技艺:烹饪 / 自定技能" />
         <button type="button" class="btn-sm" id="addSkill">添加技能</button>
         <span class="coc-add-hint" id="skillAddHint"></span>
       </div>
@@ -857,7 +862,11 @@ function bind() {
     }
     const name = normalizeSkillName(raw);
     if (!name) {
-      setSkillHint(`无法识别「${raw}」：用官方技能名，或「科学:生物学」这类「类别:专攻」写法`);
+      setSkillHint("先输入技能名");
+      return;
+    }
+    if (name.length > 30) {
+      setSkillHint(`技能名太长（${name.length} 字），最多 30 字`);
       return;
     }
     const exists = [...document.querySelectorAll("[data-skill]")]
@@ -867,7 +876,9 @@ function bind() {
       return;
     }
     const tbody = document.getElementById("skillBody");
-    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: skillBaseFor(name) }));
+    const known = skillBaseFor(name) > 0;
+    tbody.insertAdjacentHTML("beforeend", skillRow(name, { base: skillBaseOrZero(name) }));
+    setSkillHint(known ? "" : `「${name}」不是官方技能，基础值可自行填写`);
     skillInput.value = "";
     setSkillHint("");
     rerenderDerived();

@@ -1,4 +1,4 @@
-// COC 建卡页技能名规范化的行为校验：官方名 / 别名 / 「类别:专攻」写法 / 无效名。
+// COC 建卡页技能名规范化的行为校验：官方名 / 别名 / 「类别:专攻」写法 / 自定义技能。
 // 直接从 trpg_coc.js 里截取 canonSkill + normalizeSkillName 两个函数执行，避免复制规则。
 
 const fs = require("fs");
@@ -43,9 +43,11 @@ check("类别:专攻 保留", normalizeSkillName("科学:生物学") === "科学
 check("全角冒号转半角", normalizeSkillName("技艺：摄影") === "技艺:摄影");
 check("漏写分隔符自动补", normalizeSkillName("科学生物学") === "科学:生物学");
 check("空白裁掉", normalizeSkillName("  语言:拉丁语 ") === "语言:拉丁语");
-check("纯类别拒绝", normalizeSkillName("科学") === null);
-check("凭空造名拒绝", normalizeSkillName("飞天") === null);
-check("空字符串拒绝", normalizeSkillName("") === null);
+check("纯类别保留为类别名", normalizeSkillName("科学") === "科学");
+check("自定义技能放行", normalizeSkillName("飞天") === "飞天");
+check("自定义技能去首尾空白", normalizeSkillName("  飞天  ") === "飞天");
+check("自定义技能保留空格", normalizeSkillName("黑客 工具") === "黑客 工具");
+check("空字符串拒绝", normalizeSkillName("") === "");
 
 // 职业点允许集合：固定项 + 类别通配 + 已选池内技能
 const occ = { seq: 3 };

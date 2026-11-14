@@ -106,7 +106,8 @@ class TestBuilderScript(unittest.TestCase):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertNotIn("prompt(", src)
         self.assertIn('id="skillName"', src)
-        self.assertIn('list="skillOptions"', src)
+        self.assertNotIn('list="skillOptions"', src)      # 不再用下拉候选
+        self.assertNotIn("<datalist", src)
         self.assertIn("addSkillFromInput", src)
         # 定义必须真的落地，否则 bind() 里会抛 skillInput is not defined
         self.assertIn("const skillInput = document.getElementById(\"skillName\");", src)
@@ -425,7 +426,22 @@ class TestWeaponSkills(unittest.TestCase):
     def test_skill_name_ok_accepts_weapon_skill(self):
         self.assertTrue(coc.skill_name_ok("斗殴"))
         self.assertTrue(coc.skill_name_ok("手枪"))
-        self.assertFalse(coc.skill_name_ok("飞天"))
+        # 技能名不再限定官方表：自定义技能也合法（基础值手填）
+        self.assertTrue(coc.skill_name_ok("飞天"))
+        self.assertFalse(coc.skill_name_ok("很" * 31))
+        self.assertFalse(coc.skill_name_ok("   "))
+
+    def test_custom_skill_persists(self):
+        card = {"rules": "coc7th", "occupation": "", "skills": {"飞天": {"base": 35}}}
+        fin = coc.finalize(card)
+        self.assertEqual(fin["skills"]["飞天"]["total"], 35)
+        self.assertEqual(coc.skill_value(card, "飞天"), 35)
+        self.assertFalse(coc.is_known_skill("飞天"))
+
+    def test_occupation_pool_still_strict(self):
+        card = {"rules": "coc7th", "occupation": "会计师",
+                "occupation_choices": {"0": ["飞天"]}, "skills": {}}
+        self.assertTrue(any("不在技能表内" in p for p in coc.occupation_choice_problems(card)))
 
 
 class TestGrowthMarkDefaults(unittest.TestCase):
@@ -451,11 +467,12 @@ class TestGrowthMarkDefaults(unittest.TestCase):
         self.assertTrue(card["skills"]["侦察"]["check"])
         self.assertEqual(len(card["skills"]), 1)
 
-    def test_unknown_skill_rejected(self):
+    def test_custom_skill_marked_with_zero_base(self):
         from core.trpg import growth
         card = _card(skills={})
-        self.assertFalse(growth.mark(card, "飞天"))
-        self.assertEqual(card["skills"], {})
+        self.assertTrue(growth.mark(card, "飞天"))       # 自定义技能也能打成长标记
+        self.assertEqual(card["skills"]["飞天"].get("check"), True)
+        self.assertEqual(int(card["skills"]["飞天"].get("base") or 0), 0)
 
 
 class TestSkillBaseConsistency(unittest.TestCase):
