@@ -106,8 +106,8 @@ class TestBuilderScript(unittest.TestCase):
         src = (PROJECT_ROOT / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertNotIn("prompt(", src)
         self.assertIn('id="skillName"', src)
-        self.assertNotIn('list="skillOptions"', src)      # 不再用下拉候选
-        self.assertNotIn("<datalist", src)
+        self.assertNotIn('list="skillOptions"', src)      # 技能名不再用下拉候选
+        self.assertNotIn('<datalist id="skillOptions">', src)
         self.assertIn("addSkillFromInput", src)
         # 定义必须真的落地，否则 bind() 里会抛 skillInput is not defined
         self.assertIn("const skillInput = document.getElementById(\"skillName\");", src)
@@ -779,3 +779,29 @@ class TestWeaponSpecialtyBase(unittest.TestCase):
     def test_unknown_specialty_zero(self):
         self.assertEqual(coc.skill_base_for("射击:飞天"), 0)
         self.assertIsNone(coc.weapon_specialty_base("射击:飞天"))
+
+
+class TestOccupationSearch(unittest.TestCase):
+    """职业既能下拉也能打字搜索：input + datalist，打错的名字保存前拦住。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        cls.html = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.html").read_text(encoding="utf-8")
+
+    def test_input_with_datalist(self):
+        self.assertIn('id="occupation"', self.src)
+        self.assertIn('list="occOptions"', self.src)
+        self.assertIn('<datalist id="occOptions">', self.src)
+        self.assertNotIn('<select id="occupation">', self.src)
+
+    def test_exact_match_only(self):
+        self.assertIn("function unknownOccupation", self.src)
+        self.assertIn('find((o) => o.name === name)', self.src)
+
+    def test_save_blocks_unknown(self):
+        self.assertIn("const wrongOccupation = unknownOccupation();", self.src)
+        self.assertIn("不在列表里", self.src)
+
+    def test_switch_only_on_real_change(self):
+        self.assertIn("if (occ.name === lastOccupation) return;", self.src)

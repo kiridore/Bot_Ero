@@ -320,8 +320,15 @@ function syncChosenSkills() {
 }
 
 function currentOccupation() {
-  const name = document.getElementById("occupation")?.value || "";
+  const name = (document.getElementById("occupation")?.value || "").trim();
+  if (!name) return null;
   return (options.occupations || []).find((o) => o.name === name) || null;
+}
+
+// 打了一半/写错的名字：保存前要拦下来，别当成「未选职业」静默通过
+function unknownOccupation() {
+  const name = (document.getElementById("occupation")?.value || "").trim();
+  return name && !currentOccupation() ? name : "";
 }
 function pointsBudget(formula, get) {
   let total = 0;
@@ -672,10 +679,12 @@ function render() {
         <label>故乡<input id="birthplace" value="${escapeHtml(card.birthplace || "")}" /></label>
         <label>时代<input id="era" value="${escapeHtml(card.era || "")}" /></label>
         <label class="coc-wide">职业
-          <select id="occupation">
-            <option value="">未选择</option>
-            ${options.occupations.map((o) => `<option value="${escapeHtml(o.name)}"${o.name === card.occupation ? " selected" : ""}>${escapeHtml(o.name)}</option>`).join("")}
-          </select>
+          <input id="occupation" list="occOptions" autocomplete="off"
+                 placeholder="输入或点开选择职业（可打字搜索）"
+                 value="${escapeHtml(card.occupation || "")}" />
+          <datalist id="occOptions">
+            ${options.occupations.map((o) => `<option value="${escapeHtml(o.name)}"></option>`).join("")}
+          </datalist>
         </label>
       </div>
       <div id="occ-choices" class="coc-choices"></div>
@@ -830,12 +839,23 @@ function bind() {
   main.addEventListener("input", rerenderDerived);
   main.addEventListener("change", rerenderDerived);
   document.getElementById("age").addEventListener("change", renderAgeAdjust);
-  document.getElementById("occupation").addEventListener("change", () => {
+  const occupationInput = document.getElementById("occupation");
+  let lastOccupation = currentOccupation()?.name || "";
+  occupationInput.addEventListener("change", () => {
+    const occ = currentOccupation();
+    if (!occ) {
+      // 没匹配到正式职业名（打错/只打了个开头）：保留已选内容，不让可选池凭空清空
+      if (!occupationInput.value.trim()) lastOccupation = "";
+      renderOccChoices();
+      rerenderDerived();
+      return;
+    }
+    if (occ.name === lastOccupation) return;
+    lastOccupation = occ.name;
     occChoices = {};
     pruneAutoAdded();
     renderOccChoices();
-    const occ = currentOccupation();
-    if (occ && isCreditSkill("信用评级")) {
+    if (isCreditSkill("信用评级")) {
       const row = creditRowEl();
       if (row && creditFromSkillRow() === 0) {
         row.querySelector("[data-occ]").value = occ.credit_min;
@@ -1158,7 +1178,7 @@ function collect() {
   return {
     rules: "coc7th",
     char_name: document.getElementById("char_name").value.trim() || "无名调查员",
-    occupation: document.getElementById("occupation").value,
+    occupation: (document.getElementById("occupation").value || "").trim(),
     occupation_choices: occChoices,
     age: Number(document.getElementById("age").value || 0),
     sex: document.getElementById("sex").value.trim(),
@@ -1201,6 +1221,12 @@ function collect() {
 }
 
 async function save() {
+  const wrongOccupation = unknownOccupation();
+  if (wrongOccupation) {
+    showToast(`职业「${wrongOccupation}」不在列表里：请从下拉里选一个，或清空`, true);
+    document.getElementById("occupation").focus();
+    return;
+  }
   const payload = collect();
   try {
     const url = CHAR_ID ? `/api/me/characters/${CHAR_ID}` : "/api/me/characters";
