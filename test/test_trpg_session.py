@@ -22,7 +22,7 @@ from core import character_store as store
 from core.config import BOT_QQ, NICKNAME, WEB_BASE_URL
 from core.trpg import party, records
 from plugins.trpg_dice import TrpgPlugin
-from plugins.trpg_session import TrpgSessionPlugin, recover_recordings
+from plugins.trpg_session import ROUTED_SUBCMDS, TrpgSessionPlugin, recover_recordings
 from plugins.trpg_vitals import TrpgVitalsPlugin
 from test.helper import MockApiWrapper, make_private_message
 import core.context as runtime_context
@@ -500,6 +500,53 @@ class TestRecordFilesOnDisk(IsolationMixin, unittest.TestCase):
             self.messages(self.record_dir())[0]["segments"],
             [{"type": "at", "qq": "123456"}, {"type": "text", "text": "你看这里"}],
         )
+
+
+# ── 子命令匹配：新增子命令必须能被 match() 放行 ─────────────
+
+class TestRoutedSubcommandsMatch(IsolationMixin, unittest.TestCase):
+    """`/跑团 成长` 曾因不在 match 白名单里，永远收不到指令（1.63 引入白名单时漏掉）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _match(self, text):
+        ctx = _group_event([_text_seg(text)])
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        return plugin.match("message")
+
+    def test_every_routed_subcommand_matches(self):
+        for sub in sorted(ROUTED_SUBCMDS):
+            self.assertTrue(self._match(f"/跑团 {sub}"), sub)
+
+    def test_bare_command_matches(self):
+        self.assertTrue(self._match("/跑团"))
+
+    def test_unknown_subcommand_ignored(self):
+        self.assertFalse(self._match("/跑团 乱打"))
+
+    def test_growth_command_settles_via_dispatch(self):
+        """/跑团 成长 走「先 match 再 handle」的真实顺序能完成结算。"""
+        card_id = store.create_char("111", {
+            "rules": "coc7th", "char_name": "田宫真莉", "occupation": "药剂师",
+            "str_score": 50, "con_score": 55, "siz_score": 65, "dex_score": 50,
+            "app_score": 60, "int_score": 60, "pow_score": 55, "edu_score": 70,
+            "skills": {"侦察": {"base": 25, "check": True}},
+        })
+        store.set_current("111", card_id)
+        ctx = _group_event([_text_seg("/跑团 成长")])
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        with patch("core.trpg.growth.random.randint", side_effect=[99, 6]):
+            if plugin.match("message"):
+                plugin.handle()
+        self.assertIn("幕间成长", _sent_text(plugin))
+        self.assertIn("侦察", _sent_text(plugin))
+        saved = store.get_char("111", card_id)
+        self.assertEqual(saved["skills"]["侦察"]["growth"], 6)
+        self.assertFalse(saved["skills"]["侦察"].get("check"))
 
 
 # ── 插件匹配：录制中「没有文字的消息」也要入档 ─────────────

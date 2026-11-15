@@ -24,6 +24,8 @@ RECORD_STATES = {"recording": "录制中", "ended": "已结束"}
 
 COMMAND = "/跑团"
 PARTY_SUBCMDS = frozenset({"准备", "取消准备", "名单", "规则"})
+# 本插件处理的全部子命令：新增子命令必须同步这里，否则 match() 会把指令挡在门外
+ROUTED_SUBCMDS = PARTY_SUBCMDS | {"记录", "成长"}
 MAX_GATE_MEMBERS = 200
 WEB_TRPG_URL = f"{WEB_BASE_URL}/trpg"
 
@@ -345,7 +347,7 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         parts = self._command_parts()
         if parts is not None:
             sub = parts[1] if len(parts) > 1 else ""
-            return sub == "" or sub in PARTY_SUBCMDS or sub == "记录"
+            return sub == "" or sub in ROUTED_SUBCMDS
         # 录制中：任何消息都要入档——纯图片/表情/贴纸没有文字段，不能因为「没文字」被跳过
         group_id = self.bot_event.group_id
         return group_id is not None and runtime_context.is_group_recording(group_id)
