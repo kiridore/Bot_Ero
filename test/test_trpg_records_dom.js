@@ -334,8 +334,12 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("头像链接带悬停概要", otherAvatarLink && String(otherAvatarLink.title).includes("罪犯-窃贼"),
     otherAvatarLink && otherAvatarLink.title);
   const sheetCards = els.sheetList.children;
-  check("参团角色卡条目已展开", sheetCards.length === 3 && els.sheetBox.hidden === false,
+  check("参团角色卡条目已展开（观察者不列）", sheetCards.length === 2 && els.sheetBox.hidden === false,
     String(sheetCards.length));
+  check("观察者的角色卡不出现在参团角色卡里", !sheetCards.some((c) => String(c.href || "").includes(`/${OTHER}/`)),
+    String(sheetCards.map((c) => c.href)));
+  check("DM 的角色卡仍在列表里", sheetCards.some((c) => String(c.href || "").includes(`/${ME}/11`)),
+    String(sheetCards.map((c) => c.href)));
   check("角色卡条目本身是链接",
     sheetCards.every((c) => c.tagName === "A" && /^\/trpg\/char\//.test(c.href)), String(sheetCards[0] && sheetCards[0].href));
   check("角色卡条目带「查看角色卡」提示",
