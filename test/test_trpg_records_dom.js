@@ -334,20 +334,22 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
   check("头像链接带悬停概要", otherAvatarLink && String(otherAvatarLink.title).includes("罪犯-窃贼"),
     otherAvatarLink && otherAvatarLink.title);
   const sheetCards = els.sheetList.children;
-  check("参团角色卡条目已展开（观察者不列）", sheetCards.length === 2 && els.sheetBox.hidden === false,
+  check("参团角色卡条目已展开（DM/观察者不列）", sheetCards.length === 1 && els.sheetBox.hidden === false,
     String(sheetCards.length));
   check("观察者的角色卡不出现在参团角色卡里", !sheetCards.some((c) => String(c.href || "").includes(`/${OTHER}/`)),
     String(sheetCards.map((c) => c.href)));
-  check("DM 的角色卡仍在列表里", sheetCards.some((c) => String(c.href || "").includes(`/${ME}/11`)),
+  check("DM 的角色卡不出现在参团角色卡里", !sheetCards.some((c) => String(c.href || "").includes(`/${ME}/`)),
+    String(sheetCards.map((c) => c.href)));
+  check("玩家的角色卡仍在列表里", sheetCards.some((c) => String(c.href || "").includes(`/${PLAYER}/13`)),
     String(sheetCards.map((c) => c.href)));
   check("角色卡条目本身是链接",
     sheetCards.every((c) => c.tagName === "A" && /^\/trpg\/char\//.test(c.href)), String(sheetCards[0] && sheetCards[0].href));
   check("角色卡条目带「查看角色卡」提示",
     sheetCards[0].children.some((c) => c.className === "trpg-sheet-link"));
   check("角色卡条目带悬停概要", String(sheetCards[0].title).includes("HP"));
-  check("DM 的角色卡条目用群昵称", (() => {
+  check("玩家的角色卡条目显示角色名", (() => {
     const chip = findFirst(sheetCards[0], (n) => n.className === "trpg-person");
-    return chip && chip.textContent === "老张（实时）";
+    return chip && chip.textContent === "青山 小夜";
   })(), (() => {
     const chip = findFirst(sheetCards[0], (n) => n.className === "trpg-person");
     return chip && chip.textContent;

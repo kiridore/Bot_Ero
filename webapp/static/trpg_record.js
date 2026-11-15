@@ -295,9 +295,10 @@ function sheetDelta(start, end) {
 
 function renderSheets(participants) {
   if (!sheetBox || !sheetList) return;
-  // 有角色卡（char_id）或有快照的参与者都列出来；观察者以群身份在场，不列其角色卡
+  // 有角色卡（char_id）或有快照的参与者都列出来；
+  // DM 与观察者以群身份在场、不扮演角色，不列他们的卡
   const rows = (participants || []).filter(
-    (p) => p && p.role !== "ob" && (p.char_id || p.sheet_start || p.sheet_end));
+    (p) => p && !isStaffRole(p.role) && (p.char_id || p.sheet_start || p.sheet_end));
   sheetList.innerHTML = "";
   sheetBox.hidden = rows.length === 0;
   if (!rows.length) return;
