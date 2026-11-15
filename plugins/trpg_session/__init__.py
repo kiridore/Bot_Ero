@@ -340,14 +340,13 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         if message_type != "message":
             return False
         msg = self._first_text()
-        if not msg:
-            return False
         if msg.startswith(".dm") or msg.startswith(".ob"):
             return True
         parts = self._command_parts()
         if parts is not None:
             sub = parts[1] if len(parts) > 1 else ""
             return sub == "" or sub in PARTY_SUBCMDS or sub == "记录"
+        # 录制中：任何消息都要入档——纯图片/表情/贴纸没有文字段，不能因为「没文字」被跳过
         group_id = self.bot_event.group_id
         return group_id is not None and runtime_context.is_group_recording(group_id)
 

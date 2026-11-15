@@ -502,6 +502,61 @@ class TestRecordFilesOnDisk(IsolationMixin, unittest.TestCase):
         )
 
 
+# ── 插件匹配：录制中「没有文字的消息」也要入档 ─────────────
+
+class TestMatchDuringRecording(IsolationMixin, unittest.TestCase):
+    """plugin_pool 先问 match() 再调 handle()，纯图片消息曾被 match() 挡掉。"""
+
+    def setUp(self):
+        super().setUp()
+        self.use_temp_data_path()
+
+    def _plugin(self, segments, recording=False):
+        ctx = _group_event(segments)
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        if recording:
+            runtime_context.recording_sessions[GROUP_ID] = {
+                "start": datetime.now(), "messages": [], "participants": {},
+                "roles": {}, "rules": "dnd5e", "dir": None, "img_count": 0,
+            }
+        return plugin
+
+    def tearDown(self):
+        runtime_context.recording_sessions.pop(GROUP_ID, None)
+        super().tearDown()
+
+    def test_image_only_matches_while_recording(self):
+        plugin = self._plugin([{"type": "image", "data": {"file": "a.jpg"}}], recording=True)
+        self.assertTrue(plugin.match("message"))
+
+    def test_at_only_matches_while_recording(self):
+        plugin = self._plugin([{"type": "at", "data": {"qq": "111"}}], recording=True)
+        self.assertTrue(plugin.match("message"))
+
+    def test_image_only_ignored_without_recording(self):
+        plugin = self._plugin([{"type": "image", "data": {"file": "a.jpg"}}])
+        self.assertFalse(plugin.match("message"))
+
+    def test_unknown_party_command_still_ignored(self):
+        plugin = self._plugin([_text_seg("/跑团 乱打")], recording=True)
+        self.assertFalse(plugin.match("message"))
+
+    @patch("plugins.trpg_session.download_image", side_effect=_fake_download)
+    def test_dispatch_records_image_only_message(self, _mock_dl):
+        """按 plugin_pool 的真实顺序（先 match 再 handle）走一遍。"""
+        _run([_text_seg("/跑团 记录 强制开始")])
+        segments = [{"type": "image", "data": {"file": "a.jpg"}}]
+        ctx = _group_event(segments)
+        plugin = TrpgSessionPlugin(ctx)
+        plugin.api = RecordingApi(ctx, image_url="https://example.test/a.jpg")
+        if plugin.match("message"):
+            plugin.handle()
+        path = self.record_dir()
+        self.assertTrue((path / "imgs" / "img_0001.jpg").is_file())
+        self.assertEqual(len(self.messages(path)), 1)
+
+
 # ── AC02 图片入档 ──────────────────────────────────────
 
 class TestImageRecording(IsolationMixin, unittest.TestCase):
