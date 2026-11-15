@@ -71,6 +71,10 @@ check("调查员信息（年龄/性别/时代/住地）", html.includes("28岁")
 check("派生数值完整", ["HP 8/10", "SAN 40/99", "MOV 9", "+1D4", "闪避 27", "信用评级 40"].every((x) => html.includes(x)), html.slice(0, 200));
 check("八项属性 + 幸运全部出现", ["力量", "敏捷", "意志", "体质", "外貌", "教育", "体型", "智力", "幸运"].every((x) => html.includes(x)));
 check("属性值渲染", html.includes(">60<") || html.includes("60"), "");
+check("属性合计（不含幸运）", (() => {
+  const expected = 60 + 55 + 45 + 55 + 60 + 85 + 65 + 45;   // 八项主属性
+  return html.includes("属性合计（不含幸运）") && html.includes(String(expected));
+})(), "期望 470");
 check("职业详情（介绍/关系人/本职技能/点数）", (() => {
   const required = ["药剂师 · 信用评级 30-70 · 技能点 教育×4",
     "药剂师在医院或药房配药。", "本职技能：会计，急救",

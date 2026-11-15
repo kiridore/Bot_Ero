@@ -217,6 +217,14 @@ function renderCocView(char) {
       grid.appendChild(cell);
     }
     sec.appendChild(grid);
+    // 属性合计：八项主属性之和，不含幸运
+    const total = COC_ATTR_ROWS
+      .filter(([, key]) => key !== "luck")
+      .reduce((sum, [label, key]) => sum + Number(scores[label] ?? 0), 0);
+    const sumLine = document.createElement("p");
+    sumLine.className = "coc-note coc-attr-sum";
+    sumLine.innerHTML = `属性合计（不含幸运）<strong>${total}</strong>`;
+    sec.appendChild(sumLine);
   });
 
   const skills = Object.entries(char.skills || {});

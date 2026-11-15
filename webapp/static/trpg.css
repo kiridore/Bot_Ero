@@ -813,3 +813,16 @@
   font-variant-numeric: tabular-nums;
   cursor: default;
 }
+
+/* 属性合计（不含幸运）：八项主属性之和 */
+.coc-attr-sum {
+  margin: 0.6rem 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+
+.coc-attr-sum b,
+.coc-attr-sum strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}

@@ -418,6 +418,11 @@ function rerenderDerived() {
   });
   const interestBudget = int * 2;
   const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  // 属性合计：八项主属性之和，不含幸运
+  const attrSum = ATTRS
+    .filter(([key]) => key !== "luck")
+    .reduce((sum, [key]) => sum + (key === "luck" ? 0 : Number(attr(key) || 0)), 0);
+  set("out-attr-sum", attrSum);
   set("out-hp", Math.floor((con + siz) / 10));
   set("out-mp", Math.floor(pow / 5));
   set("out-san", pow);
@@ -762,6 +767,7 @@ function render() {
                       title="重掷${label}" aria-label="重掷${label}">🎲</button>
             </span></label>`).join("")}
         </div>
+        <p class="coc-attr-sum">属性合计（不含幸运）<b id="out-attr-sum">0</b></p>
         <div class="coc-attr-notes">
           <p class="coc-note">${ATTR_NOTE_TITLE}</p>
           <div class="coc-grid coc-notes">

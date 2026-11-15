@@ -741,6 +741,12 @@ class TestLivingStandardDerived(unittest.TestCase):
         self.assertTrue(any("不在 6 档" in p for p in coc.validate(card)), coc.validate(card))
         self.assertEqual(card["assets"]["living_standard"], "贫穷")   # 不被静默改掉
 
+    def test_attr_sum_excludes_luck(self):
+        src = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
+        self.assertIn('id="out-attr-sum"', src)
+        self.assertIn('attribute 合计'.replace("attribute ", ""), src)
+        self.assertIn('.filter(([key]) => key !== "luck")', src)
+
     def test_page_is_output(self):
         src = (Path(__file__).resolve().parent.parent / "webapp" / "static" / "trpg_coc.js").read_text(encoding="utf-8")
         self.assertIn('<output id="living_standard"', src)
