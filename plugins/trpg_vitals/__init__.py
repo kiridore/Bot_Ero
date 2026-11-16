@@ -1,9 +1,10 @@
-"""跑团数值变动：HP / SAN 与 COC 理智检定。
+"""跑团数值变动：HP / SAN 与 COC 理智检定 / 疯狂发作。
 
 - `.hp <±值|满> [@目标]`：两套规则通用，扣/加当前 HP
 - `.san <±值|满> [@目标]`：COC 专属，扣/加当前 SAN
 - `.mp <±值|满> [@目标]`：COC 专属，扣/加当前 MP（施法消耗）
 - `.sc <成功损失>/<失败损失> [@目标]`：COC 理智检定，掷 D100 与当前 SAN 比
+- `.ti [@目标]`：COC 临时性疯狂发作，掷表Ⅶ即时症状（9/10 再骰表Ⅸ/Ⅹ）
 
 改别人的卡需要群内 DM（或超级用户）身份；本次不支持的组合直接拒绝并说明。
 """
@@ -18,10 +19,10 @@ from core.logger import logger
 from core.utils import register_plugin
 from core import character_store as store
 from core.trpg import character as dnd
-from core.trpg import coc, party, vitals
+from core.trpg import coc, madness, party, vitals
 import core.context as runtime_context
 
-PREFIX_RE = re.compile(r"^\.(?:hp|san|mp|sc)(?:\s|$)", re.IGNORECASE)
+PREFIX_RE = re.compile(r"^\.(?:hp|san|mp|sc|ti)(?:\s|$)", re.IGNORECASE)
 DICE_RE = re.compile(r"^(\d*)d(\d+)([+-]\d+)?$", re.IGNORECASE)
 MAX_DICE = 100
 MAX_SIDES = 1000
@@ -50,7 +51,7 @@ def roll_expression(expr: str):
 @register_plugin
 class TrpgVitalsPlugin(Plugin):
     name = "trpg_vitals"
-    description = "跑团数值：.hp 血量、.san 理智、.mp 魔法、.sc 理智检定"
+    description = "跑团数值：.hp 血量、.san 理智、.mp 魔法、.sc 理智检定、.ti 疯狂发作"
 
     # ── 匹配与分发 ──────────────────────────────────────
 
@@ -83,6 +84,8 @@ class TrpgVitalsPlugin(Plugin):
                 self._handle_amount("san", parts[1:])
             elif cmd == ".mp":
                 self._handle_amount("mp", parts[1:])
+            elif cmd == ".ti":
+                self._handle_insanity()
             else:
                 self._handle_san_check(parts[1:])
         except ValueError as exc:
@@ -128,7 +131,7 @@ class TrpgVitalsPlugin(Plugin):
         if not target:
             raise ValueError("无法识别目标")
         if target != sender and not self._is_group_admin(self.bot_event.group_id):
-            raise ValueError("只有 DM 可以修改他人的数值")
+            raise ValueError("只有 DM 可以修改他人的数值或状态")
         char = store.get_current(target)
         if char:
             return target, char
@@ -245,6 +248,50 @@ class TrpgVitalsPlugin(Plugin):
         if str(self.bot_event.user_id or "") == str(user_id) and sender and isinstance(sender, dict):
             return sender.get("card") or sender.get("nickname") or user_id
         return char.get("char_name") or user_id
+
+    # ── .ti 疯狂发作 ────────────────────────────────────
+
+    def _handle_insanity(self):
+        """表Ⅶ 即时症状（1D10）+ 症状持续轮数 + 临时性疯狂小时数。"""
+        target, char = self._resolve_target()
+        if (char.get("rules") or "dnd5e") != "coc7th":
+            raise ValueError("疯狂发作是 COC 7th 功能，当前角色卡是 DND 5E 卡")
+        self._check_rule(char)
+
+        roll = random.randint(1, 10)
+        symptom = madness.immediate_symptom(roll)
+        index = random.randint(1, 100)
+        rounds = random.randint(1, 10)
+        hours = random.randint(1, 10)
+
+        name = char.get("char_name") or target
+        lines = [
+            f"{name} 陷入疯狂发作（表Ⅶ 即时症状）",
+            f"· D10={roll} → {symptom['name']}",
+            f"  {symptom['description']}",
+        ]
+        background = char.get("social_background") or {}
+        if symptom["key"] == "dependence":
+            important = str(background.get("significant_people") or "").strip()
+            if important:
+                lines.append(f"· 卡上的「重要之人」：{important}")
+        elif symptom["key"] in ("phobia", "mania"):
+            entry = madness.phobia(index) if symptom["key"] == "phobia" else madness.mania(index)
+            table_name = "表Ⅸ 恐惧症状表" if symptom["key"] == "phobia" else "表Ⅹ 狂躁症状表"
+            label = "恐惧症" if symptom["key"] == "phobia" else "狂躁症"
+            lines.append(f"· {table_name} D100={index} → {entry['name']}（{entry['latin']}）")
+            lines.append(f"  {entry['description']}")
+            current = str(background.get("phobias") or "").strip()
+            background["phobias"] = f"{current}、{entry['name']}" if current else entry["name"]
+            char["social_background"] = background
+            try:
+                store.update_char(target, char.get("id"), char)
+                lines.append(f"· 已记入角色卡「背景 · 恐惧症和狂躁症」（{label}）")
+            except Exception:
+                logger.exception("写入疯狂症状失败")
+        lines.append(f"· 症状持续 {madness.SYMPTOM_DURATION} → {rounds} 轮")
+        lines.append(f"· 临时性疯狂持续 1D10 小时 → {hours} 小时（整段是否适用由守秘人裁定）")
+        self._reply("\n".join(lines))
 
     # ── .sc 理智检定 ──────────────────────────────────
 
