@@ -300,7 +300,7 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 - **分页双形态**：全局无 `limit` 参数——偏移列表 `page`/`page_size` → `{items,total,page,page_size}`；游标流（timeline、forum posts/comments）`cursor`/`page_size` → `{items,next_cursor}`（timeline 为 `events` 形态）。
 - **错误体**：`{"detail": ...}`；状态码属契约，`detail` 文案不属于。
 - **媒体**：六个媒体前缀稳定；载荷内为相对路径，客户端以 base_url 拼接。
-- **契约演进**：默认只允许 additive 变更；破坏性变更必须 minor bump + CHANGELOG 标注 + 旧形态保留一版。回归：`test/scripts/check_webapp_api_contract.py`。
+- **契约演进**：默认只允许 additive 变更；破坏性变更必须 minor bump + CHANGELOG 标注 + 旧形态保留一版。回归：`test/scripts/check_webapp_api_contract.py`。客户端向人类可读参考见 `docs/webapp-api.md`。
 
 ### 工具箱（`tools` 模块）
 
