@@ -28,6 +28,25 @@ webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON A
 - **WHEN** 请求 `page=0`
 - **THEN** 返回 422，响应体含 `detail` 字段
 
+### Requirement: 统一认证与凭证传递
+全部 `/api/*` 路由 SHALL 要求 HTTP Bearer 凭证，凭证值为图库密钥（bot 侧私聊 `/图库密钥` 指令按 QQ 号签发）。`POST /api/auth/login` SHALL 接受图库密钥并返回 `user_id`、昵称、头像与 token（token 即图库密钥本身，无过期、无会话存储）；该端点与 `/api/timeline/events*`（机器事件令牌）MUST NOT 要求用户凭证。OpenAPI 文档 SHALL 声明全局 HTTP Bearer security scheme 并在豁免路径标注 `security: []`，使生成的客户端自动携带凭证。
+
+#### Scenario: 无凭证访问任意 API
+- **WHEN** 不带凭证请求任一非豁免 `/api/*` 端点
+- **THEN** 返回 401，响应体含 `detail`
+
+#### Scenario: 登录换取凭证
+- **WHEN** 以 `/图库密钥` 签发的有效密钥调用 `POST /api/auth/login`
+- **THEN** 返回 user_id 与 token，后续请求携带 Bearer token 可访问全部非豁免 API
+
+#### Scenario: 生成客户端自动携带
+- **WHEN** 依据 `/openapi.json` 生成客户端并配置 token
+- **THEN** 每个非豁免请求自动附带 Bearer 头，无需逐接口手写
+
+#### Scenario: 豁免路径机器认证
+- **WHEN** bot 携带事件令牌上报 `/api/timeline/events`
+- **THEN** 不需要用户凭证，事件令牌校验独立生效
+
 ### Requirement: 错误响应统一
 API 错误响应体 SHALL 为 `{"detail": ...}`（值为错误说明字符串或参数校验错误数组），沿用 FastAPI 默认形态，不引入全局异常处理器。
 

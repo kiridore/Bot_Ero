@@ -9,6 +9,9 @@
 - 「手机app计划使用flutter开发」
 - 「我的设想是QQbot和Webapp各自独立，且都直接访问数据库。webapp提供API先考虑移动端和PC端App」
 - 「第一版还是保证webapp和bot在同机同用户运行」
+- 「所有 API都需要做身份校验，新增一个login api，传入用户的图库密钥来获取key，其余所有api都需要key这个参数」
+
+所有者裁决（2026-11-18）：Q1 取 A——login 返回的 token 即图库密钥本身，无过期；Q2 取 A——`Authorization: Bearer` 头 + OpenAPI 全局 security scheme；Q3 确认豁免 `/api/auth/login` 与 `/api/timeline/events*`（后者用机器事件令牌）。
 
 第一版移动端 / PC 端客户端（Flutter，一套 Dart 代码双端）将以 webapp 为唯一 API 后端，并计划用 `openapi.json` 生成类型化 Dart 客户端。当前 webapp 的 API 面无法直接锁定为契约：130 条路由中仅 14 条带 `response_model`（无 schema 的路由在生成客户端中退化为无类型，代码生成价值归零）；列表分页存在两种方言（`page/page_size` 与 `limit`，响应体仅 9 处 `items`、2 处 `total`，部分列表裸返回数组）；导航数据挂在非 API 命名的 `/entries.json`；live 流地址硬编码在前端 JS，客户端无从获取。契约若不先固化，客户端一旦发版，这些不一致全部变成破坏性变更。本提案只动 webapp，bot 侧零改动。
 
@@ -23,6 +26,7 @@
   - 同步修改 web 前端消费方（forum.js、forum_detail.js、timeline.js、gallery.js、guestbook.js、profile.js、tools.js）与对应 node DOM 测试 stub
 - **导航数据升格 API**：新增 `GET /api/nav`，返回与现 `/entries.json` 相同结构；web 前端两处引用（timeline.js、tools.js）迁移，删除 `/entries.json` 路由与 `webapp/app.py` 缓存中间件中的特判（改判 `/api/nav`）。
 - **新增 live 流地址 API**：`GET /api/live/streams` 返回 `{"flv": str, "hls": str | null}`；`config.yaml` 新增 `live.hls_url`（缺省空 → `hls: null`，兼容旧配置文件）。`/api/live/status|heartbeat|viewers` 三条 API 不变；web 端 live.js 维持硬编码 FLV 现状不动。
+- **统一认证契约**：OpenAPI 全局声明 HTTP Bearer security scheme（`/api/auth/login`、`/api/timeline/events*` 在 schema 中显式标注 `security: []` 豁免），Flutter 生成的客户端自动在每个请求携带图库密钥；执行仍由现有 `login_guard` 中间件承担（页面 302 / API 401 不变）。login API（现有 `POST /api/auth/login`，入参图库密钥，返回 token）固化为契约；密钥签发/重发维持 bot 侧 `/图库密钥` 指令，本提案不动。
 - **错误响应契约声明**：错误体统一为 FastAPI 默认 `{"detail": ...}`（值可为字符串或校验错误数组）；现状 174 处 HTTPException 已基本一致，仅做审计清理，无大规模改动。
 - **媒体引用契约声明**：API 返回媒体一律为相对路径或文件名，客户端以部署 base_url 拼接；六个媒体前缀（`/thumb/`、`/media/`、`/forum/media/`、`/archive/`、`/trpg/media/`、`/donate/media/`）路径不变，均接受 Bearer 头（纯声明，不改代码）。
 - 版本 bump **2.0.0**（新功能 minor；1.99.0 → 2.0.0，对移动/PC 客户端 API 里程碑）。
@@ -54,7 +58,8 @@
 | AC04 | `python test/scripts/check_webapp_api_contract.py`（live 段） | 配置 `hls_url` 时 `GET /api/live/streams` 返回 `{"flv": <flv_url>, "hls": <hls_url>}`；未配置时 `hls` 为 `null` 且 `flv` 不受影响；`/api/live/status` 行为不变 |
 | AC05 | `python -m pytest -q`（含更新后的 `test/*.js` DOM 用例，经 `test_dom_render_suites.py` 纳入） | 全量绿：受响应体变化影响的 forum/guestbook/timeline/gallery/profile/tools DOM 用例 stub 已同步并通过 |
 | AC06 | `openspec validate 2026-11-18-webapp-api-contract --strict`；归档后 `openspec validate webapp-api-contract --strict`、`openspec validate web-navigation --strict` | 变更级校验通过；归档后两能力合并规范校验通过（存量 web-navigation Purpose 过短警告随本次扩写消除）；归档与实现同一 commit |
+| AC07 | `python test/scripts/check_webapp_api_contract.py`（认证段） | `/openapi.json` 含全局 `securitySchemes.bearerAuth` 与顶层 `security`；`/api/auth/login`、`/api/timeline/events` 路径标注 `security: []`；任选三个 `/api/*` 端点无凭证 401（体含 `detail`）且带有效凭证非 401；`POST /api/auth/login` 用 `/图库密钥` 签发的密钥成功换取 user_id 与 token |
 
 ## 维护者可持续性
 
-不新增服务、不新增表、不改 bot。分页统一后新端点照抄单一形态，`response_model` 同时充当 FastAPI 运行期校验与契约文档；契约检查脚本纳入 `test_webapp_api_suites.py` 自动发现回归，后续新增 API 若违反契约会在 CI 期暴露。`live.hls_url` 与 `flv_url` 同模式维护。
+不新增服务、不新增表、不改 bot。分页统一后新端点照抄单一形态，`response_model` 同时充当 FastAPI 运行期校验与契约文档；全局 security scheme 声明后新增路由默认继承认证要求，漏标豁免会被契约检查脚本抓到；契约检查脚本纳入 `test_webapp_api_suites.py` 自动发现回归，后续新增 API 若违反契约会在 CI 期暴露。`live.hls_url` 与 `flv_url` 同模式维护。

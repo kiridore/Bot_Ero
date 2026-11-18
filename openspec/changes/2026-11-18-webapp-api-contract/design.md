@@ -13,6 +13,13 @@
 - `/openapi.json`、`/docs` 维持登录门控：无凭证 302/401。Flutter 代码生成配置里带 Bearer 头获取 schema（openapi_generator 的 `--header` 参数）。理由：不扩大未登录暴露面，与全站门控原则一致。
 - 失败路径：`response_model` 会启用 FastAPI 运行期响应过滤——若响应字段与模型不符返回 500。补模型时逐端点核对现响应（契约检查脚本 AC01 顺带抓这类错配，因为它要求真实调用返回的结构断言）。
 
+### 2.1 认证 scheme 与豁免标注（AC07）
+
+- `webapp/app.py` 自定义 `app.openapi()`（FastAPI 标准模式）：生成后注入 `components.securitySchemes.bearerAuth = {type: http, scheme: bearer}` 与顶层 `security: [{bearerAuth: []}]`，缓存进 `app.openapi_schema`；豁免路径 `/api/auth/login`（POST）与 `/api/timeline/events`（POST/DELETE 系列）在 `paths` 中改标 `security: []`。
+- 认证执行仍由 `login_guard` 中间件唯一承担（页面 302 / API 401、体 `{"detail": "未登录"}`），不迁移到 FastAPI 依赖——避免改动页面重定向语义；schema 声明只服务代码生成与契约可读性。
+- token 语义（Q1:A）：`POST /api/auth/login` 入参图库密钥，返回 token 即同一密钥，无过期、无会话存储；重发密钥 = bot 侧 `/图库密钥` 指令重签，旧密钥立即失效（AUTH_SALT 轮换另说，不属本提案）。
+- 密钥签发链不动：`plugins/gallery_login_key`（私聊 `/图库密钥`）→ `make_login_key(uid)`。
+
 ## 3. 分页统一（AC02）
 
 统一形态：
