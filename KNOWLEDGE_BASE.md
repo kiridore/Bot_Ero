@@ -19,6 +19,7 @@
 | 卧底观战、新历史指令、重启与部署注意事项 | [操作说明](docs/who-is-spy-history.md) |
 | API 速查、部署运维、外部 API | [`kb/OPERATIONS.md`](kb/OPERATIONS.md) |
 | webapp API 参考（客户端接入：认证/分页/媒体约定 + 全端点目录） | [`docs/webapp-api.md`](docs/webapp-api.md) |
+| Flutter 客户端（移动端+PC 端，`app/` submodule） | [`app/README.md`](app/README.md) |
 | 微博首页浏览器依赖、Ubuntu只读检查 | [`docs/weibo-browser-deployment.md`](docs/weibo-browser-deployment.md) |
 | 数据库 Schema（data.db，含卧底参与历史及新闻订阅）+ message_log.db | [`kb/DATABASE.md`](kb/DATABASE.md) |
 
