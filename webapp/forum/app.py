@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from core.timeline_client import emit_event, retract_event
 from core.tiptap import tiptap_to_plain
@@ -162,20 +162,143 @@ class TagCreateIn(BaseModel):
     name: str = Field(min_length=1, max_length=30)
 
 
+# —— 输出模型 ——
+class OkOut(BaseModel):
+    ok: bool
+
+
+class CreatedOut(BaseModel):
+    ok: bool
+    id: int
+
+
+class ImageUploadOut(BaseModel):
+    url: str
+
+
+class PostListItemOut(BaseModel):
+    id: int
+    author_user_id: str
+    type: str
+    title: str
+    status: str
+    pinned: int
+    created_at: str
+    updated_at: str
+    poll_deadline: str | None = None
+    view_count: int
+    author_name: str
+    author_avatar: str
+
+
+class PostsPageOut(BaseModel):
+    items: list[PostListItemOut]
+    next_cursor: int | None = None
+
+
+class PollOptionOut(BaseModel):
+    id: int
+    text: str
+    ord: int
+    count: int
+
+
+class PollOut(BaseModel):
+    id: int
+    title: str
+    allow_multi: bool
+    options: list[PollOptionOut]
+    my_vote: list[int]
+
+
+class PostDetailOut(BaseModel):
+    """polls 仅投票帖存在，由 extra="allow" 透传（无键 ≠ null）。"""
+
+    model_config = ConfigDict(extra="allow")
+    id: int
+    author_user_id: str
+    type: str
+    title: str
+    body_json: str
+    status: str
+    pinned: int
+    created_at: str
+    updated_at: str
+    notified_at: str | None = None
+    poll_anonymous: int
+    poll_deadline: str | None = None
+    view_count: int
+    tags: list[str]
+    author_name: str
+    author_avatar: str
+
+
+class CommentBaseOut(BaseModel):
+    id: int
+    post_id: int
+    author_user_id: str
+    body_text: str
+    status: str
+    created_at: str
+    edited_at: str | None = None
+    parent_id: int | None = None
+    root_id: int | None = None
+
+
+class CommentOut(CommentBaseOut):
+    """reply_to_* 为条件键，由 extra="allow" 透传（无键 ≠ null）。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    author_name: str
+    author_avatar: str
+
+
+class CommentThreadOut(CommentOut):
+    replies: list[CommentOut] = []
+
+
+class CommentsPageOut(BaseModel):
+    items: list[CommentThreadOut]
+    next_cursor: int | None = None
+    total: int
+
+
+class CommentUpdatedOut(BaseModel):
+    ok: bool
+    comment: CommentBaseOut
+
+
+class ClosePollOut(BaseModel):
+    ok: bool
+    closed: bool
+
+
+class TagItemOut(BaseModel):
+    id: int
+    name: str
+    created_at: str | None = None
+    post_count: int
+
+
+class TagsOut(BaseModel):
+    tags: list[TagItemOut]
+
+
 # —— 路由 ——
 
-@router.get("/api/forum/posts")
+@router.get("/api/forum/posts", response_model=PostsPageOut)
 def list_posts(
     user_id: Annotated[str, Depends(get_current_user_id)],
     tag: str | None = Query(default=None),
     type: str | None = Query(default=None, pattern="^(post|announce|poll)$"),
     cursor: int | None = Query(default=None),
-    limit: int = Query(default=20, ge=1, le=50),
+    page_size: int = Query(default=20, ge=1, le=50),
 ):
     db = DbManager()
-    rows = db.forum.list_posts(tag=tag, type_=type, cursor=cursor, limit=limit)
-    has_more = len(rows) > limit
-    rows = rows[:limit]
+    rows = db.forum.list_posts(tag=tag, type_=type, cursor=cursor, limit=page_size)
+    has_more = len(rows) > page_size
+    rows = rows[:page_size]
     next_cursor = rows[-1][0] if has_more and rows else None
     items = []
     for r in rows:
@@ -186,7 +309,7 @@ def list_posts(
     return {"items": items, "next_cursor": next_cursor}
 
 
-@router.post("/api/forum/posts")
+@router.post("/api/forum/posts", response_model=CreatedOut)
 def create_post(
     body: PostCreateIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -249,7 +372,7 @@ def create_post(
     return {"ok": True, "id": pid}
 
 
-@router.post("/api/forum/images")
+@router.post("/api/forum/images", response_model=ImageUploadOut)
 async def api_forum_image_upload(
     user_id: Annotated[str, Depends(get_current_user_id)],
     file: UploadFile = File(...),
@@ -259,7 +382,7 @@ async def api_forum_image_upload(
     return {"url": f"/forum/media/{name}"}
 
 
-@router.get("/api/forum/posts/{post_id}")
+@router.get("/api/forum/posts/{post_id}", response_model=PostDetailOut)
 def get_post(
     post_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -277,7 +400,7 @@ def get_post(
     return post
 
 
-@router.patch("/api/forum/posts/{post_id}")
+@router.patch("/api/forum/posts/{post_id}", response_model=OkOut)
 def update_post(
     post_id: int,
     body: PostUpdateIn,
@@ -322,7 +445,7 @@ def update_post(
     return {"ok": True}
 
 
-@router.delete("/api/forum/posts/{post_id}")
+@router.delete("/api/forum/posts/{post_id}", response_model=OkOut)
 def delete_post(
     post_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -335,15 +458,15 @@ def delete_post(
     return {"ok": True}
 
 
-@router.get("/api/forum/posts/{post_id}/comments")
+@router.get("/api/forum/posts/{post_id}/comments", response_model=CommentsPageOut)
 def list_comments(
     post_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
     cursor: int | None = Query(default=None),
-    limit: int = Query(default=30, ge=1, le=100),
+    page_size: int = Query(default=30, ge=1, le=100),
 ):
     db = DbManager()
-    threads, has_more, total = db.forum.list_comment_threads(post_id, cursor=cursor, limit=limit)
+    threads, has_more, total = db.forum.list_comment_threads(post_id, cursor=cursor, limit=page_size)
     # 批量解析昵称/头像（同请求内去重，避免重复 OneBot 调用）
     author_cache: dict[str, dict] = {}
 
@@ -375,7 +498,7 @@ def list_comments(
     return {"items": items, "next_cursor": next_cursor, "total": total}
 
 
-@router.post("/api/forum/posts/{post_id}/comments")
+@router.post("/api/forum/posts/{post_id}/comments", response_model=CreatedOut)
 def create_comment(
     post_id: int,
     body: CommentCreateIn,
@@ -392,7 +515,7 @@ def create_comment(
     return {"ok": True, "id": comment["id"]}
 
 
-@router.patch("/api/forum/comments/{comment_id}")
+@router.patch("/api/forum/comments/{comment_id}", response_model=CommentUpdatedOut)
 def update_comment(
     comment_id: int,
     body: CommentUpdateIn,
@@ -415,7 +538,7 @@ def update_comment(
     return {"ok": True, "comment": updated}
 
 
-@router.delete("/api/forum/comments/{comment_id}")
+@router.delete("/api/forum/comments/{comment_id}", response_model=OkOut)
 def delete_comment(
     comment_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -429,7 +552,7 @@ def delete_comment(
     return {"ok": True}
 
 
-@router.post("/api/forum/posts/{post_id}/vote")
+@router.post("/api/forum/posts/{post_id}/vote", response_model=OkOut)
 def vote(
     post_id: int,
     body: VoteIn,
@@ -453,7 +576,7 @@ def vote(
     raise HTTPException(status_code=sc, detail=msg)
 
 
-@router.post("/api/forum/posts/{post_id}/close")
+@router.post("/api/forum/posts/{post_id}/close", response_model=ClosePollOut)
 def close_poll(
     post_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -479,7 +602,7 @@ def close_poll(
     return {"ok": True, "closed": closed}
 
 
-@router.get("/api/forum/tags")
+@router.get("/api/forum/tags", response_model=TagsOut)
 def list_tags(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
@@ -488,7 +611,7 @@ def list_tags(
     return {"tags": [{"id": r[0], "name": r[1], "created_at": r[2], "post_count": r[3]} for r in rows]}
 
 
-@router.post("/api/forum/tags")
+@router.post("/api/forum/tags", response_model=CreatedOut)
 def create_tag(
     body: TagCreateIn,
     user_id: Annotated[str, Depends(get_current_user_id)],

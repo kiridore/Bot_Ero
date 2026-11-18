@@ -28,6 +28,46 @@ class ToolCreateIn(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class ToolItemOut(BaseModel):
+    id: int
+    title: str
+    description: str
+    url: str
+    domain: str
+    created_by: str
+    created_at: str
+    click_count: int
+    created_by_name: str
+    created_by_avatar: str
+
+
+class ToolsListOut(BaseModel):
+    items: list[ToolItemOut]
+
+
+class ToolsTagOut(BaseModel):
+    name: str
+    count: int
+
+
+class ToolsTagsOut(BaseModel):
+    tags: list[ToolsTagOut]
+
+
+class ToolCreatedOut(BaseModel):
+    ok: bool
+    id: int
+
+
+class ToolClickOut(BaseModel):
+    ok: bool
+    clicks: int
+
+
+class ToolOkOut(BaseModel):
+    ok: bool
+
+
 def _validate_url(url: str) -> str:
     url = url.strip()
     parts = urlsplit(url)
@@ -43,7 +83,7 @@ def _or_400(fn, *args):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/api/tools")
+@router.get("/api/tools", response_model=ToolsListOut)
 def api_tools_list(
     viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
     q: str | None = Query(default=None, max_length=100),
@@ -113,7 +153,7 @@ def api_tools_icon(
     )
 
 
-@router.get("/api/tools/tags")
+@router.get("/api/tools/tags", response_model=ToolsTagsOut)
 def api_tools_tags(
     viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
 ):
@@ -123,7 +163,7 @@ def api_tools_tags(
     return {"tags": [{"name": r[1], "count": int(r[2])} for r in rows]}
 
 
-@router.post("/api/tools")
+@router.post("/api/tools", response_model=ToolCreatedOut)
 def api_tools_add(
     body: ToolCreateIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -154,7 +194,7 @@ def api_tools_add(
     return {"ok": True, "id": tool_id}
 
 
-@router.post("/api/tools/{tool_id}/click")
+@router.post("/api/tools/{tool_id}/click", response_model=ToolClickOut)
 def api_tools_click(
     tool_id: int,
     viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
@@ -167,7 +207,7 @@ def api_tools_click(
     return {"ok": True, "clicks": clicks}
 
 
-@router.put("/api/tools/{tool_id}")
+@router.put("/api/tools/{tool_id}", response_model=ToolCreatedOut)
 def api_tools_update(
     tool_id: int,
     body: ToolCreateIn,
@@ -204,7 +244,7 @@ def api_tools_update(
     return {"ok": True, "id": tool_id}
 
 
-@router.delete("/api/tools/{tool_id}")
+@router.delete("/api/tools/{tool_id}", response_model=ToolOkOut)
 def api_tools_delete(
     tool_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],

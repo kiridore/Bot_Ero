@@ -143,7 +143,7 @@ insert_event("checkin:c-new", C, "2026-08-20 10:00:02",
              data={"images": []}, dedup_key="p5")
 r = client.get("/api/timeline/poll", headers=CH)
 check("C poll 计数不含隐藏事件（=1）", r.json().get("count") == 1, r.text)
-r = client.get("/api/timeline/new?limit=10", headers=CH)
+r = client.get("/api/timeline/new?page_size=10", headers=CH)
 new_ids = [e["id"] for e in r.json().get("events", [])]
 check("C new 只含可见事件", new_ids == ["checkin:c-new"], str(new_ids))
 insert_event("checkin:a-priv3", A, "2026-08-20 11:00:01",
@@ -151,7 +151,7 @@ insert_event("checkin:a-priv3", A, "2026-08-20 11:00:01",
 r = client.get("/api/timeline/poll", headers=AH)
 # A 水印在首次 feed 时初始化为当时 MAX(rowid)=3，此后 3 条插入（a-priv2/c-new/a-priv3）对 A 全部未读且全可见
 check("A poll 计数含自己私聊打卡（=3）", r.json().get("count") == 3, r.text)
-r = client.get("/api/timeline/new?limit=10", headers=AH)
+r = client.get("/api/timeline/new?page_size=10", headers=AH)
 new_a = r.json().get("events", [])
 check("A new 含自己的私聊打卡且 self_only",
       [e["id"] for e in new_a] == ["checkin:a-priv3", "checkin:c-new", "checkin:a-priv2"]
@@ -170,15 +170,15 @@ check("模糊缓存独立文件 blur-*", bool(blur_files), str(blur_files))
 
 # —— 5. 含隐藏事件的 keyset 分页：cursor 跨过隐藏行正确推进 ——
 # C 可见序（新→旧）：c-new, c-ev, a-group；隐藏穿插：a-priv3, a-priv2, a-priv
-page1 = client.get("/api/timeline", headers=CH, params={"limit": 1}).json()
+page1 = client.get("/api/timeline", headers=CH, params={"page_size": 1}).json()
 check("C 分页第 1 页取最新可见事件",
       [e["id"] for e in page1["events"]] == ["checkin:c-new"] and page1["next_cursor"], str(page1))
 page2 = client.get("/api/timeline", headers=CH,
-                   params={"limit": 1, "cursor": page1["next_cursor"]}).json()
+                   params={"page_size": 1, "cursor": page1["next_cursor"]}).json()
 check("C 分页第 2 页跨过隐藏 a-priv2 取 c-ev",
       [e["id"] for e in page2["events"]] == ["checkin:c-ev"], str(page2))
 page3 = client.get("/api/timeline", headers=CH,
-                   params={"limit": 1, "cursor": page2["next_cursor"]}).json()
+                   params={"page_size": 1, "cursor": page2["next_cursor"]}).json()
 check("C 分页第 3 页取 a-group（跨过 a-priv）",
       [e["id"] for e in page3["events"]] == ["checkin:a-group"], str(page3))
 
@@ -188,7 +188,7 @@ check("C 分页第 3 页取 a-group（跨过 a-priv）",
 insert_event("checkin:a-priv-old1", A, "2026-08-19 08:00:01", data={"private": True}, dedup_key="pold1")
 insert_event("checkin:a-priv-old2", A, "2026-08-19 08:00:02", data={"private": True}, dedup_key="pold2")
 r_all_hidden = client.get("/api/timeline", headers=CH,
-                          params={"limit": 1, "cursor": "2026-08-20 09:00:01|checkin:a-priv"})
+                          params={"page_size": 1, "cursor": "2026-08-20 09:00:01|checkin:a-priv"})
 check("全隐藏范围返回 200（修复前 500）", r_all_hidden.status_code == 200, r_all_hidden.text[:200])
 body_all_hidden = r_all_hidden.json()
 check("全隐藏范围 events 为空且无续读游标",
@@ -234,7 +234,7 @@ insert_event("checkin:b-group2", B, "2026-08-21 10:00:01", data={"images": []}, 
 evss = feed_ids(CH)
 check("群聊 hidden：C 看不到 B 群聊打卡",
       "checkin:b-group" not in evss and "checkin:b-group2" not in evss)
-new_ids = [e["id"] for e in client.get("/api/timeline/new?limit=50", headers=CH).json().get("events", [])]
+new_ids = [e["id"] for e in client.get("/api/timeline/new?page_size=50", headers=CH).json().get("events", [])]
 check("群聊 hidden：C new 不含 B 群聊打卡",
       "checkin:b-group" not in new_ids and "checkin:b-group2" not in new_ids, str(new_ids))
 evss = feed_ids(BH)

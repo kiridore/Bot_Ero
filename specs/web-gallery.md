@@ -8,7 +8,7 @@
 
 ## Constraint: 应用拓扑
 
-Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`/`donate`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据 `entries.json` 由 `webapp/timeline/` 提供，为唯一入口维护点）。
+Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`trpg`/`alarms`/`activities`/`live`/`timeline`/`forum`/`tools`/`weekly`/`donate`）**，全部注册在 **1 个 FastAPI 进程（`webapp`，端口 8765）** 上：每个模块的 `app.py` 导出 `router = APIRouter()`，`webapp/app.py` 统一 include。**单一 origin（根域 `littlero.tech`）按路径分区**：API/静态/媒体在根路径（全局唯一），页面在 `/gallery` `/guestbook` `/profile` `/profile/schedule` `/trpg` `/activities` `/live` `/forum` `/tools` `/weekly` 等前缀路径；根域 `/` 为**时间线社区主页**（`webapp/static/timeline.html`，登录可见；侧边栏导航数据经 `GET /api/nav` 提供（数据文件 `webapp/timeline/entries.json`，唯一入口维护点））。
 
 | 模块 | 包 | 路径分区 | 职责 |
 |------|------|------|------|
@@ -19,7 +19,7 @@ Web 端按功能域拆分为 **12 个模块（`gallery`/`guestbook`/`profile`/`t
 | 日程/闹钟 | `alarms` | `/profile/schedule`（旧 `/alarms` 302） | 月历展开 + 闹钟 CRUD |
 | 活动 | `activities` | `/activities`（`/activities/{activity_id}`） | 活动归档/详情（接龙/匹配/征集三类可并行，结束后可一键生成分享长图 PNG 下载） |
 | 直播间 | `live` | `/live` | SRS HTTP-FLV 直播播放 + 在线状态探测 |
-| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ 打卡隐私读侧过滤（见「时间线打卡隐私」约束）+ `entries.json` |
+| 时间线 | `timeline` | `/`（主页） | Event Server（POST/DELETE `/api/timeline/events` + GET `/api/timeline`，读状态端点 `/api/timeline/poll` `/api/timeline/new` `/api/timeline/read`）；时间线主页（30s 轮询「查看 N 条新事件」pill + 逐卡未读高亮）+ 打卡隐私读侧过滤（见「时间线打卡隐私」约束）+ `/api/nav` 导航数据 |
 | 议事厅 | `forum` | `/forum`（`/forum/new` 发帖/编辑（`?id=`）`/forum/tags` `/forum/{post_id}`） | 长文/公告/投票/评论 + tag 管理；作者可编辑/删除自己的帖子 |
 | 工具箱 | `tools` | `/tools` | 网页链接收藏卡片（icon 解析自域名、关键字搜索、双维度排序、tag 徽标/筛选、点击统计、卡片/列表双视图） |
 | 周报 | `weekly` | `/weekly`（`/weekly/{week_key}`） | 群周报归档：`GET /api/weekly` 列表、`GET /api/weekly/{week_key}` 详情；报纸排版页面 |
@@ -99,7 +99,7 @@ app.include_router(trpg_router)
 app.include_router(alarms_router)
 app.include_router(activities_router)    # 最后：/activities/{activity_id:int} 不遮蔽任何已注册路由
 app.include_router(live_router)
-app.include_router(timeline_router)      # Event Server + /entries.json
+app.include_router(timeline_router)      # Event Server + /api/nav
 app.include_router(forum_router)
 app.include_router(tools_router)         # 最后：/tools 页面 + /api/tools（不遮蔽任何已注册路由）
 app.include_router(weekly_router)       # /weekly 页面 + /api/weekly（不遮蔽任何已注册路由）
@@ -291,6 +291,16 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/api/live/status` | 否 | 直播在线状态（方案 A 数据流探测：读 FLV 流 2s，收到任意字节=在线；未开播时 SRS 挂住连接→超时→离线） |
 | `POST` | `/api/live/heartbeat` | 可选 | 观众心跳（body `{client_id}`；登录态经 Bearer 解析昵称，匿名单记 client_id；进程内存在场表，75s 无心跳过期，同 client 10s 节流） |
 | `GET` | `/api/live/viewers` | 否 | 当前观众列表：已登录按 user_id 去重显示昵称（成员徽标），匿名单个显示（`匿名观众 #xxxx`）；`{"viewers": [...], "count": N}` |
+| `GET` | `/api/live/streams` | 必须 | 流地址下发：`{"flv": <flv_url>, "hls": <hls_url>|null}`；`hls` 来自 `config.yaml` `live.hls_url`，未配置为 `null`（客户端隐藏 HLS 入口或回落 FLV）；其余 live API 不变 |
+
+### API 契约（2.0.0 起，面向 web 前端与移动/PC 客户端）
+
+- **OpenAPI 完整性**：全部 `/api/*` JSON 路由声明响应 schema（`GET /openapi.json` 登录态可取）；图片响应路由（`/api/me/avatar.png`、`/api/tools/icon`）豁免。
+- **认证**：全局 HTTP Bearer security scheme（`/api/auth/login` 与 `/api/timeline/events*` 标注 `security: []` 豁免，后者用事件令牌）；生成客户端自动携带。
+- **分页双形态**：全局无 `limit` 参数——偏移列表 `page`/`page_size` → `{items,total,page,page_size}`；游标流（timeline、forum posts/comments）`cursor`/`page_size` → `{items,next_cursor}`（timeline 为 `events` 形态）。
+- **错误体**：`{"detail": ...}`；状态码属契约，`detail` 文案不属于。
+- **媒体**：六个媒体前缀稳定；载荷内为相对路径，客户端以 base_url 拼接。
+- **契约演进**：默认只允许 additive 变更；破坏性变更必须 minor bump + CHANGELOG 标注 + 旧形态保留一版。回归：`test/scripts/check_webapp_api_contract.py`。
 
 ### 工具箱（`tools` 模块）
 
@@ -529,7 +539,7 @@ webapp/static/
   weekly.html/js/css                           ← 周报（/weekly）
 ```
 
-时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `entries.json`（由 `webapp/timeline/` 提供，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/base.css` 的报纸风 token）。
+时间线社区主页位于 `webapp/static/`（`timeline.html` + `timeline.js` + `timeline.css`），由 `webapp/app.py` 在根路径 `/` 提供，登录可见（数据 API `GET /api/timeline` 走 `get_current_user_id`，未登录 401）。侧边栏功能导航数据 `GET /api/nav`（数据文件 `webapp/timeline/entries.json`，**唯一入口维护点**）；登录态与全站统一（引入 `/shared/auth.js`，`GalleryAuth.renderAuth` 渲染登录按钮/用户卡片，样式走 `core/web/static/base.css` 的报纸风 token）。
 
 - 原生 JavaScript，无框架
 - 认证 token 通过 `Authorization: Bearer <token>` 头传递，服务端同时接受根域 cookie `botero_key`（页面门控/无 header 请求的凭据）

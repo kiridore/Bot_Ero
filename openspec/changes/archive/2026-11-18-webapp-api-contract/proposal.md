@@ -20,12 +20,11 @@
 ## What Changes
 
 - **OpenAPI schema 补全**：全部 `/api/*` 路由声明响应模型（`response_model` 或等价显式声明），使 `GET /openapi.json` 成为完整契约；`/openapi.json` 维持登录门控（Flutter 代码生成时携带 Bearer 凭证获取）。
-- **列表分页统一**为 `page`（≥1）+ `page_size` 查询参数，响应体 `{"items": [...], "total": int | null, "page": int, "page_size": int}`（精确计数成本过高时 `total` 允许 `null`，客户端不得依赖）。改造点：
-  - `GET /api/forum/posts`、`GET /api/forum/posts/{id}/comments`（`limit` → `page/page_size`）
-  - `GET /api/timeline`、`GET /api/timeline/new`（`limit` → `page/page_size`，窗口式翻页机制不变）
-  - `GET /api/checkins`（画廊）、`GET /api/guestbook`、`GET /api/me/checkins`（参数已对，响应体补齐统一结构）
-  - `GET /api/tools` 若存在 `limit` 参数（实现时审计确认）一并统一
-  - 同步修改 web 前端消费方（forum.js、forum_detail.js、timeline.js、gallery.js、guestbook.js、profile.js、tools.js）与对应 node DOM 测试 stub
+- **列表分页统一（双形态契约；2026-11-18 实现期裁决 A）**：全局禁 `limit` 命名、统一 `items` 包裹（时间线为 `events`）。① 偏移列表：`page`（≥1）+ `page_size` → `{"items": [...], "total": int, "page": int, "page_size": int}`；② 游标信息流（新内容插队首、页码会漂移）：`cursor` + `page_size` → `{"items": [...], "next_cursor": ...}`。改造点：
+  - 游标流 `limit` → `page_size` 改名（翻页机制不变）：`GET /api/forum/posts`、`GET /api/forum/posts/{id}/comments`、`GET /api/timeline`、`GET /api/timeline/new`
+  - 偏移列表补齐：`GET /api/me/checkins` 补 `total`/`page_size`（`GET /api/checkins`、`GET /api/guestbook` 现状已合规）
+  - `GET /api/tools` 审计结论：无分页（全量返回），不属列表分页端点
+  - 同步修改 web 前端受影响消费方与对应 node DOM 测试 stub
 - **导航数据升格 API**：新增 `GET /api/nav`，返回与现 `/entries.json` 相同结构；web 前端两处引用（timeline.js、tools.js）迁移，删除 `/entries.json` 路由与 `webapp/app.py` 缓存中间件中的特判（改判 `/api/nav`）。
 - **新增 live 流地址 API**：`GET /api/live/streams` 返回 `{"flv": str, "hls": str | null}`；`config.yaml` 新增 `live.hls_url`（缺省空 → `hls: null`，兼容旧配置文件）。`/api/live/status|heartbeat|viewers` 三条 API 不变；web 端 live.js 维持硬编码 FLV 现状不动。
 - **统一认证契约**：OpenAPI 全局声明 HTTP Bearer security scheme（`/api/auth/login`、`/api/timeline/events*` 在 schema 中显式标注 `security: []` 豁免），Flutter 生成的客户端自动在每个请求携带图库密钥；执行仍由现有 `login_guard` 中间件承担（页面 302 / API 401 不变）。login API（现有 `POST /api/auth/login`，入参图库密钥，返回 token）固化为契约；密钥签发/重发维持 bot 侧 `/图库密钥` 指令，本提案不动；密钥为确定性签名（重发同钥、不可单独吊销，唯一手段为全局盐轮换两步），限制记入规范。
@@ -55,7 +54,7 @@
 | 编号 | 可执行验证 | 通过条件 |
 |---|---|---|
 | AC01 | `python test/scripts/check_webapp_api_contract.py`（schema 段） | 携登录凭证获取 `/openapi.json` 成功；全部 `/api/*` 路径的 2xx 响应均含非空 JSON schema（`response_model` 或显式声明），无「空 schema」路由 |
-| AC02 | `python test/scripts/check_webapp_api_contract.py`（分页段） | 上述清单内每个列表端点：查询参数恰为 `page`/`page_size`（无 `limit` 残留）；空库返回 `{"items": [], "total": 0, "page": 1, "page_size": n}` 结构（`total` 允许 null 的端点豁免数值断言）；`page=0` 返回 422 且体含 `detail` |
+| AC02 | `python test/scripts/check_webapp_api_contract.py`（分页段） | 偏移列表端点（guestbook、gallery checkins、profile checkins）查询参数含 `page`/`page_size`，响应含 `items/total/page/page_size`；游标流端点（forum posts/comments、timeline、timeline/new）参数含 `page_size` 且全站无 `limit` 残留，响应含 `next_cursor`（timeline 为 events 形态）；`page=0`/`page_size=0` 返回 422 且体含 `detail` |
 | AC03 | `python test/scripts/check_webapp_api_contract.py`（nav 段）；`rg -n "entries\.json" webapp/` | 预置 entries.json 后 `GET /api/nav` 登录返回其原结构、未登录 401 `{"detail"}`；rg 无残留引用（timeline.js、tools.js、webapp/app.py、webapp/timeline/app.py 均已迁移） |
 | AC04 | `python test/scripts/check_webapp_api_contract.py`（live 段） | 配置 `hls_url` 时 `GET /api/live/streams` 返回 `{"flv": <flv_url>, "hls": <hls_url>}`；未配置时 `hls` 为 `null` 且 `flv` 不受影响；`/api/live/status` 行为不变 |
 | AC05 | `python -m pytest -q`（含更新后的 `test/*.js` DOM 用例，经 `test_dom_render_suites.py` 纳入） | 全量绿：受响应体变化影响的 forum/guestbook/timeline/gallery/profile/tools DOM 用例 stub 已同步并通过 |

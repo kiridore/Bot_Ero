@@ -14,7 +14,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 当前版本（单一来源，随 CHANGELOG.md 同步更新）
-BOTERO_VERSION = "1.99.0"
+BOTERO_VERSION = "2.0.0"
 
 CONFIG_PATH = Path(os.environ.get("BOTERO_CONFIG") or PROJECT_ROOT / "config.yaml")
 
@@ -152,6 +152,7 @@ FORUM_IMAGE_MAX_BYTES = int(_uploads.get("forum_image_max_bytes") or 10 * 1024 *
 
 # —— 直播 / 工具箱 ——
 LIVE_FLV_URL = str(_sec("live").get("flv_url") or "https://live.littlero.tech/live/livestream.flv")
+LIVE_HLS_URL = str(_sec("live").get("hls_url") or "")  # 可选；空 = 未部署 HLS（移动端回落 FLV）
 ICON_PROXY = _sec("tools").get("icon_proxy") or None  # None = 不走代理
 
 # —— cloud-mail 邮件（可选；url/email/password 留空 = 功能关闭）——

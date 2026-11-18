@@ -39,6 +39,56 @@ class AlarmCreateIn(BaseModel):
     scope: str = "private"
 
 
+class AlarmOut(BaseModel):
+    id: int
+    fire_at: str
+    content: str
+    preview: str
+    is_recurring: bool
+    recur_desc: str | None = None
+    is_private: bool
+    group_id: int
+    scope: str
+    recur_kind: int
+    recur_a: int
+    recur_b: int
+
+
+class AlarmsListOut(BaseModel):
+    items: list[AlarmOut]
+    min_lead_minutes: int
+
+
+class CalendarOccurrenceOut(BaseModel):
+    id: int
+    time: str
+    content: str
+    date: str
+    is_mine: bool
+    scope: str
+    is_recurring: bool
+    recur_kind: int
+    recur_a: int
+    recur_b: int
+    recur_desc: str | None = None
+    creator_name: str
+
+
+class CalendarMonthOut(BaseModel):
+    month: str
+    days: dict[str, list[CalendarOccurrenceOut]]
+    min_lead_minutes: int
+
+
+class AlarmCreatedOut(BaseModel):
+    id: int
+    message: str
+
+
+class AlarmCancelledOut(BaseModel):
+    message: str
+
+
 def _or_400(fn, *args):
     try:
         return fn(*args)
@@ -46,12 +96,12 @@ def _or_400(fn, *args):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/api/me/alarms")
+@router.get("/api/me/alarms", response_model=AlarmsListOut)
 def api_alarms_list(user_id: Annotated[str, Depends(get_current_user_id)]):
     return list_alarms(user_id)
 
 
-@router.get("/api/me/calendar")
+@router.get("/api/me/calendar", response_model=CalendarMonthOut)
 def api_calendar(
     user_id: Annotated[str, Depends(get_current_user_id)],
     month: str = Query(...),
@@ -61,7 +111,7 @@ def api_calendar(
     return calendar_month(user_id, month)
 
 
-@router.post("/api/me/alarms")
+@router.post("/api/me/alarms", response_model=AlarmCreatedOut)
 def api_alarms_create(
     body: AlarmCreateIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -69,7 +119,7 @@ def api_alarms_create(
     return _or_400(create_alarm, user_id, body.model_dump())
 
 
-@router.put("/api/me/alarms/{alarm_id}")
+@router.put("/api/me/alarms/{alarm_id}", response_model=AlarmCreatedOut)
 def api_alarms_update(
     alarm_id: int,
     body: AlarmCreateIn,
@@ -78,7 +128,7 @@ def api_alarms_update(
     return _or_400(update_alarm, user_id, alarm_id, body.model_dump())
 
 
-@router.delete("/api/me/alarms/{alarm_id}")
+@router.delete("/api/me/alarms/{alarm_id}", response_model=AlarmCancelledOut)
 def api_alarms_cancel(
     alarm_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],

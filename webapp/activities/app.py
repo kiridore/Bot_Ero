@@ -226,13 +226,142 @@ _FIELD_LABEL = {"title": "标题", "description": "描述", "hours_per_user": "�
                 "signup_deadline": "报名截止", "deadline": "截止时间"}
 
 
-@router.get("/api/activities")
+# —— 输出模型（DB 聚合 dict 用 extra="allow" 透传未声明键，防剥字段）——
+class MemberBriefOut(BaseModel):
+    user_id: str
+    nickname: str
+    seq: int
+    status: str
+
+
+class ActivityMemberOut(BaseModel):
+    """条件键（next_user_id/received_at/submitted_at/content/images/eta_deadline）
+    由 extra="allow" 原样透传，保持「无键 ≠ null」语义。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    user_id: str
+    nickname: str
+    seq: int
+    status: str
+
+
+class ActivityListItemOut(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    type: str
+    title: str
+    description: str | None = None
+    status: str
+    group_id: int
+    created_by: str
+    signup_deadline: str | None = None
+    deadline: str | None = None
+    hours_per_user: float | None = None
+    created_at: str
+    finished_at: str | None = None
+    member_count: int
+    done_count: int
+
+
+class ActivityListOut(BaseModel):
+    items: list[ActivityListItemOut]
+
+
+class ActivityDetailOut(BaseModel):
+    """polls 仅投票帖存在，由 extra="allow" 透传。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    group_id: int
+    type: str
+    title: str
+    description: str | None = None
+    status: str
+    created_by: str
+    signup_deadline: str | None = None
+    deadline: str | None = None
+    hours_per_user: float | None = None
+    created_at: str
+    finished_at: str | None = None
+    pre_deadline_notified: int = 0
+    members: list[ActivityMemberOut] = []
+
+
+class MyActivityOut(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    type: str
+    title: str
+    status: str
+    signup_deadline: str | None = None
+    deadline: str | None = None
+    finished_at: str | None = None
+    my_status: str
+    my_seq: int
+    my_submitted_at: str | None = None
+    member_count: int
+    done_count: int
+
+
+class MyActivitiesOut(BaseModel):
+    items: list[MyActivityOut]
+
+
+class AnnounceOut(BaseModel):
+    announce: str
+
+
+class ActivityCreatedOut(BaseModel):
+    ok: bool
+    id: int
+    announce: str
+
+
+class OkOut(BaseModel):
+    ok: bool
+
+
+class JoinOut(BaseModel):
+    ok: bool
+    members: int
+
+
+class NoteOut(BaseModel):
+    ok: bool
+    note: str
+
+
+class SubmitOut(BaseModel):
+    ok: bool
+    updated: bool
+
+
+class ActivityMeMemberOut(BaseModel):
+    status: str
+    seq: int
+    content: str | None = None
+    submitted_at: str | None = None
+    images: list[str] = []
+
+
+class ActivityMeOut(BaseModel):
+    member: ActivityMeMemberOut | None
+    can_submit: bool
+    block_reason: str | None = None
+    block_text: str | None = None
+
+
+@router.get("/api/activities", response_model=ActivityListOut)
 def api_activities():
     db = DbManager()
     return {"items": db.activity.list_activities()}
 
 
-@router.post("/api/activities")
+@router.post("/api/activities", response_model=ActivityCreatedOut)
 def api_create_activity(body: ActivityCreateIn,
                         user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
@@ -254,7 +383,7 @@ def api_create_activity(body: ActivityCreateIn,
     return {"ok": True, "id": aid, "announce": _announcement(db.activity.get_activity(aid))}
 
 
-@router.get("/api/activities/{activity_id}/announce")
+@router.get("/api/activities/{activity_id}/announce", response_model=AnnounceOut)
 def api_activity_announce(activity_id: int,
                           user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
@@ -265,7 +394,7 @@ def api_activity_announce(activity_id: int,
     return {"announce": _announcement(act)}
 
 
-@router.patch("/api/activities/{activity_id}")
+@router.patch("/api/activities/{activity_id}", response_model=OkOut)
 def api_edit_activity(activity_id: int, body: ActivityEditIn,
                       user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
@@ -299,7 +428,7 @@ def api_edit_activity(activity_id: int, body: ActivityEditIn,
     return {"ok": True}
 
 
-@router.post("/api/activities/{activity_id}/join")
+@router.post("/api/activities/{activity_id}/join", response_model=JoinOut)
 def api_activity_join(activity_id: int,
                       user_id: Annotated[str, Depends(get_current_user_id)]):
     """加入报名中的活动（与 bot /活动 加入 同语义：open 期、重复加入拒、昵称经 OneBot 解析）。"""
@@ -315,7 +444,7 @@ def api_activity_join(activity_id: int,
     return {"ok": True, "members": len(act["members"]) + 1}
 
 
-@router.post("/api/activities/{activity_id}/start")
+@router.post("/api/activities/{activity_id}/start", response_model=NoteOut)
 def api_start_activity(activity_id: int,
                        user_id: Annotated[str, Depends(get_current_user_id)]):
     """open → 写 signup_deadline=当前时间；bot 心跳 ≤60s 内自动开始并补发全部私聊/群通知。幂等。"""
@@ -339,7 +468,7 @@ def api_start_activity(activity_id: int,
     return {"ok": True, "note": "已请求开始，约 1 分钟内生效并通知所有成员"}
 
 
-@router.post("/api/activities/{activity_id}/finish")
+@router.post("/api/activities/{activity_id}/finish", response_model=NoteOut)
 def api_finish_activity(activity_id: int,
                         user_id: Annotated[str, Depends(get_current_user_id)]):
     """running → 写 deadline=当前时间；bot 心跳 ≤60s 内收尾：未交者置 missed、归档、群公告。"""
@@ -354,7 +483,7 @@ def api_finish_activity(activity_id: int,
     return {"ok": True, "note": "已请求提前结束，约 1 分钟内生效，未提交成员将记为未交"}
 
 
-@router.post("/api/activities/{activity_id}/cancel")
+@router.post("/api/activities/{activity_id}/cancel", response_model=OkOut)
 def api_cancel_activity(activity_id: int,
                         user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
@@ -368,7 +497,7 @@ def api_cancel_activity(activity_id: int,
     return {"ok": True}
 
 
-@router.get("/api/activities/{activity_id}/me")
+@router.get("/api/activities/{activity_id}/me", response_model=ActivityMeOut)
 def api_activity_me(activity_id: int,
                     user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
@@ -387,7 +516,7 @@ def api_activity_me(activity_id: int,
             "block_reason": reason, "block_text": _BLOCK_TEXT.get(reason)}
 
 
-@router.post("/api/activities/{activity_id}/submit")
+@router.post("/api/activities/{activity_id}/submit", response_model=SubmitOut)
 async def api_activity_submit(
     activity_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -428,13 +557,13 @@ async def api_activity_submit(
     return {"ok": True, "updated": me["status"] == "done"}
 
 
-@router.get("/api/me/activities")
+@router.get("/api/me/activities", response_model=MyActivitiesOut)
 def api_my_activities(user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
     return {"items": db.activity.get_my_activities(user_id)}
 
 
-@router.get("/api/activities/{activity_id}")
+@router.get("/api/activities/{activity_id}", response_model=ActivityDetailOut)
 def api_activity_detail(activity_id: int,
                         user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()

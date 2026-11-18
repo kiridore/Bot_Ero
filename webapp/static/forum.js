@@ -60,7 +60,7 @@
     } else {
       filterBar.textContent = "";
     }
-    const params = new URLSearchParams({ limit: "20" });
+    const params = new URLSearchParams({ page_size: "20" });
     if (tag) params.set("tag", tag);
     if (cursor) params.set("cursor", String(cursor));
     try {

@@ -30,10 +30,10 @@
     });
   }
 
-  /* —— 侧边栏：entries.json 功能导航（唯一入口维护点）—— */
+  /* —— 侧边栏：/api/nav 功能导航（唯一入口维护点）—— */
   async function loadNav() {
     try {
-      const res = await fetch("/entries.json");
+      const res = await fetch("/api/nav");
       if (!res.ok) return;
       const entries = await res.json();
       const nav = document.getElementById("tlNav");

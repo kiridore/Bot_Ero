@@ -133,8 +133,8 @@ r = client.get("/profile/schedule", follow_redirects=False)
 check("未登录页面 302 登录", r.status_code == 302 and "/login" in r.headers.get("location", ""))
 r = client.get("/profile/schedule", headers=H)
 check("日程页 200", r.status_code == 200 and "日程" in r.text)
-r = client.get("/entries.json", headers=H)
-check("静态资产 no-cache 重验证", r.headers.get("cache-control") == "no-cache"
+r = client.get("/api/nav", headers=H)
+check("导航 API no-cache 重验证", r.status_code == 200 and r.headers.get("cache-control") == "no-cache"
       and client.get("/shared/nav.js", headers=H).headers.get("cache-control") == "no-cache")
 fr = client.get("/favicon.ico")
 check("favicon 免登录可取", fr.status_code == 200 and fr.headers.get("content-type") == "image/png")

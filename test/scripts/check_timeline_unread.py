@@ -113,13 +113,13 @@ check("poll?after=2 计数 1", r.json()["count"] == 1, r.text)
 r = client.get("/api/timeline/poll", headers=BH)
 check("poll 无 after 用基线计数 1", r.json()["count"] == 1, r.text)
 
-# —— 多页拉新（limit=1 循环，最老在前、无重复）——
+# —— 多页拉新（page_size=1 循环，最老在前、无重复）——
 insert_event("checkin:newer", received_at="2026-08-18 10:00:00", dedup_key="k4")
-r = client.get("/api/timeline/new?after=2&limit=1", headers=BH)
+r = client.get("/api/timeline/new?after=2&page_size=1", headers=BH)
 d1 = r.json()
 check("new 第一页取最老", len(d1["events"]) == 1 and d1["events"][0]["id"] == "checkin:aaa", r.text)
 check("new 第一页 next_after 非空", d1["next_after"] is not None)
-r = client.get(f"/api/timeline/new?after={d1['next_after']}&limit=1", headers=BH)
+r = client.get(f"/api/timeline/new?after={d1['next_after']}&page_size=1", headers=BH)
 d2 = r.json()
 check("new 第二页取较新", len(d2["events"]) == 1 and d2["events"][0]["id"] == "checkin:newer", r.text)
 check("new 第二页 next_after 为 null", d2["next_after"] is None)
@@ -187,7 +187,7 @@ check("A 视角事件仍全部未读", len(evs) > 0 and all(e["unread"] for e in
 # —— 占位符回归：服务端保留原文，解析数据随 users 下发（客户端替换）——
 insert_event("checkin:ph", received_at="2026-08-18 14:00:00", dedup_key="k11",
              title="{id:1057613133} 完成打卡")
-r = client.get("/api/timeline", headers=BH, params={"limit": 1})
+r = client.get("/api/timeline", headers=BH, params={"page_size": 1})
 data = r.json()
 ev = data["events"][0]
 check("占位符原文保留", ev["title"] == "{id:1057613133} 完成打卡", ev["title"])
@@ -202,7 +202,7 @@ r = client.post("/api/timeline/events", headers=TH, json={
     "dedup_key": "k12",
 })
 check("事件端点造数", r.status_code == 200 and r.json().get("inserted") is True, r.text)
-r = client.get("/api/timeline", headers=BH, params={"limit": 5})
+r = client.get("/api/timeline", headers=BH, params={"page_size": 5})
 evs = {e["id"]: e["unread"] for e in r.json()["events"]}
 check("端点事件进入未读计数", evs.get("checkin:via-api") is True, r.text)
 
@@ -211,12 +211,12 @@ check("poll 未登录 401", client.get("/api/timeline/poll").status_code == 401)
 check("new 未登录 401", client.get("/api/timeline/new").status_code == 401)
 check("read 未登录 401", client.post("/api/timeline/read", json={"event_ids": ["x"]}).status_code == 401)
 check("poll after 非法 422", client.get("/api/timeline/poll?after=abc", headers=BH).status_code == 422)
-check("new limit 非法 422", client.get("/api/timeline/new?limit=0", headers=BH).status_code == 422)
+check("new page_size 非法 422", client.get("/api/timeline/new?page_size=0", headers=BH).status_code == 422)
 check("read 空列表 422", client.post("/api/timeline/read", headers=BH, json={"event_ids": []}).status_code == 422)
 
 # —— 旧页 keyset 分页与 next_cursor 回归 ——
 r = client.get("/api/timeline", headers=BH,
-               params={"cursor": "2026-08-18 10:00:00|checkin:newer", "limit": 1})
+               params={"cursor": "2026-08-18 10:00:00|checkin:newer", "page_size": 1})
 d = r.json()
 check("向后 keyset 分页取 old2", len(d["events"]) == 1 and d["events"][0]["id"] == "checkin:old2", r.text)
 check("next_cursor 正确", d["next_cursor"] == "2026-08-18 09:00:01|checkin:old2", d["next_cursor"])

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel
 
 from core.config import GROUP_ID
 from core.database_manager import DbManager
@@ -15,7 +16,20 @@ from webapp import STATIC_DIR
 router = APIRouter()
 
 
-@router.get("/api/weekly")
+class WeeklyItemOut(BaseModel):
+    week_key: str
+    issue: int | None = None
+    start: str | None = None
+    end: str | None = None
+    total_messages: int | None = None
+    headline_title: str | None = None
+
+
+class WeeklyListOut(BaseModel):
+    items: list[WeeklyItemOut]
+
+
+@router.get("/api/weekly", response_model=WeeklyListOut)
 def api_weekly_list(_user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
     reports = db.weekly.list(int(GROUP_ID))
@@ -35,7 +49,7 @@ def api_weekly_list(_user_id: Annotated[str, Depends(get_current_user_id)]):
     return {"items": items}
 
 
-@router.get("/api/weekly/{week_key}")
+@router.get("/api/weekly/{week_key}", response_model=dict[str, Any])
 def api_weekly_detail(week_key: str, _user_id: Annotated[str, Depends(get_current_user_id)]):
     db = DbManager()
     row = db.weekly.get(week_key, int(GROUP_ID))

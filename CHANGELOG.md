@@ -4,6 +4,15 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [2.0.0]
+
+- **Webapp API 契约固化（面向移动端 / PC 客户端）**：全部 `/api/*` 路由在 `GET /openapi.json`（登录态）中有完整响应 schema，可用 openapi_generator 生成类型化客户端（Flutter 移动/PC 端据此接入）。
+- **统一认证**：OpenAPI 全局声明 HTTP Bearer security scheme（豁免 `/api/auth/login` 与 `/api/timeline/events*`），客户端登录（`/图库密钥` 换 token）后每个请求自动携带；执行仍由全站门控中间件承担，行为不变。
+- **列表分页统一（双形态）**：全局弃用 `limit` 参数命名——偏移列表用 `page`/`page_size`（响应 `items/total/page/page_size`），游标信息流（时间线、论坛帖子/评论）用 `cursor`/`page_size`（响应 `items/next_cursor`）；web 前端取数同步适配。
+- **新增 `GET /api/nav`**：导航数据从 `/entries.json` 升格为认证 API，旧路由移除。
+- **新增 `GET /api/live/streams`**：下发 `flv`/`hls` 双流地址；`config.yaml` 新增可选键 `live.hls_url`（缺省空 → `hls: null`，旧配置兼容；SRS 开 HLS 后填 m3u8 地址）。
+- 错误响应契约：状态码属于契约，`detail` 文案不属于（客户端仅展示不解析）。
+
 ## [1.99.0]
 
 - **新增 `.ti` 疯狂发作**（COC 7th，人工手动触发）：骰 1D10 从表Ⅶ「疯狂发作-即时症状」抽一个症状，同时给出症状持续轮数（1D10 轮）与临时性疯狂时长（1D10 小时，是否整段适用由守秘人裁定）。

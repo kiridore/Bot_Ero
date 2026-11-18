@@ -12,8 +12,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import TIMELINE_TOKEN
 from core.database_manager import DbManager
@@ -141,8 +140,90 @@ def _loads(raw: str | None):
         return raw
 
 
+# —— 事件输出模型 ——
+class ActorOut(BaseModel):
+    id: str
+    qq: str | None = None
+    display_name: str
+    avatar_url: str
+
+
+class TargetOut(BaseModel):
+    type: str | None = None
+    url: str | None = None
+
+
+class EventOut(BaseModel):
+    """self_only/images_hidden 为条件键，由 extra="allow" 透传（无键 ≠ null）。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    seq: int
+    id: str
+    source: str
+    received_at: str
+    actor: ActorOut
+    target: TargetOut | None = None
+    title: str
+    description: str | None = None
+    data: Any = None
+    unread: bool
+
+
+class UserOut(BaseModel):
+    name: str
+    avatar: str
+
+
+class EventAckOut(BaseModel):
+    ok: bool
+    inserted: bool
+
+
+class EventDeletedOut(BaseModel):
+    ok: bool
+    deleted: bool
+
+
+class TimelineFeedOut(BaseModel):
+    events: list[EventOut]
+    users: dict[str, UserOut]
+    next_cursor: str | None = None
+
+
+class TimelinePollOut(BaseModel):
+    count: int
+
+
+class TimelineNewOut(BaseModel):
+    events: list[EventOut]
+    users: dict[str, UserOut]
+    next_after: int | None = None
+
+
+class ReadOut(BaseModel):
+    ok: bool
+    remaining: int
+
+
+# —— 导航数据模型（entries.json 同构）——
+class NavLink(BaseModel):
+    label: str
+    url: str | None = None
+    copy_text: str | None = Field(default=None, alias="copy")
+
+
+class NavEntry(BaseModel):
+    name: str
+    desc: str
+    url: str | None = None
+    badge: str | None = None
+    span: int | None = None
+    links: list[NavLink] | None = None
+
+
 # —— Event Server 端点 ——
-@router.post("/api/timeline/events")
+@router.post("/api/timeline/events", response_model=EventAckOut)
 def post_event(
     body: EventIn,
     _: None = Depends(_require_event_token),
@@ -164,7 +245,7 @@ def post_event(
     return {"ok": True, "inserted": inserted}
 
 
-@router.delete("/api/timeline/events/by-key")
+@router.delete("/api/timeline/events/by-key", response_model=EventDeletedOut)
 def delete_event_by_key(
     source: str = Query(...),
     key: str = Query(...),
@@ -175,7 +256,7 @@ def delete_event_by_key(
     return {"ok": True, "deleted": deleted}
 
 
-@router.delete("/api/timeline/events/{event_id}")
+@router.delete("/api/timeline/events/{event_id}", response_model=EventDeletedOut)
 def delete_event(
     event_id: str,
     _: None = Depends(_require_event_token),
@@ -271,13 +352,13 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
     return events, users
 
 
-@router.get("/api/timeline")
+@router.get("/api/timeline", response_model=TimelineFeedOut)
 def timeline_feed(
     user_id: Annotated[str, Depends(get_current_user_id)],
     cursor: str | None = Query(default=None),
-    limit: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
+    page_size: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
 ):
-    """时间线查询（登录可见）。服务端解析占位符与昵称头像（并发，冷缓存首屏提速）。"""
+    """时间线查询（登录可见，游标式信息流）。服务端解析占位符与昵称头像（并发，冷缓存首屏提速）。"""
     cur = None
     if cursor:
         if "|" not in cursor:
@@ -294,7 +375,7 @@ def timeline_feed(
     has_more = False
     batch: list[tuple] = []
     for _ in range(_FEED_FETCH_PAGES):
-        need = limit + 1 - len(vis_rows)
+        need = page_size + 1 - len(vis_rows)
         batch = db.timeline.page(cur_pos, need)
         if not batch:
             has_more = False  # 空页必然取尽；沿用上一轮的 True 会令下方 batch[-1] 对空表取下标（P1）
@@ -303,7 +384,7 @@ def timeline_feed(
         for r in batch:
             if _visible_entry(_vis_full(r), user_id, vis):
                 vis_rows.append(r)
-        if len(vis_rows) > limit:
+        if len(vis_rows) > page_size:
             has_more = True
             break
         if len(batch) < need:  # 数据库取尽
@@ -311,7 +392,7 @@ def timeline_feed(
             break
         cur_pos = (batch[-1][3], batch[-1][1])
         has_more = True
-    vis_rows = vis_rows[:limit]
+    vis_rows = vis_rows[:page_size]
 
     vis = _visibility_ctx(_vis_full(r) for r in vis_rows)
     read_ids = db.timeline.read_event_ids(user_id, [r[1] for r in vis_rows]) if vis_rows else set()
@@ -324,7 +405,7 @@ def timeline_feed(
     return {"events": events, "users": users, "next_cursor": next_cursor}
 
 
-@router.get("/api/timeline/poll")
+@router.get("/api/timeline/poll", response_model=TimelinePollOut)
 def timeline_poll(
     user_id: Annotated[str, Depends(get_current_user_id)],
     after: int | None = Query(default=None, ge=1),
@@ -339,20 +420,20 @@ def timeline_poll(
     return {"count": count}
 
 
-@router.get("/api/timeline/new")
+@router.get("/api/timeline/new", response_model=TimelineNewOut)
 def timeline_new(
     user_id: Annotated[str, Depends(get_current_user_id)],
     after: int | None = Query(default=None, ge=1),
-    limit: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
+    page_size: int = Query(default=_PAGE_SIZE_DEFAULT, ge=1, le=_PAGE_SIZE_MAX),
 ):
     """拉取比 max(after, 水印) 更新且无回执的事件。数据库按 rowid ASC 取最老一批
     （避免 >100 条时跳项），响应内倒为 feed 的新→旧顺序；next_after 供客户端循环。"""
     db = DbManager()
     watermark = db.timeline.get_or_init_watermark(user_id)
     lower = max(after or 0, watermark)
-    fetched = db.timeline.page_unread_after(user_id, lower, limit + 1)
-    has_more = len(fetched) > limit
-    fetched = fetched[:limit]
+    fetched = db.timeline.page_unread_after(user_id, lower, page_size + 1)
+    has_more = len(fetched) > page_size
+    fetched = fetched[:page_size]
     vis = _visibility_ctx(_vis_full(r) for r in fetched)
     rows = [r for r in fetched if _visible_entry(_vis_full(r), user_id, vis)]
 
@@ -371,7 +452,7 @@ class ReadEventsIn(BaseModel):
     event_ids: list[str] = Field(min_length=1, max_length=100)
 
 
-@router.post("/api/timeline/read")
+@router.post("/api/timeline/read", response_model=ReadOut)
 def timeline_read(
     body: ReadEventsIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -382,7 +463,10 @@ def timeline_read(
     return {"ok": True, "remaining": remaining}
 
 
-# —— 侧边栏导航数据源（原导航主页 entries.json，唯一入口维护点）——
-@router.get("/entries.json")
-def entries():
-    return FileResponse(TIMELINE_DIR / "entries.json")
+# —— 侧边栏导航数据源（唯一入口维护点）——
+@router.get("/api/nav", response_model=list[NavEntry])
+def nav_entries():
+    path = TIMELINE_DIR / "entries.json"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="导航数据不存在")
+    return json.loads(path.read_text(encoding="utf-8"))

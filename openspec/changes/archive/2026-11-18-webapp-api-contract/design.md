@@ -22,27 +22,29 @@
 
 ## 3. 分页统一（AC02）
 
-统一形态：
+双形态契约（2026-11-18 实现期裁决 A）：全局禁 `limit` 命名、统一 `items` 包裹（时间线为 `events`）。
 
 ```
-GET ...?page=1&page_size=20        # page ≥ 1（Query(1, ge=1)）；page_size 沿用各端点现有上限
-200 {"items": [...], "total": <int|null>, "page": 1, "page_size": 20}
+# ① 偏移列表（数据相对稳定）
+GET ...?page=1&page_size=20        # page ≥ 1；page_size 沿用各端点现有上限
+200 {"items": [...], "total": int, "page": 1, "page_size": 20}
+
+# ② 游标信息流（新内容插队首，页码会漂移）
+GET ...?cursor=...&page_size=20
+200 {"items": [...], "next_cursor": "..."}   # timeline 为 {"events", "users", "next_cursor"}
 ```
 
-| 端点 | 参数改动 | 响应改动 | total |
-|---|---|---|---|
-| `GET /api/forum/posts` | `limit(20/50)` → `page/page_size` | 补 `{"items", "total", "page", "page_size"}` | 精确 COUNT |
-| `GET /api/forum/posts/{id}/comments` | `limit(30/100)` → 同上 | 同上 | 精确 COUNT |
-| `GET /api/timeline` | `limit` → `page_size`，新增 `page` | 补统一结构 | `null`（隐藏事件过滤 + 窗口翻页使精确计数无意义，契约标注可选） |
-| `GET /api/timeline/new` | 同上 | 同上 | `null` |
-| `GET /api/checkins`（画廊） | 无（已 `page/page_size`） | 補齐结构 | 精确 |
-| `GET /api/guestbook` | 无 | 补齐结构 | 精确 |
-| `GET /api/me/checkins` | 无 | 补齐结构（CheckinPageOut 已有，按统一形态核对/调整） | 精确 |
-| `GET /api/tools` | 实现时审计：若为 `limit` 则统一 | 同步 | 精确 |
+| 端点 | 形态 | 改动 |
+|---|---|---|
+| `GET /api/forum/posts` | 游标 | `limit(20/50)` → `page_size`，响应维持 `{items,next_cursor}` |
+| `GET /api/forum/posts/{id}/comments` | 游标 | `limit(30/100)` → `page_size`，响应维持 `{items,next_cursor,total}` |
+| `GET /api/timeline`、`GET /api/timeline/new` | 游标 | `limit` → `page_size`，响应维持 events 形态（`_FEED_FETCH_PAGES` 窗口机制不动） |
+| `GET /api/checkins`（画廊）、`GET /api/guestbook` | 偏移 | 现状已合规（`{items,total,page,page_size,has_more}`），仅补 response_model |
+| `GET /api/me/checkins` | 偏移 | `CheckinPageOut` 补 `total`/`page_size`（DB 层已有 total，透出即可） |
+| `GET /api/tools` | 无分页 | 审计结论：全量返回，不属分页端点 |
 
-- timeline 窗口机制（`_FEED_FETCH_PAGES` 跨隐藏带补页）不动，仅参数改名与响应包裹。
 - 边界：`page=0` / `page_size=0` → 422（Query 的 ge 约束，detail 为校验数组）；页码超出 → `items: []`，不报错。
-- 前端消费方同步：forum.js、forum_detail.js、timeline.js、gallery.js、guestbook.js、profile.js、tools.js——仅取数适配（`.items`、去 `limit` 拼 `page_size`），渲染逻辑不动。
+- 前端消费方同步：forum.js、forum_detail.js、timeline.js（`limit`→`page_size` 拼参）与 profile.js（checkins 响应新字段），渲染逻辑不动；gallery.js/guestbook.js/tools.js 无需改动。
 
 ## 4. 导航数据 API（AC03）
 

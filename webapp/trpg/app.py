@@ -4,11 +4,11 @@ import random
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core import character_store as char_store
 from core import config as core_config
@@ -270,7 +270,76 @@ def _apply_rules(data: dict) -> None:
     data["ac"] = finalized["ac"]
 
 
-@router.get("/api/trpg/coc/options")
+# —— 输出模型（规则书/记录等深层载荷：声明顶层键，内层透传）——
+class CocOptionsOut(BaseModel):
+    skill_base: dict[str, Any]
+    default_skills: list[str]
+    dynamic_bases: dict[str, Any]
+    skill_categories: list[str]
+    skill_aliases: dict[str, str]
+    occupations: list[dict[str, Any]]
+    occupation_skills: Any
+    weapon_library: Any
+    currencies: list[dict[str, Any]]
+    living_levels: list[str]
+    asset_items: list[dict[str, Any]]
+    inventory_statuses: list[str]
+    skill_notes: Any
+    age_bands: Any
+    age_range: list[int]
+
+
+class SkillNotesOut(BaseModel):
+    notes: Any
+
+
+class MyCharsOut(BaseModel):
+    current_id: int | None
+    characters: list  # CharOut 列表，声明处已有模型
+
+
+class RecordsListOut(BaseModel):
+    records: list[dict[str, Any]]
+
+
+class PartiesOut(BaseModel):
+    parties: list[dict[str, Any]]
+
+
+class TrpgOkOut(BaseModel):
+    ok: bool
+
+
+class RulesOut(BaseModel):
+    attributes: Any
+    attribute_en: Any
+    skills: Any
+    skill_aliases: Any
+    races: Any
+    classes: Any
+    point_buy_cost: Any
+    point_buy_budget: Any
+    standard_array: Any
+    xp_thresholds: Any
+    attribute_modes: Any
+    alignments: dict[str, list[str]]
+
+
+class RecordDetailOut(BaseModel):
+    group_id: str
+    group_name: str
+    start: str
+    end: str | None = None
+    state: str
+    rules: str
+    rules_name: str
+    participants: Any
+    total: int
+    from_: int = Field(alias="from")
+    messages: list[dict[str, Any]]
+
+
+@router.get("/api/trpg/coc/options", response_model=CocOptionsOut)
 def api_coc_options():
     """建卡工具的数据源：技能基础值、职业模板与类别。"""
     return {
@@ -305,13 +374,13 @@ def api_coc_options():
     }
 
 
-@router.get("/api/trpg/coc/skill-notes")
+@router.get("/api/trpg/coc/skill-notes", response_model=SkillNotesOut)
 def api_coc_skill_notes():
     """技能说明（供角色卡查看页按需加载）。"""
     return {"notes": trpg_coc.skill_note_index()}
 
 
-@router.get("/api/trpg/coc/asset-reference")
+@router.get("/api/trpg/coc/asset-reference", response_model=dict[str, Any])
 def api_coc_asset_reference(
     currency: str,
     credit: int = 0,
@@ -324,7 +393,7 @@ def api_coc_asset_reference(
     return data
 
 
-@router.get("/api/me/characters")
+@router.get("/api/me/characters", response_model=MyCharsOut)
 def api_my_characters(user_id: Annotated[str, Depends(get_current_user_id)]):
     chars = char_store.list_chars(user_id)
     current = char_store.get_current(user_id)
@@ -473,7 +542,7 @@ def api_level_up(
     return out
 
 
-@router.delete("/api/me/characters/{char_id}")
+@router.delete("/api/me/characters/{char_id}", response_model=TrpgOkOut)
 def api_delete_character(
     char_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -484,7 +553,7 @@ def api_delete_character(
     return {"ok": True}
 
 
-@router.post("/api/me/characters/{char_id}/activate")
+@router.post("/api/me/characters/{char_id}/activate", response_model=TrpgOkOut)
 def api_activate_character(
     char_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -515,7 +584,7 @@ def api_view_character(
     return _char_to_out(char)
 
 
-@router.get("/api/trpg/rules")
+@router.get("/api/trpg/rules", response_model=RulesOut)
 def api_trpg_rules():
     return {
         "attributes": trpg_rules.ATTRIBUTES,
@@ -662,7 +731,7 @@ def _require_record(group_id: str, start_dir: str) -> Path:
     return record_path
 
 
-@router.get("/api/trpg/records")
+@router.get("/api/trpg/records", response_model=RecordsListOut)
 def api_trpg_records(
     user_id: Annotated[str, Depends(get_current_user_id)],
     mine: int = 0,
@@ -789,7 +858,7 @@ def _pending_roster(group_id: str) -> dict | None:
     }
 
 
-@router.get("/api/trpg/parties")
+@router.get("/api/trpg/parties", response_model=PartiesOut)
 def api_trpg_parties(user_id: Annotated[str, Depends(get_current_user_id)]):
     """准备中的群（已有 DM、尚未开录）。"""
     items = []
@@ -811,7 +880,7 @@ def api_trpg_parties(user_id: Annotated[str, Depends(get_current_user_id)]):
     return {"parties": items}
 
 
-@router.delete("/api/trpg/party/{group_id}")
+@router.delete("/api/trpg/party/{group_id}", response_model=TrpgOkOut)
 def api_delete_party(
     group_id: str,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -868,7 +937,7 @@ def api_party_card(
     return _char_to_out(char)
 
 
-@router.get("/api/trpg/records/{group_id}/{start_dir}")
+@router.get("/api/trpg/records/{group_id}/{start_dir}", response_model=RecordDetailOut)
 def api_trpg_record(
     group_id: str,
     start_dir: str,

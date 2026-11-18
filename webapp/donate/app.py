@@ -9,6 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from core import config
 from core.web.auth_deps import get_current_user_id
@@ -19,6 +20,10 @@ router = APIRouter()
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
+class DonateImagesOut(BaseModel):
+    images: list[str]
+
+
 def _list_images() -> list[str]:
     root = Path(str(config.DONATE_DIR))
     if not root.is_dir():
@@ -26,7 +31,7 @@ def _list_images() -> list[str]:
     return sorted(p.name for p in root.iterdir() if p.is_file() and p.suffix.lower() in _IMAGE_SUFFIXES)
 
 
-@router.get("/api/donate/images")
+@router.get("/api/donate/images", response_model=DonateImagesOut)
 def api_donate_images(user_id: Annotated[str, Depends(get_current_user_id)]):
     return {"images": _list_images()}
 

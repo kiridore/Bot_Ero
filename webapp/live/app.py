@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from core.config import LIVE_FLV_URL  # 直播流地址（config.yaml live.flv_url 可覆盖，便于本地联调）
+from core.config import LIVE_FLV_URL, LIVE_HLS_URL  # 直播流地址（config.yaml live.flv_url/hls_url 可覆盖，便于本地联调）
 
 from core.onebot_client import resolve_display_name
 from core.web.auth_deps import get_optional_user_id
@@ -30,6 +30,29 @@ _presence_lock = threading.Lock()
 
 class HeartbeatIn(BaseModel):
     client_id: str
+
+
+class LiveStatusOut(BaseModel):
+    online: bool
+
+
+class HeartbeatOut(BaseModel):
+    ok: bool
+
+
+class ViewerOut(BaseModel):
+    name: str
+    member: bool
+
+
+class ViewersOut(BaseModel):
+    viewers: list[ViewerOut]
+    count: int
+
+
+class StreamsOut(BaseModel):
+    flv: str
+    hls: str | None
 
 
 def _prune_presence(now: float) -> None:
@@ -53,12 +76,18 @@ def _stream_online() -> bool:
         return False
 
 
-@router.get("/api/live/status")
+@router.get("/api/live/status", response_model=LiveStatusOut)
 def live_status():
     return {"online": _stream_online()}
 
 
-@router.post("/api/live/heartbeat")
+@router.get("/api/live/streams", response_model=StreamsOut)
+def live_streams():
+    """流地址下发：flv 恒有；hls 未配置时为 null（客户端隐藏 HLS 入口或回落 FLV）。"""
+    return {"flv": LIVE_FLV_URL, "hls": LIVE_HLS_URL or None}
+
+
+@router.post("/api/live/heartbeat", response_model=HeartbeatOut)
 def live_heartbeat(
     body: HeartbeatIn,
     user_id: Annotated[str | None, Depends(get_optional_user_id)],
@@ -82,7 +111,7 @@ def live_heartbeat(
     return {"ok": True}
 
 
-@router.get("/api/live/viewers")
+@router.get("/api/live/viewers", response_model=ViewersOut)
 def live_viewers():
     """当前观众列表：已登录按 user_id 去重显示昵称，匿名单个显示。
 

@@ -220,7 +220,7 @@
   }
 
   async function loadComments(cursor) {
-    const params = new URLSearchParams({ limit: "30" });
+    const params = new URLSearchParams({ page_size: "30" });
     if (cursor) params.set("cursor", String(cursor));
     const res = await fetch(`/api/forum/posts/${postId()}/comments?` + params.toString(), {
       headers: GalleryAuth.headers(),

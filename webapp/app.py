@@ -3,6 +3,7 @@ from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -55,14 +56,14 @@ async def login_guard(request: Request, call_next):
     return await call_next(request)
 
 
-# —— 静态资产防陈旧：无 Cache-Control 时浏览器启发式缓存会让 nav.js/entries.json
+# —— 静态资产防陈旧：无 Cache-Control 时浏览器启发式缓存会让 nav.js、导航 API
 # 这类内容变更型资产长期陈旧（如导航改名不生效）；no-cache = 每次带 ETag 重验证，304 极便宜。
 # /archive/ 媒体同理：活动作品可同名重传覆盖，同 URL 不重验证会让页面一直显示旧图
 @app.middleware("http")
 async def static_revalidate(request: Request, call_next):
     resp = await call_next(request)
     path = request.url.path
-    if path.startswith(("/static/", "/shared/", "/archive/")) or path == "/entries.json":
+    if path.startswith(("/static/", "/shared/", "/archive/")) or path == "/api/nav":
         resp.headers["Cache-Control"] = "no-cache"
     return resp
 
@@ -135,3 +136,26 @@ app.include_router(weekly_router)
 app.include_router(donate_router)
 app.mount("/shared", StaticFiles(directory=SHARED_STATIC_DIR), name="shared")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+# —— OpenAPI 契约：全局 Bearer 声明（执行仍在 login_guard，此处仅供客户端代码生成）——
+_SECURITY_EXEMPT = ("/api/auth/login", "/api/timeline/events")
+
+
+def _openapi_with_security():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    components = schema.setdefault("components", {})
+    components["securitySchemes"] = {"bearerAuth": {"type": "http", "scheme": "bearer"}}
+    schema["security"] = [{"bearerAuth": []}]
+    for path, item in schema["paths"].items():
+        if path == _SECURITY_EXEMPT[0] or path.startswith(_SECURITY_EXEMPT[1]):
+            for method in item.values():
+                if isinstance(method, dict):
+                    method["security"] = []
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = _openapi_with_security

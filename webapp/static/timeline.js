@@ -47,10 +47,10 @@
   }
   window.openLoginDialog = openLoginDialog;
 
-  /* —— 侧边栏：entries.json 功能导航（唯一入口维护点）—— */
+  /* —— 侧边栏：/api/nav 功能导航（唯一入口维护点）—— */
   async function loadNav() {
     try {
-      const res = await fetch("/entries.json");
+      const res = await fetch("/api/nav");
       if (!res.ok) return;
       const entries = await res.json();
       const nav = document.getElementById("tlNav");
@@ -251,7 +251,7 @@
     loading = true;
     setStatus("加载中…");
     try {
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ page_size: String(PAGE_SIZE) });
       if (cursor) params.set("cursor", cursor);
       const res = await fetch("/api/timeline?" + params.toString(), {
         headers: GalleryAuth.headers(),
@@ -418,7 +418,7 @@
     let users = {};
     try {
       while (true) {
-        const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+        const params = new URLSearchParams({ page_size: String(PAGE_SIZE) });
         if (after != null) params.set("after", String(after));
         const res = await fetch("/api/timeline/new?" + params.toString(), {
           headers: GalleryAuth.headers(),

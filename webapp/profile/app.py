@@ -46,6 +46,8 @@ class CheckinItemOut(BaseModel):
 
 class CheckinPageOut(BaseModel):
     page: int
+    page_size: int
+    total: int
     has_more: bool
     items: list[CheckinItemOut]
 
@@ -56,6 +58,139 @@ CHECKIN_PAGE_SIZE = 24
 class DayCheckinsOut(BaseModel):
     date: str
     items: list[CheckinItemOut]
+
+
+class StreaksOut(BaseModel):
+    longest_daily: int
+    current_daily: int
+    longest_weekly: int
+    current_weekly: int
+
+
+class CheckinStatusOut(BaseModel):
+    week_start: str
+    week_end: str
+    week_image_count: int
+    is_first_this_week: bool
+    streaks: StreaksOut
+    max_images: int
+    max_bytes: int
+
+
+class TitleBriefOut(BaseModel):
+    id: int
+    name: str
+    rarity: str
+    description: str
+
+
+class CheckinSubmitOut(BaseModel):
+    success: bool
+    image_count: int
+    is_first_this_week: bool
+    week_total_images: int
+    bonus_total: int
+    bonus_lines: list[str]
+    unlocked_titles: list[TitleBriefOut]
+    streaks: StreaksOut
+    summary: str
+
+
+class ShopItemOut(BaseModel):
+    id: str
+    description: str
+    cost: int
+    stock: int | None = None
+    stock_label: str
+    owned: bool
+    can_buy: bool
+    affordable: bool
+
+
+class ShopOut(BaseModel):
+    points: int
+    items: list[ShopItemOut]
+    refresh_hint: str
+
+
+class ShopRedeemOut(BaseModel):
+    success: bool
+    product_id: str
+    message: str
+    points: int
+
+
+class RedeemHistoryItemOut(BaseModel):
+    code: str
+    used_at: str
+    description: str
+
+
+class RedeemHistoryOut(BaseModel):
+    items: list[RedeemHistoryItemOut]
+
+
+class RedeemCodeOut(BaseModel):
+    success: bool
+    message: str
+
+
+class EquippedTitleOut(TitleBriefOut):
+    slot: int
+
+
+class UnlockedTitleSettingsOut(TitleBriefOut):
+    equipped: bool
+
+
+class TitleSettingsOut(BaseModel):
+    max_equipped: int
+    equipped: list[EquippedTitleOut]
+    unlocked: list[UnlockedTitleSettingsOut]
+    display_prefix: str
+
+
+class HeatmapCellOut(BaseModel):
+    date: str
+    count: int
+    level: int
+    is_remedy: bool
+
+
+class ProfileTitleOut(BaseModel):
+    id: int
+    name: str
+    rarity: str
+    description: str
+    unlock_type: str
+    unlocked: bool
+    equipped: bool
+    progress: float
+    progress_current: int
+    progress_target: int
+    progress_hint: str | None = None
+
+
+class ProfileOut(BaseModel):
+    user_id: str
+    display_name: str
+    avatar_url: str
+    year: int | None = None
+    points: int
+    total_checkin_images: int
+    streaks: StreaksOut
+    titles_unlocked: int
+    titles_total: int
+    heatmap: list[HeatmapCellOut]
+    titles: list[ProfileTitleOut]
+
+
+class EmailCodeOut(BaseModel):
+    cooldown_seconds: int
+
+
+class SuccessOut(BaseModel):
+    success: bool
 
 
 class EquippedTitlesIn(BaseModel):
@@ -123,7 +258,7 @@ def _checkin_to_out(item: CheckinImage, display_name: str) -> CheckinItemOut:
     )
 
 
-@router.get("/api/me/profile")
+@router.get("/api/me/profile", response_model=ProfileOut)
 def api_my_profile(
     user_id: Annotated[str, Depends(get_current_user_id)],
     year: int | None = Query(None, ge=2000, le=2100),
@@ -149,12 +284,14 @@ def api_my_checkins(
     user_id: Annotated[str, Depends(get_current_user_id)],
     page: int = Query(1, ge=1),
 ):
-    items, _total, has_more = fetch_checkins_paginated(
+    items, total, has_more = fetch_checkins_paginated(
         user_id=user_id, page=page, page_size=CHECKIN_PAGE_SIZE
     )
     name = resolve_display_name(user_id)
     return CheckinPageOut(
         page=page,
+        page_size=CHECKIN_PAGE_SIZE,
+        total=total,
         has_more=has_more,
         items=[_checkin_to_out(it, name) for it in items],
     )
@@ -184,12 +321,12 @@ def _checkin_or_400(fn, *args):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/api/me/checkin/status")
+@router.get("/api/me/checkin/status", response_model=CheckinStatusOut)
 def api_checkin_status(user_id: Annotated[str, Depends(get_current_user_id)]):
     return get_checkin_status(user_id)
 
 
-@router.post("/api/me/checkin")
+@router.post("/api/me/checkin", response_model=CheckinSubmitOut)
 async def api_checkin_submit(
     user_id: Annotated[str, Depends(get_current_user_id)],
     files: list[UploadFile] = File(...),
@@ -205,12 +342,12 @@ async def api_checkin_submit(
     return await run_in_threadpool(perform_checkin, user_id, names)
 
 
-@router.get("/api/me/shop")
+@router.get("/api/me/shop", response_model=ShopOut)
 def api_shop(user_id: Annotated[str, Depends(get_current_user_id)]):
     return get_shop(user_id)
 
 
-@router.post("/api/me/shop/redeem")
+@router.post("/api/me/shop/redeem", response_model=ShopRedeemOut)
 def api_shop_redeem(
     body: ShopRedeemIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -218,12 +355,12 @@ def api_shop_redeem(
     return _checkin_or_400(redeem_shop_item, user_id, body.product_id)
 
 
-@router.get("/api/me/redeem/history")
+@router.get("/api/me/redeem/history", response_model=RedeemHistoryOut)
 def api_redeem_history(user_id: Annotated[str, Depends(get_current_user_id)]):
     return redeem_history(user_id)
 
 
-@router.post("/api/me/redeem")
+@router.post("/api/me/redeem", response_model=RedeemCodeOut)
 def api_redeem(
     body: RedeemCodeIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -236,12 +373,12 @@ def api_redeem(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.get("/api/me/titles/settings")
+@router.get("/api/me/titles/settings", response_model=TitleSettingsOut)
 def api_title_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
     return get_title_settings(user_id)
 
 
-@router.put("/api/me/titles/equipped")
+@router.put("/api/me/titles/equipped", response_model=TitleSettingsOut)
 def api_set_equipped(
     body: EquippedTitlesIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -249,7 +386,7 @@ def api_set_equipped(
     return _title_settings_or_400(set_equipped_titles, user_id, body.title_ids)
 
 
-@router.post("/api/me/titles/equip")
+@router.post("/api/me/titles/equip", response_model=TitleSettingsOut)
 def api_equip_one(
     body: EquipOneIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -257,12 +394,12 @@ def api_equip_one(
     return _title_settings_or_400(equip_title, user_id, body.title_id)
 
 
-@router.delete("/api/me/titles/equipped")
+@router.delete("/api/me/titles/equipped", response_model=TitleSettingsOut)
 def api_clear_equipped(user_id: Annotated[str, Depends(get_current_user_id)]):
     return clear_equipped_titles(user_id)
 
 
-@router.delete("/api/me/titles/equip/{title_id}")
+@router.delete("/api/me/titles/equip/{title_id}", response_model=TitleSettingsOut)
 def api_unequip_one(
     title_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -280,7 +417,7 @@ def api_my_settings(user_id: Annotated[str, Depends(get_current_user_id)]):
     )
 
 
-@router.post("/api/me/email/code")
+@router.post("/api/me/email/code", response_model=EmailCodeOut)
 def api_email_code(
     body: EmailCodeIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -303,7 +440,7 @@ def api_email_code(
     return {"cooldown_seconds": email_service.CODE_COOLDOWN_SECONDS}
 
 
-@router.post("/api/me/email/bind")
+@router.post("/api/me/email/bind", response_model=SuccessOut)
 def api_email_bind(
     body: EmailBindIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -317,7 +454,7 @@ def api_email_bind(
     return {"success": True}
 
 
-@router.post("/api/me/email/unbind")
+@router.post("/api/me/email/unbind", response_model=SuccessOut)
 def api_email_unbind(
     body: EmailUnbindIn,
     user_id: Annotated[str, Depends(get_current_user_id)],

@@ -17,15 +17,19 @@ webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON A
 - **WHEN** 无凭证请求 `/openapi.json`
 - **THEN** 按全站门控返回 401/302，不暴露契约文档
 
-### Requirement: 列表分页统一
-列表端点 SHALL 使用 `page`（≥1）与 `page_size` 查询参数，MUST NOT 使用 `limit` 命名；`page_size` 上限沿用各端点现值并逐端点在 OpenAPI 中声明；响应体 SHALL 为 `{"items": [...], "total": int | null, "page": int, "page_size": int}`。精确计数成本过高的端点 `total` 允许为 `null`，客户端 MUST NOT 依赖其存在。非法分页参数（`page=0` 等）MUST 返回 422 且错误体含 `detail`。
+### Requirement: 列表分页统一（双形态）
+列表端点 MUST NOT 使用 `limit` 参数命名。两种分页形态：① 偏移列表 SHALL 使用 `page`（≥1）与 `page_size`，响应体 SHALL 为 `{"items": [...], "total": int, "page": int, "page_size": int}`（可附 `has_more` 等附加字段），`page_size` 上限沿用各端点现值并逐端点在 OpenAPI 声明；② 游标信息流（新内容插入队首的流式端点）SHALL 使用 `cursor` 与 `page_size`，响应体 SHALL 为 `{"items": [...], "next_cursor": ...}`（时间线为 `{"events": [...], "next_cursor"}`，`total` 可选）。非法分页参数 MUST 返回 422 且错误体含 `detail`。
 
-#### Scenario: 空结果首页
-- **WHEN** 登录用户以 `page=1` 请求任一列表端点且无数据
-- **THEN** 返回 `{"items": [], "total": 0, "page": 1, "page_size": n}`（`total` 豁免端点为 `null`）
+#### Scenario: 偏移列表空首页
+- **WHEN** 登录用户以 `page=1` 请求偏移列表端点且无数据
+- **THEN** 返回 `{"items": [], "total": 0, "page": 1, "page_size": n}`
+
+#### Scenario: 游标续读
+- **WHEN** 客户端携带首页返回的 `next_cursor` 请求游标流端点
+- **THEN** 返回下一批 `items` 与新的 `next_cursor`，无跳项/重复
 
 #### Scenario: 非法页码
-- **WHEN** 请求 `page=0`
+- **WHEN** 请求 `page=0` 或 `page_size=0`
 - **THEN** 返回 422，响应体含 `detail` 字段
 
 ### Requirement: 统一认证与凭证传递

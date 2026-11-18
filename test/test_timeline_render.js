@@ -147,7 +147,7 @@ async function fakeFetch(url, opts) {
   const u = String(url);
   const method = (opts && opts.method) || "GET";
   fetchedUrls.push(u);
-  if (u === "/entries.json") {
+  if (u === "/api/nav") {
     return { ok: true, status: 200, json: async () => entriesPayload };
   }
   if (u === "/api/auth/login") {

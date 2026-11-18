@@ -37,6 +37,7 @@
 | `uploads` | `checkin_max_images` / `checkin_max_bytes` / `forum_image_max_bytes` | ❌ | 上传限制 |
 | `thumbs` | `cache_dir` / `max_width` / `max_height` / `jpeg_quality` | ❌ | 缩略图参数 |
 | `live` | `flv_url` | ❌ | 直播 FLV 流地址 |
+| | `hls_url` | ❌ | 直播 HLS 流地址（2.0.0；空 = 未部署，`/api/live/streams` 返回 `hls: null`；移动端客户端用） |
 | `panel` | `host` / `port` | ❌ | bot 内置监控面板（`0.0.0.0` / `8790`，局域网访问，图库密钥超管鉴权） |
 | `tools` | `icon_proxy` | ❌ | 图标抓取代理，空 = 直连 |
 | `community` | `max_groups` / `cmd_cooldown_seconds` | ❌ | 仅 community 形态生效；缺省 `50` / `3`（private 缺省 `0`=关闭频控） |

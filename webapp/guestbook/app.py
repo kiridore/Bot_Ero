@@ -18,6 +18,34 @@ class GuestbookPostIn(BaseModel):
     content: str
 
 
+class GuestbookEntryOut(BaseModel):
+    id: int
+    content: str
+    created_at: str
+    like_count: int
+    liked: bool
+
+
+class GuestbookListOut(BaseModel):
+    items: list[GuestbookEntryOut]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
+    max_content_len: int
+
+
+class GuestbookPostOut(BaseModel):
+    message: str
+    id: int
+
+
+class GuestbookLikeOut(BaseModel):
+    message: str
+    like_count: int
+    liked: bool
+
+
 def _or_400(fn, *args):
     try:
         return fn(*args)
@@ -25,7 +53,7 @@ def _or_400(fn, *args):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/api/guestbook")
+@router.get("/api/guestbook", response_model=GuestbookListOut)
 def api_guestbook_list(
     viewer_id: Annotated[str | None, Depends(get_optional_user_id)],
     page: int = Query(1, ge=1),
@@ -35,7 +63,7 @@ def api_guestbook_list(
     return db.guestbook.list_entries(viewer_id, page, page_size)
 
 
-@router.post("/api/guestbook")
+@router.post("/api/guestbook", response_model=GuestbookPostOut)
 def api_guestbook_post(
     body: GuestbookPostIn,
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -44,7 +72,7 @@ def api_guestbook_post(
     return _or_400(db.guestbook.post_entry, user_id, body.content)
 
 
-@router.post("/api/guestbook/{entry_id}/like")
+@router.post("/api/guestbook/{entry_id}/like", response_model=GuestbookLikeOut)
 def api_guestbook_like(
     entry_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],

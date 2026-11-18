@@ -183,9 +183,9 @@ with patch("webapp.forum.app.emit_event") as m_emit, patch("webapp.forum.app.ret
                       json={"body_text": f"顶层{i}"}).json()["id"] for i in range(1, 4)]
     g = client.get(f"/api/forum/posts/{pid3}/comments", headers=AH).json()
     check("顶层按时间正序（从旧到新）", [t["id"] for t in g["items"]] == ids)
-    g = client.get(f"/api/forum/posts/{pid3}/comments?limit=2", headers=AH).json()
+    g = client.get(f"/api/forum/posts/{pid3}/comments?page_size=2", headers=AH).json()
     check("正序翻页第一页", [t["id"] for t in g["items"]] == ids[:2] and g["next_cursor"] == ids[1])
-    g2 = client.get(f"/api/forum/posts/{pid3}/comments?limit=2&cursor={g['next_cursor']}", headers=AH).json()
+    g2 = client.get(f"/api/forum/posts/{pid3}/comments?page_size=2&cursor={g['next_cursor']}", headers=AH).json()
     check("正序翻页第二页", [t["id"] for t in g2["items"]] == ids[2:] and g2["next_cursor"] is None)
 
 print()
