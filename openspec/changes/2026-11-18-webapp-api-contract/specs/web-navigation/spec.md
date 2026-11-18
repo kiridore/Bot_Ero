@@ -1,0 +1,22 @@
+# web-navigation Specification
+
+## Purpose
+
+定义站点顶部导航与主页网格如何暴露各功能分区，避免同一功能在顶层出现多个入口；导航数据经认证 API 提供给各端客户端。
+
+## ADDED Requirements
+
+### Requirement: 导航数据经认证 API 提供
+导航数据 SHALL 由 `GET /api/nav` 提供，响应为既有 `entries.json` 的原样结构，处于全站登录门控之内；非 API 命名的 `/entries.json` 路由 MUST 移除，web 前端消费方 SHALL 全部迁移至 `/api/nav`。
+
+#### Scenario: 登录获取导航
+- **WHEN** 携带有效凭证请求 `GET /api/nav`
+- **THEN** 返回 entries.json 原样结构，各端客户端以同一契约渲染导航与主页网格
+
+#### Scenario: 数据文件缺失
+- **WHEN** `entries.json` 文件不存在时请求 `GET /api/nav`
+- **THEN** 返回 404 与 `{"detail"}` 错误体
+
+#### Scenario: 旧路由移除
+- **WHEN** 请求 `/entries.json`
+- **THEN** 404（登录门控下），仓库内无任何对该路径的引用
