@@ -2,7 +2,7 @@
 
 ## Purpose
 
-webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON API 契约：OpenAPI 文档完整可生成类型化客户端、列表分页与错误响应形态统一、媒体引用可由客户端解析、直播流地址可查询。契约变更遵循 OpenAPI 文档与弃用策略，不使用 URL 版本前缀。
+webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON API 契约：OpenAPI 文档完整可生成类型化客户端、列表分页与错误响应形态统一、媒体引用可由客户端解析、直播流地址可查询。契约演进默认只允许 additive 变更（加字段/加端点）；破坏性变更 MUST minor bump + CHANGELOG 显著标注 + 旧形态保留至少一个版本，不使用 URL 版本前缀。
 
 ## ADDED Requirements
 
@@ -18,7 +18,7 @@ webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON A
 - **THEN** 按全站门控返回 401/302，不暴露契约文档
 
 ### Requirement: 列表分页统一
-列表端点 SHALL 使用 `page`（≥1）与 `page_size` 查询参数，MUST NOT 使用 `limit` 命名；响应体 SHALL 为 `{"items": [...], "total": int | null, "page": int, "page_size": int}`。精确计数成本过高的端点 `total` 允许为 `null`，客户端 MUST NOT 依赖其存在。非法分页参数（`page=0` 等）MUST 返回 422 且错误体含 `detail`。
+列表端点 SHALL 使用 `page`（≥1）与 `page_size` 查询参数，MUST NOT 使用 `limit` 命名；`page_size` 上限沿用各端点现值并逐端点在 OpenAPI 中声明；响应体 SHALL 为 `{"items": [...], "total": int | null, "page": int, "page_size": int}`。精确计数成本过高的端点 `total` 允许为 `null`，客户端 MUST NOT 依赖其存在。非法分页参数（`page=0` 等）MUST 返回 422 且错误体含 `detail`。
 
 #### Scenario: 空结果首页
 - **WHEN** 登录用户以 `page=1` 请求任一列表端点且无数据
@@ -29,7 +29,7 @@ webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON A
 - **THEN** 返回 422，响应体含 `detail` 字段
 
 ### Requirement: 统一认证与凭证传递
-全部 `/api/*` 路由 SHALL 要求 HTTP Bearer 凭证，凭证值为图库密钥（bot 侧私聊 `/图库密钥` 指令按 QQ 号签发）。`POST /api/auth/login` SHALL 接受图库密钥并返回 `user_id`、昵称、头像与 token（token 即图库密钥本身，无过期、无会话存储）；该端点与 `/api/timeline/events*`（机器事件令牌）MUST NOT 要求用户凭证。OpenAPI 文档 SHALL 声明全局 HTTP Bearer security scheme 并在豁免路径标注 `security: []`，使生成的客户端自动携带凭证。
+全部 `/api/*` 路由 SHALL 要求 HTTP Bearer 凭证，凭证值为图库密钥（bot 侧私聊 `/图库密钥` 指令按 QQ 号签发）。密钥为确定性签名：同一 QQ 号重发得到同一把钥匙，单用户吊销不支持，唯一吊销手段是全局盐轮换（换 `AUTH_SALT` 且不再保留旧盐）。`POST /api/auth/login` SHALL 接受图库密钥并返回 `user_id`、昵称、头像与 token（token 即图库密钥本身，无过期、无会话存储）；该端点与 `/api/timeline/events*`（机器事件令牌）MUST NOT 要求用户凭证。OpenAPI 文档 SHALL 声明全局 HTTP Bearer security scheme 并在豁免路径标注 `security: []`，使生成的客户端自动携带凭证。
 
 #### Scenario: 无凭证访问任意 API
 - **WHEN** 不带凭证请求任一非豁免 `/api/*` 端点
@@ -47,8 +47,12 @@ webapp 对外（web 前端、移动端 App、PC 端 App）提供一致的 JSON A
 - **WHEN** bot 携带事件令牌上报 `/api/timeline/events`
 - **THEN** 不需要用户凭证，事件令牌校验独立生效
 
+#### Scenario: 密钥泄漏处置
+- **WHEN** 某用户密钥泄漏并私聊重发 `/图库密钥`
+- **THEN** 得到同一把钥匙（确定性签名）；处置手段为全局盐轮换两步——换 `AUTH_SALT`（旧盐暂入 `AUTH_SALT_OLD` 兼容）→ 全体重领后清空 `AUTH_SALT_OLD`，旧钥至此全部失效
+
 ### Requirement: 错误响应统一
-API 错误响应体 SHALL 为 `{"detail": ...}`（值为错误说明字符串或参数校验错误数组），沿用 FastAPI 默认形态，不引入全局异常处理器。
+API 错误响应体 SHALL 为 `{"detail": ...}`（值为错误说明字符串或参数校验错误数组），沿用 FastAPI 默认形态，不引入全局异常处理器。HTTP 状态码属于契约；`detail` 文案不属于契约，客户端 MUST 仅展示不解析、逻辑分支只依赖状态码。
 
 #### Scenario: 参数校验失败
 - **WHEN** 请求携带类型错误的查询参数

@@ -10,14 +10,14 @@
 
 - 逐路由补 `response_model`：现有 14 条已有（profile 的 DayCheckinsOut/CheckinPageOut、trpg 的 CharOut、gallery 的 UserIdsOut/CheckinListOut），其余约 76 条按模块补 pydantic 模型。模型放各模块内或模块旁 `schemas.py`，命名 `XxxOut/XxxIn`，沿用现有风格。
 - 媒体/缩略图/页面路由（`FileResponse`，非 JSON）不强行套模型——契约只约束 `/api/*` 前缀的 JSON 路由（AC01 断言范围即此）。
-- `/openapi.json`、`/docs` 维持登录门控：无凭证 302/401。Flutter 代码生成配置里带 Bearer 头获取 schema（openapi_generator 的 `--header` 参数）。理由：不扩大未登录暴露面，与全站门控原则一致。
+- `/openapi.json`、`/docs` 维持登录门控：无凭证 302/401。Flutter 侧采用**快照工作流**（Q3:A）：登录后 `curl -H "Authorization: Bearer <密钥>" <站点>/openapi.json > openapi.json` 导出，提交进 Flutter 仓库，契约变化在 Flutter PR diff 可见；快照导出属 Flutter 仓库工作流，不属本提案代码范围。
 - 失败路径：`response_model` 会启用 FastAPI 运行期响应过滤——若响应字段与模型不符返回 500。补模型时逐端点核对现响应（契约检查脚本 AC01 顺带抓这类错配，因为它要求真实调用返回的结构断言）。
 
 ### 2.1 认证 scheme 与豁免标注（AC07）
 
 - `webapp/app.py` 自定义 `app.openapi()`（FastAPI 标准模式）：生成后注入 `components.securitySchemes.bearerAuth = {type: http, scheme: bearer}` 与顶层 `security: [{bearerAuth: []}]`，缓存进 `app.openapi_schema`；豁免路径 `/api/auth/login`（POST）与 `/api/timeline/events`（POST/DELETE 系列）在 `paths` 中改标 `security: []`。
 - 认证执行仍由 `login_guard` 中间件唯一承担（页面 302 / API 401、体 `{"detail": "未登录"}`），不迁移到 FastAPI 依赖——避免改动页面重定向语义；schema 声明只服务代码生成与契约可读性。
-- token 语义（Q1:A）：`POST /api/auth/login` 入参图库密钥，返回 token 即同一密钥，无过期、无会话存储；重发密钥 = bot 侧 `/图库密钥` 指令重签，旧密钥立即失效（AUTH_SALT 轮换另说，不属本提案）。
+- token 语义（Q1:A）：`POST /api/auth/login` 入参图库密钥，返回 token 即同一密钥，无过期、无会话存储。密钥为确定性 HMAC（同 QQ 号重发 `/图库密钥` 得到同一把钥匙）：**单用户吊销不支持**，唯一吊销手段是全局轮换，两步——换 `AUTH_SALT`（旧盐暂入 `AUTH_SALT_OLD` 保持兼容，期间旧钥仍有效）→ 确认全体重领后清空 `AUTH_SALT_OLD`，旧钥至此失效。该限制记入规范与风险台账。
 - 密钥签发链不动：`plugins/gallery_login_key`（私聊 `/图库密钥`）→ `make_login_key(uid)`。
 
 ## 3. 分页统一（AC02）
@@ -68,7 +68,7 @@ live:
 
 ## 6. 错误与媒体契约（纯声明 + 审计）
 
-- 错误体 = FastAPI 默认 `{"detail": str | list}`；本提案不引入全局异常处理器。审计点：新增契约检查脚本对 401/422 两个确定路径断言体形态；HTTPException 174 处已同构，不逐个改。
+- 错误体 = FastAPI 默认 `{"detail": str | list}`；本提案不引入全局异常处理器。契约边界（Q5:A）：**HTTP 状态码属于契约，`detail` 文案不属于**——客户端仅展示不解析，逻辑分支只看状态码。审计点：新增契约检查脚本对 401/422 两个确定路径断言体形态；HTTPException 174 处已同构，不逐个改。
 - 媒体：六个前缀不变；API 载荷内媒体引用保持现状（相对路径/文件名），契约文档写明「客户端以 base_url 拼接」。
 
 ## 7. 测试清单
@@ -84,4 +84,5 @@ live:
 ## 8. 版本与流程
 
 - bump `BOTERO_VERSION` 1.99.0 → **2.0.0**；CHANGELOG 新增 `[2.0.0]` 节；`specs/web-gallery.md` API 表补 `/api/nav`、`/api/live/streams` 与分页/错误约定；`kb/QUICK_REFERENCE.md` API 行为节同步。
+- 契约演进策略（Q2:A）：默认只允许 additive 变更（加字段/加端点）；破坏性变更必须 minor bump + CHANGELOG 显著标注 + 旧形态保留至少一个版本。
 - 归档：AC 全绿 + 全量 pytest 绿 + 归档前 `openspec validate 2026-11-18-webapp-api-contract --strict` 通过 → `openspec archive`，与实现同一 commit；归档后两能力合并规范 `--strict` 校验通过。

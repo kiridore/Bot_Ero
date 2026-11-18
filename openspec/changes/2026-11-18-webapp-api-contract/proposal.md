@@ -13,6 +13,8 @@
 
 所有者裁决（2026-11-18）：Q1 取 A——login 返回的 token 即图库密钥本身，无过期；Q2 取 A——`Authorization: Bearer` 头 + OpenAPI 全局 security scheme；Q3 确认豁免 `/api/auth/login` 与 `/api/timeline/events*`（后者用机器事件令牌）。
 
+复审裁决（2026-11-18 grill 轮）：密钥不可单独吊销（确定性签名，接受并记全局盐轮换预案）；契约演进策略 = 默认 additive、破坏性变更须 minor bump + CHANGELOG 标注 + 旧形态保留一版；`openapi.json` 以快照形式提交进 Flutter 仓库；`page_size` 上限维持各端点现值逐端点声明；HTTP 状态码属契约、`detail` 文案不属于（客户端仅展示不解析）。
+
 第一版移动端 / PC 端客户端（Flutter，一套 Dart 代码双端）将以 webapp 为唯一 API 后端，并计划用 `openapi.json` 生成类型化 Dart 客户端。当前 webapp 的 API 面无法直接锁定为契约：130 条路由中仅 14 条带 `response_model`（无 schema 的路由在生成客户端中退化为无类型，代码生成价值归零）；列表分页存在两种方言（`page/page_size` 与 `limit`，响应体仅 9 处 `items`、2 处 `total`，部分列表裸返回数组）；导航数据挂在非 API 命名的 `/entries.json`；live 流地址硬编码在前端 JS，客户端无从获取。契约若不先固化，客户端一旦发版，这些不一致全部变成破坏性变更。本提案只动 webapp，bot 侧零改动。
 
 ## What Changes
@@ -26,8 +28,8 @@
   - 同步修改 web 前端消费方（forum.js、forum_detail.js、timeline.js、gallery.js、guestbook.js、profile.js、tools.js）与对应 node DOM 测试 stub
 - **导航数据升格 API**：新增 `GET /api/nav`，返回与现 `/entries.json` 相同结构；web 前端两处引用（timeline.js、tools.js）迁移，删除 `/entries.json` 路由与 `webapp/app.py` 缓存中间件中的特判（改判 `/api/nav`）。
 - **新增 live 流地址 API**：`GET /api/live/streams` 返回 `{"flv": str, "hls": str | null}`；`config.yaml` 新增 `live.hls_url`（缺省空 → `hls: null`，兼容旧配置文件）。`/api/live/status|heartbeat|viewers` 三条 API 不变；web 端 live.js 维持硬编码 FLV 现状不动。
-- **统一认证契约**：OpenAPI 全局声明 HTTP Bearer security scheme（`/api/auth/login`、`/api/timeline/events*` 在 schema 中显式标注 `security: []` 豁免），Flutter 生成的客户端自动在每个请求携带图库密钥；执行仍由现有 `login_guard` 中间件承担（页面 302 / API 401 不变）。login API（现有 `POST /api/auth/login`，入参图库密钥，返回 token）固化为契约；密钥签发/重发维持 bot 侧 `/图库密钥` 指令，本提案不动。
-- **错误响应契约声明**：错误体统一为 FastAPI 默认 `{"detail": ...}`（值可为字符串或校验错误数组）；现状 174 处 HTTPException 已基本一致，仅做审计清理，无大规模改动。
+- **统一认证契约**：OpenAPI 全局声明 HTTP Bearer security scheme（`/api/auth/login`、`/api/timeline/events*` 在 schema 中显式标注 `security: []` 豁免），Flutter 生成的客户端自动在每个请求携带图库密钥；执行仍由现有 `login_guard` 中间件承担（页面 302 / API 401 不变）。login API（现有 `POST /api/auth/login`，入参图库密钥，返回 token）固化为契约；密钥签发/重发维持 bot 侧 `/图库密钥` 指令，本提案不动；密钥为确定性签名（重发同钥、不可单独吊销，唯一手段为全局盐轮换两步），限制记入规范。
+- **错误响应契约声明**：错误体统一为 FastAPI 默认 `{"detail": ...}`（值可为字符串或校验错误数组）；HTTP 状态码属契约，`detail` 文案不属于（客户端仅展示不解析）；现状 174 处 HTTPException 已基本一致，仅做审计清理，无大规模改动。
 - **媒体引用契约声明**：API 返回媒体一律为相对路径或文件名，客户端以部署 base_url 拼接；六个媒体前缀（`/thumb/`、`/media/`、`/forum/media/`、`/archive/`、`/trpg/media/`、`/donate/media/`）路径不变，均接受 Bearer 头（纯声明，不改代码）。
 - 版本 bump **2.0.0**（新功能 minor；1.99.0 → 2.0.0，对移动/PC 客户端 API 里程碑）。
 
