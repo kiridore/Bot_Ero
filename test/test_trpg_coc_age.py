@@ -225,3 +225,44 @@ class TestAttributesNotRolled(unittest.TestCase):
         changes = coc.apply_age_adjust(card, {"str": -5}, roll=lambda a, b: 1)
         self.assertEqual(changes["str_score"], 45)
         self.assertEqual(changes["app_score"], 45)
+
+
+class TestAgeAdjustOnIncompleteCard(unittest.TestCase):
+    """年龄调整接口不该要求整张卡已经合规：卡没填完（信用评级未到下限等）也要能点。"""
+
+    WIP = {
+        "id": 5, "user_id": "12345601", "rules": "coc7th", "char_name": "田宫真莉",
+        "occupation": "猎人", "age": 45, "str_score": 55, "con_score": 50, "siz_score": 55,
+        "dex_score": 60, "app_score": 50, "int_score": 60, "pow_score": 65, "edu_score": 70,
+        "credit_rating": 0, "skills": {}, "weapons": [], "inventory": [],
+        "assets": {}, "social_background": {},
+    }
+
+    def setUp(self):
+        from webapp.trpg import app as trpg_app
+        self.app = trpg_app
+        self.saved = {}
+
+    def _call(self, body):
+        from unittest.mock import patch
+        with patch.object(self.app.char_store, "get_char",
+                          side_effect=lambda user, cid: dict(self.WIP, **self.saved)), \
+             patch.object(self.app.char_store, "update_char",
+                          side_effect=lambda user, cid, data: self.saved.update(data)), \
+             patch.object(self.app, "_char_to_out", side_effect=lambda data: data):
+            return self.app.api_age_adjust(5, body, "12345601")
+
+    def test_skip_works_when_card_incomplete(self):
+        out = self._call(self.app.AgeAdjustIn(action="skip"))
+        self.assertEqual(out["age_adjust"]["kind"], "skipped")
+        self.assertEqual(self.saved["age_adjust"], {"kind": "skipped", "age": 45, "band": "40-49"})
+
+    def test_apply_works_when_card_incomplete(self):
+        out = self._call(self.app.AgeAdjustIn(action="apply", phy={"str": -5}))
+        self.assertEqual(out["age_adjust"]["kind"], "applied")
+        self.assertEqual(self.saved["str_score"], 50)
+        self.assertEqual(self.saved["app_score"], 45)
+
+    def test_full_validation_would_have_blocked(self):
+        # 说明为什么不能走整卡校验：同一张卡 validate() 会因信用评级拒绝
+        self.assertTrue(any("信用评级" in p for p in coc.validate(dict(self.WIP))))

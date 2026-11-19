@@ -463,8 +463,13 @@ def api_update_character(
 
 
 def _age_adjust_save(user_id: str, char_id: int, data: dict) -> CharOut:
-    """写入前校验并同步派生值，失败返回 400。"""
-    problems = trpg_coc.validate(data)
+    """写入前只校验年龄一致性。
+
+    不能走整卡 validate：这张接口是「年龄调整 / 不再提示」，玩家常常在卡还没填完
+    （信用评级未到下限、可选池没选满、点数超预算）时点它，整卡校验会让操作直接 400，
+    面板也就永远折叠不起来。结构性问题留给下一次正常保存。
+    """
+    problems = trpg_coc.age_adjust_problems(data)
     if problems:
         raise HTTPException(status_code=400, detail="；".join(problems))
     data["hp"] = trpg_coc.finalize(data)["hp"]
