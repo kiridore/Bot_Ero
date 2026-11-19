@@ -159,7 +159,9 @@ group_roster = [
     {"user_id": DM, "nickname": "守密人", "is_robot": False},
     {"user_id": PLAYER, "nickname": "老张", "is_robot": False},
     {"user_id": STRANGER, "nickname": "路人", "is_robot": False},
-    {"user_id": "3915014383", "nickname": "小埃", "is_robot": True},
+    # 机器人自己的账号：OneBot 的成员列表里通常不带 is_robot，只能按配置里的 QQ 排掉
+    {"user_id": "3915014383", "nickname": "小埃", "is_robot": False},
+    {"user_id": "2222333", "nickname": "别的机器人", "is_robot": True},
 ]
 with _patch_members("webapp.trpg.app.fetch_group_members", return_value=group_roster),      _patch_members("webapp.trpg.app._GROUP_MEMBERS_CACHE", {}):
     r = client.get("/api/trpg/parties", headers=auth(DM))
@@ -167,7 +169,9 @@ with _patch_members("webapp.trpg.app.fetch_group_members", return_value=group_ro
     member_ids = {m["user_id"] for m in roster.get("members") or []}
     check("群成员全部进名单", {DM, PLAYER, STRANGER} <= member_ids, str(sorted(member_ids)))
     check("已标记的观察者仍保留", "12345699" in member_ids, str(sorted(member_ids)))
-    check("机器人不进名单", all(m["user_id"] != "3915014383" for m in roster.get("members") or []))
+    check("机器人不进名单",
+          all(m["user_id"] not in ("3915014383", "2222333") for m in roster.get("members") or []),
+          str(sorted(member_ids)))
     check("名单人数含未准备者", roster.get("member_count") == len(member_ids),
           str(roster.get("member_count")))
     check("已准备计数只算名单内的人", roster.get("prepared_count") == 1, str(roster.get("prepared_count")))

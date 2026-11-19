@@ -798,7 +798,10 @@ def _pending_roster(group_id: str) -> dict | None:
     ob_ids = [str(u) for u, r in roles.items() if r == "ob"]
 
     group_members = _group_members(str(group_id))
-    humans = [m for m in (group_members or []) if not m.get("is_robot")]
+    # 机器人自己的账号在 OneBot 成员列表里未必带 is_robot，单独按 QQ 号排掉
+    bot_qq = str(core_config.BOT_QQ)
+    humans = [m for m in (group_members or [])
+              if not m.get("is_robot") and str(m.get("user_id")) != bot_qq]
     live_names = {str(m["user_id"]): m["nickname"] for m in humans}
 
     prepared_order = sorted(prepared, key=lambda k: (prepared[k] or {}).get("prepared_at", ""))
