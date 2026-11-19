@@ -393,9 +393,36 @@ def occupational_point_problems(data: dict) -> list[str]:
     return problems
 
 
-def points_budget(formula: str, data: dict) -> int:
-    """解析「教育×4」「教育×2＋敏捷×2」「教育×2＋力量或敏捷×2」这类公式。"""
+CUSTOM_OCCUPATION = "自定义职业"
+_ATTR_CHOICES = ("力量", "体质", "体型", "敏捷", "外貌", "智力", "意志", "教育")
+
+
+def formula_options(formula: str) -> list[str]:
+    """公式里「或」的候选项（按出现顺序去重）；没有「或」则返回空列表。"""
+    out: list[str] = []
+    for term in (formula or "").replace("＋", "+").split("+"):
+        head = term.split("×")[0].strip()
+        if "或" not in head:
+            continue
+        for option in head.split("或"):
+            option = option.strip()
+            if option in ATTR_KEYS and option not in out:
+                out.append(option)
+    return out
+
+
+def chosen_attribute(data: dict) -> str:
+    """卡上指定的本职属性（带「或」的职业选哪一项；自定义职业=第二职业属性）。"""
+    return str(data.get("occupation_attr") or "").strip()
+
+
+def points_budget(formula: str, data: dict, chosen: str = "") -> int:
+    """解析「教育×4」「教育×2＋敏捷×2」「教育×2＋力量或敏捷×2」这类公式。
+
+    带「或」的一项按 chosen 取值；没指定（或不在候选项里）就取高，与新卡的 MAX() 一致。
+    """
     total = 0
+    pick = (chosen or "").strip()
     for term in (formula or "").replace("＋", "+").split("+"):
         term = term.strip()
         if not term:
@@ -409,10 +436,42 @@ def points_budget(formula: str, data: dict) -> int:
             except ValueError:
                 multiplier = 1
         options = [part.strip() for part in term.split("或") if part.strip()]
-        values = [_score(data, ATTR_KEYS[opt]) for opt in options if opt in ATTR_KEYS]
+        if pick and pick in options and pick in ATTR_KEYS:
+            values = [_score(data, ATTR_KEYS[pick])]
+        else:
+            values = [_score(data, ATTR_KEYS[opt]) for opt in options if opt in ATTR_KEYS]
         if values:
             total += max(values) * multiplier
     return total
+
+
+def occupation_budget(data: dict) -> int:
+    """职业点预算。自定义职业按新卡口径：教育×2＋第二职业属性×2（留空=教育×4）。"""
+    occ = occupation_by_name((data.get("occupation") or "").strip())
+    if not occ:
+        return 0
+    chosen = chosen_attribute(data)
+    if occ["name"] == CUSTOM_OCCUPATION and chosen in ATTR_KEYS:
+        return _score(data, ATTR_KEYS["教育"]) * 2 + _score(data, ATTR_KEYS[chosen]) * 2
+    return points_budget(occ["formula"], data, chosen)
+
+
+def occupation_attr_problems(data: dict) -> list[str]:
+    """本职属性选择是否合法：带「或」的职业只能选候选项，自定义职业可选八属性之一。"""
+    occ = occupation_by_name((data.get("occupation") or "").strip())
+    chosen = chosen_attribute(data)
+    if not occ:
+        return [f"未选择职业时不能指定本职属性（当前：{chosen}）"] if chosen else []
+    if occ["name"] == CUSTOM_OCCUPATION:
+        if chosen and chosen not in ATTR_KEYS:
+            return [f"自定义职业的第二职业属性只能是 {'、'.join(_ATTR_CHOICES)}（当前：{chosen}）"]
+        return []
+    allowed = formula_options(occ["formula"])
+    if not allowed:
+        return [f"{occ['name']} 的职业点公式没有可选项，不能指定本职属性"] if chosen else []
+    if chosen and chosen not in allowed:
+        return [f"{occ['name']} 的本职属性只能选 {'、'.join(allowed)}（当前：{chosen}）"]
+    return []
 
 
 def skill_total(entry: dict) -> int:
@@ -704,7 +763,8 @@ def finalize(data: dict) -> dict:
         "credit_rating": credit_value(data),
         "skills": skills,
         "occupation_info": occupation,
-        "occupation_budget": points_budget(occupation["formula"], data) if occupation else 0,
+        "occupation_budget": occupation_budget(data),
+        "occupation_attr": chosen_attribute(data),
         "occupation_spent": occupation_spent,
         "interest_budget": int_score * 2,
         "interest_spent": interest_spent,
@@ -1044,6 +1104,7 @@ def validate(data: dict) -> list[str]:
             problems.append(
                 f"技能名「{str(raw_name)[:20]}」不合法（最多 {SKILL_NAME_MAX} 字，不能含换行）")
     problems.extend(occupation_choice_problems(data))
+    problems.extend(occupation_attr_problems(data))
     problems.extend(occupational_point_problems(data))
     problems.extend(weapon_problems(data.get("weapons") or []))
     problems.extend(asset_problems(data.get("assets")))
@@ -1221,6 +1282,11 @@ def format_sheet(data: dict) -> str:
         f"HP {fin['hp']}  MP {fin['mp']}  SAN {fin.get('san')}  幸运 {fin.get('luck') or 0}",
         f"MOV {fin['mov']}  伤害加值 {fin['db']}  体格 {fin['build']}  闪避 {fin['dodge']}",
     ]
+    if fin["occupation_info"]:
+        formula = fin["occupation_info"]["formula"]
+        chosen = fin["occupation_attr"]
+        pick = f"，按{chosen}" if chosen else ""
+        lines.append(f"职业点 {fin['occupation_spent']}/{fin['occupation_budget']}（{formula}{pick}）")
     notable = [
         (name, entry) for name, entry in fin["skills"].items()
         if entry["total"] > SKILL_BASE.get(canonical_skill(name), 0)

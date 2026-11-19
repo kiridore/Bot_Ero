@@ -190,7 +190,8 @@ function renderCocView(char) {
       }
       const points = document.createElement("p");
       points.className = "muted";
-      points.textContent = `职业点 ${char.occupation_spent || 0}/${char.occupation_budget || 0}` +
+      const pick = char.occupation_attr ? `（按${char.occupation_attr}）` : "";
+      points.textContent = `职业点 ${char.occupation_spent || 0}/${char.occupation_budget || 0}${pick}` +
         ` · 兴趣点 ${char.interest_spent || 0}/${char.interest_budget || 0}`;
       sec.appendChild(points);
     });

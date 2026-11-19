@@ -62,6 +62,7 @@ let options = null;
 let card = null;
 let me = null;
 let occChoices = {};   // {池下标: [技能名…]}，与职业定义里的 choices 顺序对应
+let occAttr = "";      // 本职属性：带「或」的职业选哪一项；自定义职业=第二职业属性
 let autoAdded = new Set();  // 选职业时自动补进来的技能（换职业时若没填点数会撤掉）
 
 // 规则默认技能：技能表全部标准技能的基础值，闪避按 DEX/2
@@ -332,7 +333,23 @@ function unknownOccupation() {
   const name = (document.getElementById("occupation")?.value || "").trim();
   return name && !currentOccupation() ? name : "";
 }
-function pointsBudget(formula, get) {
+const ATTR_ORDER = ["力量", "体质", "体型", "敏捷", "外貌", "智力", "意志", "教育"];
+
+// 公式里「或」的候选项（与后端 formula_options 同口径）
+function formulaOptions(formula) {
+  const out = [];
+  String(formula || "").replace(/＋/g, "+").split("+").forEach((term) => {
+    const head = String(term).split("×")[0].trim();
+    if (!head.includes("或")) return;
+    head.split("或").forEach((opt) => {
+      const name = opt.trim();
+      if (ATTR_ORDER.includes(name) && !out.includes(name)) out.push(name);
+    });
+  });
+  return out;
+}
+
+function pointsBudget(formula, get, chosen) {
   let total = 0;
   String(formula || "").replace(/＋/g, "+").split("+").forEach((term) => {
     term = term.trim();
@@ -343,10 +360,54 @@ function pointsBudget(formula, get) {
       term = head.trim();
       multiplier = Number(tail.trim() || 1);
     }
-    const values = term.split("或").map((t) => get(t.trim())).filter((v) => v != null);
+    const options = term.split("或").map((t) => t.trim()).filter(Boolean);
+    const get1 = (name) => (ATTR_ORDER.includes(name) ? get(name) : null);
+    const values = chosen && options.includes(chosen) && get1(chosen) != null
+      ? [get1(chosen)]
+      : options.map(get1).filter((v) => v != null);
     if (values.length) total += Math.max(...values) * multiplier;
   });
   return total;
+}
+
+// 职业点预算：自定义职业 = 教育×2 + 第二职业属性×2（留空则 教育×4）
+function occBudgetFor(occ, chosen) {
+  if (!occ) return 0;
+  const get = (k) => (ATTR_SCORE[k] ? ATTR_SCORE[k]() : null);
+  if (occ.name === "自定义职业" && chosen) {
+    return (get("教育") || 0) * 2 + (get(chosen) || 0) * 2;
+  }
+  return pointsBudget(occ.formula, get, chosen);
+}
+
+// 本职属性选择器：只对有「或」的职业与自定义职业出现
+function renderOccAttr() {
+  const box = document.getElementById("occ-attr");
+  if (!box) return;
+  const occ = currentOccupation();
+  const options = occ
+    ? (occ.name === "自定义职业" ? ATTR_ORDER : formulaOptions(occ.formula))
+    : [];
+  if (!options.length) {
+    box.innerHTML = "";
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  if (occAttr && !options.includes(occAttr)) occAttr = "";
+  const blankLabel = occ.name === "自定义职业" ? "留空（视为教育）" : "不指定（取高）";
+  const choices = [["", blankLabel], ...options.map((name) => [name, name])];
+  box.innerHTML = `<span class="coc-attr-pick-label">${occ.name === "自定义职业" ? "第二职业属性" : "本职属性"}</span>` +
+    choices.map(([value, label]) => (
+      `<label class="coc-radio"><input type="radio" name="occAttr" value="${value}"` +
+      `${occAttr === value ? " checked" : ""} /> ${label}</label>`
+    )).join("");
+  box.querySelectorAll('input[name="occAttr"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      occAttr = el.value;
+      rerenderDerived();
+    });
+  });
 }
 const ATTR_SCORE = {
   力量: () => attr("str_score"), 体质: () => attr("con_score"), 体型: () => attr("siz_score"),
@@ -361,7 +422,7 @@ function rerenderDerived() {
   const [db, build] = dbBuild(str + siz);
   const mov = Math.max(baseMov(str, dex, siz) - agePenalty(age), 0);
   const occ = currentOccupation();
-  const occBudget = occ ? pointsBudget(occ.formula, (k) => (ATTR_SCORE[k] ? ATTR_SCORE[k]() : null)) : 0;
+  const occBudget = occBudgetFor(occ, occAttr);
   const allowedOcc = occAllowedNames(occ, occChoices);
   const cleared = [];
   let occSpent = 0, intSpent = 0;
@@ -443,7 +504,7 @@ function rerenderDerived() {
   const occNote = document.getElementById("occ-note");
   if (occNote) {
     occNote.textContent = occ
-      ? `职业点 ${occ.formula}；信用评级 ${occ.credit_min}-${occ.credit_max}；本职技能：${occ.own_skills}${poolHint(occ)}`
+      ? `职业点 ${occ.formula}${occAttr ? `（按${occAttr}）` : ""}；信用评级 ${occ.credit_min}-${occ.credit_max}；本职技能：${occ.own_skills}${poolHint(occ)}`
       : "未选择职业";
   }
   const choiceWarn = document.getElementById("occ-choice-warn");
@@ -744,6 +805,7 @@ function render() {
           </datalist>
         </label>
       </div>
+      <div id="occ-attr" class="coc-choices" hidden></div>
       <div id="occ-choices" class="coc-choices"></div>
       <p class="coc-note" id="occ-choice-warn"></p>
       <p class="coc-note" id="occ-note"></p>
@@ -865,6 +927,7 @@ function render() {
     </section>
   `;
   bind();
+  renderOccAttr();
   renderOccChoices();
   renderWeaponLibrary();
   renderInventoryTotals();
@@ -903,6 +966,8 @@ function bind() {
     if (!occ) {
       // 没匹配到正式职业名（打错/只打了个开头）：保留已选内容，不让可选池凭空清空
       if (!occupationInput.value.trim()) lastOccupation = "";
+      occAttr = "";
+      renderOccAttr();
       renderOccChoices();
       rerenderDerived();
       return;
@@ -910,12 +975,15 @@ function bind() {
     // 信用评级补下限：与「职业是否变化」无关，没加点就补（旧卡/重复选择都覆盖）
     const creditFilled = fillCreditFloor(occ);
     if (occ.name === lastOccupation) {
+      renderOccAttr();
       if (creditFilled) rerenderDerived();
       return;
     }
     lastOccupation = occ.name;
     occChoices = {};
+    occAttr = "";
     pruneAutoAdded();
+    renderOccAttr();
     renderOccChoices();
     const added = fillRequiredSkills(occ);
     rerenderDerived();
@@ -1228,6 +1296,7 @@ function collect() {
     char_name: document.getElementById("char_name").value.trim() || "无名调查员",
     occupation: (document.getElementById("occupation").value || "").trim(),
     occupation_choices: occChoices,
+    occupation_attr: occAttr,
     age: Number(document.getElementById("age").value || 0),
     sex: document.getElementById("sex").value.trim(),
     residence: document.getElementById("residence").value.trim(),
@@ -1307,6 +1376,7 @@ async function init() {
       card = data;
       card.skills = mergeSkillDefaults(card, card.dex_score);
       occChoices = { ...(card.occupation_choices || {}) };
+      occAttr = card.occupation_attr || "";
     } else {
       card = {
         age: 25,

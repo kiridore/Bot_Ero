@@ -638,6 +638,26 @@
 
 .coc-choice > input { flex: 1 1 16rem; }
 
+/* 本职属性选择（带「或」的职业 / 自定义职业的第二属性） */
+#occ-attr {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  font-size: 0.84rem;
+}
+
+.coc-attr-pick-label { color: var(--ink-soft); font-weight: 600; }
+
+#occ-attr .coc-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+#occ-attr .coc-radio input { margin: 0; }
+
 /* 添加技能：页面内输入 + 下拉提示 */
 .coc-add-skill {
   display: flex;

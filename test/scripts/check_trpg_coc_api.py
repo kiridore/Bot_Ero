@@ -148,6 +148,40 @@ check("超选 400", r.status_code == 400 and "最多选 1 项" in r.text, r.text
 
 check("选择已回传", created.get("occupation_choices", {}).get("0") == ["魅惑"], str(created.get("occupation_choices")))
 
+# —— 本职属性选择（带「或」的职业 / 自定义职业第二属性）——
+hunter = dict(CARD, occupation="猎人", occupation_choices={}, skills={}, occupation_attr="力量")
+r = client.post("/api/me/characters", headers=H, json=hunter)
+hunter_budget = (r.json() or {}).get("occupation_budget")
+# 教育 45×2 + 力量 60×2 = 210；不指定时取高 = 45×2 + max(60,55)×2 = 210（这里恰好同值）
+check("猎人按力量建卡 200", r.status_code == 200, r.text[:200])
+check("猎人预算按选择的属性", hunter_budget == 45 * 2 + 60 * 2, str(hunter_budget))
+check("所选属性回传", (r.json() or {}).get("occupation_attr") == "力量", str((r.json() or {}).get("occupation_attr")))
+
+hunter_dex = dict(hunter, occupation_attr="敏捷")
+r = client.post("/api/me/characters", headers=H, json=hunter_dex)
+check("按敏捷预算", (r.json() or {}).get("occupation_budget") == 45 * 2 + 55 * 2,
+      str((r.json() or {}).get("occupation_budget")))
+
+hunter_bad = dict(hunter, occupation_attr="意志")
+r = client.post("/api/me/characters", headers=H, json=hunter_bad)
+check("非法属性 400", r.status_code == 400 and "只能选 力量、敏捷" in r.text, r.text[:200])
+
+custom = dict(CARD, occupation="自定义职业", occupation_choices={}, skills={}, occupation_attr="意志")
+r = client.post("/api/me/characters", headers=H, json=custom)
+check("自定义职业第二属性 200", r.status_code == 200, r.text[:200])
+check("自定义职业预算 = 教育×2＋意志×2",
+      (r.json() or {}).get("occupation_budget") == 45 * 2 + 65 * 2,
+      str((r.json() or {}).get("occupation_budget")))
+
+custom_blank = dict(custom, occupation_attr="")
+r = client.post("/api/me/characters", headers=H, json=custom_blank)
+check("自定义职业留空 = 教育×4", (r.json() or {}).get("occupation_budget") == 45 * 4,
+      str((r.json() or {}).get("occupation_budget")))
+
+fixed = dict(CARD, occupation="药剂师", occupation_attr="力量")
+r = client.post("/api/me/characters", headers=H, json=fixed)
+check("无「或」的职业填属性 400", r.status_code == 400 and "没有可选项" in r.text, r.text[:200])
+
 not_own = dict(CARD, skills={"攀爬": {"base": 20, "occupation": 20}})
 r = client.post("/api/me/characters", headers=H, json=not_own)
 check("非本职技能加点 400", r.status_code == 400 and "本职技能" in r.text, r.text[:200])

@@ -54,6 +54,7 @@ class CharacterIn(BaseModel):
     current_mp: int | None = None
     current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
+    occupation_attr: str = ""
     # 年龄调整记录由 /age-adjust 接口维护；整卡保存时不覆盖
     age_adjust: dict | None = None
     skills: dict = {}
@@ -171,6 +172,7 @@ class CharOut(BaseModel):
     current_mp: int | None = None
     current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
+    occupation_attr: str = ""
     age_adjust: dict | None = None
     skills: dict = {}
     weapons: list[dict] = []
