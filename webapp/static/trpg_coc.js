@@ -1110,6 +1110,12 @@ function bind() {
 // 年龄段表由 /api/trpg/coc/options 下发（与 core/trpg/coc.py::AGE_BANDS 单一来源）；
 // 体能合计扣减由玩家自己填，EDU 成长检定在服务端掷。
 const AGE_LOCKED_KEYS = ["str_score", "con_score", "siz_score", "dex_score", "app_score", "edu_score"];
+const AGE_PHY_FIELDS = { str: "str_score", con: "con_score", siz: "siz_score", dex: "dex_score" };
+const AGE_ATTR_LABELS_BY_FIELD = {
+  str_score: "力量", con_score: "体质", siz_score: "体型", dex_score: "敏捷",
+  app_score: "外貌", edu_score: "教育",
+};
+let ageSkipOpen = false;   // 「不再提示」后面板折叠；点「重新应用」或被改到别的年龄段才展开
 
 function ageBandFor(age) {
   const years = Number(age || 0);
@@ -1163,6 +1169,18 @@ function renderAgeAdjust() {
     document.getElementById("ageUndo").addEventListener("click", undoAgeAdjust);
     return;
   }
+  const skipped = record && record.kind === "skipped";
+  if (skipped && !ageSkipOpen && Number(record.age) === age) {
+    // 已明确选择不套用：收成一行，避免每次打开编辑页都被同样的提示挡住
+    lockAgeAttrs(null);
+    box.innerHTML = `<p class="coc-note">已选择不套用年龄调整（${escapeHtml(record.band)} 岁）` +
+      ` <button type="button" class="btn-sm" id="ageReopen">重新应用</button></p>`;
+    document.getElementById("ageReopen").addEventListener("click", () => {
+      ageSkipOpen = true;
+      renderAgeAdjust();
+    });
+    return;
+  }
   lockAgeAttrs(null);
   const quota = band.phy_quota;
   const inputs = band.phy.map((key, i) => `
@@ -1172,14 +1190,13 @@ function renderAgeAdjust() {
   if (band.edu_fixed) extras.push(`教育 ${band.edu_fixed}`);
   if (band.edu_checks) extras.push(`教育成长检定 ×${band.edu_checks}（服务端掷）`);
   if (band.luck_best) extras.push("幸运掷两次取高");
-  const skipped = record && record.kind === "skipped"
-    ? '<span class="coc-note">（已选过「不再提示」）</span>' : "";
+  const skippedNote = skipped ? '<span class="coc-note">（之前选过「不再提示」）</span>' : "";
   const summary = [
     quota ? `体能合计 -${quota}（扣在哪几项由你决定，填 0 或负数）` : "",
     ...extras,
   ].filter(Boolean).join("；");
   box.innerHTML = `
-    <p class="coc-note">按 ${escapeHtml(band.band)} 岁：${summary}。${skipped}</p>
+    <p class="coc-note">按 ${escapeHtml(band.band)} 岁：${summary}。${skippedNote}</p>
     ${inputs ? `<div class="coc-grid coc-age-phy">${inputs}</div>` : ""}
     ${band.luck_best ? '<button type="button" class="btn-sm" id="ageLuck">🎲 幸运掷两次取高</button>' : ""}
     <p class="coc-note" id="ageHint"></p>
@@ -1187,6 +1204,11 @@ function renderAgeAdjust() {
     <button type="button" class="btn-sm" id="ageSkip">不再提示</button>`;
   const hint = document.getElementById("ageHint");
   const applyBtn = document.getElementById("ageApply");
+  const needed = [
+    ...band.phy.map((key) => AGE_PHY_FIELDS[key]),
+    ...(band.app ? ["app_score"] : []),
+    "edu_score",
+  ];
   const update = () => {
     let spent = 0;
     let bad = false;
@@ -1195,6 +1217,15 @@ function renderAgeAdjust() {
       if (!Number.isInteger(value) || value > 0) bad = true;
       spent += -value;
     });
+    // 属性还没掷/还没填时先应用，会让扣减后的值算在 0 上（服务端也会拒）
+    const empty = needed.filter((field) => !attr(field));
+    if (empty.length) {
+      applyBtn.disabled = true;
+      const labels = empty.map((field) => (AGE_ATTR_LABELS_BY_FIELD[field] || field)).join("、");
+      hint.textContent = `先掷出或填写属性（${labels} 还是 0）再应用`;
+      hint.classList.add("is-error");
+      return;
+    }
     const ok = !bad && spent === quota;
     applyBtn.disabled = !ok;
     hint.textContent = bad ? "只能填 0 或负数" : `体能合计 ${spent}/${quota}`;
@@ -1221,6 +1252,7 @@ function afterAgeAdjust(data) {
   });
   card.age_adjust = data.age_adjust;
   card.age = data.age;
+  ageSkipOpen = false;
   renderAgeAdjust();
   rerenderDerived();
 }

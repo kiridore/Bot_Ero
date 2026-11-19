@@ -98,6 +98,11 @@ const stub = {
   GalleryAuth: { headers: () => ({}) },
   fetch: async () => ({ ok: true, json: async () => ({}) }),
   rollDie: (spec) => { luckRolls.push(spec); return luckRolls.length === 1 ? 45 : 70; },
+  // 真实源码里的 attr() 在切片之外，沙箱里按同一口径补上
+  attr: (name) => {
+    const el = documentStub.querySelector(`[data-attr="${name}"]`);
+    return el ? Number(el.value || 0) : 0;
+  },
   escapeHtml: (s) => String(s == null ? "" : s),
 };
 const sandbox = new Proxy(stub, {
@@ -142,8 +147,15 @@ ageInput.value = "100";
 api.renderAgeAdjust();
 check("年龄超范围也提示", /15-99 岁之间/.test(box.innerHTML));
 
+// 属性桩：这一组用例默认已经掷好属性
+const FIELDS = ["str_score", "con_score", "siz_score", "dex_score", "app_score", "edu_score"];
+function fillAttrs(value) {
+  FIELDS.forEach((field) => { documentStub.querySelector(`[data-attr="${field}"]`).value = value; });
+}
+
 // 2) 40-49：三个体能格 + 合计校验
 ageInput.value = "45";
+fillAttrs("55");
 api.renderAgeAdjust();
 check("40-49 渲染三个体能格", box.querySelectorAll("[data-phy]").length === 3,
   String(box.querySelectorAll("[data-phy]").length));
@@ -206,11 +218,42 @@ check("20-39 没有体能格", box.querySelectorAll("[data-phy]").length === 0);
 check("20-39 应用按钮可用", documentStub.getElementById("ageApply").disabled === false);
 check("20-39 提示一次教育检定", /教育成长检定 ×1/.test(box.innerHTML), box.innerHTML.slice(0, 120));
 
-// 7) skipped 记录
-card.age_adjust = { kind: "skipped", age: 25, band: "20-39" };
+// 7) 属性还没掷/没填：应用按钮禁用
+card.age_adjust = null;
+ageInput.value = "45";
+fillAttrs("");
 api.renderAgeAdjust();
-check("skipped 仍可应用且标注不再提示", /已选过「不再提示」/.test(box.innerHTML)
-  && /id="ageApply"/.test(box.innerHTML));
+check("属性为 0 时应用按钮禁用", documentStub.getElementById("ageApply").disabled === true);
+check("属性为 0 时提示先掷属性",
+  /先掷出或填写属性/.test(documentStub.getElementById("ageHint").textContent)
+  && /力量/.test(documentStub.getElementById("ageHint").textContent),
+  documentStub.getElementById("ageHint").textContent);
+
+// 填上属性后恢复可用（体能合计仍需正确）
+fillAttrs("50");
+api.renderAgeAdjust();
+const phy2 = box.querySelectorAll("[data-phy]");
+phy2[0].value = "-5";
+phy2[0].fire("input");
+check("属性齐了以后按钮可用", documentStub.getElementById("ageApply").disabled === false,
+  documentStub.getElementById("ageHint").textContent);
+
+// 8) skipped 记录：折叠成一行，点「重新应用」再展开
+card.age_adjust = { kind: "skipped", age: 45, band: "40-49" };
+api.renderAgeAdjust();
+check("skipped 折叠成一行", /已选择不套用年龄调整（40-49 岁）/.test(box.innerHTML)
+  && !/id="ageApply"/.test(box.innerHTML), box.innerHTML.slice(0, 120));
+const reopen = documentStub.getElementById("ageReopen");
+check("折叠态给重新应用入口", /id="ageReopen"/.test(box.innerHTML));
+reopen.fire("click");
+check("点重新应用后展开", /id="ageApply"/.test(box.innerHTML) && /之前选过「不再提示」/.test(box.innerHTML),
+  box.innerHTML.slice(0, 140));
+
+// 9) skipped 后年龄改到别的段：自动展开
+card.age_adjust = { kind: "skipped", age: 45, band: "40-49" };
+ageInput.value = "55";
+api.renderAgeAdjust();
+check("年龄改了以后自动展开", /id="ageApply"/.test(box.innerHTML));
 
 console.log(fail ? `\n${fail} 项失败` : "\n全部通过");
 process.exit(fail ? 1 : 0);

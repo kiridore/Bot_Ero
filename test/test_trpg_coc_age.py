@@ -202,3 +202,26 @@ class TestFinalize(unittest.TestCase):
         self.assertEqual(len(bands), 8)
         self.assertEqual(bands[0]["phy_labels"], ["力量", "体型"])
         self.assertEqual(bands[1]["phy"], [])
+
+
+class TestAttributesNotRolled(unittest.TestCase):
+    """属性还没掷/没填时不允许应用年龄调整（扣减会算在 0 上）。"""
+
+    def test_empty_attributes_blocked(self):
+        with self.assertRaises(ValueError) as ctx:
+            coc.apply_age_adjust({"age": 25}, None)
+        self.assertIn("先掷出或填写属性", str(ctx.exception))
+
+    def test_physical_band_blocked(self):
+        card = {"age": 45, "str_score": 50, "con_score": 50, "dex_score": 50,
+                "app_score": 0, "edu_score": 60}
+        with self.assertRaises(ValueError) as ctx:
+            coc.apply_age_adjust(card, {"str": -5})
+        self.assertIn("外貌", str(ctx.exception))
+
+    def test_filled_attributes_pass(self):
+        card = {"age": 45, "str_score": 50, "con_score": 50, "dex_score": 50,
+                "app_score": 50, "edu_score": 60}
+        changes = coc.apply_age_adjust(card, {"str": -5}, roll=lambda a, b: 1)
+        self.assertEqual(changes["str_score"], 45)
+        self.assertEqual(changes["app_score"], 45)

@@ -171,6 +171,12 @@ def apply_age_adjust(data: dict, phy: dict | None = None, roll=None) -> dict:
     band = age_band(data.get("age"))
     if band is None:
         raise ValueError(f"请先填写 {AGE_MIN}-{AGE_MAX} 之间的年龄")
+    # 属性还没掷/还没填时不能应用：扣减会算在 0 上，教育检定也没有意义
+    needed = list(band["phy"]) + (["app"] if band["app"] else []) + ["edu"]
+    missing = [AGE_ATTR_LABELS[key] for key in needed
+               if _score(data, AGE_ATTR_FIELDS[key]) < 1]
+    if missing:
+        raise ValueError("先掷出或填写属性再做年龄调整（" + "、".join(missing) + " 还是 0）")
     phy = phy or {}
     unknown = set(phy) - set(band["phy"])
     if unknown:
