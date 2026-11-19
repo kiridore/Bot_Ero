@@ -229,11 +229,17 @@ function renderList() {
       lvBtn.addEventListener("click", () => { window.location.href = `/trpg/levelup/${c.id}`; });
       actions.appendChild(lvBtn);
     }
+    const illegal = Array.isArray(c.illegal) ? c.illegal : [];
     if (!isCur) {
       const swBtn = document.createElement("button");
       swBtn.type = "button";
       swBtn.className = "btn-sm";
       swBtn.textContent = "设为当前";
+      if (illegal.length) {
+        // 点数超预算的卡可以保存，但不能拿来跑团
+        swBtn.disabled = true;
+        swBtn.title = `还不能设为当前角色：${illegal.join("；")}`;
+      }
       swBtn.addEventListener("click", async () => {
         try {
           await apiFetch(`/api/me/characters/${c.id}/activate`, { method: "POST" });

@@ -182,6 +182,31 @@ fixed = dict(CARD, occupation="药剂师", occupation_attr="力量")
 r = client.post("/api/me/characters", headers=H, json=fixed)
 check("无「或」的职业填属性 400", r.status_code == 400 and "没有可选项" in r.text, r.text[:200])
 
+# —— 点数超预算：能保存，但不能设为当前角色 ——
+over_card = dict(CARD, skills={
+    "信用评级": {"base": 0, "growth": 0, "occupation": 40, "interest": 0},
+    "图书馆使用": {"base": 20, "occupation": 999},
+})
+r = client.post("/api/me/characters", headers=H, json=over_card)
+over = r.json() if r.status_code == 200 else {}
+check("超预算仍可保存 200", r.status_code == 200, r.text[:200])
+check("响应带 illegal 原因",
+      any("职业点超出预算" in p for p in (over.get("illegal") or [])), str(over.get("illegal")))
+
+r = client.post(f"/api/me/characters/{over.get('id')}/activate", headers=H)
+check("超预算不能设为当前 400", r.status_code == 400 and "不能设为当前角色" in r.text, r.text[:200])
+
+fixed_skills = dict(over_card, skills={
+    "信用评级": {"base": 0, "growth": 0, "occupation": 40, "interest": 0},
+    "图书馆使用": {"base": 20, "occupation": 10},
+})
+r = client.put(f"/api/me/characters/{over.get('id')}", headers=H, json=fixed_skills)
+fixed_body = r.json() if r.status_code == 200 else {}
+check("改回预算内保存 200", r.status_code == 200, r.text[:200])
+check("改回后 illegal 为空", fixed_body.get("illegal") == [], str(fixed_body.get("illegal")))
+r = client.post(f"/api/me/characters/{over.get('id')}/activate", headers=H)
+check("修正后可以设为当前", r.status_code == 200, r.text[:160])
+
 not_own = dict(CARD, skills={"攀爬": {"base": 20, "occupation": 20}})
 r = client.post("/api/me/characters", headers=H, json=not_own)
 check("非本职技能加点 400", r.status_code == 400 and "本职技能" in r.text, r.text[:200])
@@ -204,7 +229,10 @@ check("重复武器 400", r.status_code == 400 and "重复添加" in r.text, r.t
 
 bad = dict(CARD, skills={"图书馆使用": {"base": 25, "occupation": 500}})
 r = client.post("/api/me/characters", headers=H, json=bad)
-check("职业点超预算 400", r.status_code == 400 and "职业点超出" in r.text, r.text[:160])
+check("职业点超预算仍可保存", r.status_code == 200, r.text[:160])
+check("超预算给出 illegal",
+      any("职业点超出预算" in x for x in (r.json() or {}).get("illegal") or []),
+      str((r.json() or {}).get("illegal")))
 
 bad = dict(CARD, credit_rating=99)
 r = client.post("/api/me/characters", headers=H, json=bad)
@@ -219,7 +247,10 @@ no_occ_id = r.json().get("id")
 
 occ_points_without_occ = dict(no_occ, skills={"图书馆使用": {"base": 20, "occupation": 10}})
 r = client.post("/api/me/characters", headers=H, json=occ_points_without_occ)
-check("无职业不能加职业点", r.status_code == 400 and "不能分配职业点" in r.text, r.text[:160])
+check("无职业加职业点仍可保存", r.status_code == 200, r.text[:160])
+check("无职业加职业点给出 illegal",
+      any("未选择职业" in x for x in (r.json() or {}).get("illegal") or []),
+      str((r.json() or {}).get("illegal")))
 
 defaults_view = client.get(f"/api/characters/{ME}/{no_occ_id}", headers=H).json()
 skills_view = defaults_view.get("skills") or {}

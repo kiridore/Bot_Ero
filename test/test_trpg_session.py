@@ -942,6 +942,20 @@ class TestPrepare(IsolationMixin, unittest.TestCase):
         _run([_text_seg("/跑团 取消准备")])
         self.assertEqual(party.read_pending(GROUP_ID)["prepared"], {})
 
+    def test_prepare_refused_for_over_budget_card(self):
+        """点数超预算的卡能保存，但不能拿来准备/参团。"""
+        party.set_rule(GROUP_ID, "coc7th")
+        store.create_char("111", {
+            "char_name": "田宫真莉", "rules": "coc7th", "occupation": "猎人",
+            "str_score": 50, "con_score": 50, "siz_score": 50, "dex_score": 50,
+            "app_score": 50, "int_score": 50, "pow_score": 50, "edu_score": 50,
+            "skills": {"信用评级": {"occupation": 30},
+                       "侦察": {"base": 25, "occupation": 500}},
+        })
+        plugin = _run([_text_seg("/跑团 准备")])
+        self.assertIn("点数超预算", _sent_text(plugin))
+        self.assertEqual(party.read_pending(GROUP_ID)["prepared"], {})
+
     def test_prepare_refused_during_recording(self):
         _run([_text_seg("/跑团 记录 强制开始")])
         plugin = _run([_text_seg("/跑团 准备")])

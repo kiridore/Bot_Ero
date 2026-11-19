@@ -293,6 +293,13 @@ def _auto_finish(group_id: int, reason: str) -> None:
     finalize_quietly(path, end_ts, reason)
 
 
+def _card_problems(char: dict) -> list:
+    """能保存但不能用于跑团的原因（COC 点数超预算）。"""
+    from core.trpg import coc as coc_sheet
+
+    return coc_sheet.legality_problems(char)
+
+
 @register_plugin
 class TrpgSessionPlugin(TimedHeartbeatPlugin):
     name = "trpg_session"
@@ -632,6 +639,12 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
                 f"请切换角色卡（/跑团 角色 列表 → /跑团 角色 切换 <编号>），或让 DM 用 /跑团 规则 修改本团规则"
             ))
             return
+        problems = _card_problems(char)
+        if problems:
+            self.api.send_msg(text(
+                "这张卡还不能参加跑团（点数超预算）：\n· " + "\n· ".join(problems)
+                + "\n请到 " + WEB_TRPG_URL + " 修正后再发送 /跑团 准备"))
+            return
         snapshot = {
             "user_id": user_id,
             "nickname": self._get_sender_nickname(),
@@ -796,9 +809,14 @@ class TrpgSessionPlugin(TimedHeartbeatPlugin):
         if not dm_ids:
             problems.append({"text": "还没有 DM：请一人发送 .dm"})
         no_card = [u for u in players if store.get_current(u) is None]
+        bad_card = [u for u in players
+                    if store.get_current(u) is not None
+                    and _card_problems(store.get_current(u))]
         not_ready = [u for u in players if u not in prepared]
         if no_card:
             problems.append({"text": f"缺少角色卡（到 {WEB_TRPG_URL} 创建）：", "at": no_card})
+        if bad_card:
+            problems.append({"text": "角色卡点数超预算（到网页修正）：", "at": bad_card})
         if not_ready:
             problems.append({"text": "尚未准备（发送 /跑团 准备）：", "at": not_ready})
         return problems

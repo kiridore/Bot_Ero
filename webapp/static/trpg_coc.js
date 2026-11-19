@@ -1386,6 +1386,10 @@ async function save() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || "保存失败");
+    if (Array.isArray(data.illegal) && data.illegal.length) {
+      // 点数超预算的卡照样能存，但不能设为当前角色去跑团
+      alert(`卡已保存，但还不能设为当前角色：\n· ${data.illegal.join("\n· ")}\n\n请调整职业点/兴趣点后重新保存。`);
+    }
     window.location.href = "/trpg";
   } catch (err) {
     alert(err.message || "保存失败");

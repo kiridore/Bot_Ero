@@ -1083,25 +1083,40 @@ def age_adjust_problems(data: dict) -> list[str]:
     return problems
 
 
+def budget_problems(data: dict) -> list[str]:
+    """职业点 / 兴趣点是否超预算。
+
+    不拦保存（允许先存一张半成品慢慢调），但会拦「设为当前角色」与「/跑团 准备」。
+    """
+    fin = finalize(data)
+    problems = []
+    if fin["occupation_info"] is None:
+        if fin["occupation_spent"] > 0:
+            problems.append("未选择职业时不能分配职业点")
+    elif fin["occupation_spent"] > fin["occupation_budget"]:
+        problems.append(f"职业点超出预算（{fin['occupation_spent']}/{fin['occupation_budget']}）")
+    if fin["interest_spent"] > fin["interest_budget"]:
+        problems.append(f"兴趣点超出预算（{fin['interest_spent']}/{fin['interest_budget']}）")
+    return problems
+
+
+def legality_problems(data: dict) -> list[str]:
+    """能保存、但不能当作当前角色使用的问题（目前只有点数超预算）。"""
+    if (data.get("rules") or "dnd5e") != "coc7th":
+        return []
+    return budget_problems(data)
+
+
 def validate(data: dict) -> list[str]:
-    """建卡约束：属性范围、技能点不超预算、信用评级在职业区间内。"""
+    """建卡约束：属性范围、信用评级在职业区间内（点数超预算不拦保存，见 budget_problems）。"""
     normalize_credit_rating(data)
     problems = []
     fin = finalize(data)
     for attr, value in fin["scores"].items():
         if value and not (1 <= value <= 99):
             problems.append(f"{attr}应在 1-99 之间")
-    if fin["occupation_info"] is None:
-        # 未选职业允许存在：此时没有职业点预算，职业点必须为 0
-        if fin["occupation_spent"] > 0:
-            problems.append("未选择职业时不能分配职业点")
-    else:
-        if fin["occupation_spent"] > fin["occupation_budget"]:
-            problems.append(
-                f"职业点超出预算（{fin['occupation_spent']}/{fin['occupation_budget']}）")
+    if fin["occupation_info"] is not None:
         problems.extend(credit_problems(data))
-    if fin["interest_spent"] > fin["interest_budget"]:
-        problems.append(f"兴趣点超出预算（{fin['interest_spent']}/{fin['interest_budget']}）")
     for name, entry in fin["skills"].items():
         if entry["total"] < 0 or entry["total"] > SKILL_CEILING:
             problems.append(f"技能「{name}」成功率应在 0-{SKILL_CEILING} 之间")

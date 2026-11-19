@@ -19,6 +19,13 @@ def format_card(char_data: dict) -> str:
     return char_logic.format_sheet(char_data)
 
 
+def _legality_problems(char: dict) -> list:
+    """能保存但不能设为当前角色的原因（COC 的点数超预算）。"""
+    from core.trpg import coc as coc_sheet
+
+    return coc_sheet.legality_problems(char)
+
+
 @register_plugin
 class TrpgCharPlugin(Plugin):
     name = "trpg_char"
@@ -88,7 +95,8 @@ class TrpgCharPlugin(Plugin):
         for c in chars:
             mark = " ◀ 当前" if c["id"] == current_id else ""
             if (c.get("rules") or "dnd5e") == "coc7th":
-                lines.append(f"#{c['id']} {c['char_name']} COC 调查员 {c.get('occupation') or ''}{mark}")
+                flag = " ⚠️不可用（点数超预算）" if _legality_problems(c) else ""
+                lines.append(f"#{c['id']} {c['char_name']} COC 调查员 {c.get('occupation') or ''}{mark}{flag}")
             else:
                 lines.append(f"#{c['id']} {c['char_name']} Lv.{c['level']} {c['race']} {c['class_name']}{mark}")
         self.api.send_msg(text("\n".join(lines)))
@@ -101,13 +109,20 @@ class TrpgCharPlugin(Plugin):
             self.api.send_msg(text("格式：/跑团 角色 切换 <编号>"))
             return
         char_id = int(args[0].lstrip("#"))
+        char = store.get_char(user_id, char_id)
+        if not char:
+            self.api.send_msg(text("角色不存在"))
+            return
+        problems = _legality_problems(char)
+        if problems:
+            self.api.send_msg(text(
+                f"#{char_id} {char['char_name']} 还不能设为当前角色：\n· "
+                + "\n· ".join(problems) + "\n请先到网页修正后再切换。"))
+            return
         try:
             store.set_current(user_id, char_id)
         except ValueError:
             self.api.send_msg(text("角色不存在"))
-            return
-        char = store.get_char(user_id, char_id)
-        if not char:
             return
         self.api.send_msg(text(f"已将当前角色切换为 {char['char_name']}"))
 

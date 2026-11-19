@@ -173,6 +173,8 @@ class CharOut(BaseModel):
     current_san: int | None = None
     occupation_choices: dict[str, list[str]] = {}
     occupation_attr: str = ""
+    # 能保存但不能设为当前角色的原因（目前是职业点/兴趣点超预算）
+    illegal: list[str] = []
     age_adjust: dict | None = None
     skills: dict = {}
     weapons: list[dict] = []
@@ -218,6 +220,7 @@ def _char_to_out(data: dict) -> CharOut:
                     "skills", "occupation_info", "occupation_budget", "occupation_spent",
                     "interest_budget", "interest_spent"):
             payload[key] = fin[key]
+        payload["illegal"] = trpg_coc.legality_problems(data)
     else:
         fin = trpg_char.finalize(data)
         payload["hp"] = fin["hp"]
@@ -560,6 +563,14 @@ def api_activate_character(
     char_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
+    char = char_store.get_char(user_id, char_id)
+    if not char:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    problems = trpg_coc.legality_problems(char)
+    if problems:
+        raise HTTPException(
+            status_code=400,
+            detail="这张卡还不能设为当前角色：" + "；".join(problems))
     try:
         char_store.set_current(user_id, char_id)
     except ValueError as exc:

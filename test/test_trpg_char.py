@@ -166,6 +166,20 @@ class TestTrpgCharPlugin(unittest.TestCase):
             p.handle()
         self.assertIn("切换为 艾伦", _sent_text(p))
 
+    def test_switch_refuses_over_budget_coc_card(self):
+        """点数超预算的卡能保存，但不能设为当前角色。"""
+        card = {"id": 7, "user_id": "111", "char_name": "田宫真莉", "rules": "coc7th",
+                "occupation": "猎人", "str_score": 50, "con_score": 50, "siz_score": 50,
+                "dex_score": 50, "app_score": 50, "int_score": 50, "pow_score": 50, "edu_score": 50,
+                "skills": {"信用评级": {"occupation": 30}, "侦察": {"base": 25, "occupation": 500}}}
+        p = self._plugin("/跑团 角色 切换 7")
+        with patch("core.character_store.set_current") as switched,                 patch("core.character_store.get_char", return_value=card):
+            p.handle()
+        out = _sent_text(p)
+        self.assertIn("还不能设为当前角色", out)
+        self.assertIn("职业点超出预算", out)
+        switched.assert_not_called()
+
     def test_switch_missing(self):
         p = self._plugin("/跑团 角色 切换 99")
         with patch("core.character_store.set_current", side_effect=ValueError("角色不存在")):

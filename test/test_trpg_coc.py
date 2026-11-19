@@ -232,13 +232,16 @@ class TestBudgets(unittest.TestCase):
         self.assertEqual(fin["interest_budget"], 170)
         self.assertEqual(fin["occupation_spent"], 25)
 
-    def test_validate_over_budget(self):
-        problems = coc.validate(_card(skills={"图书馆使用": {"base": 25, "occupation": 200}}))
-        self.assertTrue(any("职业点超出" in p for p in problems))
+    def test_over_budget_does_not_block_save(self):
+        # 2.1.2 起：点数超预算不拦保存，只拦「设为当前角色」（见 legality_problems）
+        card = _card(skills={"图书馆使用": {"base": 25, "occupation": 200}})
+        self.assertEqual([p for p in coc.validate(card) if "预算" in p], [])
+        self.assertTrue(any("职业点超出" in p for p in coc.legality_problems(card)))
 
-    def test_validate_interest_over_budget(self):
-        problems = coc.validate(_card(skills={"图书馆使用": {"base": 25, "interest": 200}}))
-        self.assertTrue(any("兴趣点超出" in p for p in problems))
+    def test_interest_over_budget_does_not_block_save(self):
+        card = _card(skills={"图书馆使用": {"base": 25, "interest": 200}})
+        self.assertEqual([p for p in coc.validate(card) if "预算" in p], [])
+        self.assertTrue(any("兴趣点超出" in p for p in coc.legality_problems(card)))
 
     def test_validate_credit_range(self):
         problems = coc.validate(_card(credit_rating=99))
@@ -250,10 +253,11 @@ class TestBudgets(unittest.TestCase):
                      skills={"图书馆使用": {"base": 20}, "聆听": {"base": 20, "interest": 10}})
         self.assertEqual(coc.validate(card), [])
 
-    def test_validate_rejects_occupation_points_without_occupation(self):
+    def test_occupation_points_without_occupation_is_illegal_not_blocked(self):
         card = _card(occupation="", occupation_choices={},
                      skills={"图书馆使用": {"base": 20, "occupation": 10}})
-        self.assertTrue(any("未选择职业时不能分配职业点" in p for p in coc.validate(card)))
+        self.assertEqual([p for p in coc.validate(card) if "职业点" in p], [])
+        self.assertTrue(any("未选择职业" in p for p in coc.legality_problems(card)))
 
     def test_valid_card_has_no_problem(self):
         self.assertEqual(coc.validate(_card()), [])
