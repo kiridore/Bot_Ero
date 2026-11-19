@@ -1,8 +1,9 @@
-"""Webapp API 契约回归：OpenAPI 完整性、双形态分页、导航 API、直播流地址、统一认证。
+"""Webapp API 契约回归：OpenAPI 完整性、双形态分页、导航 API、直播流地址、统一认证、工具箱 tags。
 
 独立进程运行: python test/scripts/check_webapp_api_contract.py
 （pytest 由 test/test_webapp_api_suites.py 子进程自动纳入统一回归）
-对应提案 2026-11-18-webapp-api-contract 的 AC01–AC04、AC07。
+对应提案 2026-11-18-webapp-api-contract 的 AC01–AC04、AC07，
+以及 2026-11-19-tools-tags-contract 的 AC01。
 """
 
 import os
@@ -159,6 +160,28 @@ key = make_login_key(int(ME))
 r = client.post("/api/auth/login", json={"key": key})
 check("login 换取凭证", r.status_code == 200 and r.json().get("user_id") == ME
       and r.json().get("token"))
+
+# —— 工具箱 tags 契约（2026-11-19-tools-tags-contract AC01）——
+from core.database_manager import DbManager  # noqa: E402
+
+db = DbManager()
+TOOL_ID = db.tools.add_tool(ME, "契约测试链接", "标签回归", "https://example.com/tags", "example.com")
+db.tools.add_link_tags(TOOL_ID, ["契约标签A", "契约标签B"], ME)
+r = client.get("/api/tools?q=契约测试链接", headers=MH)
+tool = next((it for it in r.json().get("items", []) if it.get("id") == TOOL_ID), None)
+check("工具箱列表项含 tags 数组", r.status_code == 200 and tool is not None
+      and tool.get("tags") == ["契约标签A", "契约标签B"], r.text[:200])
+_conn2 = sqlite3.connect(_db)
+rows = _conn2.execute(
+    "SELECT t.name FROM tools_link_tags lt JOIN tools_tags t ON lt.tag_id = t.id "
+    "WHERE lt.link_id = ? ORDER BY lt.tag_id", (TOOL_ID,)
+).fetchall()
+_conn2.close()
+check("tags 与 tools_link_tags 一致", [row[0] for row in rows] == (tool or {}).get("tags"))
+tool_schema = (doc.get("components") or {}).get("schemas", {}).get("ToolItemOut", {})
+tags_schema = tool_schema.get("properties", {}).get("tags", {})
+check("OpenAPI ToolItemOut 声明 tags 数组",
+      tags_schema.get("type") == "array" and tags_schema.get("items", {}).get("type") == "string")
 
 print(f"\n{'全部通过' if fail == 0 else f'{fail} 项失败'}")
 sys.exit(1 if fail else 0)

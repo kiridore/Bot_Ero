@@ -4,6 +4,10 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [2.0.1]
+
+- **修复工具箱列表不返回标签**：`GET /api/tools` 的每一项现在带 `tags`（tag 名数组）。此前响应模型漏声明该字段，FastAPI 把它从响应中裁掉——网页端卡片从不显示标签，编辑链接时表单读不到已有标签，保存时按空标签整体替换，**导致已有标签被静默清空**；Flutter 客户端也只能不显示标签并提示用户重填。本次只补契约字段，标签清洗/整体替换的写入语义与数据库不变。
+
 ## [2.0.0]
 
 - **Webapp API 契约固化（面向移动端 / PC 客户端）**：全部 `/api/*` 路由在 `GET /openapi.json`（登录态）中有完整响应 schema，可用 openapi_generator 生成类型化客户端（Flutter 移动/PC 端据此接入）。

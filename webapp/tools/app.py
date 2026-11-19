@@ -37,6 +37,7 @@ class ToolItemOut(BaseModel):
     created_by: str
     created_at: str
     click_count: int
+    tags: list[str] = []
     created_by_name: str
     created_by_avatar: str
 

@@ -116,7 +116,7 @@ curl -H "Authorization: Bearer <图库密钥>" https://littlero.tech/openapi.jso
 
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| GET | `/api/tools` | 可选 | 全量链接卡片（无分页）；过滤 `q`/`tag`，排序 `sort=time|hot`、`order=asc|desc` |
+| GET | `/api/tools` | 可选 | 全量链接卡片（无分页）；每项含 `tags`（tag 名数组）；过滤 `q`/`tag`，排序 `sort=time|hot`、`order=asc|desc` |
 | GET | `/api/tools/icon?domain=` | 可选 | 站点图标（二进制；无图标 404，负缓存 7 天） |
 | GET | `/api/tools/tags` | 可选 | tag 及计数 |
 | POST | `/api/tools` | 必须 | 提交链接 body `{title, description, url, tags}` |
