@@ -249,7 +249,22 @@ reopen.fire("click");
 check("点重新应用后展开", /id="ageApply"/.test(box.innerHTML) && /之前选过「不再提示」/.test(box.innerHTML),
   box.innerHTML.slice(0, 140));
 
-// 9) skipped 后年龄改到别的段：自动展开
+// 9) 还没保存的新卡：说明必须先保存，两个按钮都不可点
+card.age_adjust = null;
+ageInput.value = "45";
+stub.CHAR_ID = null;
+fillAttrs("55");
+api.renderAgeAdjust();
+check("未保存时提示先保存角色卡",
+  /先保存角色卡/.test(box.innerHTML) && /id="ageNeedSave"/.test(box.innerHTML),
+  box.innerHTML.slice(0, 120));
+check("未保存时应用按钮禁用", documentStub.getElementById("ageApply").disabled === true);
+check("未保存时不再提示按钮禁用", documentStub.getElementById("ageSkip").disabled === true);
+check("未保存时提示语优先", /先保存角色卡/.test(documentStub.getElementById("ageHint").textContent),
+  documentStub.getElementById("ageHint").textContent);
+stub.CHAR_ID = 7;
+
+// 10) skipped 后年龄改到别的段：自动展开
 card.age_adjust = { kind: "skipped", age: 45, band: "40-49" };
 ageInput.value = "55";
 api.renderAgeAdjust();

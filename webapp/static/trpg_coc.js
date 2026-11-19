@@ -1195,7 +1195,11 @@ function renderAgeAdjust() {
     quota ? `体能合计 -${quota}（扣在哪几项由你决定，填 0 或负数）` : "",
     ...extras,
   ].filter(Boolean).join("；");
+  const needSave = CHAR_ID ? "" :
+    '<p class="coc-warn" id="ageNeedSave">先保存角色卡，再回到这里应用年龄调整：'
+    + '教育成长检定要由服务端掷骰，保存前拿不到卡号。</p>';
   box.innerHTML = `
+    ${needSave}
     <p class="coc-note">按 ${escapeHtml(band.band)} 岁：${summary}。${skippedNote}</p>
     ${inputs ? `<div class="coc-grid coc-age-phy">${inputs}</div>` : ""}
     ${band.luck_best ? '<button type="button" class="btn-sm" id="ageLuck">🎲 幸运掷两次取高</button>' : ""}
@@ -1210,6 +1214,13 @@ function renderAgeAdjust() {
     "edu_score",
   ];
   const update = () => {
+    if (!CHAR_ID) {
+      applyBtn.disabled = true;
+      document.getElementById("ageSkip").disabled = true;
+      hint.textContent = "先保存角色卡";
+      hint.classList.add("is-error");
+      return;
+    }
     let spent = 0;
     let bad = false;
     box.querySelectorAll("[data-phy]").forEach((el) => {
