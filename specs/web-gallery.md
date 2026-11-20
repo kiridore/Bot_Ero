@@ -321,6 +321,12 @@ user_id = verify_login_key(key)  # 返回 user_id 字符串或 None
 | `GET` | `/api/weekly` | 必须 | 归档列表：每期 issue/start/end/total_messages/headline.title，按 week_key 倒序，仅返回 `core.config.GROUP_ID` 数据 |
 | `GET` | `/api/weekly/{week_key}` | 必须 | 详情：整行 `data_json` 返回；不存在 → 404 |
 
+### App 更新（`appversion` 模块）
+
+| 方法 | 路径 | 登录 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/app/version` | 必须 | Flutter 客户端应用内更新的**版本清单**（version/version_code/apk_url/sha256/size/notes/min_supported_version_code/published_at），数据源为 `config.yaml` 的 `app_update` 段；未配置或 `apk_url` 为空 → 404「未配置应用更新」；配置非法（version_code 非整数 / apk_url 非 http(s) / sha256 非 64 位 hex / size 负数）→ 500 且 detail 点名出错字段。**服务端不托管 APK**：`apk_url` 指向外部对象存储直链，客户端自行下载并校验 SHA-256 后拉起系统安装器。发布流程见 `docs/app-release.md` |
+
 ### 议事厅（`forum` 模块）
 
 | 方法 | 路径 | 认证 | 说明 |
