@@ -322,9 +322,13 @@ check("动态基础值规则随选项下发",
       dyn.get("闪避", {}).get("divisor") == 2 and dyn.get("母语", {}).get("attr") == "edu_score",
       str(dyn))
 check("播种名单只含标准技能",
-      len(opts.get("default_skills") or []) == 39
+      len(opts.get("default_skills") or []) == 38
       and "科学:化学" not in (opts.get("default_skills") or []),
       str(len(opts.get("default_skills") or [])))
+check("克苏鲁神话不在技能表里",
+      "克苏鲁神话" not in (opts.get("default_skills") or [])
+      and "克苏鲁神话" not in (opts.get("skill_base") or {}),
+      str("克苏鲁神话" in (opts.get("skill_base") or {})))
 
 notes = opts.get("skill_notes") or {}
 check("技能说明随选项下发", len(notes) >= 100 and notes.get("会计", {}).get("base") == "5%"

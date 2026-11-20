@@ -105,9 +105,20 @@ function mergeSkillDefaults(card, dexScore) {
   const merged = skillDefaults(options.skill_base, dexScore, options.default_skills, options.dynamic_bases);
   Object.entries((card && card.skills) || {}).forEach(([name, entry]) => {
     const canon = normalizeSkillName(name) || name;
+    // 克苏鲁神话不是技能行：旧卡上残留的行不进技能表（数值在背景字段里）
+    if (canon === "克苏鲁神话") return;
     merged[canon] = { ...(merged[canon] || {}), ...(entry || {}) };
   });
   return merged;
+}
+
+// 旧卡把克苏鲁神话当技能加过点：并进背景字段，避免点数静默丢失
+function foldLegacyMythos(card) {
+  const row = ((card && card.skills) || {})["克苏鲁神话"];
+  if (!row) return;
+  const total = ["base", "growth", "occupation", "interest"]
+    .reduce((sum, key) => sum + Number(row[key] || 0), 0);
+  if (total > Number(card.cthulhu_mythos || 0)) card.cthulhu_mythos = total;
 }
 
 // 可加职业点的技能名集合：固定项（含 类别:* 通配）+ 已选中的池内技能
@@ -1433,6 +1444,7 @@ async function init() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "读取角色卡失败");
       card = data;
+      foldLegacyMythos(card);
       card.skills = mergeSkillDefaults(card, card.dex_score);
       occChoices = { ...(card.occupation_choices || {}) };
       occAttr = card.occupation_attr || "";

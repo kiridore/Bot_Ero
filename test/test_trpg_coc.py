@@ -503,10 +503,30 @@ class TestSkillBaseConsistency(unittest.TestCase):
 
     def test_default_skills_are_standard_only(self):
         names = coc.default_skill_names()
-        self.assertEqual(len(names), 39)
+        self.assertEqual(len(names), 38)
         self.assertIn("会计", names)
         self.assertNotIn("科学:化学", names)
         self.assertNotIn("斗殴", names)
+
+    def test_mythos_is_not_a_skill(self):
+        """克苏鲁神话只存在背景字段：技能表里既没有默认行，也不渲染旧卡残留行。"""
+        self.assertNotIn("克苏鲁神话", coc.default_skill_names())
+        self.assertNotIn("克苏鲁神话", coc.skill_base_map())
+        fin = coc.finalize({"rules": "coc7th", "cthulhu_mythos": 10,
+                            "skills": {"克苏鲁神话": {"base": 0, "interest": 5}}})
+        self.assertNotIn("克苏鲁神话", fin["skills"])
+        self.assertEqual(fin["max_san"], 89)
+
+    def test_mythos_roll_reads_background_field(self):
+        card = {"rules": "coc7th", "cthulhu_mythos": 23, "skills": {}}
+        self.assertEqual(coc.skill_value(card, "克苏鲁神话"), 23)
+
+    def test_legacy_mythos_row_folds_into_background(self):
+        card = {"rules": "coc7th", "cthulhu_mythos": 5,
+                "skills": {"克苏鲁神话": {"base": 0, "interest": 18}}}
+        self.assertEqual(coc.validate(card), [])
+        self.assertNotIn("克苏鲁神话", card["skills"])
+        self.assertEqual(card["cthulhu_mythos"], 18)
 
     def test_dodge_still_derived(self):
         self.assertEqual(coc.skill_defaults(55)["闪避"], 27)

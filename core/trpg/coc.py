@@ -657,6 +657,8 @@ def skill_base_map() -> dict[str, int]:
     for name, note in SKILL_NOTES.items():
         base = _percent_value(note.get("base"))
         key = canonical_skill(NOTE_ALIASES.get(name, name)).rstrip("：:")
+        if key == MYTHOS_SKILL:
+            continue          # 克苏鲁神话没有技能行：数值只在背景字段里
         if base is not None and key not in table:
             table[key] = base
     for name, base in weapon_skill_base().items():
@@ -701,6 +703,8 @@ def finalize(data: dict) -> dict:
         name = canonical_skill(raw_name)
         if not isinstance(entry, dict) or not skill_name_ok(name):
             continue
+        if name == MYTHOS_SKILL:
+            continue           # 克苏鲁神话只在背景字段里，旧卡上的技能行不再展示
         base = entry.get("base")
         dynamic = dynamic_skill_base(name, data)
         if dynamic is not None:
@@ -1109,6 +1113,7 @@ def legality_problems(data: dict) -> list[str]:
 
 def validate(data: dict) -> list[str]:
     """建卡约束：属性范围、信用评级在职业区间内（点数超预算不拦保存，见 budget_problems）。"""
+    normalize_mythos(data)
     normalize_credit_rating(data)
     problems = []
     fin = finalize(data)
@@ -1135,6 +1140,9 @@ def validate(data: dict) -> list[str]:
 
 
 CREDIT_SKILL = "信用评级"
+# 克苏鲁神话不是技能行：只存在卡片的背景字段里（1.66 起就由它算 SAN 上限）
+MYTHOS_SKILL = "克苏鲁神话"
+MYTHOS_FIELD = "cthulhu_mythos"
 
 
 def credit_entry(data: dict) -> dict | None:
@@ -1156,6 +1164,30 @@ def credit_value(data: dict) -> int:
     except (TypeError, ValueError):
         total = 0
     return max(0, min(total, 99))
+
+
+def normalize_mythos(data: dict) -> bool:
+    """旧卡若还有「克苏鲁神话」技能行：把它的点数并进背景字段，然后删掉这一行。"""
+    skills = data.get("skills")
+    if not isinstance(skills, dict):
+        return False
+    changed = False
+    for name in list(skills):
+        if canonical_skill(name) != MYTHOS_SKILL:
+            continue
+        entry = skills.pop(name)
+        changed = True
+        if not isinstance(entry, dict):
+            continue
+        total = skill_total({
+            "base": int(entry.get("base") or 0),
+            "growth": int(entry.get("growth") or 0),
+            "occupation": int(entry.get("occupation") or 0),
+            "interest": int(entry.get("interest") or 0),
+        })
+        if total > int(data.get(MYTHOS_FIELD) or 0):
+            data[MYTHOS_FIELD] = total
+    return changed
 
 
 def normalize_credit_rating(data: dict) -> bool:
@@ -1252,7 +1284,10 @@ def skill_value(data: dict, name: str) -> int | None:
     for skill, entry in fin["skills"].items():
         if canonical_skill(skill) == canon or skill.startswith(key):
             return entry["total"]
-    # 武器技能（斗殴/手枪/射击:步枪…）不在 39 项标准技能里，按规则书基础值兜底
+    if canon == MYTHOS_SKILL:
+        # 克苏鲁神话没有技能行，数值在背景字段里
+        return int(data.get(MYTHOS_FIELD) or 0)
+    # 武器技能（斗殴/手枪/射击:步枪…）不在标准技能里，按规则书基础值兜底
     base = weapon_skill_base().get(WEAPON_SKILL_ALIASES.get(canon, canon))
     if base is not None:
         return base

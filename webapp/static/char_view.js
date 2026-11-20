@@ -310,7 +310,6 @@ function renderCocView(char) {
     ["消费水平", assets.spending_level], ["其他资产", assets.other_assets],
     ["交通工具", assets.vehicle], ["住所", assets.residence], ["奢侈品", assets.luxury],
     ["股票/证券", assets.securities], ["其他", assets.other], ["剩余资产值", assets.remaining],
-    ["克苏鲁神话", char.cthulhu_mythos],
   ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
   if (assetLines.length) {
     cocSection("资产", (sec) => {
@@ -329,7 +328,11 @@ function renderCocView(char) {
   }
 
   const bg = char.social_background || {};
-  const bgLines = COC_BACKGROUND.filter(([key]) => String(bg[key] || "").trim());
+  // 克苏鲁神话挂在背景里（不是技能行）
+  const bgLines = [
+    ["__mythos", `克苏鲁神话：${char.cthulhu_mythos || 0}`],
+    ...COC_BACKGROUND.filter(([key]) => String(bg[key] || "").trim()),
+  ];
   if (bgLines.length) {
     cocSection("背景", (sec) => {
       const box = document.createElement("div");
