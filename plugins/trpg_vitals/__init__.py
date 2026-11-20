@@ -5,6 +5,7 @@
 - `.mp <±值|满> [@目标]`：COC 专属，扣/加当前 MP（施法消耗）
 - `.sc <成功损失>/<失败损失> [@目标]`：COC 理智检定，掷 D100 与当前 SAN 比
 - `.ti [@目标]`：COC 临时性疯狂发作，掷表Ⅶ即时症状（9/10 再骰表Ⅸ/Ⅹ）
+- `.幸运 <±值> [@目标]`：COC 幸运增减（花幸运点、KP 奖励）
 
 改别人的卡需要群内 DM（或超级用户）身份；本次不支持的组合直接拒绝并说明。
 """
@@ -22,10 +23,11 @@ from core.trpg import character as dnd
 from core.trpg import coc, madness, party, vitals
 import core.context as runtime_context
 
-PREFIX_RE = re.compile(r"^\.(?:hp|san|mp|sc|ti)(?:\s|$)", re.IGNORECASE)
+PREFIX_RE = re.compile(r"^\.(?:hp|san|mp|sc|ti|幸运|luck)(?:\s|$)", re.IGNORECASE)
 DICE_RE = re.compile(r"^(\d*)d(\d+)([+-]\d+)?$", re.IGNORECASE)
 MAX_DICE = 100
 MAX_SIDES = 1000
+LUCK_MAX = 99
 
 
 def roll_expression(expr: str):
@@ -97,6 +99,8 @@ class TrpgVitalsPlugin(Plugin):
                 self._handle_amount("mp", parts[1:])
             elif cmd == ".ti":
                 self._handle_insanity()
+            elif cmd in (".幸运", ".luck"):
+                self._handle_luck(parts[1:])
             else:
                 self._handle_san_check(parts[1:])
         except ValueError as exc:
@@ -235,6 +239,41 @@ class TrpgVitalsPlugin(Plugin):
         """当前值：可能是 None（未初始化）或旧值，一律按上限兜底。"""
         value = data.get(key)
         return maximum if value is None else value
+
+    def _handle_luck(self, args: list):
+        """幸运增减：0-99 之间截断（幸运是 D100 的目标值，不设「满」）。"""
+        args = [a for a in self._strip_at_text(args) if a]
+        if not args:
+            raise ValueError("格式：.幸运 <±值> [@目标]，例：.幸运 -10、.幸运 +1d6")
+        target, char = self._resolve_target()
+        rule = self._check_rule(char)
+        if rule != "coc7th":
+            raise ValueError("幸运是 COC 7th 的数值，当前角色卡是 DND 5E")
+
+        raw = args[0]
+        if not raw or raw[0] not in "+-":
+            raise ValueError("请带上正负号，例如 .幸运 -10 / .幸运 +5")
+        sign = -1 if raw[0] == "-" else 1
+        amount, detail = roll_expression(raw[1:])
+        delta = sign * amount
+        detail = f"{'-' if sign < 0 else '+'}{detail}"
+
+        data = dict(char)
+        before = vitals.clamp(int(data.get("luck") or 0), LUCK_MAX)
+        after = vitals.clamp(before + delta, LUCK_MAX)
+        data["luck"] = after
+        try:
+            store.update_char(target, char["id"], data)
+        except ValueError as exc:
+            raise ValueError(str(exc) or "角色卡写入失败")
+
+        nickname = self._display_name(target, char)
+        out = f"{nickname}的{vitals.format_change('幸运', before, after, detail)}"
+        if before + delta < 0:
+            out += "\n· 幸运已见底（不会低于 0）"
+        elif before + delta > LUCK_MAX:
+            out += f"\n· 幸运上限 {LUCK_MAX}，多出的部分不计"
+        self._reply(out)
 
     def _max_hp(self, data: dict, rule: str) -> int:
         if rule == "coc7th":

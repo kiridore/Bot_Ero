@@ -346,3 +346,71 @@ class TestExpressionEdgeCases(VitalsBase):
         out = self.invoke(".sc 1/1d4+1", user_id=PLAYER_ID, rolls=[99, 3])
         self.assertIn("SAN 50 → 46", out)
         self.assertIn("d4+1=4（3+1）", out)
+
+
+class TestLuck(VitalsBase):
+    """`.幸运 ±N`：COC 专属，0-99 截断，本人可改、DM 可 @ 他人。"""
+
+    rule = "coc7th"
+
+    def test_spend(self):
+        self.install({PLAYER_ID: _coc_card(luck=45)})
+        out = self.invoke(".幸运 -10", user_id=PLAYER_ID)
+        self.assertIn("幸运 45 → 35（-10）", out)
+        self.assertEqual(self.cards[PLAYER_ID]["luck"], 35)
+
+    def test_gain(self):
+        self.install({PLAYER_ID: _coc_card(luck=45)})
+        out = self.invoke(".幸运 +5", user_id=PLAYER_ID)
+        self.assertIn("幸运 45 → 50（+5）", out)
+
+    def test_english_alias(self):
+        self.install({PLAYER_ID: _coc_card(luck=45)})
+        out = self.invoke(".luck -5", user_id=PLAYER_ID)
+        self.assertIn("幸运 45 → 40（-5）", out)
+
+    def test_dice_expression(self):
+        self.install({PLAYER_ID: _coc_card(luck=45)})
+        out = self.invoke(".幸运 -1d6", user_id=PLAYER_ID, rolls=[3])
+        self.assertIn("幸运 45 → 42（-d6=3）", out)
+
+    def test_floor_zero(self):
+        self.install({PLAYER_ID: _coc_card(luck=5)})
+        out = self.invoke(".幸运 -50", user_id=PLAYER_ID)
+        self.assertIn("幸运 5 → 0", out)
+        self.assertIn("见底", out)
+        self.assertEqual(self.cards[PLAYER_ID]["luck"], 0)
+
+    def test_cap_99(self):
+        self.install({PLAYER_ID: _coc_card(luck=90)})
+        out = self.invoke(".幸运 +50", user_id=PLAYER_ID)
+        self.assertIn("幸运 90 → 99", out)
+        self.assertIn("上限 99", out)
+        self.assertEqual(self.cards[PLAYER_ID]["luck"], 99)
+
+    def test_requires_sign(self):
+        self.install({PLAYER_ID: _coc_card(luck=45)})
+        out = self.invoke(".幸运 10", user_id=PLAYER_ID)
+        self.assertIn("请带上正负号", out)
+        self.assertEqual(self.cards[PLAYER_ID]["luck"], 45)
+
+    def test_missing_value(self):
+        self.install({PLAYER_ID: _coc_card(luck=45)})
+        self.assertIn("格式", self.invoke(".幸运", user_id=PLAYER_ID))
+
+    def test_dnd_card_refused(self):
+        self.install({PLAYER_ID: _dnd_card()})
+        out = self.invoke(".幸运 -5", user_id=PLAYER_ID, rule="dnd5e")
+        self.assertIn("COC 7th", out)
+
+    def test_other_target_needs_dm(self):
+        self.install({PLAYER_ID: _coc_card(luck=45), DM_ID: _coc_card(luck=45)})
+        out = self.invoke(f".幸运 -5 @{DM_ID}", user_id=PLAYER_ID)
+        self.assertIn("只有 DM", out)
+        self.assertEqual(self.cards[DM_ID]["luck"], 45)
+
+    def test_dm_can_target_others(self):
+        self.install({PLAYER_ID: _coc_card(luck=45), DM_ID: _coc_card(luck=45)})
+        out = self.invoke(f".幸运 +5 @{PLAYER_ID}", user_id=DM_ID, roles={DM_ID: "dm"})
+        self.assertIn("幸运 45 → 50", out)
+        self.assertEqual(self.cards[PLAYER_ID]["luck"], 50)
