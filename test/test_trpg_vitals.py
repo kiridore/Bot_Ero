@@ -97,7 +97,18 @@ class TestParsing(unittest.TestCase):
         with patch("plugins.trpg_vitals.random.randint", return_value=4):
             self.assertEqual(roll_expression("1d6"), (4, "d6=4"))
         with patch("plugins.trpg_vitals.random.randint", return_value=3):
-            self.assertEqual(roll_expression("2d6+1"), (7, "2d6=7"))
+            self.assertEqual(roll_expression("2d6+1"), (7, "2d6+1=7（3+3+1）"))
+
+    def test_modifier_shown_in_detail(self):
+        with patch("plugins.trpg_vitals.random.randint", return_value=3):
+            self.assertEqual(roll_expression("1d4+1"), (4, "d4+1=4（3+1）"))
+
+    def test_negative_total_clamped_to_zero(self):
+        # 1d4-2 掷出 1 时是 0，不能变成 -1（减去负数会回血、也会把今日累计带成负数）
+        with patch("plugins.trpg_vitals.random.randint", return_value=1):
+            self.assertEqual(roll_expression("1d4-2"), (0, "d4-2=-1→0（1-2）"))
+        with patch("plugins.trpg_vitals.random.randint", return_value=2):
+            self.assertEqual(roll_expression("1d4-2"), (0, "d4-2=0（2-2）"))
 
     def test_roll_rejects_bad_expression(self):
         with self.assertRaises(ValueError):
@@ -304,3 +315,34 @@ class TestWriteFailureMessage(VitalsBase):
             out = self.invoke(".hp -1", user_id=DM_ID)
         self.assertIn("角色卡写入失败", out)
         self.assertIn("Permission denied", out)
+
+
+class TestExpressionEdgeCases(VitalsBase):
+    """负合计不能反过来加血，也不能把今日累计损失带成负数。"""
+
+    rule = "coc7th"
+
+    def test_san_negative_total_does_not_heal(self):
+        self.install({PLAYER_ID: _coc_card(current_san=50)})
+        out = self.invoke(".san -1d4-2", user_id=PLAYER_ID, rolls=[1])
+        self.assertIn("SAN 50 → 50", out)
+        self.assertIn("d4-2=-1→0", out)
+        self.assertEqual(self.cards[PLAYER_ID]["current_san"], 50)
+
+    def test_san_positive_negative_total_does_not_hurt(self):
+        self.install({PLAYER_ID: _coc_card(current_san=50)})
+        out = self.invoke(".san +1d4-3", user_id=PLAYER_ID, rolls=[1])
+        self.assertIn("SAN 50 → 50", out)
+        self.assertEqual(self.cards[PLAYER_ID]["current_san"], 50)
+
+    def test_san_check_loss_never_negative(self):
+        self.install({PLAYER_ID: _coc_card(current_san=50)})
+        out = self.invoke(".sc 0/1d4-2", user_id=PLAYER_ID, roll=99, rolls=[99, 1])
+        self.assertIn("SAN 50 → 50", out)
+        self.assertIn("今日累计损失 0", out)
+
+    def test_san_check_modifier_applied(self):
+        self.install({PLAYER_ID: _coc_card(current_san=50)})
+        out = self.invoke(".sc 1/1d4+1", user_id=PLAYER_ID, rolls=[99, 3])
+        self.assertIn("SAN 50 → 46", out)
+        self.assertIn("d4+1=4（3+1）", out)

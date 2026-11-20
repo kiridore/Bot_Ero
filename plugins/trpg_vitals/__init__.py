@@ -29,7 +29,12 @@ MAX_SIDES = 1000
 
 
 def roll_expression(expr: str):
-    """掷 `3` / `1d6` / `2d6+2`；返回 (数值, 明细)。"""
+    """掷 `3` / `1d6` / `2d6+2`；返回 (数值, 明细)。
+
+    数值是「损失/变动量」，夹在 0 以上：`1d4-2` 掷出 1 时是 0 而不是 -1，
+    否则减去负数会变成回血（也把今日累计损失带成负数）。
+    带修饰时明细写成 `d4+1=4（3+1）`，让「+1 有没有算上」一眼可查。
+    """
     raw = (expr or "").strip()
     if raw.isdigit():
         return int(raw), raw
@@ -44,8 +49,14 @@ def roll_expression(expr: str):
     values = [random.randint(1, sides) for _ in range(count)]
     total = sum(values) + modifier
     label = f"{count}d{sides}" if count > 1 else f"d{sides}"
-    detail = f"{label}={total}"
-    return total, detail
+    applied = max(total, 0)
+    if modifier:
+        composed = "+".join(str(value) for value in values) + f"{modifier:+d}"
+        shown = f"{total}→0" if applied != total else str(applied)
+        detail = f"{label}{modifier:+d}={shown}（{composed}）"
+    else:
+        detail = f"{label}={applied}"
+    return applied, detail
 
 
 @register_plugin
