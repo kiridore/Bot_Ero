@@ -4,6 +4,12 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [2.3.0]
+
+- **新增 App 内更新清单接口 `GET /api/app/version`**（需登录，与其他 API 一致）：向 Flutter 客户端下发 `version`、`version_code`、APK 直链 `apk_url`、`sha256`、`size`、`notes`、强制更新阈值 `min_supported_version_code` 与 `published_at`。客户端据 `version_code` 比较、校验 SHA-256 后拉起安装器；`version_code < min_supported_version_code` 时强制更新。
+- **清单由 `config.yaml` 新增的 `app_update` 段驱动**（可选段，缺段不影响启动）：APK 托管在外部对象存储，服务端只下发清单、不托管/代理二进制。**没有配置（缺段或 `apk_url` 为空）时接口返回 404**，客户端静默跳过；配置写错时返回 500 且 `detail` 直接指出哪个字段不合法。
+- **新增发布文档 [`docs/app-release.md`](docs/app-release.md)**：每次发版的七步 checklist（bump `app/pubspec.yaml`、构建 APK、上传对象存储、算 SHA-256、更新清单、重启 webapp、手机验证）与「每次发布新版本都要更新清单」提醒；同时写明 **keystore 不可更换**（换签名后用户无法覆盖升级）。
+
 ## [2.2.0]
 
 - **时间线打卡事件新增 `checkin_state` 标记**：每条打卡事件现在都会带上作者对该类打卡的显示设置（`show` 公开 / `blur` 图片模糊 / `text` 仅文字 / `hidden` 仅自己可见），**作者本人和其他查看者拿到的值完全一致**——以前只有非作者能从图片被模糊/清空间接看出设置，作者自己反而看不到「我设置了仅自己可见」的标记。字段出现在 `/api/timeline` 与 `/api/timeline/new`，客户端可据此渲染隐私角标；非打卡事件不带此字段。

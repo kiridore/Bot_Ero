@@ -191,6 +191,12 @@ curl -H "Authorization: Bearer <图库密钥>" https://littlero.tech/openapi.jso
 | GET | `/api/donate/images` | 必须 | 赞赏码图片名列表 |
 | GET | `/donate/media/{filename}` | 必须 | 赞赏码图片（二进制） |
 
+### App 更新（`appversion`）
+
+| 方法 | 路径 | 认证 | 说明 |
+|---|---|---|---|
+| GET | `/api/app/version` | 必须 | App 内更新清单：`{version, version_code, apk_url, sha256, size, notes, min_supported_version_code, published_at}`。`version_code` 为单调递增整数（客户端据此比较）；`version_code < min_supported_version_code` 时客户端强制更新；`sha256` 为 64 位小写 hex。APK 托管在外部对象存储，`apk_url` 是外部直链，本服务不托管、不代理二进制。**未配置**（`config.yaml` 无 `app_update` 段或 `apk_url` 为空）返回 **404**，客户端静默跳过；配置非法返回 500 且 `detail` 指明字段。发布流程见 `docs/app-release.md` |
+
 ## 客户端接入清单（Flutter）
 
 1. 登录页：用户粘贴图库密钥 → `POST /api/auth/login` → 持久化 token（secure storage）。

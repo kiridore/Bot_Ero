@@ -78,6 +78,17 @@ panel:
   host: "0.0.0.0"    # bot 内置监控面板（局域网访问；仅本机改 127.0.0.1）
   port: 8790
 
+# App 内更新清单（GET /api/app/version；发布流程见 docs/app-release.md）
+app_update:
+  version: "0.19.0"              # 展示用语义化版本（必须加引号，避免 YAML 数字解析）
+  version_code: 37               # 客户端比较用的单调递增整数（= app/pubspec.yaml 的 buildNumber）
+  apk_url: ""                    # 外部对象存储直链（http(s)）；留空 = 未启用应用内更新（接口 404）
+  sha256: ""                     # APK 的 SHA-256（64 位十六进制；发布时必填，客户端下载后校验）
+  size: 0                        # APK 字节数
+  notes: ""                      # 更新说明纯文本，支持换行
+  min_supported_version_code: 0  # 低于此版本码的客户端强制更新（0 = 不强制）
+  published_at: ""               # 发布时间 YYYY-MM-DD HH:MM:SS
+
 community:                 # 仅 edition: community 生效（见 docs/community/community-edition-plan.md）
   max_groups: 50               # 最大激活群数（入群审核超限直接拒绝）
   cmd_cooldown_seconds: 3      # 同用户同指令冷却秒数（0=关闭；私有形态缺省 0）
