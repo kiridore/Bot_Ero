@@ -846,3 +846,24 @@
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+
+/* 页面内提示条（建卡页 / 年龄调整的操作反馈） */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.6rem;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(90vw, 32rem);
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  color: var(--paper);
+  font-size: 0.84rem;
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+  pointer-events: none;
+}
+
+.toast.error { background: color-mix(in srgb, var(--red) 88%, transparent); }
+.toast[hidden] { display: none; }

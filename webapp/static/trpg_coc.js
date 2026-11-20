@@ -169,6 +169,16 @@ function skillBaseOrZero(name) {
 function escapeHtml(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+function showToast(msg, isError = false) {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.className = isError ? "toast error" : "toast";
+  toast.hidden = false;
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => { toast.hidden = true; }, 2800);
+}
+
 function attr(name) {
   const el = document.querySelector(`[data-attr="${name}"]`);
   return el ? Number(el.value || 0) : 0;
@@ -1401,7 +1411,9 @@ async function save() {
       // 点数超预算的卡照样能存，但不能设为当前角色去跑团
       alert(`卡已保存，但还不能设为当前角色：\n· ${data.illegal.join("\n· ")}\n\n请调整职业点/兴趣点后重新保存。`);
     }
-    window.location.href = "/trpg";
+    // 留在编辑页：新建时把卡号写进地址栏，年龄调整立刻可用，不用再回列表点「编辑」
+    const savedId = data.id || CHAR_ID;
+    window.location.href = savedId ? `/trpg/coc/${savedId}?saved=1` : "/trpg";
   } catch (err) {
     alert(err.message || "保存失败");
   }
@@ -1435,6 +1447,11 @@ async function init() {
     // 旧卡的信用评级只存在资产区字段：铺进技能行后再同步一次（不写库，保存时由服务端归一化）
     seedCreditFromAsset();
     fillCreditFloor(currentOccupation());
+    if (new URLSearchParams(location.search).get("saved") === "1") {
+      // 刚保存回来：地址栏去掉参数，避免刷新时重复提示
+      history.replaceState({}, "", location.pathname);
+      showToast(card.age_adjust ? "已保存" : "已保存，现在可以应用年龄调整");
+    }
   } catch (err) {
     main.innerHTML = `<p class="loading-msg error">${escapeHtml(err.message || "加载失败")}</p>`;
   }
