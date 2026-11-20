@@ -1,7 +1,7 @@
 # trpg-madness Specification
 
 ## Purpose
-TBD - created by archiving change 2026-11-14-temporary-insanity. Update Purpose after archive.
+定义 COC 7th 临时性疯狂（疯狂发作）的掷表能力：`.ti` 手动触发时给出表Ⅶ即时症状、症状持续轮数与临时疯狂时长，抽到恐惧/狂躁时再骰表Ⅸ/表Ⅹ并写入角色卡背景，供守秘人现挂。该能力只负责描述症状与记录，不自动判定理智损失后续链路、也不修改 SAN。
 
 ## Requirements
 
