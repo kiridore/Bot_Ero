@@ -38,10 +38,46 @@ def _parse_penalty_count(matched) -> int:
     return count
 
 
+BONUS_SUFFIX_RE = re.compile(r"^(.*?)\s*([+-])(\d+)$")
+
+
+def _split_bonus(text: str):
+    """把「侦察+10」「力量 -20」「60+5」拆成 (名字, 加值)；没有加值时加值为 0。
+
+    只认整数加值（不带骰子），名字部分不能为空。
+    """
+    raw = (text or "").strip()
+    matched = BONUS_SUFFIX_RE.match(raw)
+    if not matched:
+        return raw, 0
+    name = matched.group(1).strip()
+    if not name:
+        return raw, 0
+    amount = int(matched.group(3))
+    return name, (-amount if matched.group(2) == "-" else amount)
+
+
+def _value_label(base: int, bonus: int) -> str:
+    """回执里的目标值：有加值时写成 `35+10=45`。"""
+    return f"{base}{bonus:+d}={base + bonus}" if bonus else str(base)
+
+
 def _skill_value(expr: str) -> int | None:
-    """`.r c70` / `.rh c70` 的 COC 技能值；不是该形式返回 None。"""
-    matched = re.fullmatch(r"c(\d+)", (expr or "").strip(), re.IGNORECASE)
-    return int(matched.group(1)) if matched else None
+    """`.r c70` / `.rh c70` 的 COC 技能基础值；不是该形式返回 None。"""
+    spec = _skill_spec(expr)
+    return spec[0] if spec else None
+
+
+def _skill_spec(expr: str):
+    """`.r c70+10` / `.rh c70-5` → (基础值, 加值)；不是该形式返回 None。"""
+    matched = re.fullmatch(r"c(\d+)(?:([+-])(\d+))?", (expr or "").strip(), re.IGNORECASE)
+    if not matched:
+        return None
+    base = int(matched.group(1))
+    bonus = int(matched.group(3) or 0)
+    if matched.group(2) == "-":
+        bonus = -bonus
+    return base, bonus
 
 
 @register_plugin
@@ -117,37 +153,41 @@ class TrpgPlugin(Plugin):
         """.ra <技能值|技能名|属性名> — COC 7th 百分骰检定"""
         if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
             return
-        text_arg = arg.strip()
+        text_arg, bonus = _split_bonus(arg)
         char = None
         label = "技能"
         is_skill = True
+        base = 0
         if text_arg.isdigit():
-            value = int(text_arg)
+            base = int(text_arg)
         else:
             # 技能名/属性名从当前 COC 角色卡取值
             user_id = self.bot_event.user_id
             char = store.get_current(user_id) if user_id is not None else None
             if not char or (char.get("rules") or "dnd5e") != "coc7th":
-                raise ValueError("格式：.ra <技能值/技能名/属性名> — 例：.ra 70 / .ra 侦查 / .ra 力量（需要 COC 角色卡）")
-            value = coc_sheet.skill_value(char, text_arg)
+                raise ValueError("格式：.ra <技能值/技能名/属性名> [+N/-N] — 例：.ra 70 / .ra 侦查 / .ra 力量+3（需要 COC 角色卡）")
+            base = coc_sheet.skill_value(char, text_arg)
             attr = coc_sheet.attribute_value(char, text_arg)
             is_credit = bool(attr and attr[0] == coc_sheet.CREDIT_SKILL)
-            if value and is_credit:
+            if base and is_credit:
                 # 信用评级的值来自资产区，按「信用评级」标注，也不打成长标记
                 label = coc_sheet.CREDIT_SKILL
                 is_skill = False
-            elif value:
+            elif base:
                 pass                      # 技能成功率 > 0 才算命中
             else:
                 found = coc_sheet.attribute_value(char, text_arg)
                 if found is None:
                     raise ValueError(f"角色卡里没有技能或属性「{text_arg}」")
-                label, value = found
+                label, base = found
                 is_skill = False          # 属性没有成长标记
-                if value <= 0:
-                    raise ValueError(f"「{label}」的数值是 {value}，无法检定（目标值需要 1 以上）")
+        value = base + bonus
+        if value <= 0:
+            detail_value = _value_label(base, bonus) if bonus else str(base)
+            raise ValueError(f"「{text_arg or label}」的目标值是 {detail_value}，无法检定（需要 1 以上）")
+        value_text = _value_label(base, bonus)
         roll, grade = coc_check(value)
-        text_out = f"{nickname}的COC检定 D100={roll} [{label}={value}] → {grade}"
+        text_out = f"{nickname}的COC检定 D100={roll} [{label}={value_text}] → {grade}"
         if is_skill and char is not None and grade not in ("失败", "大失败"):
             # 成功使用技能 → 打成长标记（数值检定不涉及角色卡）
             if growth.mark(char, text_arg):
@@ -196,12 +236,17 @@ class TrpgPlugin(Plugin):
 
     def _handle_coc_expr(self, expr: str, nickname: str, reason: str = "") -> bool:
         """处理 COC 专用表达式；不是 COC 形式返回 False。"""
-        skill = _skill_value(expr)
-        if skill is not None:
+        spec = _skill_spec(expr)
+        if spec is not None:
             if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
                 return True
+            base, bonus = spec
+            skill = base + bonus
+            if skill <= 0:
+                raise ValueError(f"「c{base}{bonus:+d}」的目标值是 {skill}，无法检定（需要 1 以上）")
             roll, grade = coc_check(skill)
-            self._send_with_record(f"{nickname}的COC检定 D100={roll} [技能={skill}] → {grade}")
+            self._send_with_record(
+                f"{nickname}的COC检定 D100={roll} [技能={_value_label(base, bonus)}] → {grade}")
             return True
 
         bonus = BONUS_RE.match(expr)
@@ -327,14 +372,17 @@ class TrpgPlugin(Plugin):
         if not expr:
             value, detail = parse("")
             expr_label = "D100"
-        elif _skill_value(expr) is not None:
+        elif _skill_spec(expr) is not None:
             if not self._require_rule("coc7th", "COC 检定请先由 DM 发送 /跑团 规则 coc7th"):
                 return
-            skill = _skill_value(expr)
+            base, bonus = _skill_spec(expr)
+            skill = base + bonus
+            if skill <= 0:
+                raise ValueError(f"「c{base}{bonus:+d}」的目标值是 {skill}，无法检定（需要 1 以上）")
             roll, grade = coc_check(skill)
             value = roll
             expr_label = "COC检定"
-            detail = f"D100={roll} [技能={skill}] → {grade}"
+            detail = f"D100={roll} [技能={_value_label(base, bonus)}] → {grade}"
         else:
             resolved, expr_label = self._resolve_character_expr(expr)
             if resolved is None:

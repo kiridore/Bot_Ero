@@ -4,6 +4,11 @@
 
 **维护约定**：每次用户可见变更 MUST 同 commit 新增版本节并 bump `BOTERO_VERSION`（新功能 minor / 修复 patch）；CHANGELOG 顶部 `[x.y.z]` 节必须与 `BOTERO_VERSION` 一致。纯文档/测试/内部重构可只记变更不 bump。
 
+## [2.4.0]
+
+- **`.ra` 支持加值了**：`.ra 力量+3`、`.ra 侦察+10`、`.ra 60-5` 都按「卡上数值 + 加值」检定，回执会写出构成 `[技能=35+10=45]`；加值只影响这一次，不写卡，成长标记仍打在原来的技能上。低于 1 会直接拒绝。
+- 同一套解析也覆盖 `.r c60+10` 与暗骰 `.rh c60+10`。DND 的 `.rc` 一直就支持表达式（`.rc 力量+3`、`.rc 力量+1d4`），这次把 COC 的口径对齐了。只认整数加值，不支持 `.ra 侦察+1d6`。
+
 ## [2.3.0]
 
 - **新增 App 内更新清单接口 `GET /api/app/version`**（需登录，与其他 API 一致）：向 Flutter 客户端下发 `version`、`version_code`、APK 直链 `apk_url`、`sha256`、`size`、`notes`、强制更新阈值 `min_supported_version_code` 与 `published_at`。客户端据 `version_code` 比较、校验 SHA-256 后拉起安装器；`version_code < min_supported_version_code` 时强制更新。

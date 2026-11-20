@@ -365,3 +365,80 @@ class TestCocRules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestCocCheckBonus(unittest.TestCase):
+    """COC 检定可以在名字/数值后加整数加值：`.ra 力量+3`、`.ra 侦察-10`、`.r c60+10`。"""
+
+    def _plugin(self, msg):
+        ctx = make_group_message(msg)
+        plugin = TrpgPlugin(ctx)
+        plugin.api = MockApiWrapper(ctx)
+        return plugin
+
+    def _card(self, **over):
+        card = {"rules": "coc7th", "id": 3, "user_id": "10000",
+                "str_score": 60, "con_score": 55, "siz_score": 45, "dex_score": 55,
+                "app_score": 60, "int_score": 85, "pow_score": 65, "edu_score": 45,
+                "luck": 50, "skills": {"侦察": {"base": 25, "occupation": 10}}}
+        card.update(over)
+        return card
+
+    def _run(self, msg, card):
+        plugin = self._plugin(msg)
+        with patch("plugins.trpg_dice.party.current_rule", return_value="coc7th"), \
+                patch("plugins.trpg_dice.store.get_current", return_value=card), \
+                patch("plugins.trpg_dice.store.update_char"), \
+                patch("plugins.trpg_dice.rolls.random.randint", return_value=42):
+            plugin.handle()
+        return _sent_text(plugin)
+
+    def test_attribute_bonus(self):
+        out = self._run(".ra 力量+3", self._card())
+        self.assertIn("[力量=60+3=63]", out)
+
+    def test_attribute_penalty(self):
+        out = self._run(".ra 力量-20", self._card())
+        self.assertIn("[力量=60-20=40]", out)
+
+    def test_skill_bonus(self):
+        out = self._run(".ra 侦察+10", self._card())
+        self.assertIn("[技能=35+10=45]", out)
+
+    def test_skill_bonus_with_space(self):
+        out = self._run(".ra 侦察 -10", self._card())
+        self.assertIn("[技能=35-10=25]", out)
+
+    def test_number_bonus(self):
+        out = self._run(".ra 60+3", self._card())
+        self.assertIn("[技能=60+3=63]", out)
+
+    def test_bonus_keeps_growth_mark_on_skill(self):
+        card = self._card()
+        out = self._run(".ra 侦察+10", card)
+        self.assertIn("已标记技能成长", out)
+        self.assertTrue(card["skills"]["侦察"]["check"])
+
+    def test_attribute_bonus_has_no_growth_mark(self):
+        card = self._card()
+        out = self._run(".ra 力量+3", card)
+        self.assertNotIn("已标记技能成长", out)
+        self.assertFalse(card["skills"]["侦察"].get("check"))
+
+    def test_bonus_cannot_drop_below_one(self):
+        out = self._run(".ra 侦察-40", self._card())
+        self.assertIn("无法检定", out)
+        self.assertIn("35-40=-5", out)
+
+    def test_roll_shorthand_with_bonus(self):
+        out = self._run(".r c60+10", self._card())
+        self.assertIn("[技能=60+10=70]", out)
+
+    def test_dark_roll_shorthand_with_bonus(self):
+        out = self._run(".rh c60+10", self._card())
+        self.assertIn("[技能=60+10=70]", out)
+
+    def test_plain_forms_unchanged(self):
+        self.assertIn("[力量=60]", self._run(".ra 力量", self._card()))
+        self.assertIn("[技能=35]", self._run(".ra 侦察", self._card()))
+        self.assertIn("[技能=60]", self._run(".r c60", self._card()))
