@@ -442,6 +442,9 @@ server_data/trpg_records/<群号>/<YYYY-MM-DD_HH-MM-SS>/
     （前端渲染「图片仅作者可见」角注）；作者本人始终原图。
   - **旧键迁移**：旧布尔键 `private_checkin_public`（False→私聊=hidden）/ `checkin_image_public`
     （False→两类=blur）在首次读取时懒迁移回写并删除，此后旧键被完全忽略。
+  - **状态标记**：`/api/timeline` 与 `/api/timeline/new` 的每条打卡事件另带与查看者无关的
+    `checkin_state`（`show|blur|text|hidden`，作者设置原值）；hidden 事件仍只对作者下发。
+    该字段是作者设置的权威值，`self_only`/`images_hidden`/`?blur=1` 则是查看者相关的展示变换结果。
 - **实现约束**：过滤在 Python 侧（作者设置存 JSON 文件，无法下推 SQL）；态按事件粒度判定
   （类型 = data.private ? private : group，同作者两类可各自独立）；`feed` 逐页补取直到填满 limit
   或取尽（连续隐藏事件带的补页上限 5 页）；`new` 的 `next_after` 取自含隐藏行的已消费批次

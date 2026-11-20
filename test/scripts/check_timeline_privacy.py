@@ -2,7 +2,8 @@
 打卡图片按作者设置对他人高斯模糊（blur=1 URL 改写 + /thumb?blur=1 端点）、
 feed/poll/new 三端点同口径过滤、含隐藏事件的 keyset 分页推进；
 四态化（show/blur/text/hidden 按打卡类型）：text 剥图 + images_hidden、
-blur/hidden 按事件类型独立生效、群聊 hidden 三端点过滤 + 作者自见。
+blur/hidden 按事件类型独立生效、群聊 hidden 三端点过滤 + 作者自见；
+checkin_state 为与查看者无关的作者设置原值（作者/非作者同事件取值一致，非打卡事件无键）。
 
 独立进程运行: python test/scripts/check_timeline_privacy.py（pytest 由 test/test_webapp_api_suites.py 子进程纳入统一回归）
 """
@@ -67,14 +68,14 @@ def check(name, ok, extra=""):
         fail += 1
 
 
-def insert_event(eid, actor_qq, received_at, data=None, dedup_key=None):
+def insert_event(eid, actor_qq, received_at, data=None, dedup_key=None, source="checkin"):
     """直接造数（确定 received_at；data 传 dict 自动序列化）。"""
     _conn.execute(
         "INSERT OR IGNORE INTO timeline_events"
         " (id, source, received_at, actor_id, actor_qq, target_type, target_url,"
         " title, description, data, dedup_key)"
-        " VALUES (?, 'checkin', ?, ?, ?, NULL, NULL, ?, NULL, ?, ?)",
-        (eid, received_at, actor_qq, actor_qq, "{id:%s} 完成打卡" % actor_qq,
+        " VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?, ?)",
+        (eid, source, received_at, actor_qq, actor_qq, "{id:%s} 完成打卡" % actor_qq,
          json.dumps(data, ensure_ascii=False) if data is not None else None, dedup_key),
     )
     _conn.commit()
@@ -258,6 +259,38 @@ check("text 态无图事件：C 可见且无 images_hidden 标记",
       "checkin:b-group3" in evss and "images_hidden" not in b_g3, str(b_g3)[:160])
 check("text 态无图事件：data 不被改写",
       (b_g3.get("data") or {}).get("images") == [], str(b_g3.get("data")))
+
+# —— 9. checkin_state：与查看者无关的作者设置原值 ——
+# 此刻设置：A 私聊 hidden / 群聊 blur（旧键迁移），B 两类均 text，C 全默认 show。
+evss_a = feed_ids(AH)
+evss_b = feed_ids(BH)
+evss_c = feed_ids(CH)
+check("show 态：作者与非作者 checkin_state 一致",
+      (evss_c.get("checkin:c-ev") or {}).get("checkin_state") == "show"
+      and (evss_a.get("checkin:c-ev") or {}).get("checkin_state") == "show"
+      and (evss_b.get("checkin:c-ev") or {}).get("checkin_state") == "show",
+      str({k: (evss_c.get(k) or {}).get("checkin_state") for k in ("checkin:c-ev",)}))
+check("blur 态：作者与非作者 checkin_state 一致",
+      (evss_a.get("checkin:a-group") or {}).get("checkin_state") == "blur"
+      and (evss_c.get("checkin:a-group") or {}).get("checkin_state") == "blur")
+check("text 态：作者与非作者 checkin_state 一致",
+      (evss_b.get("checkin:b-priv") or {}).get("checkin_state") == "text"
+      and (evss_c.get("checkin:b-priv") or {}).get("checkin_state") == "text")
+check("hidden 态：作者看到 hidden，非作者仍不下发",
+      (evss_a.get("checkin:a-priv") or {}).get("checkin_state") == "hidden"
+      and "checkin:a-priv" not in evss_c, str(sorted(evss_c)))
+
+# —— 10. 非打卡事件不含 checkin_state 键 + OpenAPI 显式声明 ——
+insert_event("forum:state-check", C, "2026-08-21 12:00:01",
+             data={"post_id": 1}, dedup_key="f-state", source="forum")
+forum_ev = feed_ids(CH).get("forum:state-check") or {}
+check("非打卡事件不含 checkin_state 键", "checkin_state" not in forum_ev, str(forum_ev)[:160])
+event_out = client.get("/openapi.json", headers=CH).json()["components"]["schemas"]["EventOut"]
+state_prop = event_out["properties"].get("checkin_state") or {}
+state_types = {opt.get("type") for opt in state_prop.get("anyOf", [])}
+check("OpenAPI EventOut 声明可空 checkin_state 且非必填",
+      {"string", "null"} <= state_types and "checkin_state" not in event_out.get("required", []),
+      str(state_prop))
 
 _conn.close()
 print()

@@ -48,10 +48,12 @@ def _visibility_ctx(entries) -> dict:
     """打卡事件四态可见性上下文：hidden（仅作者自见）/ blur（图 URL 改写）/ text（对非作者剥图）。
 
     事件粒度：类型 = data.private ? private : group，态取自作者 checkin_display()[类型]，
-    同作者两类可各自独立成态；每作者每页只读一次设置。"""
+    同作者两类可各自独立成态；每作者每页只读一次设置。states 为同一遍历产出的
+    事件 id → 作者设置原值，供与查看者无关的 checkin_state 使用。"""
     hidden: set[str] = set()
     blur_ids: set[str] = set()
     text_ids: set[str] = set()
+    states: dict[str, str] = {}
     actor_states: dict[str, dict[str, str]] = {}
     for eid, source, actor_key, data_raw in entries:
         if source != "checkin":
@@ -61,13 +63,14 @@ def _visibility_ctx(entries) -> dict:
         data = _loads(data_raw)
         is_private = isinstance(data, dict) and bool(data.get("private"))
         state = actor_states[actor_key]["private" if is_private else "group"]
+        states[eid] = state
         if state == "hidden":
             hidden.add(eid)
         elif state == "blur":
             blur_ids.add(eid)
         elif state == "text":
             text_ids.add(eid)
-    return {"hidden": hidden, "blur": blur_ids, "text": text_ids}
+    return {"hidden": hidden, "blur": blur_ids, "text": text_ids, "states": states}
 
 
 def _visible_entry(entry: tuple, viewer_id, vis: dict) -> bool:
@@ -154,7 +157,10 @@ class TargetOut(BaseModel):
 
 
 class EventOut(BaseModel):
-    """self_only/images_hidden 为条件键，由 extra="allow" 透传（无键 ≠ null）。"""
+    """self_only/images_hidden 为条件键，由 extra="allow" 透传（无键 ≠ null）。
+
+    checkin_state 显式声明以便生成客户端；非打卡事件无该键——路由用
+    response_model_exclude_unset 保持条件键语义（值总是作者设置原值，与查看者无关）。"""
 
     model_config = ConfigDict(extra="allow")
 
@@ -168,6 +174,7 @@ class EventOut(BaseModel):
     description: str | None = None
     data: Any = None
     unread: bool
+    checkin_state: str | None = None
 
 
 class UserOut(BaseModel):
@@ -317,6 +324,8 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
             ]}
         self_only = False
         images_hidden = False
+        # 与查看者无关：作者设置原值，viewer_id 为 None 时也照常输出
+        checkin_state = vis["states"].get(eid) if vis is not None and source == "checkin" else None
         if vis is not None and viewer_id is not None and source == "checkin":
             if eid in vis["hidden"] and actor_key == str(viewer_id):
                 self_only = True  # 被隐藏的打卡：作者自见
@@ -348,11 +357,12 @@ def _serialize_rows(rows: list[tuple], watermark: int, read_ids: set[str],
             "unread": seq > watermark and eid not in read_ids,
             **({"self_only": True} if self_only else {}),
             **({"images_hidden": True} if images_hidden else {}),
+            **({"checkin_state": checkin_state} if checkin_state else {}),
         })
     return events, users
 
 
-@router.get("/api/timeline", response_model=TimelineFeedOut)
+@router.get("/api/timeline", response_model=TimelineFeedOut, response_model_exclude_unset=True)
 def timeline_feed(
     user_id: Annotated[str, Depends(get_current_user_id)],
     cursor: str | None = Query(default=None),
@@ -420,7 +430,7 @@ def timeline_poll(
     return {"count": count}
 
 
-@router.get("/api/timeline/new", response_model=TimelineNewOut)
+@router.get("/api/timeline/new", response_model=TimelineNewOut, response_model_exclude_unset=True)
 def timeline_new(
     user_id: Annotated[str, Depends(get_current_user_id)],
     after: int | None = Query(default=None, ge=1),

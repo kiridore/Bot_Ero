@@ -110,6 +110,17 @@
 - Event Server **MUST NOT** 依赖此键做存储差异；展示层据此结合作者个人设置做可见性过滤（历史事件无标记，一律视为公开）。
 - 提供者：`plugins/checkin`（QQ 私聊 `/打卡`）与网页端打卡服务均写 `true`。
 
+## Constraint: 打卡显示状态（`checkin_state`）
+
+- `GET /api/timeline` 与 `GET /api/timeline/new` 返回的每条 `source=checkin` 事件 SHALL 带 `checkin_state`（string）：作者在该类打卡上的显示设置原值，取值 `show|blur|text|hidden`。类型判定与可见性约束一致（`data.private=true` → `privacy.checkin_display_private`，否则 `checkin_display_group`）。
+- **与查看者无关**：同一条被下发的事件，作者与其他查看者取到的值完全相同；非 `checkin` 事件 MUST NOT 带该键（无键 ≠ `null`）。OpenAPI 的 `EventOut` 显式声明该字段为可空字符串，客户端生成物可直接类型化。
+- 与既有展示信号的关系：
+  - `hidden`：事件对非作者不下发（作者自见时附 `self_only: true`），因此 `checkin_state: "hidden"` 实际只出现在作者自己的响应里。
+  - `blur`：非作者查看时图片 URL 追加 `?blur=1`。
+  - `text`：非作者查看时 `data.images` 置空并附 `images_hidden: true`。
+  - `self_only` / `images_hidden` / `?blur=1` 是**查看者相关的展示变换结果**；`checkin_state` 是**作者设置的权威原值**，二者共存。客户端据此渲染作者设置的隐私标记，不必从图片形态反推。
+- **隐私语义（所有者裁决）**：该字段会把作者的打卡显示设置暴露给所有**能查看该事件**的用户——原话「新增标记，并且这个标记不论本人还是其他人都能看到标记」。这是有意为之的语义变化；不改变谁能看到哪条事件。
+
 ## Constraint: 已注册 source 与 dedup_key 约定
 
 | source | 发送方 | 事件含义 | dedup_key 约定 |

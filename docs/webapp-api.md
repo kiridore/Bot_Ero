@@ -49,7 +49,7 @@ curl -H "Authorization: Bearer <图库密钥>" https://littlero.tech/openapi.jso
 
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| GET | `/api/timeline` | 必须 | 信息流（游标式）：`?cursor&page_size` → `{events, users, next_cursor}`；服务端已解析昵称/头像与 `{id:QQ}` 占位符；打卡事件按作者隐私设置做 hidden/blur/text 处理（`data.images` 改写/清空，附 `images_hidden`；本人可见附 `self_only`） |
+| GET | `/api/timeline` | 必须 | 信息流（游标式）：`?cursor&page_size` → `{events, users, next_cursor}`；服务端已解析昵称/头像与 `{id:QQ}` 占位符；打卡事件按作者隐私设置做 hidden/blur/text 处理（`data.images` 改写/清空，附 `images_hidden`；本人可见附 `self_only`），每条打卡事件另带与查看者无关的 `checkin_state`（`show|blur|text|hidden`，作者设置原值；非打卡事件无此键） |
 | GET | `/api/timeline/poll` | 必须 | 轻量轮询：`?after=<seq>` → `{count}`（比 after 新且未读的可见事件数） |
 | GET | `/api/timeline/new` | 必须 | 拉新：`?after&page_size` → `{events, users, next_after}`（最老一批在前转成新→旧；循环用 next_after） |
 | POST | `/api/timeline/read` | 必须 | 逐卡已读回执 body `{event_ids: [...]}` → `{ok, remaining}` |
