@@ -256,6 +256,19 @@ bot 的回复风格（由 `core/llm/prompts/chat_prompt.md` 定义）：
 
 ---
 
+## Constraint: 双端功能一致（Webapp 与客户端 App）
+
+用户可见功能 MUST 在 Web 端（`webapp/` + `webapp/static`、`core/web/static`）与客户端 App（`app/` 子模块，Flutter，独立 OpenSpec 根 `app/openspec/`）上同时存在且行为一致；不允许「先在 Web 做、App 之后再说」的长期缺口。
+
+- **单一事实来源在服务端**：可见性/隐私/状态这类业务判定 MUST 由服务端下发的字段或取值表达（如打卡的 `checkin_state`、图库下发哪些条目），客户端只做呈现；禁止某一端私自推断、兜底或按本地缓存改变业务可见性。
+- **业务不可见 ≠ 占位**：业务上的不可见 MUST 表现为「服务端不下发该条目」，客户端不得用占位块/占位图/灰卡表达业务可见性；占位只允许表达「图片暂时加载失败」这类非业务态，且不得让用户以为该内容存在。
+- **同一语义两端同名同值**：同一业务状态在两端用同一取值（`show|blur|text|hidden`）与同一文案口径（「图片仅作者可见」「作者已开启图片模糊」「仅自己可见」）。
+- **契约变更必须双端同批评估**：改 `webapp` 的 API/语义时 MUST 同时检查 `app/lib`（生成客户端 + 页面渲染），并在提交说明里给出 App 侧结论（已覆盖 / 需跟进 / 不适用附理由）；反之亦然。`app/openapi/openapi.json` 快照随 webapp API 变更刷新；客户端变更在 `app/openspec/` 独立提案，不混入主仓库变更目录。
+- **列表新鲜度**：列表类页面 MUST 在重新进入或从后台恢复时重新拉取，使服务端的可见性变更（如作者刚把打卡设为隐藏）在两端同时生效，不依赖重启进程。
+- **测试**：Web 侧改动带 `test/test_*.js` 运行时用例或 `test/scripts/check_*.py`；客户端改动在 `app/test/` 补对应 widget/unit 用例。
+
+---
+
 ## Constraint: 功能开发主流程
 
 **判据：要 bump `BOTERO_VERSION` 就要提案。** 用户可见变更（新功能/行为修改）MUST 先有 OpenSpec 提案再动代码；纯文档/测试/内部重构（不 bump 版本）免提案。`docs/archive/superpowers/` 与 `docs/superpowers/` 为历史产物，不再新增。
