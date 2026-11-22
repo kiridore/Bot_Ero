@@ -89,7 +89,8 @@ def api_checkins(
 ):
     """打卡图片墙：非作者按作者打卡显示设置取态（与时间线同口径）。
 
-    show 原图 / blur 只有模糊缩略图 / text·hidden 不下发；作者本人不受限。"""
+    每条记录都下发；图片位 show 原图 / blur 只有模糊缩略图 / text·hidden 为空串
+    （客户端画占位，作者本人不受限）。"""
     states: dict[str, dict[str, str]] = {}
 
     def state_of(item: CheckinImage) -> str:
@@ -98,16 +99,12 @@ def api_checkins(
             states[item.user_id] = checkin_display(item.user_id)
         return states[item.user_id]["private" if item.is_private else "group"]
 
-    def keep(item: CheckinImage) -> bool:
-        return item.user_id == viewer_id or state_of(item) in ("show", "blur")
-
     items, total, has_more = fetch_checkins_paginated(
         user_id=user_id,
         year=year,
         page=page,
         page_size=page_size,
         only_with_file=only_with_file,
-        keep=keep,
     )
     name_cache: dict[str, str] = {}
     out: list[CheckinItemOut] = []
@@ -116,9 +113,14 @@ def api_checkins(
             name_cache[item.user_id] = resolve_display_name(item.user_id)
         thumb_url = _thumb_url(item.user_id, item.content)
         media_url = _media_url(item.user_id, item.content)
-        if item.user_id != viewer_id and state_of(item) == "blur":
-            # 模糊态不给出任何原图路径，点开大图与网格都是模糊缩略图
-            media_url = thumb_url = thumb_url + "?blur=1"
+        if item.user_id != viewer_id:
+            state = state_of(item)
+            if state == "blur":
+                # 模糊态不给出任何原图路径，点开大图与网格都是模糊缩略图
+                media_url = thumb_url = thumb_url + "?blur=1"
+            elif state in ("text", "hidden"):
+                # 图片不可见：条目照常下发（卡片仍在），图片位交给客户端画占位
+                thumb_url = media_url = ""
         out.append(
             CheckinItemOut(
                 id=item.id,

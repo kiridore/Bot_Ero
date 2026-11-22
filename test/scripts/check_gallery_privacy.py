@@ -120,6 +120,13 @@ def by_content(payload: dict, name: str):
     )
 
 
+def by_date(payload: dict, day: str):
+    return next(
+        (i for i in payload.get("items", []) if str(i["checkin_date"]).startswith(day)),
+        None,
+    )
+
+
 # ============ 1. show（缺省）：非作者与改动前完全一致 ============
 payload = items_of(VIEWER, user_id=AUTHOR)
 group = by_content(payload, "/a_group.png")
@@ -161,19 +168,27 @@ check("blur: 作者本人仍是原图",
       and author_group["image_url"] == f"/media/{AUTHOR}/a_group.png",
       str(author_group and (author_group["thumbnail_url"], author_group["image_url"])))
 
-# ============ 3. text / hidden：非作者不下发，作者照常可见 ============
+# ============ 3. text / hidden：卡片照出，图片位为空串 ============
 for state in ("text", "hidden"):
     display(state, "show")
     payload = items_of(VIEWER, user_id=AUTHOR)
-    seen = by_content(payload, "/a_private.png")
-    check(f"{state}: 非作者看不到该条目", seen is None)
-    check(f"{state}: 非作者 total 只算可见项",
-          payload.get("total") == 1 and len(payload.get("items", [])) == 1
-          and payload.get("has_more") is False,
-          f'total={payload.get("total")} items={len(payload.get("items", []))} '
-          f'has_more={payload.get("has_more")}')
+    private = by_date(payload, "2026-09-02")
+    check(f"{state}: 非作者仍看到卡片", private is not None)
+    check(f"{state}: 图片位两支 URL 为空串",
+          private is not None and private["thumbnail_url"] == "" and private["image_url"] == "",
+          str(private and (private["thumbnail_url"], private["image_url"])))
+    check(f"{state}: has_file 仍按磁盘文件为 true",
+          private is not None and private["has_file"] is True,
+          str(private and private["has_file"]))
+    check(f"{state}: 卡片信息（昵称/日期）照常下发",
+          private is not None and private["display_name"] != ""
+          and private["checkin_date"].startswith("2026-09-02"),
+          str(private and (private["display_name"], private["checkin_date"])))
+    check(f"{state}: total 不扣除占位卡",
+          payload.get("total") == 2 and len(payload.get("items", [])) == 2,
+          f'total={payload.get("total")} items={len(payload.get("items", []))}')
     author_payload = items_of(AUTHOR, user_id=AUTHOR)
-    check(f"{state}: 作者本人仍看到该条目",
+    check(f"{state}: 作者本人仍是原图",
           by_content(author_payload, "/a_private.png") is not None
           and author_payload.get("total") == 2,
           f'total={author_payload.get("total")}')
@@ -202,20 +217,20 @@ check("分流: 对调后群聊模糊",
       group is not None and group["image_url"] == f"/thumb/{AUTHOR}/a_group.png?blur=1",
       str(group and group["image_url"]))
 
-# ============ 5. total / 分页：过滤发生在切片前 ============
-display("text", "blur")  # A：群聊 blur 可见、私聊 text 不可见；OTHER 默认 show 可见
+# ============ 5. total / 分页：占位卡计入统计 ============
+display("text", "blur")  # A：群聊 blur（模糊）、私聊 text（占位）；OTHER 默认 show
 full = items_of(VIEWER)
-check("分页: 非作者 total 为可见总数", full.get("total") == 2, f'total={full.get("total")}')
-page1 = items_of(VIEWER, page=1, page_size=1)
-page2 = items_of(VIEWER, page=2, page_size=1)
-check("分页: 第一页 1 条且 has_more",
-      len(page1.get("items", [])) == 1 and page1.get("has_more") is True,
+check("分页: total 为全部记录数（含占位卡）", full.get("total") == 3, f'total={full.get("total")}')
+page1 = items_of(VIEWER, page=1, page_size=2)
+page2 = items_of(VIEWER, page=2, page_size=2)
+check("分页: 第一页 2 条且 has_more",
+      len(page1.get("items", [])) == 2 and page1.get("has_more") is True,
       f'items={len(page1.get("items", []))} has_more={page1.get("has_more")}')
 check("分页: 第二页 1 条且无更多",
       len(page2.get("items", [])) == 1 and page2.get("has_more") is False,
       f'items={len(page2.get("items", []))} has_more={page2.get("has_more")}')
-check("分页: 两页合计等于 total",
-      page1.get("total") == 2 and page2.get("total") == 2,
+check("分页: 每页 total 一致",
+      page1.get("total") == 3 and page2.get("total") == 3,
       f'{page1.get("total")}/{page2.get("total")}')
 
 # ============ 6. 媒体路由不变（Q1:A 已知边界：直链仍可取原图）============

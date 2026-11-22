@@ -101,17 +101,26 @@ function appendCard(item) {
   const card = document.createElement("article");
   card.className = "card";
   card.dataset.reveal = "";
-  const img = document.createElement("img");
-  img.loading = "lazy";
-  img.alt = `${userLabel(item)} 打卡`;
-  img.src = item.thumbnail_url || item.image_url;
-  img.dataset.fullSrc = item.image_url;
+  // 图片不可见（作者设为「仅打卡信息」或「隐藏」）：条目照常下发，图片位为空串
+  const hasImage = Boolean(item.thumbnail_url || item.image_url);
+  if (hasImage) {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = `${userLabel(item)} 打卡`;
+    img.src = item.thumbnail_url || item.image_url;
+    img.dataset.fullSrc = item.image_url;
+    card.appendChild(img);
+  } else {
+    const placeholder = document.createElement("div");
+    placeholder.className = "card-placeholder";
+    placeholder.textContent = "图片仅作者可见";
+    card.appendChild(placeholder);
+  }
   const meta = document.createElement("div");
   meta.className = "meta";
   meta.innerHTML = `<strong>${escapeHtml(userLabel(item))}</strong><br>${formatTime(item.checkin_date)}`;
-  card.appendChild(img);
   card.appendChild(meta);
-  card.addEventListener("click", () => openLightbox(item, dayKey));
+  if (hasImage) card.addEventListener("click", () => openLightbox(item, dayKey));
   dayMasonry.appendChild(card);
 }
 

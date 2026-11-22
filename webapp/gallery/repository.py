@@ -1,7 +1,7 @@
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from webapp.gallery import config
 from webapp.gallery.config import REMEDY_MARKER
@@ -73,11 +73,8 @@ def fetch_checkins_paginated(
     page: int = 1,
     page_size: int = 40,
     only_with_file: bool = True,
-    keep: Optional[Callable[[CheckinImage], bool]] = None,
 ) -> tuple[list[CheckinImage], int, bool]:
-    """分页查询；仅含本地图片时通过游标式扫描满足 offset/limit。
-
-    keep 在分页切片前过滤，total/has_more 只统计保留项（不传=全部保留）。"""
+    """分页查询；仅含本地图片时通过游标式扫描满足 offset/limit。"""
     where, params = _build_where(user_id, year)
     sql = f"""
         SELECT id, user_id, checkin_date, content, is_private
@@ -99,8 +96,6 @@ def fetch_checkins_paginated(
             is_private=bool(row["is_private"]),
         )
         if only_with_file and item.image_path is None:
-            continue
-        if keep is not None and not keep(item):
             continue
         matched.append(item)
 

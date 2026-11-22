@@ -389,6 +389,18 @@ main {
   background: var(--tint);
 }
 
+/* 图片不可见（作者设为「仅打卡信息」/「隐藏」）：卡片保留、图片位占位，比例对齐 App 的 3:4 */
+.card-placeholder {
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tint);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  cursor: default;
+}
+
 .card .meta {
   padding: 0.5rem 0.65rem 0.65rem;
   font-size: 0.75rem;
