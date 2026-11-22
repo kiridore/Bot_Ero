@@ -456,7 +456,9 @@ server_data/trpg_records/<群号>/<YYYY-MM-DD_HH-MM-SS>/
   或取尽（连续隐藏事件带的补页上限 5 页）；`new` 的 `next_after` 取自含隐藏行的已消费批次
   （被过滤事件对查看者永不返回，直接跨过）；`poll` 经 `TimelineManager.rows_unread_after`
   轻量行后同样过滤计数（上限 1000，仅驱动 pill）；**blur/text 事件可见，不影响 poll/new 计数**。
-- **模糊图端点**：`GET /thumb/{user_id}/{filename}?blur=1` 返回该缩略图的高斯模糊版（`thumbnails.ensure_blurred`，独立 `blur-` 前缀缓存文件，不覆盖缩略图本身；模糊对象是缩略图而非原图）。图库页 `/gallery` 不受此设置影响。
+- **模糊图端点**：`GET /thumb/{user_id}/{filename}?blur=1` 返回该缩略图的高斯模糊版（`thumbnails.ensure_blurred`，独立 `blur-` 前缀缓存文件，不覆盖缩略图本身；模糊对象是缩略图而非原图）。
+- **图库口径（与时间线同一设置、同一判定函数）**：`GET /api/checkins` 的类型由 `checkin_records.is_private` 决定（1 = 私聊/网页打卡，0 = 群聊），状态取自 `checkin_display()` 对应值：作者本人全部记录可见且两支 URL 原样；非作者 `show` 为 `/thumb/…` + `/media/…`、`blur` 的 `thumbnail_url` 与 `image_url` **都是** `/thumb/…?blur=1`（不下发任何 `/media/` 路径）、`text`/`hidden` 条目不下发。过滤在分页切片前完成，`total`/`has_more` 只统计当前查看者可见项（不出现空页或页码错位）。
+- **媒体直链不强制（已知边界）**：`/thumb`、`/media` 只校验登录与路径是否落在 `IMAGE_ROOT` 内，不看查看者与作者设置——非作者若已持有或构造直链仍可取原图，与「时间线 `blur` 仅改写 URL」同一强度；将来收紧时收口点就是这对媒体路由。
 - 已知边界：对某查看者永久隐藏的未读事件不会产生已读回执，`/api/timeline/read` 的 `remaining` 可能不为 0、水印不推进——客户端 pill/翻页均以游标为准，不受影响。
 
 ## Constraint: 服务层模式

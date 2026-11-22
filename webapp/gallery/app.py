@@ -1,13 +1,16 @@
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from webapp.gallery import config
 from webapp.gallery.config import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from core.onebot_client import resolve_display_name
+from core.user_settings import checkin_display
+from core.web.auth_deps import get_current_user_id
 from webapp.gallery.repository import (
     CheckinImage,
     fetch_checkins_paginated,
@@ -77,32 +80,53 @@ def api_users():
 
 @router.get("/api/checkins", response_model=CheckinListOut)
 def api_checkins(
+    viewer_id: Annotated[str, Depends(get_current_user_id)],
     page: int = Query(1, ge=1),
     page_size: int = Query(PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
     user_id: str | None = None,
     year: int | None = Query(None, ge=2000, le=2100),
     only_with_file: bool = True,
 ):
+    """打卡图片墙：非作者按作者打卡显示设置取态（与时间线同口径）。
+
+    show 原图 / blur 只有模糊缩略图 / text·hidden 不下发；作者本人不受限。"""
+    states: dict[str, dict[str, str]] = {}
+
+    def state_of(item: CheckinImage) -> str:
+        """该记录在非作者视角下的显示态（每作者每次请求只读一次设置）。"""
+        if item.user_id not in states:
+            states[item.user_id] = checkin_display(item.user_id)
+        return states[item.user_id]["private" if item.is_private else "group"]
+
+    def keep(item: CheckinImage) -> bool:
+        return item.user_id == viewer_id or state_of(item) in ("show", "blur")
+
     items, total, has_more = fetch_checkins_paginated(
         user_id=user_id,
         year=year,
         page=page,
         page_size=page_size,
         only_with_file=only_with_file,
+        keep=keep,
     )
     name_cache: dict[str, str] = {}
     out: list[CheckinItemOut] = []
     for item in items:
         if item.user_id not in name_cache:
             name_cache[item.user_id] = resolve_display_name(item.user_id)
+        thumb_url = _thumb_url(item.user_id, item.content)
+        media_url = _media_url(item.user_id, item.content)
+        if item.user_id != viewer_id and state_of(item) == "blur":
+            # 模糊态不给出任何原图路径，点开大图与网格都是模糊缩略图
+            media_url = thumb_url = thumb_url + "?blur=1"
         out.append(
             CheckinItemOut(
                 id=item.id,
                 user_id=item.user_id,
                 display_name=name_cache[item.user_id],
                 checkin_date=item.checkin_date,
-                thumbnail_url=_thumb_url(item.user_id, item.content),
-                image_url=_media_url(item.user_id, item.content),
+                thumbnail_url=thumb_url,
+                image_url=media_url,
                 has_file=item.image_path is not None,
             )
         )

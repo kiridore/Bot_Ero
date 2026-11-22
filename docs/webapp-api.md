@@ -63,7 +63,7 @@ curl -H "Authorization: Bearer <图库密钥>" https://littlero.tech/openapi.jso
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
 | GET | `/api/users` | 必须 | 有打卡记录的用户列表（含昵称） |
-| GET | `/api/checkins` | 必须 | 打卡图片墙（偏移分页）；过滤 `user_id`/`year`/`only_with_file`；条目含 `thumbnail_url`/`image_url`（相对路径）与 `has_file` |
+| GET | `/api/checkins` | 必须 | 打卡图片墙（偏移分页）；过滤 `user_id`/`year`/`only_with_file`；条目含 `thumbnail_url`/`image_url`（相对路径）与 `has_file`。按查看者应用作者打卡显示设置：作者本人全部可见（原图）；非作者 `show` 原图、`blur` 两支 URL 均为 `/thumb/…?blur=1`、`text`/`hidden` 条目不下发，`total` 只统计可见项 |
 | GET | `/thumb/{user_id}/{filename}`、`/media/{user_id}/{filename}` | 必须 | 缩略图 / 原图（二进制） |
 
 ### 个人中心（`profile`）

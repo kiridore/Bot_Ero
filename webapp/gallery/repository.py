@@ -1,7 +1,7 @@
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from webapp.gallery import config
 from webapp.gallery.config import REMEDY_MARKER
@@ -14,6 +14,7 @@ class CheckinImage:
     checkin_date: str
     content: str
     image_path: Optional[Path]
+    is_private: bool = False  # 私聊/网页打卡=1；缺列或群聊=0
 
 
 def _normalize_image_name(content: str) -> str:
@@ -72,11 +73,14 @@ def fetch_checkins_paginated(
     page: int = 1,
     page_size: int = 40,
     only_with_file: bool = True,
+    keep: Optional[Callable[[CheckinImage], bool]] = None,
 ) -> tuple[list[CheckinImage], int, bool]:
-    """分页查询；仅含本地图片时通过游标式扫描满足 offset/limit。"""
+    """分页查询；仅含本地图片时通过游标式扫描满足 offset/limit。
+
+    keep 在分页切片前过滤，total/has_more 只统计保留项（不传=全部保留）。"""
     where, params = _build_where(user_id, year)
     sql = f"""
-        SELECT id, user_id, checkin_date, content
+        SELECT id, user_id, checkin_date, content, is_private
         FROM checkin_records
         WHERE {where}
         ORDER BY checkin_date DESC, id DESC
@@ -84,37 +88,21 @@ def fetch_checkins_paginated(
     with _connect() as conn:
         rows = conn.execute(sql, params).fetchall()
 
-    if not only_with_file:
-        total = len(rows)
-        start = (page - 1) * page_size
-        end = start + page_size
-        slice_rows = rows[start:end]
-        items = [
-            CheckinImage(
-                id=r["id"],
-                user_id=str(r["user_id"]),
-                checkin_date=r["checkin_date"],
-                content=r["content"],
-                image_path=resolve_image_path(r["user_id"], r["content"]),
-            )
-            for r in slice_rows
-        ]
-        return items, total, end < total
-
     matched: list[CheckinImage] = []
     for row in rows:
-        path = resolve_image_path(row["user_id"], row["content"])
-        if path is None:
-            continue
-        matched.append(
-            CheckinImage(
-                id=row["id"],
-                user_id=str(row["user_id"]),
-                checkin_date=row["checkin_date"],
-                content=row["content"],
-                image_path=path,
-            )
+        item = CheckinImage(
+            id=row["id"],
+            user_id=str(row["user_id"]),
+            checkin_date=row["checkin_date"],
+            content=row["content"],
+            image_path=resolve_image_path(row["user_id"], row["content"]),
+            is_private=bool(row["is_private"]),
         )
+        if only_with_file and item.image_path is None:
+            continue
+        if keep is not None and not keep(item):
+            continue
+        matched.append(item)
 
     total = len(matched)
     start = (page - 1) * page_size
